@@ -1,0 +1,223 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: gatus
+spec:
+  interval: 1h
+  maxHistory: 1
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+    namespace: flux-system
+  install:
+    timeout: 2m
+    remediation:
+      retries: 1
+  upgrade:
+    timeout: 2m
+    remediation:
+      retries: 1
+  values:
+    controllers:
+      gatus:
+        pod:
+          hostUsers: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile: { type: RuntimeDefault }
+        initContainers:
+          sidecar:
+            restartPolicy: Always
+            image:
+              repository: ghcr.io/home-operations/gatus-sidecar
+              tag: 0.0.12@sha256:83bf82d422e9b0529a8076cb584d557a12158d9d8a4c373b4d27afcb87a17569
+            args:
+              - --auto-httproute
+              - --enable-httproute
+              - --enable-service
+            resources:
+              requests:
+                cpu: 10m
+              limits:
+                memory: 64Mi
+            securityContext: &sec
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+        containers:
+          gatus:
+            image:
+              repository: ghcr.io/twin/gatus
+              tag: v5.33.0@sha256:bf249f4d7cf69e825457ade2ebc3d11168d73527ef1657a653119a0d9da97a4a
+            env:
+              GATUS_DELAY_START_SECONDS: 5
+              GATUS_CONFIG_PATH: /config
+              GATUS_WEB_PORT: &port 80
+              TZ: America/New_York
+              PG_URI:
+                secretKeyRef:
+                  name: gatus-db-app
+                  key: uri
+              CLIENT_ID:
+                secretKeyRef:
+                  name: gatus-oidc-credentials
+                  key: client_id
+              CLIENT_SECRET:
+                secretKeyRef:
+                  name: gatus-oidc-credentials
+                  key: client_secret
+              ISSUER_URL:
+                secretKeyRef:
+                  name: gatus-oidc-credentials
+                  key: issuer_url
+            probes:
+              readiness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: *port
+              liveness: *probes
+            resources:
+              requests:
+                cpu: 100m
+              limits:
+                memory: 256Mi
+    service:
+      gatus:
+        ports:
+          http:
+            port: *port
+    serviceMonitor:
+      gatus:
+        serviceName: gatus
+        endpoints:
+          - port: http
+    route:
+      gatus:
+        annotations:
+          gatus.home-operations.com/enabled: "false"
+        hostnames:
+          - ${APP_URL}
+        parentRefs:
+          - name: envoy-external
+            namespace: envoy-system
+    rbac:
+      roles:
+        gatus:
+          type: ClusterRole
+          rules:
+            - apiGroups:
+                - ""
+              resources:
+                - services
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - gateway.networking.k8s.io
+              resources:
+                - gateways
+                - httproutes
+              verbs:
+                - get
+                - watch
+                - list
+      bindings:
+        gatus:
+          type: ClusterRoleBinding
+          roleRef:
+            identifier: gatus
+          subjects:
+            - identifier: gatus
+    serviceAccount:
+      gatus: {}
+    persistence:
+      config:
+        type: configMap
+        name: gatus
+        globalMounts:
+          - path: /config/config.yaml
+            subPath: config.yaml
+      cache:
+        type: persistentVolumeClaim
+        storageClass: ceph-filesystem
+        size: 1Gi
+        accessMode: ReadWriteMany
+        globalMounts:
+          - path: /config
+    configMaps:
+      config:
+        data:
+          config.yaml: |-
+            connectivity:
+              checker:
+                target: 10.43.0.10:53
+                interval: 1m
+            
+            endpoints:
+              - name: Cloudflare
+                group: connectivity
+                url: tcp://1.1.1.1:53
+                interval: 1m
+                conditions:
+                  - "[CONNECTED] == true"
+            
+              - name: Google-DNS
+                group: connectivity
+                url: tcp://8.8.8.8:53
+                interval: 1m
+                conditions:
+                  - "[CONNECTED] == true"
+            
+              - name: Quad9
+                group: connectivity
+                url: tcp://9.9.9.9:53
+                interval: 1m
+                conditions:
+                  - "[CONNECTED] == true"
+                  
+              - name: Google-HTTPS
+                group: connectivity
+                url: tcp://google.com:443
+                conditions:
+                  - "[CONNECTED] == true"
+
+            metrics: true
+
+            security:
+              oidc:
+                issuer-url: $${ISSUER_URL}
+                redirect-url: https://${APP_URL}/authorization-code/callback
+                client-id: $${CLIENT_ID}
+                client-secret: $${CLIENT_SECRET}
+                scopes: [openid]
+
+            storage:
+              type: postgres
+              caching: true
+              path: $${PG_URI}
+
+            ui:
+              title: Status | Gatus
+              header: Status
+              logo: https://avatars.githubusercontent.com/u/11380482
+              link: https://github.com/${GITHUB_USERNAME}
+              buttons:
+                - name: Github
+                  link: https://github.com/${GITHUB_USERNAME}
+                - name: Cogito
+                  link: https://github.com/${GITHUB_USERNAME}/cogito-lab
+
+            web:
+              port: $${GATUS_WEB_PORT}
+

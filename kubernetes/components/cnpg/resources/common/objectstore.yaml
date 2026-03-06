@@ -1,0 +1,31 @@
+---
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: ${APP}
+spec:
+  retentionPolicy: 14d
+  instanceSidecarConfiguration:
+    env:
+      - name: AWS_S3_FORCE_PATH_STYLE
+        value: "true"
+      - name: AWS_DEFAULT_REGION
+        value: "garage"
+  configuration:
+    data:
+      compression: gzip
+      jobs: 8
+    wal:
+      compression: zstd
+      maxParallel: 12
+    destinationPath: s3://cnpg
+    endpointURL: http://garage.storage.svc.cluster.local:3900
+    historyTags:
+      keepHistory: "true"
+    s3Credentials:
+      accessKeyId:
+        name: cloudnative-pg
+        key: garage-access-key-id
+      secretAccessKey:
+        name: cloudnative-pg
+        key: garage-secret-access-key

@@ -1,0 +1,25 @@
+---
+apiVersion: pocketid.internal/v1alpha1
+kind: PocketIDUserGroup
+metadata:
+  name: opencloud-users
+spec:
+  users:
+    usernames:
+      - tim
+  customClaims:
+    - key: oc_groups
+      value: opencloud-users
+---
+apiVersion: pocketid.internal/v1alpha1
+kind: PocketIDUserGroup
+metadata:
+  name: opencloud-admins
+spec:
+  users:
+    usernames:
+      - tim
+  customClaims:
+    - key: oc_groups
+      value: opencloud-admins
+      

@@ -1,0 +1,52 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/external-secrets.io/clusterexternalsecret_v1.json
+apiVersion: external-secrets.io/v1
+kind: ClusterExternalSecret
+metadata:
+  name: cluster-settings
+  namespace: flux-system
+spec:
+  namespaceSelectors:
+    - {} # all ns
+  refreshTime: "1m"
+  externalSecretSpec:
+    secretStoreRef:
+      kind: ClusterSecretStore
+      name: onepassword
+    target:
+      template:
+        mergePolicy: Merge
+        data:
+          TZ: "America/Denver"
+          # renovate: datasource=github-releases depName=siderolabs/talos
+          TALOS_VERSION: "v1.12.2"
+          # renovate: datasource=docker depName=ghcr.io/siderolabs/kubelet
+          KUBE_VERSION: "v1.34.1"
+
+          DOMAIN_NAME_DASHED: '{{ regexReplaceAll "\\." .DOMAIN_NAME "-" }}'
+
+          # Unifi config
+          UNIFI_ROUTER_IP: "192.168.1.1"
+          IOT_GATEWAY_IP: "192.168.70.1"
+          VPN_GATEWAY_IP: "192.168.90.1"
+
+          # CIDRs
+          SERVER_CIDR: "192.168.42.0/24"
+          TB_RING_CIDR: "169.254.255.0/24"
+          IOT_CIDR: "192.168.70.0/24"
+          WIREGUARD_CIDR: "192.168.80.0/24"
+          VPN_CIDR: "192.168.80.0/24"
+
+          # DNS
+          UNIFI_DNS_IP: 192.168.42.1
+          COREDNS_CLUSTER_IP: "10.43.0.10"
+          BLOCKY_CLUSTER_IP: "10.43.0.11"
+
+          # BGP LB IPs
+          BLOCKY_LB_IP: 192.168.69.25
+          KUBE_API_LB_IP: "192.168.69.120"
+          GATEWAY_INTERNAL_LB_IP: "192.168.69.121"
+          GATEWAY_EXTERNAL_LB_IP: "192.168.69.126"
+    dataFrom:
+      - extract:
+          key: cluster-secrets

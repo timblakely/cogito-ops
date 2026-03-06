@@ -1,0 +1,28 @@
+#!/bin/bash
+source "$(git rev-parse --show-toplevel)/scripts/common.sh"
+
+BANNED_WORDS_YAML="$GIT_ROOT/git_hooks/banned_words.sops.yaml"
+
+echo "Running pre-commit hook to check for banned words... $BANNED_WORDS_YAML"
+
+# Install yq if not installed
+if ! command -v yq &> /dev/null; then
+  echo "yq could not be found, installing..."
+  sudo snap install yq
+  if ! command -v yq &> /dev/null; then
+    echo "Failed to install yq. Aborting commit."
+    exit 1
+  fi
+fi
+
+BANNED_WORDS_DECRYPTED=$(sops_decrypt_secure "$BANNED_WORDS_YAML")
+BANNED_WORDS=$(/snap/bin/yq '.banned_words[]' "$BANNED_WORDS_DECRYPTED")
+
+echo "Checking for banned words..."
+# Check for the presence of banned words in any staged files
+for word in ${BANNED_WORDS[@]}; do
+  if git diff --cached --name-only | xargs -I {} grep -lP "$word" {}; then
+    echo "Error: The banned word '$word' is found in one or more staged files."
+    exit 1
+  fi
+done

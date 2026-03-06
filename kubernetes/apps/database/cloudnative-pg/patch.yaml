@@ -1,0 +1,28 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: patch
+spec:
+  patches:
+    # patch secret to all namespaces
+    - patch: |
+        apiVersion: external-secrets.io/v1
+        kind: ClusterExternalSecret
+        metadata:
+          name: patch
+        spec:
+          namespaceSelectors: [{}]
+          externalSecretSpec:
+            data:
+              - secretKey: garage-access-key-id
+                remoteRef:
+                  key: garage
+                  property: ROOT_ACCESS_KEY_ID
+              - secretKey: garage-secret-access-key
+                remoteRef:
+                  key: garage
+                  property: ROOT_SECRET_ACCESS_KEY
+      target:
+        kind: ClusterExternalSecret
+        labelSelector: autoreiv.io/component=external-secret

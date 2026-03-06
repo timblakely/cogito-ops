@@ -1,0 +1,29 @@
+---
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: '3'
+
+vars:
+  KEY_FILE: '{{.TAILSCALE_DIR}}/keys.sops.yaml'
+  API_KEY:
+    sh: sops -d {{.KEY_FILE}} | yq '.tsApiKey'
+  TAILNET:
+    sh: sops -d {{.KEY_FILE}} | yq '.tailnet'
+
+tasks:
+
+  bulk-remove:
+    desc: Bulk remove - confirmation
+    dir: '{{.TAILSCALE_DIR}}'
+    vars:
+      OFFLINE_ONLY: true
+    requires:
+      vars: [REGEX]
+    prompt: "This will remove all the above nodes. Continue?"
+    cmds:
+      - python bulk_remove.py --tailnet "{{.TAILNET}}" --api_key "{{.API_KEY}}" --regex '{{.REGEX}}' {{if ne .OFFLINE_ONLY true}} --nooffline_only {{end}}
+    preconditions:
+      - test -f {{.KEY_FILE}}
+      - test -f {{.ROOT_DIR}}/.sops.yaml
+      - test -f {{.SOPS_AGE_KEY_FILE}}
+      - sops -d {{.KEY_FILE}} | yq --exit-status '.tsApiKey' 2>&1 > /dev/null
+      - which python

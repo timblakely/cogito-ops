@@ -1,0 +1,49 @@
+---
+machine:
+  type: controlplane
+  network:
+    hostname: iggy
+    interfaces:
+    - interface: bond0
+      bond:
+        deviceSelectors:
+        - driver: r8169
+          hardwareAddr: 2c:f0:5d:3e:*
+        mode: active-backup
+      dhcp: true
+      mtu: 9000
+      vlans:
+      - # IOT
+        vlanId: 70
+        dhcp: false
+        mtu: 9000
+      - # VPN
+        vlanId: 90
+        dhcp: false
+        mtu: 9000
+  install:
+    diskSelector:
+      model: "Samsung SSD 970 PRO 512GB"
+    image: factory.talos.dev/metal-installer/fe7d007595fa74776188f25bf9beb9dc4f96c40957dcc9e6227366b5a2e9c6ed:v1.11.5
+    wipe: false
+  kernel:
+    modules:
+    - name: nvidia
+    - name: nvidia_uvm
+    - name: nvidia_drm
+    - name: nvidia_modeset
+  sysctls:
+    net.core.bpf_jit_harden: 1
+  nodeLabels:
+    node-role.kubernetes.io/machine-learning: 'true'
+    node-role.kubernetes.io/high-cpu: 'true'
+    node-role.kubernetes.io/high-mem: 'true'
+    nvidia.com/gpu.present: 'true'
+---
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: local-hostpath
+provisioning:
+  diskSelector:
+    match: disk.model == 'Samsung SSD 970 EVO 1TB'
+  minSize: 1TB

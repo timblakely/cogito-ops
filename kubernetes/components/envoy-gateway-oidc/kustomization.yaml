@@ -1,0 +1,21 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+components:
+  - ../../components/shared-cluster-secrets
+
+resources:
+  - ./externalsecret.yaml
+  - ./securitypolicy.yaml
+
+patches:
+  - target:
+      kind: Kustomization
+      group: kustomize.toolkit.fluxcd.io
+    patch: |-
+      - op: add
+        path: /metadata/labels/-
+        value:
+          uses-shared-cluster-secrets: true

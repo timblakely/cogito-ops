@@ -1,0 +1,107 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: immich-kiosk
+spec:
+  interval: 1h
+  maxHistory: 1
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+    namespace: flux-system
+  install:
+    timeout: 2m
+  upgrade:
+    timeout: 2m
+  values:
+    controllers:
+      immich-kiosk:
+        strategy: RollingUpdate
+        pod:
+          hostUsers: false
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            fsGroupChangePolicy: OnRootMismatch
+            runAsNonRoot: true
+            seccompProfile: { type: RuntimeDefault }
+        containers:
+          main:
+            image:
+              repository: ghcr.io/damongolding/immich-kiosk
+              tag: 0.31.0@sha256:ac333037592b1b0739a1f44638498707c14ed14156a7a4395e3d07826afbb6af
+            env:
+              LANG: en_US
+              TZ: ${TZ}
+              KIOSK_IMMICH_API_KEY:
+                secretKeyRef:
+                  name: immich-kiosk
+                  key: IMMICH_API_KEY
+              KIOSK_IMMICH_URL: http://immich-server:2283
+              KIOSK_IMMICH_EXTERNAL_URL: https://photos.${DOMAIN_NAME}
+              # TV pics
+              KIOSK_ALBUMS: fbf91d92-1bd5-4ff8-9f0d-845fe9730ebb
+              KIOSK_SHOW_TIME: true
+              KIOSK_TIME_FORMAT: 12
+              KIOSK_CLOCK_SOURCE: server
+              KIOSK_SHOW_DATE: true
+              KIOSK_DATE_FORMAT: MM/DD/YY
+              KIOSK_SHOW_PROGRESS_BAR: true
+              KIOSK_SHOW_USER: true
+              KIOSK_SHOW_PERSON_NAME: true
+              KIOSK_SHOW_IMAGE_DATE: true
+              KIOSK_IMAGE_DATE_FORMAT: MM/DD/YYYY
+              KIOSK_SHOW_IMAGE_DESCRIPTION: true
+              KIOSK_SHOW_IMAGE_LOCATION: true
+              KIOSK_BEHIND_PROXY: true
+              KIOSK_SHOW_VIDEOS: true
+              KIOSK_TRANSITION: fade
+              KIOSK_USE_ORIGINAL_IMAGE: true
+            probes:
+              readiness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    port: &port 3000
+                    path: /health
+              liveness: *probes
+            resources:
+              requests:
+                cpu: 250m
+                memory: 128M
+              limits:
+                memory: 512M
+            securityContext:
+              runAsNonRoot: true
+              allowPrivilegeEscalation: false
+              seccompProfile: { type: RuntimeDefault }
+              capabilities: { drop: ["ALL"] }
+    service:
+      main:
+        controller: immich-kiosk
+        ports:
+          http:
+            port: *port
+    route:
+      main:
+        hostnames:
+          - ${APP_URL}
+        parentRefs:
+          - name: envoy-internal
+            namespace: envoy-system
+            sectionName: https
+        rules:
+          - backendRefs:
+            - identifier: main
+              port: *port
+    persistence:
+      config:
+        type: secret
+        name: immich-kiosk-config
+        globalMounts:
+          - path: /config/config.yaml
+            subPath: config.yaml

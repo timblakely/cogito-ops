@@ -1,0 +1,12 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - ./oidc-client.yaml
+patches:
+  - path: ./oidc-credentials.yaml
+    target:
+      kind: Kustomization
+      group: kustomize.toolkit.fluxcd.io
+  

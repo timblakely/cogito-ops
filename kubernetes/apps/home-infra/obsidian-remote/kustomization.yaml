@@ -1,0 +1,17 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: APP-app-vars
+    literals:
+      - APP=obsidian-remote
+      - SUBDOMAIN=notes
+      - VOLSYNC_CAPACITY=4Gi
+      - VOLSYNC_ACCESSMODES=ReadWriteMany
+      - VOLSYNC_STORAGECLASS=ceph-filesystem
+      - VOLSYNC_SNAPSHOTCLASS=csi-ceph-filesystem
+components:
+  - ../../../components/ks/app/subdomain
+  - ../../../components/kustomize/pocket-id
+  - ../../../components/kustomize/volsync

@@ -1,0 +1,78 @@
+---
+machine:
+  type: controlplane
+  network:
+    hostname: nuc-2
+    interfaces:
+      - interface: bond0
+        bond:
+          deviceSelectors:
+            - driver: igc
+              hardwareAddr: 88:ae:dd:75:*
+          mode: active-backup
+        dhcp: true
+        mtu: 9000
+        vlans:
+          - # IOT
+            vlanId: 70
+            dhcp: false
+            mtu: 9000
+          - # VPN
+            vlanId: 90
+            dhcp: false
+            mtu: 9000
+      - # nuc-1
+        deviceSelector:
+          driver: thunderbolt-net
+          busPath: 0-*
+        dhcp: false
+        mtu: 65520
+        addresses:
+          - 169.254.255.21/32
+        routes:
+          - network: 169.254.255.20/32
+            metric: 2048
+      - # nuc-3
+        deviceSelector:
+          driver: thunderbolt-net
+          busPath: 1-*
+        dhcp: false
+        mtu: 65520
+        addresses:
+          - 169.254.255.21/32
+        routes:
+          - network: 169.254.255.22/32
+            metric: 2048
+  install:
+    diskSelector:
+      model: PNY 1TB SATA SSD
+    image: factory.talos.dev/installer/602973c1fc58199c1597bfbe12141b15bafc964f08543f0fa82cac535c6c1ff1:v1.12.2
+    wipe: false
+  kernel:
+    modules:
+      - name: nbd
+      - name: thunderbolt
+      - name: thunderbolt_net
+  udev:
+    rules:
+      - ACTION=="add", SUBSYSTEM=="thunderbolt", ATTR{authorized}=="0", ATTR{authorized}="1"
+  nodeLabels:
+    node-role.kubernetes.io/rook-ceph-core: "true"
+---
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: local-hostpath
+provisioning:
+  diskSelector:
+    match: disk.model == 'CT1000T500SSD8'
+  minSize: 400GB
+  maxSize: 400GB
+  grow: false
+---
+apiVersion: v1alpha1
+kind: RawVolumeConfig
+name: rook-volume
+provisioning:
+  diskSelector:
+    match: disk.model == 'CT1000T500SSD8'
+  minSize: 400GB

@@ -1,0 +1,390 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/refs/heads/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: immich
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+    namespace: flux-system
+  driftDetection:
+    mode: enabled
+  install:
+    remediation:
+      retries: -1
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      server:
+        containers:
+          immich-server:
+            image:
+              repository: ghcr.io/immich-app/immich-server
+              tag: v2.5.6
+            env:
+              IMMICH_LOG_LEVEL: log
+              REDIS_HOSTNAME: dragonfly-db.database.svc.cluster.local
+              REDIS_DBINDEX: 2
+              IMMICH_MEDIA_LOCATION: /photos
+              IMMICH_TELEMETRY_INCLUDE: all
+              IMMICH_IGNORE_MOUNT_CHECK_ERRORS: true
+              IMMICH_PROCESS_INVALID_IMAGES: true
+              IMMICH_CONFIG_FILE: "/usr/src/app/config.yaml"
+              # IMMICH_TRUSTED_PROXIES: 10.11.1.251,10.11.2.91,10.11.3.59
+              # IMMICH_WORKERS_INCLUDE: api
+              NODE_EXTRA_CA_CERTS: /certs/ca-certificates.crt
+              TZ: ${TZ}
+              CLIENT_ID:
+                secretKeyRef:
+                  name: ${APP}-oidc-credentials
+                  key: client_id
+              CLIENT_SECRET:
+                secretKeyRef:
+                  name: ${APP}-oidc-credentials
+                  key: client_secret
+              ISSUER_URL:
+                secretKeyRef:
+                  name: ${APP}-oidc-credentials
+                  key: issuer_url
+              DB_URL:
+                valueFrom:
+                  secretKeyRef:
+                    name: immich-db-app
+                    key: uri
+            probes:
+              liveness: &probes
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/server/ping
+                    port: &port 2283
+              readiness: *probes
+              startup:
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/server/ping
+                    port: *port
+                  periodSeconds: 5
+                  failureThreshold: 18
+                  initialDelaySeconds: 2
+                  timeoutSeconds: 1
+            securityContext: &contSec
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
+            resources:
+              requests:
+                cpu: 100m
+                memory: 300Mi
+      machine-learning:
+        pod:
+          nodeSelector:
+            intel.feature.node.kubernetes.io/gpu-type: A380
+        strategy: Recreate
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          immich-ml:
+            image:
+              repository: ghcr.io/immich-app/immich-machine-learning
+              tag: v2.5.2-openvino
+            env:
+              HF_HOME: /cache/hf
+              MACHINE_LEARNING_MODEL_TTL: 0
+              MACHINE_LEARNING_CACHE_FOLDER: /cache
+              MACHINE_LEARNING_PRELOAD__CLIP__TEXTUAL: ViT-SO400M-16-SigLIP2-384__webli
+              MACHINE_LEARNING_PRELOAD__CLIP__VISUAL: ViT-SO400M-16-SigLIP2-384__webli
+              MACHINE_LEARNING_PRELOAD__FACIAL_RECOGNITION__RECOGNITION: buffalo_l
+              MACHINE_LEARNING_PRELOAD__FACIAL_RECOGNITION__DETECTION: buffalo_l
+            resources:
+              requests:
+                cpu: 500m
+                memory: 5Gi
+              limits:
+                memory: 16Gi
+                gpu.intel.com/i915: 1
+            securityContext: *contSec
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: { type: RuntimeDefault }
+        # TODO(blakely): huh?
+        supplementalGroups:
+          - 44
+    service:
+      server:
+        controller: server
+        ports:
+          http:
+            port: *port
+          metrics-api:
+            port: 8081
+      ml:
+        controller: machine-learning
+        ports:
+          http:
+            port: 3003
+    serviceMonitor:
+      server:
+        serviceName: immich-server
+        endpoints:
+          - port: metrics-api
+            scheme: http
+    route:
+      immich:
+        hostnames:
+          - "${APP_URL}"
+        parentRefs:
+          - name: envoy-internal
+            namespace: envoy-system
+        rules:
+          - backendRefs:
+              - identifier: server
+                port: *port
+    persistence:
+      config:
+        type: configMap
+        name: immich
+        globalMounts:
+          - path: /usr/src/app/config.yaml
+            subPath: config.yaml
+      geocoding-dump:
+        type: emptyDir
+        advancedMounts:
+          server:
+            immich-server:
+              - path: /usr/src/app/.reverse-geocoding-dump
+      geoname-dump:
+        type: emptyDir
+        advancedMounts:
+          server:
+            immich-server:
+              - path: /usr/src/app/node_modules/local-reverse-geocoder/geonames_dump
+      model-cache:
+        type: persistentVolumeClaim
+        accessMode: ReadWriteOnce
+        storageClass: ceph-block
+        size: 50Gi
+        advancedMounts:
+          machine-learning:
+            immich-ml:
+              - path: /cache
+                subPath: cache
+              - path: /.cache
+                subPath: dotCache
+              - path: /.config/matplotlib
+                subPath: matplotlib-config
+              - path: /.cache/matplotlib
+                subPath: matplotlib-cache
+      photos: # CHANGED
+        type: nfs
+        server: nuglab-storage.internal
+        path: /volume1/Media
+        globalMounts:
+          - path: /photos
+            subPath: Photos/Immich
+      tmp:
+        type: emptyDir
+      transformers-cache:
+        type: emptyDir
+        advancedMounts:
+          server:
+            immich-server:
+              - path: /usr/src/app/.transformers_cache
+    configMaps:
+      config:
+        data:
+          config.yaml: |-
+            backup:
+              database:
+                cronExpression: 0 02 * * *
+                enabled: true
+                keepLastAmount: 14
+            ffmpeg:
+              accel: disabled
+              accelDecode: false
+              acceptedAudioCodecs:
+                - aac
+                - mp3
+                - libopus
+              acceptedContainers:
+                - mov
+                - ogg
+                - webm
+              acceptedVideoCodecs:
+                - h264
+              bframes: -1
+              cqMode: auto
+              crf: 23
+              gopSize: 0
+              maxBitrate: "0"
+              preferredHwDevice: auto
+              preset: ultrafast
+              refs: 0
+              targetAudioCodec: aac
+              targetResolution: "720"
+              targetVideoCodec: h264
+              temporalAQ: false
+              threads: 0
+              tonemap: hable
+              transcode: required
+              twoPass: false
+            image:
+              colorspace: p3
+              extractEmbedded: false
+              fullsize:
+                enabled: false
+                format: jpeg
+                quality: 80
+              preview:
+                format: jpeg
+                quality: 80
+                size: 1440
+              thumbnail:
+                format: webp
+                quality: 80
+                size: 250
+            job:
+              backgroundTask:
+                concurrency: 5
+              faceDetection:
+                concurrency: 2
+              library:
+                concurrency: 5
+              metadataExtraction:
+                concurrency: 5
+              migration:
+                concurrency: 5
+              notifications:
+                concurrency: 5
+              ocr:
+                concurrency: 1
+              search:
+                concurrency: 5
+              sidecar:
+                concurrency: 5
+              smartSearch:
+                concurrency: 2
+              thumbnailGeneration:
+                concurrency: 3
+              videoConversion:
+                concurrency: 1
+              workflow:
+                concurrency: 5
+            library:
+              scan:
+                cronExpression: 0 0 * * *
+                enabled: true
+              watch:
+                enabled: false
+            logging:
+              enabled: true
+              level: log
+            machineLearning:
+              availabilityChecks:
+                enabled: true
+                interval: 30000
+                timeout: 2000
+              clip:
+                enabled: true
+                modelName: ViT-B-32__openai
+              duplicateDetection:
+                enabled: true
+                maxDistance: 0.01
+              enabled: true
+              facialRecognition:
+                enabled: true
+                maxDistance: 0.5
+                minFaces: 3
+                minScore: 0.7
+                modelName: buffalo_l
+              ocr:
+                enabled: true
+                maxResolution: 736
+                minDetectionScore: 0.5
+                minRecognitionScore: 0.8
+                modelName: PP-OCRv5_mobile
+              urls:
+                - http://immich-ml:3003
+            map:
+              darkStyle: https://tiles.immich.cloud/v1/style/dark.json
+              enabled: true
+              lightStyle: https://tiles.immich.cloud/v1/style/light.json
+            metadata:
+              faces:
+                import: false
+            newVersionCheck:
+              enabled: true
+            nightlyTasks:
+              clusterNewFaces: true
+              databaseCleanup: true
+              generateMemories: true
+              missingThumbnails: true
+              startTime: 00:00
+              syncQuotaUsage: true
+            notifications:
+              smtp:
+                enabled: false
+                from: ""
+                replyTo: ""
+                transport:
+                  host: ""
+                  ignoreCert: false
+                  password: ""
+                  port: 587
+                  secure: false
+                  username: ""
+            oauth:
+              autoLaunch: true
+              autoRegister: true
+              buttonText: Login with Pocket ID
+              clientId: $${CLIENT_ID}
+              clientSecret: $${CLIENT_SECRET}
+              defaultStorageQuota: null
+              enabled: true
+              issuerUrl: $${ISSUER_URL}
+              mobileOverrideEnabled: false
+              mobileRedirectUri: ""
+              profileSigningAlgorithm: none
+              roleClaim: immich_role
+              scope: openid email profile
+              signingAlgorithm: RS256
+              storageLabelClaim: preferred_username
+              storageQuotaClaim: immich_quota
+              timeout: 30000
+              tokenEndpointAuthMethod: client_secret_post
+            passwordLogin:
+              enabled: true
+            reverseGeocoding:
+              enabled: true
+            server:
+              externalDomain: ""
+              loginPageMessage: ""
+              publicUsers: true
+            storageTemplate:
+              enabled: true
+              hashVerificationEnabled: true
+              template: '{{ "{{" }}y}}/{{ "{{" }}MM}}-{{ "{{" }}MMMM}}/{{ "{{" }}filename}}'
+            templates:
+              email:
+                albumInviteTemplate: ""
+                albumUpdateTemplate: ""
+                welcomeTemplate: ""
+            theme:
+              customCss: ""
+            trash:
+              days: 30
+              enabled: true
+            user:
+              deleteDelay: 7

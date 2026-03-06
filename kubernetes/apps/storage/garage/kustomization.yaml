@@ -1,0 +1,14 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: APP-app-vars
+    literals:
+      - APP=garage
+      - RESOURCES=webui
+      - VOLSYNC_CAPACITY=4Gi
+components:
+  - ../../../components/ks/app-resources
+  - ../../../components/kustomize/external-secret
+  - ../../../components/kustomize/volsync

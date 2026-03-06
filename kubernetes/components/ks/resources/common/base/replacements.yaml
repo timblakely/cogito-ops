@@ -1,0 +1,20 @@
+---
+- source:
+    kind: ConfigMap
+    name: APP-app-vars
+    fieldPath: data.APP
+  targets:
+    - select: &ks
+        kind: Kustomization
+        group: kustomize.toolkit.fluxcd.io
+      fieldPaths:
+        - spec.postBuild.substitute.APP_URL
+      options:
+        delimiter: .
+        index: 0
+    - select: *ks
+      fieldPaths:
+        - spec.path
+      options:
+        delimiter: /
+        index: 4

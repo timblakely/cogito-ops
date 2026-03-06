@@ -1,0 +1,18 @@
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: recovery-patch
+  annotations:
+    cnpg.io/skipEmptyWalArchiveCheck: 'enabled'
+spec:
+  bootstrap:
+    recovery:
+      source: ${APP}-db
+  externalClusters:
+    - name: ${APP}-db
+      plugin:
+        name: barman-cloud.cloudnative-pg.io
+        parameters:
+          barmanObjectName: ${APP}
+          serverName: ${APP}-db

@@ -1,0 +1,17 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: defaults-patch
+spec:
+  maxHistory: 1
+  driftDetection:
+    mode: ${DRIFT_DETECTION:=enabled}
+  install:
+    crds: CreateReplace
+    strategy:
+      name: RetryOnFailure
+  upgrade:
+    crds: CreateReplace
+    cleanupOnFail: true
+    strategy:
+      name: RemediateOnFailure

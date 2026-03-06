@@ -1,0 +1,44 @@
+---
+machine:
+  type: controlplane
+  network:
+    hostname: kristeva
+    interfaces:
+    - interface: bond0
+      bond:
+        deviceSelectors:
+        - driver: igb
+          hardwareAddr: 00:1e:67:89:31:3b
+        mode: active-backup
+      dhcp: true
+      mtu: 9000
+      vlans:
+      - # IOT
+        vlanId: 70
+        dhcp: false
+        mtu: 9000
+      - # VPN
+        vlanId: 90
+        dhcp: false
+        mtu: 9000
+  install:
+    diskSelector:
+      model: "Samsung SSD 850"
+    image: factory.talos.dev/metal-installer/28e76510b0e7cdf6e142ef7566e75d1df994a0662808e94d5669babc6db6cd5d:v1.11.5
+    wipe: false
+  kernel:
+    modules:
+    - name: i915
+  sysctls:
+    net.core.bpf_jit_harden: 1
+  nodeLabels:
+    node-role.kubernetes.io/high-cpu: 'true'
+    node-role.kubernetes.io/high-mem: 'true'
+---
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: local-hostpath
+provisioning:
+  diskSelector:
+    match: disk.model == 'Samsung SSD 990 EVO Plus 2TB'
+  minSize: 2TB
