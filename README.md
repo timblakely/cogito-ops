@@ -1,8 +1,10 @@
 <div align="center">
 
-# 🛶 Cogito
+<img src="static/cogito.png" align="center" width="175px"/>
 
-*Modern Home Operations with Kubernetes, Talos Linux, and Flux CD*
+# Cogito
+
+*Modern Home Operations with Kubernetes, Talos Linux, and Flux CD. Cogito, ergo facio.*
 
 [![Status](https://img.shields.io/badge/status-active-success.svg?style=for-the-badge)]()
 [![Talos](https://img.shields.io/badge/Talos_Linux-1.12-blue.svg?style=for-the-badge&logo=linux)](https://talos.dev)
@@ -11,7 +13,7 @@
 
 ---
 
-*Cogito, ergo facio. (I think, therefore I make.)*
+
 
 </div>
 
@@ -22,7 +24,9 @@ This is my personal **home-ops** repository, managing a production-grade Kuberne
 ### Why "Cogito"?
 The name is a play on the philosophical *cogito, ergo sum*. It represents a shift from mere existence to active creation: *Cogito, ergo facio* — I think, therefore I make. 
 
-The name is also an intentionally ironic nod to the [facsimile of self-awareness](https://myanimelist.net/anime/790/Ergo_Proxy). While the cluster houses dedicated ML nodes (like `iggy`) that run LLMs and neural networks, it remains a simple mimicry of cognition through silicon and electricity. Yet, with the sheer scale of automated computation, reconciliation, and orchestration happening across the nodes, the facsimile becomes so convincing that it feels as if a certain [virus](https://ergoproxy.fandom.com/wiki/Cogito_Virus) has taken hold, turning the machine into something more.
+The name is also an intentionally ironic nod to the [facsimile of self-awareness in Ergo Proxy](https://myanimelist.net/anime/790/Ergo_Proxy). While the cluster houses dedicated ML nodes (like `iggy`) that run LLMs and neural networks, it remains a simple mimicry of cognition through silicon and electricity. Yet, with the sheer scale of automated computation, reconciliation, and orchestration happening across the nodes, the facsimile becomes so convincing that it feels as if a certain [virus](https://ergoproxy.fandom.com/wiki/Cogito_Virus) has taken hold, turning the machine into something more.
+
+(Why yes, an LLM wrote that summary; how did you guess? :P)
 
 ## 🏗️ Architecture
 
@@ -32,11 +36,11 @@ The cluster consists of a heterogeneous mix of hardware, strategically utilized 
 
 | Node | Type | Roles | Storage | Features |
 | :--- | :--- | :--- | :--- | :--- |
-| `iggy` | Control Plane | ML, High-CPU, High-Mem | 970 PRO (512GB) / 970 EVO (1TB) | **NVIDIA GPU** |
-| `kristeva` | Control Plane | High-CPU, High-Mem | SSD 850 (Boot) / 990 EVO Plus (2TB) | **Intel i915 GPU** |
-| `nuc-1` | Control Plane | Rook-Ceph, Core | PNY (1TB) / Crucial T500 (400GB) | **Thunderbolt Net** |
-| `nuc-2` | Control Plane | Core | PNY (1TB) / Crucial T500 (400GB) | **Thunderbolt Net** |
-| `nuc-3` | Control Plane | Core | PNY (1TB) / Crucial T500 (400GB) | **Thunderbolt Net** |
+| `iggy` | Control Plane | ML, High-CPU, High-Mem | 970 PRO (512GB) / 970 EVO (1TB) | **RTX 3090** |
+| `kristeva` | Control Plane | High-CPU, High-Mem | SSD 850 (Boot) / 990 EVO Plus (2TB) | **Intel A380** |
+| `nuc-1` | Control Plane | Rook-Ceph, Core | PNY (1TB) / Crucial T500 (400GB) | **Thunderbolt Ring** |
+| `nuc-2` | Control Plane | Core | PNY (1TB) / Crucial T500 (400GB) | **Thunderbolt Ring** |
+| `nuc-3` | Control Plane | Core | PNY (1TB) / Crucial T500 (400GB) | **Thunderbolt Ring** |
 
 > [!TIP]
 > The NUC nodes are interconnected via **Thunderbolt Networking**, creating a high-speed, low-latency 40Gbps+ backplane for cluster communication and Rook-Ceph replication.
