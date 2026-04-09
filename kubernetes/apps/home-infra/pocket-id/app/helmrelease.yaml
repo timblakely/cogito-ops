@@ -18,10 +18,16 @@ spec:
     remediation:
       retries: 1
   values:
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+      dashboard:
+        enabled: true
     instance:
       name: pocket-id
       spec:
-        image: ghcr.io/pocket-id/pocket-id:v2.2.0
+        image: ghcr.io/pocket-id/pocket-id:v2.5.0
         encryptionKey:
           valueFrom:
             secretKeyRef:
@@ -34,6 +40,10 @@ spec:
               key: uri
         appUrl: https://pid.${DOMAIN_NAME}
         hostUsers: false
+        metrics:
+          enabled: true
+      serviceMonitor:
+        enabled: true
       persistence:
         enabled: false
       route:
