@@ -26,11 +26,11 @@ spec:
       runAsGroup: ${VOLSYNC_PGID:=1000}
       fsGroup: ${VOLSYNC_PGID:=1000}
     moverVolumes:
-    - mountPath: repository
-      volumeSource:
-        nfs:
-          path: /volume1/nuglab
-          server: nuglab-storage.internal
+      - mountPath: repository
+        volumeSource:
+          nfs:
+            path: /volume1/nuglab/VolsyncKopia
+            server: nuglab-storage.internal
     repository: ${APP}-volsync-secret
     sourceIdentity:
       sourceName: ${APP}

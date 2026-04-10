@@ -19,7 +19,7 @@ spec:
           app:
             image:
               repository: ghcr.io/home-operations/kopia
-              tag: 0.21.1@sha256:f666b5f2c1ea4649cd2bd703507d4b81c2b515782e8476ba4a145b091a704a53
+              tag: 0.22.3@sha256:17ab64542280197a5368247deaefadc3e3bbe15714ab666c2455a06824e86efd
             env:
               KOPIA_WEB_ENABLED: true
               KOPIA_WEB_PORT: &port 80
@@ -45,7 +45,7 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
-              capabilities: {drop: ["ALL"]}
+              capabilities: { drop: ["ALL"] }
             resources:
               requests:
                 cpu: 10m
@@ -78,7 +78,7 @@ spec:
               "storage": {
                 "type": "filesystem",
                 "config": {
-                  "path": "/repository"
+                  "path": "/mnt/repository"
                 }
               },
               "hostname": "volsync.{{ .Release.Namespace }}.svc.cluster.local",
@@ -98,7 +98,7 @@ spec:
         server: nuglab-storage.internal
         path: /volume1/nuglab
         globalMounts:
-          - path: /repository
+          - path: /mnt/repository
             subPath: VolsyncKopia
       tmpfs:
         type: emptyDir
