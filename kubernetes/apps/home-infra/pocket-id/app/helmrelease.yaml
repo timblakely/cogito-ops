@@ -27,7 +27,15 @@ spec:
     instance:
       name: pocket-id
       spec:
-        image: ghcr.io/pocket-id/pocket-id:v2.5.0
+        image: ghcr.io/pocket-id/pocket-id:v2.5.0-distroless@sha256:deadc3c4dd6655a7d7f959200db1c74e394942dc061e6f3732b709983a08aab7
+        route:
+          enabled: true
+          parentRefs:
+            - group: gateway.networking.k8s.io
+              kind: Gateway
+              name: envoy-external
+              namespace: envoy-system
+              sectionName: https
         encryptionKey:
           valueFrom:
             secretKeyRef:
@@ -40,37 +48,32 @@ spec:
               key: uri
         appUrl: https://pid.${DOMAIN_NAME}
         hostUsers: false
+        versionCheckDisabled: true
+        fileBackend: database
+        ui:
+          sessionDuration: 1440
+        persistence:
+          enabled: false
         metrics:
           enabled: true
       serviceMonitor:
         enabled: true
-      persistence:
-        enabled: false
-      route:
-        enabled: true
-        host: pid.${DOMAIN_NAME}
-        parentRefs:
-          - group: gateway.networking.k8s.io
-            kind: Gateway
-            name: envoy-external
-            namespace: envoy-system
-            sectionName: https
     users:
       - name: tim
         spec:
           admin: true
-          email: 
+          email:
             value: ${EMAIL}
-          firstName: 
+          firstName:
             value: Tim
-          lastName: 
+          lastName:
             value: Blakely
       - name: timtest
         spec:
           admin: true
-          email: 
+          email:
             value: foo.bar@gmail.com
-          firstName: 
+          firstName:
             value: Tim
-          lastName: 
+          lastName:
             value: Test
