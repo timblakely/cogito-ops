@@ -22,20 +22,52 @@ spec:
   values:
     controllers:
       server:
+        initContainers:
+          init-config:
+            image:
+              repository: bhgedigital/envsubst
+              tag: latest
+            env:
+              CLIENT_ID:
+                secretKeyRef:
+                  name: ${APP}-oidc-credentials
+                  key: client_id
+              CLIENT_SECRET:
+                secretKeyRef:
+                  name: ${APP}-oidc-credentials
+                  key: client_secret
+              ISSUER_URL:
+                secretKeyRef:
+                  name: ${APP}-oidc-credentials
+                  key: issuer_url
+            command:
+              - sh
+              - -c
+              - envsubst < /tmp/config.yaml > /usr/src/app/config/config.yaml
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 128Mi
         containers:
           immich-server:
             image:
               repository: ghcr.io/immich-app/immich-server
               tag: v2.5.6
             env:
-              IMMICH_LOG_LEVEL: debug
+              IMMICH_LOG_LEVEL: log
               REDIS_HOSTNAME: dragonfly-db.database.svc.cluster.local
               REDIS_DBINDEX: 2
               IMMICH_MEDIA_LOCATION: /photos
               IMMICH_TELEMETRY_INCLUDE: all
               IMMICH_IGNORE_MOUNT_CHECK_ERRORS: true
               IMMICH_PROCESS_INVALID_IMAGES: true
-              IMMICH_CONFIG_FILE: "/usr/src/app/config.yaml"
+              IMMICH_CONFIG_FILE: "/usr/src/app/config/config.yaml"
               # IMMICH_TRUSTED_PROXIES: 10.11.1.251,10.11.2.91,10.11.3.59
               # IMMICH_WORKERS_INCLUDE: api
               NODE_EXTRA_CA_CERTS: /certs/ca-certificates.crt
@@ -156,9 +188,20 @@ spec:
       config:
         type: configMap
         name: immich
-        globalMounts:
-          - path: /usr/src/app/config.yaml
-            subPath: config.yaml
+        advancedMounts:
+          server:
+            init-config:
+              - path: /tmp/config.yaml
+                subPath: config.yaml
+                readOnly: true
+      config-final:
+        type: emptyDir
+        advancedMounts:
+          server:
+            init-config:
+              - path: /usr/src/app/config
+            immich-server:
+              - path: /usr/src/app/config
       geocoding-dump:
         type: emptyDir
         advancedMounts:
@@ -290,7 +333,7 @@ spec:
                 enabled: false
             logging:
               enabled: true
-              level: debug
+              level: log
             machineLearning:
               availabilityChecks:
                 enabled: true
