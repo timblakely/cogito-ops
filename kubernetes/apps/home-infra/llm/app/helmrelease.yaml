@@ -10,6 +10,23 @@ spec:
     kind: OCIRepository
     name: app-template
     namespace: flux-system
+  driftDetection:
+    mode: enabled
+    ignore:
+      - paths:
+          - /spec/replicas
+        target:
+          group: apps
+          version: v1
+          kind: Deployment
+          name: llm-gemma
+      - paths:
+          - /spec/replicas
+        target:
+          group: apps
+          version: v1
+          kind: Deployment
+          name: llm-qwen
   install:
     timeout: 30m
     remediation:
@@ -21,15 +38,18 @@ spec:
       retries: 3
   values:
     controllers:
-      llm:
+      gemma:
         replicas: 1
         strategy: Recreate
+        serviceAccount:
+          name: default
         pod:
+          automountServiceAccountToken: false
           nodeSelector:
             kubernetes.io/hostname: iggy
           runtimeClassName: nvidia
         containers:
-          qwen:
+          gemma:
             image: &vllmImage
               repository: vllm/vllm-openai
               tag: v0.24.0
@@ -48,6 +68,68 @@ spec:
               VLLM_NO_USAGE_STATS: "1"
               VLLM_SERVER_DEV_MODE: "1"
               VLLM_WORKER_MULTIPROC_METHOD: spawn
+              VLLM_ALLOW_LONG_MAX_MODEL_LEN: "1"
+            command:
+              - /bin/bash
+              - -c
+              - >-
+                exec vllm serve --disable-custom-all-reduce "$@"
+              - --
+            args:
+              - --model
+              - cyankiwi/gemma-4-31B-it-qat-AWQ-INT4
+              - --served-model-name
+              - gemma-4-31b
+              - gemma-4-31b-qat-awq-int4
+              - --tensor-parallel-size
+              - "2"
+              - --pipeline-parallel-size
+              - "1"
+              - --kv-cache-dtype
+              - auto
+              - --max-model-len
+              - "229376"
+              - --gpu-memory-utilization
+              - "0.95"
+              - --max-num-seqs
+              - "2"
+              - --max-num-batched-tokens
+              - "4096"
+              - --trust-remote-code
+              - --enable-auto-tool-choice
+              - --tool-call-parser
+              - gemma4
+              - --reasoning-parser
+              - gemma4
+              - --chat-template
+              - /vllm-workspace/examples/tool_chat_template_gemma4.jinja
+              - --override-generation-config
+              - '{"temperature":1.0,"top_p":0.95,"top_k":64,"min_p":0.0,"repetition_penalty":1.0}'
+              - --host
+              - 0.0.0.0
+              - --port
+              - "8000"
+            resources:
+              requests:
+                cpu: "4"
+                memory: 24Gi
+              limits:
+                memory: 96Gi
+                nvidia.com/gpu: 4
+      qwen:
+        replicas: 0
+        strategy: Recreate
+        serviceAccount:
+          name: default
+        pod:
+          automountServiceAccountToken: false
+          nodeSelector:
+            kubernetes.io/hostname: iggy
+          runtimeClassName: nvidia
+        containers:
+          qwen:
+            image: *vllmImage
+            env: *vllmEnv
             command:
               - /bin/bash
               - -c
@@ -92,7 +174,6 @@ spec:
               - '{"method":"mtp","num_speculative_tokens":3}'
               - --override-generation-config
               - '{"temperature":0.6,"top_p":0.95,"top_k":20,"min_p":0.0,"repetition_penalty":1.0}'
-              - --enable-sleep-mode
               - --host
               - 0.0.0.0
               - --port
@@ -104,60 +185,12 @@ spec:
               limits:
                 memory: 96Gi
                 nvidia.com/gpu: 4
-          gemma:
-            image: *vllmImage
-            env:
-              <<: *vllmEnv
-              VLLM_ALLOW_LONG_MAX_MODEL_LEN: "1"
-            command:
-              - /bin/bash
-              - -c
-              - >-
-                while [ ! -f /state/start-gemma ]; do sleep 5; done;
-                exec vllm serve --disable-custom-all-reduce "$@"
-              - --
-            args:
-              - --model
-              - cyankiwi/gemma-4-31B-it-qat-AWQ-INT4
-              - --served-model-name
-              - gemma-4-31b
-              - gemma-4-31b-qat-awq-int4
-              - --tensor-parallel-size
-              - "2"
-              - --pipeline-parallel-size
-              - "1"
-              - --kv-cache-dtype
-              - auto
-              - --max-model-len
-              - "229376"
-              - --gpu-memory-utilization
-              - "0.95"
-              - --max-num-seqs
-              - "2"
-              - --max-num-batched-tokens
-              - "4096"
-              - --trust-remote-code
-              - --enable-auto-tool-choice
-              - --tool-call-parser
-              - gemma4
-              - --reasoning-parser
-              - gemma4
-              - --chat-template
-              - /vllm-workspace/examples/tool_chat_template_gemma4.jinja
-              - --override-generation-config
-              - '{"temperature":1.0,"top_p":0.95,"top_k":64,"min_p":0.0,"repetition_penalty":1.0}'
-              - --enable-sleep-mode
-              - --host
-              - 0.0.0.0
-              - --port
-              - "8001"
-            resources:
-              requests:
-                cpu: "4"
-                memory: 24Gi
-              limits:
-                memory: 96Gi
-                nvidia.com/gpu: 4
+      switchboard:
+        replicas: 1
+        strategy: Recreate
+        serviceAccount:
+          identifier: switchboard
+        containers:
           switchboard:
             image:
               repository: python
@@ -166,9 +199,11 @@ spec:
               - python
               - /app/switchboard.py
             env:
-              DEFAULT_MODEL: qwen
-              GEMMA_URL: http://127.0.0.1:8001
-              QWEN_URL: http://127.0.0.1:8000
+              DEFAULT_MODEL: gemma
+              GEMMA_DEPLOYMENT: llm-gemma
+              GEMMA_URL: http://llm-gemma:8000
+              QWEN_DEPLOYMENT: llm-qwen
+              QWEN_URL: http://llm-qwen:8000
               STATE_DIR: /state
             securityContext:
               allowPrivilegeEscalation: false
@@ -182,17 +217,17 @@ spec:
                 memory: 256Mi
     service:
       qwen:
-        controller: llm
+        controller: qwen
         ports:
           http:
             port: 8000
       gemma:
-        controller: llm
+        controller: gemma
         ports:
           http:
-            port: 8001
+            port: 8000
       switchboard:
-        controller: llm
+        controller: switchboard
         ports:
           http:
             port: 8080
@@ -218,7 +253,7 @@ spec:
         rules:
           - backendRefs:
               - identifier: gemma
-                port: 8001
+                port: 8000
       switchboard:
         hostnames:
           - llm-switch.${DOMAIN_NAME}
@@ -234,47 +269,70 @@ spec:
       huggingface-cache:
         existingClaim: llm-huggingface-cache
         advancedMounts:
-          llm:
+          qwen:
             qwen:
               - path: /root/.cache/huggingface
+          gemma:
             gemma:
               - path: /root/.cache/huggingface
       switchboard:
         type: configMap
         name: llm-switchboard
         advancedMounts:
-          llm:
+          switchboard:
             switchboard:
               - path: /app/switchboard.py
                 subPath: switchboard.py
                 readOnly: true
-      state:
-        type: emptyDir
-        globalMounts:
-          - path: /state
       shm:
         type: emptyDir
         medium: Memory
         sizeLimit: 16Gi
         advancedMounts:
-          llm:
+          qwen:
             qwen:
               - path: /dev/shm
+          gemma:
             gemma:
               - path: /dev/shm
       triton-cache:
         existingClaim: llm-triton-cache
         advancedMounts:
-          llm:
+          qwen:
             qwen:
               - path: /root/.triton/cache
+          gemma:
             gemma:
               - path: /root/.triton/cache
       vllm-cache:
         existingClaim: llm-vllm-cache
         advancedMounts:
-          llm:
+          qwen:
             qwen:
               - path: /root/.cache/vllm
+          gemma:
             gemma:
               - path: /root/.cache/vllm
+    rbac:
+      roles:
+        switchboard:
+          type: Role
+          rules:
+            - apiGroups:
+                - apps
+              resources:
+                - deployments
+                - deployments/scale
+              verbs:
+                - get
+                - patch
+                - update
+      bindings:
+        switchboard:
+          type: RoleBinding
+          roleRef:
+            identifier: switchboard
+          subjects:
+            - identifier: switchboard
+    serviceAccount:
+      switchboard: {}
