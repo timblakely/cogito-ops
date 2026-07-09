@@ -1,0 +1,35 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/servicemonitor_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: llm-vllm
+spec:
+  selector:
+    matchExpressions:
+      - key: app.kubernetes.io/instance
+        operator: In
+        values:
+          - llm
+      - key: app.kubernetes.io/name
+        operator: In
+        values:
+          - llm
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      relabelings:
+        - sourceLabels:
+            - __meta_kubernetes_service_name
+          regex: llm-(gemma|qwen)
+          action: keep
+        - sourceLabels:
+            - __meta_kubernetes_service_name
+          targetLabel: vllm_instance
+        - sourceLabels:
+            - __meta_kubernetes_service_name
+          regex: llm-(.*)
+          replacement: $1
+          targetLabel: controller
