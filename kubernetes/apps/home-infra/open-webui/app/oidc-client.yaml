@@ -1,0 +1,14 @@
+---
+apiVersion: pocketid.internal/v1alpha1
+kind: PocketIDOIDCClient
+metadata:
+  name: ${APP}
+spec:
+  callbackUrls:
+    - https://${APP_URL}/oauth/oidc/login/callback
+    - https://${APP_URL}/oauth/oidc/callback
+  allowedUserGroups:
+    - name: open-webui-users
+      namespace: ${NS}
+    - name: open-webui-admins
+      namespace: ${NS}

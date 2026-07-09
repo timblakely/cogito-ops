@@ -1,0 +1,17 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: APP-app-vars
+    literals:
+      - APP=open-webui
+      - SUBDOMAIN=chat
+      - CNPG_CAPACITY=10Gi
+      - VOLSYNC_CAPACITY=10Gi
+components:
+  - ../../../components/ks/app/subdomain
+  - ../../../components/kustomize/external-secret
+  - ../../../components/kustomize/volsync
+  - ../../../components/kustomize/pocket-id
+  - ../../../components/kustomize/cnpg/init
