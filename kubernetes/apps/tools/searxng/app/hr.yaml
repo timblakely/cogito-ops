@@ -101,6 +101,8 @@ spec:
         globalMounts:
           - path: /etc/searxng/settings.yml
             subPath: settings.yml
+          - path: /etc/searxng/limiter.toml
+            subPath: limiter.toml
       tmp:
         type: emptyDir
     configMaps:
@@ -156,3 +158,12 @@ spec:
                 - (.*\.)?stackoverflow.com$
                 - (.*\.)?askubuntu.com$
                 - (.*\.)?superuser.com$
+
+          limiter.toml: |-
+            [botdetection]
+            # SearXNG receives requests from Envoy Gateway pods.
+            trusted_proxies = ['${CLUSTER_CIDR}']
+
+            [botdetection.ip_lists]
+            # Hermes runs on the LAN and needs programmatic access to SearXNG.
+            pass_ip = ['${LAN_CIDR}']
