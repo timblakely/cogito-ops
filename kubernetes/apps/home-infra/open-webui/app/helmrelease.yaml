@@ -84,6 +84,9 @@ spec:
                   name: open-webui-oidc-credentials
                   key: discovery_url
               OPENID_REDIRECT_URI: https://${APP_URL}/oauth/oidc/login/callback
+              ENABLE_RAG_WEB_SEARCH: "true"
+              RAG_WEB_SEARCH_ENGINE: "searxng"
+              RAG_WEB_SEARCH_URL: http://searxng.tools.svc.cluster.local:8080
             probes:
               liveness: &probes
                 enabled: true
