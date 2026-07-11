@@ -15,18 +15,14 @@ spec:
     ignore:
       - paths:
           - /spec/replicas
+          - /spec/template/metadata/annotations/llm.cogito.dev~1active-model
+          - /spec/template/metadata/annotations/llm.cogito.dev~1switched-at
+          - /spec/template/spec/containers/0/args
         target:
           group: apps
           version: v1
           kind: Deployment
-          name: llm-gemma
-      - paths:
-          - /spec/replicas
-        target:
-          group: apps
-          version: v1
-          kind: Deployment
-          name: llm-qwen
+          name: llm-vllm
   install:
     timeout: 30m
     remediation:
@@ -38,7 +34,7 @@ spec:
       retries: 3
   values:
     controllers:
-      gemma:
+      vllm:
         replicas: 1
         strategy: Recreate
         serviceAccount:
@@ -49,7 +45,7 @@ spec:
             kubernetes.io/hostname: iggy
           runtimeClassName: nvidia
         containers:
-          gemma:
+          vllm:
             image: &vllmImage
               repository: vllm/vllm-openai
               tag: v0.24.0
@@ -69,13 +65,8 @@ spec:
               VLLM_SERVER_DEV_MODE: "1"
               VLLM_WORKER_MULTIPROC_METHOD: spawn
               VLLM_ALLOW_LONG_MAX_MODEL_LEN: "1"
-            command:
-              - /bin/bash
-              - -c
-              - >-
-                exec vllm serve --disable-custom-all-reduce "$@"
-              - --
             args:
+              - --disable-custom-all-reduce
               - --model
               - cyankiwi/gemma-4-31B-it-qat-AWQ-INT4
               - --served-model-name
@@ -117,95 +108,23 @@ spec:
               limits:
                 memory: 96Gi
                 nvidia.com/gpu: 4
-      qwen:
-        replicas: 0
-        strategy: Recreate
-        serviceAccount:
-          name: default
-        pod:
-          automountServiceAccountToken: false
-          nodeSelector:
-            kubernetes.io/hostname: iggy
-          runtimeClassName: nvidia
-        containers:
-          qwen:
-            image: *vllmImage
-            env: *vllmEnv
-            command:
-              - /bin/bash
-              - -c
-              - >-
-                exec vllm serve --disable-custom-all-reduce "$@"
-              - --
-            args:
-              - --model
-              - Lorbus/Qwen3.6-27B-int4-AutoRound
-              - --served-model-name
-              - qwen3.6-27b
-              - qwen3.6-27b-autoround
-              - --quantization
-              - auto_round
-              - --dtype
-              - float16
-              - --tensor-parallel-size
-              - "2"
-              - --pipeline-parallel-size
-              - "1"
-              - --max-model-len
-              - "262144"
-              - --gpu-memory-utilization
-              - "0.92"
-              - --max-num-seqs
-              - "2"
-              - --max-num-batched-tokens
-              - "8192"
-              - --kv-cache-dtype
-              - fp8_e5m2
-              - --trust-remote-code
-              - --reasoning-parser
-              - qwen3
-              - --default-chat-template-kwargs
-              - '{"enable_thinking": false}'
-              - --enable-auto-tool-choice
-              - --tool-call-parser
-              - qwen3_coder
-              - --enable-prefix-caching
-              - --enable-chunked-prefill
-              - --speculative-config
-              - '{"method":"mtp","num_speculative_tokens":3}'
-              - --override-generation-config
-              - '{"temperature":0.6,"top_p":0.95,"top_k":20,"min_p":0.0,"repetition_penalty":1.0}'
-              - --host
-              - 0.0.0.0
-              - --port
-              - "8000"
-            resources:
-              requests:
-                cpu: "4"
-                memory: 24Gi
-              limits:
-                memory: 96Gi
-                nvidia.com/gpu: 4
-      switchboard:
+      proxy:
         replicas: 1
-        strategy: Recreate
         serviceAccount:
-          identifier: switchboard
+          identifier: proxy
         containers:
-          switchboard:
+          proxy:
             image:
-              repository: python
-              tag: 3.13-alpine
-            command:
-              - python
-              - /app/switchboard.py
+              repository: ghcr.io/timblakely/vllm-proxy
+              # TODO(llm): Pin an immutable commit-SHA tag after the development cycle.
+              # The image workflow should publish ghcr.io/timblakely/vllm-proxy:<commit-sha>,
+              # update this tag, and commit the manifest change; Flux then rolls out that revision.
+              tag: latest
             env:
-              DEFAULT_MODEL: gemma
-              GEMMA_DEPLOYMENT: llm-gemma
-              GEMMA_URL: http://llm-gemma:8000
-              QWEN_DEPLOYMENT: llm-qwen
-              QWEN_URL: http://llm-qwen:8000
-              STATE_DIR: /state
+              BACKEND_URL: http://llm-vllm:8000
+              VLLM_DEPLOYMENT: llm-vllm
+              VLLM_CONTAINER: vllm
+              TRANSITION_TIMEOUT: 30m
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
@@ -217,45 +136,18 @@ spec:
               limits:
                 memory: 256Mi
     service:
-      qwen:
-        controller: qwen
+      vllm:
+        controller: vllm
         ports:
           http:
             port: 8000
-      gemma:
-        controller: gemma
-        ports:
-          http:
-            port: 8000
-      switchboard:
-        controller: switchboard
+      proxy:
+        controller: proxy
         ports:
           http:
             port: 8080
     route:
-      qwen:
-        hostnames:
-          - qwen.${DOMAIN_NAME}
-        parentRefs:
-          - name: envoy-internal
-            namespace: envoy-system
-            sectionName: https
-        rules:
-          - backendRefs:
-              - identifier: qwen
-                port: 8000
-      gemma:
-        hostnames:
-          - gemma.${DOMAIN_NAME}
-        parentRefs:
-          - name: envoy-internal
-            namespace: envoy-system
-            sectionName: https
-        rules:
-          - backendRefs:
-              - identifier: gemma
-                port: 8000
-      switchboard:
+      proxy:
         hostnames:
           - llm-switch.${DOMAIN_NAME}
         parentRefs:
@@ -264,76 +156,63 @@ spec:
             sectionName: https
         rules:
           - backendRefs:
-              - identifier: switchboard
+              - identifier: proxy
                 port: 8080
     persistence:
       huggingface-cache:
         existingClaim: llm-huggingface-cache
         advancedMounts:
-          qwen:
-            qwen:
+          vllm:
+            vllm:
               - path: /root/.cache/huggingface
-          gemma:
-            gemma:
-              - path: /root/.cache/huggingface
-      switchboard:
-        type: configMap
-        name: llm-switchboard
-        advancedMounts:
-          switchboard:
-            switchboard:
-              - path: /app/switchboard.py
-                subPath: switchboard.py
-                readOnly: true
       shm:
         type: emptyDir
         medium: Memory
         sizeLimit: 16Gi
         advancedMounts:
-          qwen:
-            qwen:
-              - path: /dev/shm
-          gemma:
-            gemma:
+          vllm:
+            vllm:
               - path: /dev/shm
       triton-cache:
         existingClaim: llm-triton-cache
         advancedMounts:
-          qwen:
-            qwen:
-              - path: /root/.triton/cache
-          gemma:
-            gemma:
+          vllm:
+            vllm:
               - path: /root/.triton/cache
       vllm-cache:
         existingClaim: llm-vllm-cache
         advancedMounts:
-          qwen:
-            qwen:
-              - path: /root/.cache/vllm
-          gemma:
-            gemma:
+          vllm:
+            vllm:
               - path: /root/.cache/vllm
     rbac:
       roles:
-        switchboard:
+        proxy:
           type: Role
           rules:
+            - apiGroups:
+                - ""
+              resources:
+                - configmaps
+              verbs:
+                - get
+                - list
+                - watch
             - apiGroups:
                 - apps
               resources:
                 - deployments
-                - deployments/scale
+              resourceNames:
+                - llm-vllm
               verbs:
                 - get
                 - patch
-                - update
       bindings:
-        switchboard:
+        proxy:
           type: RoleBinding
           roleRef:
-            identifier: switchboard
+            identifier: proxy
           subjects:
-            - identifier: switchboard
+            - identifier: proxy
     serviceAccount:
-      switchboard: {}
+      proxy: {}
