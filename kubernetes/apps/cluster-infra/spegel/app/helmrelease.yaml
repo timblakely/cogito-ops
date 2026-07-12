@@ -20,6 +20,10 @@ spec:
     spegel:
       containerdSock: /run/containerd/containerd.sock
       containerdRegistryConfigPath: /etc/cri/conf.d/hosts
+      # Mutable development tags must be resolved against their upstream registry
+      # instead of returning the first digest Spegel observed in the cluster.
+      registryFilters:
+        - :latest$
     service:
       registry:
         hostPort: 29999

@@ -122,6 +122,7 @@ spec:
               # The image workflow should publish ghcr.io/timblakely/vllm-proxy:<commit-sha>,
               # update this tag, and commit the manifest change; Flux then rolls out that revision.
               tag: latest
+              pullPolicy: Always
             env:
               BACKEND_URL: http://llm-vllm:8000
               PUBLIC_BASE_URL: https://llm-switch.${DOMAIN_NAME}/v1
