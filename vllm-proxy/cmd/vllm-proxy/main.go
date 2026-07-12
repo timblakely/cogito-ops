@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"log/slog"
@@ -12,12 +14,14 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -40,6 +44,20 @@ type modelConfig struct {
 	Created     time.Time
 	Args        []string
 	Source      string
+	Fallback    json.RawMessage
+	Runtime     json.RawMessage
+}
+
+type runtimeMetadata struct {
+	SchemaVersion         int               `json:"schema_version"`
+	Source                string            `json:"source"`
+	ObservedAt            time.Time         `json:"observed_at"`
+	ModelID               string            `json:"model_id"`
+	ServedModelIDs        []string          `json:"served_model_ids,omitempty"`
+	ContextLength         int               `json:"context_length"`
+	MaxConcurrentRequests int               `json:"max_concurrent_requests,omitempty"`
+	LaunchArguments       map[string]string `json:"launch_arguments"`
+	KVCache               map[string]string `json:"kv_cache,omitempty"`
 }
 
 type registry struct {
@@ -52,6 +70,8 @@ type proxy struct {
 	deployment      string
 	container       string
 	backend         *url.URL
+	publicBaseURL   string
+	hermesAPIKey    string
 	httpClient      *http.Client
 	transitionLimit time.Duration
 	maxBody         int64
@@ -71,6 +91,20 @@ type proxy struct {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "generate-config" {
+		if err := runGenerateConfig(os.Args[2:], os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, "generate-config:", err)
+			os.Exit(1)
+		}
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "sync-hermes" {
+		if err := runSyncHermes(os.Args[2:], os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, "sync-hermes:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -93,6 +127,8 @@ func main() {
 		deployment:      env("VLLM_DEPLOYMENT", "llm-vllm"),
 		container:       env("VLLM_CONTAINER", "vllm"),
 		backend:         backend,
+		publicBaseURL:   strings.TrimSuffix(env("PUBLIC_BASE_URL", "http://llm-proxy:8080/v1"), "/"),
+		hermesAPIKey:    env("HERMES_API_KEY", "local-key"),
 		httpClient:      &http.Client{Timeout: 15 * time.Second},
 		transitionLimit: durationEnv("TRANSITION_TIMEOUT", defaultTimeout),
 		maxBody:         int64Env("MAX_REQUEST_BODY_BYTES", defaultMaxBody),
@@ -112,6 +148,7 @@ func main() {
 	mux.HandleFunc("GET /metrics", p.metrics)
 	mux.HandleFunc("GET /v1/models", p.models)
 	mux.HandleFunc("GET /v1/models/{id}", p.model)
+	mux.HandleFunc("GET /vllm-proxy/config/{target}", p.hermesConfig)
 	mux.HandleFunc("/v1/", p.inference)
 
 	server := &http.Server{
@@ -125,6 +162,292 @@ func main() {
 		logger.Error("serve", "error", err)
 		os.Exit(1)
 	}
+}
+
+type hermesConfigResponse struct {
+	Object   string         `json:"object"`
+	Target   string         `json:"target"`
+	Config   map[string]any `json:"config"`
+	Metadata map[string]any `json:"metadata"`
+}
+
+func (p *proxy) hermesConfig(w http.ResponseWriter, r *http.Request) {
+	p.stateMu.RLock()
+	cfg, ok := p.registry.models[p.active]
+	p.stateMu.RUnlock()
+	if !ok {
+		openAIError(w, http.StatusServiceUnavailable, "server_error", "No active model is available.")
+		return
+	}
+	card := modelCard(cfg)
+	metadata, _ := card["metadata"].(map[string]any)
+	writeJSON(w, http.StatusOK, hermesConfigResponse{
+		Object: "vllm_proxy.hermes_config",
+		Target: r.PathValue("target"),
+		Config: map[string]any{"model": map[string]any{
+			"default": cfg.ID, "provider": "custom", "base_url": p.publicBaseURL, "api_key": p.hermesAPIKey,
+		}},
+		Metadata: metadata,
+	})
+}
+
+func runSyncHermes(args []string, output io.Writer) error {
+	return runSyncHermesWithClient(args, output, http.DefaultClient)
+}
+
+func runSyncHermesWithClient(args []string, output io.Writer, client *http.Client) error {
+	flags := flag.NewFlagSet("sync-hermes", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	proxyURL := flags.String("proxy-url", env("VLLM_PROXY_URL", ""), "vLLM proxy base URL")
+	target := flags.String("target", "hermes-agent", "proxy configuration target")
+	configPath := flags.String("config", defaultHermesConfigPath(), "Hermes config.yaml path")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return errors.New("usage: vllm-proxy sync-hermes --proxy-url URL [--config PATH] [--target NAME]")
+	}
+	if *proxyURL == "" {
+		return errors.New("--proxy-url or VLLM_PROXY_URL is required")
+	}
+	u, err := url.Parse(strings.TrimSuffix(*proxyURL, "/") + "/vllm-proxy/config/" + url.PathEscape(*target))
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("fetch proxy config: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("fetch proxy config: proxy returned %s", resp.Status)
+	}
+	var remote hermesConfigResponse
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&remote); err != nil {
+		return fmt.Errorf("decode proxy config: %w", err)
+	}
+	model, ok := remote.Config["model"].(map[string]any)
+	if !ok {
+		return errors.New("proxy response does not contain Hermes model configuration")
+	}
+	if err := writeHermesConfig(*configPath, model); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(output, "Updated %s with active model %s from %s.\n", *configPath, model["default"], u.String())
+	return err
+}
+
+func defaultHermesConfigPath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "~/.hermes/config.yaml"
+	}
+	return home + "/.hermes/config.yaml"
+}
+
+func writeHermesConfig(path string, model map[string]any) error {
+	config := map[string]any{}
+	if body, err := os.ReadFile(path); err == nil {
+		if err := yaml.Unmarshal(body, &config); err != nil {
+			return fmt.Errorf("parse Hermes config: %w", err)
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	config["model"] = model
+	body, err := yaml.Marshal(config)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return err
+	}
+	return os.WriteFile(path, body, 0600)
+}
+
+func runGenerateConfig(args []string, output io.Writer) error {
+	flags := flag.NewFlagSet("generate-config", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	revision := flags.String("revision", "main", "Hugging Face revision containing config.json")
+	modelID := flags.String("model-id", "", "OpenAI model ID (defaults to a slug of the repository)")
+	maxModelLen := flags.Int("max-model-len", 0, "runtime vLLM context cap (defaults to the model-declared limit)")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 1 {
+		return errors.New("usage: vllm-proxy generate-config [--revision REVISION] [--model-id ID] [--max-model-len TOKENS] OWNER/MODEL")
+	}
+	repo := strings.TrimSpace(flags.Arg(0))
+	if len(strings.Split(repo, "/")) != 2 || strings.Contains(repo, " ") {
+		return errors.New("model repository must be OWNER/MODEL")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	declared, err := fetchModelContext(ctx, http.DefaultClient, repo, *revision)
+	if err != nil {
+		return err
+	}
+	if *maxModelLen < 0 {
+		return errors.New("max-model-len must be positive")
+	}
+	effective := declared
+	if *maxModelLen > 0 {
+		effective = *maxModelLen
+	}
+	id := *modelID
+	if id == "" {
+		id = modelSlug(repo)
+	}
+	fallback := map[string]any{"source": "huggingface", "model_max_context": declared}
+	if parameters, err := fetchModelParameters(ctx, http.DefaultClient, repo); err == nil && parameters > 0 {
+		fallback["total_parameters"] = parameters
+	}
+	return writeGeneratedConfig(output, repo, id, declared, effective, fallback)
+}
+
+func fetchModelContext(ctx context.Context, client *http.Client, repo, revision string) (int, error) {
+	parts := strings.Split(repo, "/")
+	url := "https://huggingface.co/" + parts[0] + "/" + parts[1] + "/raw/" + url.PathEscape(revision) + "/config.json"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("User-Agent", "vllm-proxy-config-generator/1")
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("fetch model config: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("fetch model config: Hugging Face returned %s", resp.Status)
+	}
+	decoder := json.NewDecoder(io.LimitReader(resp.Body, 1<<20))
+	decoder.UseNumber()
+	var config map[string]any
+	if err := decoder.Decode(&config); err != nil {
+		return 0, fmt.Errorf("decode model config: %w", err)
+	}
+	contextLength, ok := modelContextLength(config)
+	if !ok {
+		return 0, errors.New("model config does not expose a recognized context-length field; pass a manual profile instead")
+	}
+	return contextLength, nil
+}
+
+func fetchModelParameters(ctx context.Context, client *http.Client, repo string) (int64, error) {
+	parts := strings.Split(repo, "/")
+	url := "https://huggingface.co/api/models/" + parts[0] + "/" + parts[1]
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("User-Agent", "vllm-proxy-config-generator/1")
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("Hugging Face returned %s", resp.Status)
+	}
+	var payload struct {
+		Safetensors struct {
+			Total json.Number `json:"total"`
+		} `json:"safetensors"`
+	}
+	decoder := json.NewDecoder(io.LimitReader(resp.Body, 1<<20))
+	decoder.UseNumber()
+	if err := decoder.Decode(&payload); err != nil {
+		return 0, err
+	}
+	return payload.Safetensors.Total.Int64()
+}
+
+func modelContextLength(config map[string]any) (int, bool) {
+	keys := []string{"max_position_embeddings", "max_sequence_length", "max_seq_len", "seq_length", "n_positions", "model_max_length"}
+	for _, source := range []map[string]any{config, nestedMap(config, "text_config")} {
+		for _, key := range keys {
+			if value, ok := positiveInt(source[key]); ok && value <= 10_000_000 {
+				return value, true
+			}
+		}
+	}
+	return 0, false
+}
+
+func nestedMap(values map[string]any, key string) map[string]any {
+	if nested, ok := values[key].(map[string]any); ok {
+		return nested
+	}
+	return nil
+}
+
+func positiveInt(value any) (int, bool) {
+	var number int64
+	var err error
+	switch value := value.(type) {
+	case json.Number:
+		number, err = value.Int64()
+	case string:
+		number, err = strconv.ParseInt(value, 10, 64)
+	default:
+		return 0, false
+	}
+	return int(number), err == nil && number > 0 && int64(int(number)) == number
+}
+
+func writeGeneratedConfig(output io.Writer, repo, id string, declared, effective int, fallback map[string]any) error {
+	args, err := json.Marshal([]string{"--model", repo, "--served-model-name", id, "--max-model-len", strconv.Itoa(effective), "--host", "0.0.0.0", "--port", "8000"})
+	if err != nil {
+		return err
+	}
+	fallbackJSON, err := json.Marshal(fallback)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(output, `---
+# Generated from %s/config.json without loading model weights. Review and tune vLLM flags before committing.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llm-model-%s
+  labels:
+    llm.cogito.dev/model-config: "true"
+data:
+  model_id: %s
+  display_name: %s
+  model_max_context: "%d"
+  max_model_len: "%d"
+  model_card_metadata.json: %s
+  created_at: "%s"
+  vllm_args.json: %s
+`, repo, modelSlug(repo), yamlQuote(id), yamlQuote(repo), declared, effective, yamlQuote(string(fallbackJSON)), time.Now().UTC().Format(time.RFC3339), yamlQuote(string(args)))
+	return err
+}
+
+func modelSlug(value string) string {
+	var slug strings.Builder
+	lastDash := false
+	for _, char := range strings.ToLower(value) {
+		if (char >= 'a' && char <= 'z') || (char >= '0' && char <= '9') {
+			slug.WriteRune(char)
+			lastDash = false
+		} else if !lastDash {
+			slug.WriteByte('-')
+			lastDash = true
+		}
+	}
+	return strings.Trim(slug.String(), "-")
+}
+
+func yamlQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
 }
 
 func (p *proxy) watchConfigs(logger *slog.Logger) {
@@ -153,6 +476,7 @@ func (p *proxy) refresh(ctx context.Context) error {
 		return err
 	}
 	next := registry{models: make(map[string]modelConfig, len(items.Items))}
+	var activeConfig *modelConfig
 	for _, cm := range items.Items {
 		cfg, err := parseModelConfig(cm.Name, cm.Data)
 		if err != nil {
@@ -172,11 +496,20 @@ func (p *proxy) refresh(ctx context.Context) error {
 				if _, ok := next.models[model]; ok {
 					p.active = model
 					p.activeSince = time.Now()
+					cfg := next.models[model]
+					if len(cfg.Runtime) == 0 {
+						activeConfig = &cfg
+					}
 				}
 			}
 		}
 	}
 	p.stateMu.Unlock()
+	if activeConfig != nil && p.backendHealthy(ctx) {
+		if err := p.persistRuntimeMetadata(ctx, *activeConfig); err != nil {
+			p.configErrors.Add(1)
+		}
+	}
 	return nil
 }
 
@@ -204,6 +537,16 @@ func parseModelConfig(name string, data map[string]string) (modelConfig, error) 
 	if !contains(cfg.Args, "--model") {
 		return cfg, errors.New("vllm_args.json must contain --model")
 	}
+	if value := data["model_card_metadata.json"]; value != "" && !json.Valid([]byte(value)) {
+		return cfg, errors.New("model_card_metadata.json must be valid JSON")
+	} else {
+		cfg.Fallback = json.RawMessage(value)
+	}
+	if value := data["runtime_metadata.json"]; value != "" && !json.Valid([]byte(value)) {
+		return cfg, errors.New("runtime_metadata.json must be valid JSON")
+	} else {
+		cfg.Runtime = json.RawMessage(value)
+	}
 	return cfg, nil
 }
 
@@ -211,7 +554,7 @@ func (p *proxy) models(w http.ResponseWriter, _ *http.Request) {
 	p.stateMu.RLock()
 	data := make([]map[string]any, 0, len(p.registry.models))
 	for _, cfg := range p.registry.models {
-		data = append(data, map[string]any{"id": cfg.ID, "object": "model", "created": cfg.Created.Unix(), "owned_by": "vllm-proxy"})
+		data = append(data, modelCard(cfg))
 	}
 	p.stateMu.RUnlock()
 	writeJSON(w, http.StatusOK, map[string]any{"object": "list", "data": data})
@@ -225,7 +568,29 @@ func (p *proxy) model(w http.ResponseWriter, r *http.Request) {
 		openAIError(w, http.StatusNotFound, "model_not_found", "The requested model is not configured.")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"id": cfg.ID, "object": "model", "created": cfg.Created.Unix(), "owned_by": "vllm-proxy"})
+	writeJSON(w, http.StatusOK, modelCard(cfg))
+}
+
+func modelCard(cfg modelConfig) map[string]any {
+	card := map[string]any{"id": cfg.ID, "object": "model", "created": cfg.Created.Unix(), "owned_by": "vllm-proxy"}
+	metadata := map[string]any{"context_length": cfg.MaxModelLen, "source": "manual_config"}
+	mergeJSONMetadata(metadata, cfg.Fallback)
+	mergeJSONMetadata(metadata, cfg.Runtime)
+	card["metadata"] = metadata
+	return card
+}
+
+func mergeJSONMetadata(destination map[string]any, raw json.RawMessage) {
+	if len(raw) == 0 {
+		return
+	}
+	var values map[string]any
+	if json.Unmarshal(raw, &values) != nil {
+		return
+	}
+	for key, value := range values {
+		destination[key] = value
+	}
 }
 
 func (p *proxy) inference(w http.ResponseWriter, r *http.Request) {
@@ -321,6 +686,9 @@ func (p *proxy) transition(parent context.Context, cfg modelConfig) error {
 		if err == nil && current.Status.ObservedGeneration >= deployment.Generation && current.Status.UpdatedReplicas == 1 && current.Status.AvailableReplicas == 1 {
 			if p.backendHealthy(ctx) {
 				p.lastStart.Store(time.Since(patchedAt).Nanoseconds())
+				if err := p.persistRuntimeMetadata(ctx, cfg); err != nil {
+					p.configErrors.Add(1)
+				}
 				return nil
 			}
 		}
@@ -329,6 +697,175 @@ func (p *proxy) transition(parent context.Context, cfg modelConfig) error {
 		case <-time.After(backendProbeWait):
 		}
 	}
+}
+
+func (p *proxy) persistRuntimeMetadata(ctx context.Context, cfg modelConfig) error {
+	metadata, err := p.collectRuntimeMetadata(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	body, err := json.Marshal(metadata)
+	if err != nil {
+		return err
+	}
+	configMap, err := p.client.CoreV1().ConfigMaps(p.namespace).Get(ctx, cfg.Source, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("read model ConfigMap: %w", err)
+	}
+	data := map[string]string{"runtime_metadata.json": string(body)}
+	if configMap.Data["model_card_metadata.json"] == "" {
+		if fallback, err := p.modelCardFallback(ctx, cfg); err == nil {
+			data["model_card_metadata.json"] = fallback
+		}
+	}
+	patch, err := json.Marshal(map[string]any{"data": data})
+	if err != nil {
+		return err
+	}
+	_, err = p.client.CoreV1().ConfigMaps(p.namespace).Patch(ctx, cfg.Source, types.MergePatchType, patch, metav1.PatchOptions{FieldManager: "vllm-proxy"})
+	if err != nil {
+		return fmt.Errorf("persist runtime metadata: %w", err)
+	}
+	return nil
+}
+
+func (p *proxy) modelCardFallback(ctx context.Context, cfg modelConfig) (string, error) {
+	repo := launchArguments(cfg.Args)["--model"]
+	if len(strings.Split(repo, "/")) != 2 {
+		return "", errors.New("model repository is not OWNER/MODEL")
+	}
+	metadata := map[string]any{"source": "huggingface", "model_max_context": cfg.MaxModelLen}
+	if declared, err := fetchModelContext(ctx, p.httpClient, repo, "main"); err == nil {
+		metadata["model_max_context"] = declared
+	}
+	if parameters, err := fetchModelParameters(ctx, p.httpClient, repo); err == nil && parameters > 0 {
+		metadata["total_parameters"] = parameters
+	}
+	body, err := json.Marshal(metadata)
+	return string(body), err
+}
+
+func (p *proxy) collectRuntimeMetadata(ctx context.Context, cfg modelConfig) (runtimeMetadata, error) {
+	metadata := runtimeMetadata{
+		SchemaVersion:   1,
+		Source:          "vllm_runtime",
+		ObservedAt:      time.Now().UTC(),
+		ModelID:         cfg.ID,
+		ContextLength:   cfg.MaxModelLen,
+		LaunchArguments: launchArguments(cfg.Args),
+	}
+	metadata.MaxConcurrentRequests, _ = strconv.Atoi(metadata.LaunchArguments["--max-num-seqs"])
+	metrics, err := p.backendText(ctx, "/metrics")
+	if err == nil {
+		metadata.KVCache = cacheConfigInfo(metrics)
+	}
+	models, err := p.backendModels(ctx)
+	if err == nil {
+		metadata.ServedModelIDs = models
+	}
+	return metadata, nil
+}
+
+func (p *proxy) backendText(ctx context.Context, endpoint string) (string, error) {
+	u := *p.backend
+	u.Path = endpoint
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := p.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("backend %s returned %s", endpoint, resp.Status)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+	return string(body), err
+}
+
+func (p *proxy) backendModels(ctx context.Context) ([]string, error) {
+	body, err := p.backendText(ctx, "/v1/models")
+	if err != nil {
+		return nil, err
+	}
+	var response struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(body), &response); err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(response.Data))
+	for _, model := range response.Data {
+		if model.ID != "" {
+			ids = append(ids, model.ID)
+		}
+	}
+	return ids, nil
+}
+
+func launchArguments(args []string) map[string]string {
+	values := map[string]string{}
+	for index := 0; index < len(args); index++ {
+		if !strings.HasPrefix(args[index], "--") {
+			continue
+		}
+		if index+1 < len(args) && !strings.HasPrefix(args[index+1], "--") {
+			values[args[index]] = args[index+1]
+			index++
+		} else {
+			values[args[index]] = "true"
+		}
+	}
+	return values
+}
+
+func cacheConfigInfo(metrics string) map[string]string {
+	scanner := bufio.NewScanner(strings.NewReader(metrics))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.HasPrefix(line, "vllm:cache_config_info{") {
+			continue
+		}
+		start, end := strings.IndexByte(line, '{'), strings.LastIndex(line, "}")
+		if start < 0 || end <= start {
+			return nil
+		}
+		return prometheusLabels(line[start+1 : end])
+	}
+	return nil
+}
+
+func prometheusLabels(encoded string) map[string]string {
+	labels := map[string]string{}
+	for len(encoded) > 0 {
+		equals := strings.IndexByte(encoded, '=')
+		if equals < 1 || equals+1 >= len(encoded) || encoded[equals+1] != '"' {
+			return labels
+		}
+		key := encoded[:equals]
+		encoded = encoded[equals+1:]
+		end := 1
+		for end < len(encoded) {
+			if encoded[end] == '"' && encoded[end-1] != '\\' {
+				break
+			}
+			end++
+		}
+		if end == len(encoded) {
+			return labels
+		}
+		value, err := strconv.Unquote(encoded[:end+1])
+		if err != nil {
+			return labels
+		}
+		labels[key] = value
+		encoded = strings.TrimPrefix(encoded[end+1:], ",")
+	}
+	return labels
 }
 
 func (p *proxy) backendHealthy(ctx context.Context) bool {

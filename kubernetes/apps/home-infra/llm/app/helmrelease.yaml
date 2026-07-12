@@ -41,6 +41,8 @@ spec:
           name: default
         pod:
           automountServiceAccountToken: false
+          annotations:
+            llm.cogito.dev/active-model: gemma-4-31b-qat-awq-int4
           nodeSelector:
             kubernetes.io/hostname: iggy
           runtimeClassName: nvidia
@@ -122,6 +124,8 @@ spec:
               tag: latest
             env:
               BACKEND_URL: http://llm-vllm:8000
+              PUBLIC_BASE_URL: https://llm-switch.${DOMAIN_NAME}/v1
+              HERMES_API_KEY: local-key
               VLLM_DEPLOYMENT: llm-vllm
               VLLM_CONTAINER: vllm
               TRANSITION_TIMEOUT: 30m
@@ -198,6 +202,7 @@ spec:
                 - get
                 - list
                 - watch
+                - patch
             - apiGroups:
                 - apps
               resources:
