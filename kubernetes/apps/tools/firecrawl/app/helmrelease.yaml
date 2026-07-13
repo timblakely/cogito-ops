@@ -1,0 +1,201 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/refs/tags/app-template-4.6.0/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: firecrawl
+spec:
+  interval: 1h
+  maxHistory: 1
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+    namespace: flux-system
+  install:
+    timeout: 10m
+    remediation:
+      retries: 1
+  upgrade:
+    timeout: 10m
+    cleanupOnFail: true
+    remediation:
+      retries: 1
+  values:
+    controllers:
+      api:
+        enabled: true
+        strategy: RollingUpdate
+        pod:
+          hostUsers: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile: { type: RuntimeDefault }
+        containers:
+          main:
+            image:
+              repository: ghcr.io/firecrawl/firecrawl
+              tag: latest@sha256:651e0c8f73006ad13b0e926ba4eeb3358a953ceffca43b32bd149ee95c3574fe
+            command: [node, dist/src/harness.js]
+            args: [--start-docker]
+            env:
+              HOST: 0.0.0.0
+              PORT: &apiPort "3002"
+              EXTRACT_WORKER_PORT: "3004"
+              WORKER_PORT: "3005"
+              ENV: local
+              USE_DB_AUTHENTICATION: "false"
+              REDIS_URL: redis://dragonfly-db.database.svc.cluster.local:6379/5
+              REDIS_RATE_LIMIT_URL: redis://dragonfly-db.database.svc.cluster.local:6379/5
+              PLAYWRIGHT_MICROSERVICE_URL: http://firecrawl-playwright:3000/scrape
+              NUQ_RABBITMQ_URL:
+                valueFrom:
+                  secretKeyRef:
+                    name: firecrawl
+                    key: rabbitmq-url
+              POSTGRES_USER: app
+              POSTGRES_DB: app
+              POSTGRES_HOST: firecrawl-pooler-rw.tools.svc.cluster.local
+              POSTGRES_PORT: "5432"
+              POSTGRES_PASSWORD:
+                valueFrom:
+                  secretKeyRef:
+                    name: firecrawl-db-app
+                    key: password
+              SEARXNG_ENDPOINT: http://searxng.tools.svc.cluster.local:8080
+              SEARXNG_ENGINES: google,bing,duckduckgo
+              CRAWL_CONCURRENT_REQUESTS: "3"
+              MAX_CONCURRENT_JOBS: "2"
+              BROWSER_POOL_SIZE: "2"
+              NUM_WORKERS_PER_QUEUE: "2"
+            probes:
+              liveness: &apiProbes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: *apiPort
+                  initialDelaySeconds: 30
+                  periodSeconds: 15
+                  timeoutSeconds: 3
+                  failureThreshold: 3
+              readiness: *apiProbes
+            resources:
+              requests:
+                cpu: 500m
+                memory: 1Gi
+              limits:
+                memory: 4Gi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities: { drop: [ALL] }
+      playwright:
+        enabled: true
+        strategy: RollingUpdate
+        pod:
+          hostUsers: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile: { type: RuntimeDefault }
+        containers:
+          main:
+            image:
+              repository: ghcr.io/firecrawl/playwright-service
+              tag: latest@sha256:6359b0d9070f27400b4a9b615509be06919e40121fc1fdc42d4efeddf02653d2
+            env:
+              PORT: &playwrightPort "3000"
+              MAX_CONCURRENT_PAGES: "3"
+              BLOCK_MEDIA: "true"
+            resources:
+              requests:
+                cpu: 500m
+                memory: 1Gi
+              limits:
+                memory: 4Gi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities: { drop: [ALL] }
+            probes:
+              liveness: &playwrightProbes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: *playwrightPort
+                  initialDelaySeconds: 20
+                  periodSeconds: 15
+                  timeoutSeconds: 3
+                  failureThreshold: 3
+              readiness: *playwrightProbes
+      rabbitmq:
+        enabled: true
+        strategy: Recreate
+        containers:
+          main:
+            image:
+              repository: docker.io/library/rabbitmq
+              tag: 4.1-management@sha256:d5011b2fee8048d33b7fa4e2d1696020a00ff8d71cecbd164cac9a629ab4edde
+            env:
+              RABBITMQ_DEFAULT_USER: firecrawl
+              RABBITMQ_DEFAULT_PASS:
+                valueFrom:
+                  secretKeyRef:
+                    name: firecrawl
+                    key: RABBITMQ_DEFAULT_PASS
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                memory: 1Gi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities: { drop: [ALL] }
+            probes:
+              liveness: &rabbitmqProbes
+                enabled: true
+                custom: true
+                spec:
+                  exec:
+                    command: [rabbitmq-diagnostics, -q, check_running]
+                  initialDelaySeconds: 15
+                  periodSeconds: 15
+                  timeoutSeconds: 3
+                  failureThreshold: 3
+              readiness: *rabbitmqProbes
+    service:
+      api:
+        controller: api
+        ports:
+          http:
+            port: *apiPort
+      playwright:
+        controller: playwright
+        ports:
+          http:
+            port: *playwrightPort
+      rabbitmq:
+        controller: rabbitmq
+        ports:
+          amqp:
+            port: 5672
+    route:
+      api:
+        hostnames:
+          - ${APP_URL}
+        parentRefs:
+          - name: envoy-internal
+            namespace: envoy-system
+            sectionName: https
+        rules:
+          - backendRefs:
+              - identifier: api
+                port: *apiPort
