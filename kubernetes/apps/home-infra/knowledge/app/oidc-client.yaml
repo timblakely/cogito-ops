@@ -1,0 +1,13 @@
+---
+apiVersion: pocketid.internal/v1alpha1
+kind: PocketIDOIDCClient
+metadata:
+  name: knowledge-mcp
+spec:
+  callbackUrls:
+    - http://127.0.0.1:37949/callback
+  allowedUserGroups:
+    - name: knowledge-readers
+      namespace: home-infra
+    - name: knowledge-admins
+      namespace: home-infra

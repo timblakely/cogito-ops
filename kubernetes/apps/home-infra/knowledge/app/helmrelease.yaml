@@ -1,0 +1,107 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: knowledge
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+    namespace: flux-system
+  install:
+    timeout: 10m
+    remediation: {retries: 2}
+  upgrade:
+    timeout: 10m
+    cleanupOnFail: true
+    remediation: {retries: 2}
+  values:
+    controllers:
+      api:
+        enabled: true
+        containers:
+          main:
+            image: {repository: ghcr.io/timblakely/knowledge, tag: latest, pullPolicy: Always}
+            env: &serviceEnv
+              DATABASE_URL:
+                valueFrom: {secretKeyRef: {name: knowledge-db-app, key: uri}}
+              EMBEDDING_URL: http://knowledge-embeddings:8000/v1
+              EMBEDDING_MODEL: BAAI/bge-m3
+              OIDC_ISSUER: https://pid.${DOMAIN_NAME}
+              OIDC_AUDIENCE: knowledge
+              RESOURCE_URL: https://${APP_URL}
+              FIRECRAWL_URL: http://firecrawl-api.tools.svc.cluster.local:3002
+              TIKA_URL: http://knowledge-tika:9998/tika
+            resources:
+              requests: {cpu: 250m, memory: 512Mi}
+              limits: {memory: 1Gi}
+            securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+            probes:
+              liveness: &probes {enabled: true, custom: true, spec: {httpGet: {path: /healthz, port: &apiPort 8080}}}
+              readiness: *probes
+      embeddings:
+        enabled: true
+        pod:
+          nodeSelector:
+            feature.node.kubernetes.io/cpu-cpuid.AVX2: "true"
+        containers:
+          main:
+            image: {repository: vllm/vllm-openai-cpu, tag: latest-x86_64}
+            args: [BAAI/bge-m3, --hf-overrides, '{"architectures":["BgeM3EmbeddingModel"]}', --runner, pooling, --gpu-memory-utilization, "0.5", --host, 0.0.0.0, --port, "8000"]
+            env:
+              HF_HOME: /root/.cache/huggingface
+              VLLM_CPU_NUM_OF_RESERVED_CPU: "1"
+            resources:
+              requests: {cpu: "4", memory: 12Gi}
+              limits: {cpu: "4", memory: 12Gi}
+      tika:
+        enabled: true
+        containers:
+          main:
+            image: {repository: mirror.gcr.io/apache/tika, tag: 3.2.2.0-full}
+            resources:
+              requests: {cpu: 100m, memory: 512Mi}
+              limits: {memory: 2Gi}
+      ingest:
+        type: cronjob
+        cronjob:
+          schedule: "*/15 * * * *"
+          concurrencyPolicy: Forbid
+        containers:
+          main:
+            image: {repository: ghcr.io/timblakely/knowledge, tag: latest, pullPolicy: Always}
+            args: [ingest-catalog]
+            env: *serviceEnv
+            envFrom:
+              - secretRef: {name: knowledge}
+            resources:
+              requests: {cpu: 250m, memory: 512Mi}
+              limits: {memory: 1Gi}
+    service:
+      api: {controller: api, ports: {http: {port: *apiPort}}}
+      embeddings: {controller: embeddings, ports: {http: {port: 8000}}}
+      tika: {controller: tika, ports: {http: {port: 9998}}}
+    route:
+      api:
+        hostnames: ["${APP_URL}"]
+        parentRefs:
+          - {name: envoy-internal, namespace: envoy-system, sectionName: https}
+        rules:
+          - backendRefs:
+              - {identifier: api, port: *apiPort}
+    persistence:
+      sources:
+        type: configMap
+        name: knowledge-sources
+        advancedMounts:
+          ingest:
+            main:
+              - {path: /config/sources.yaml, subPath: sources.yaml}
+      hf-cache:
+        type: persistentVolumeClaim
+        existingClaim: knowledge-hf-cache
+        advancedMounts:
+          embeddings:
+            main:
+              - {path: /root/.cache/huggingface}

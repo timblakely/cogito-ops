@@ -1,0 +1,25 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: knowledge
+spec:
+  patches:
+    - patch: |-
+        apiVersion: postgresql.cnpg.io/v1
+        kind: Cluster
+        metadata:
+          name: patch
+        spec:
+          postgresql:
+            extensions:
+              - name: pgvector
+                image:
+                  reference: ghcr.io/cloudnative-pg/pgvector:0.8.1-18-trixie
+      target:
+        kind: Cluster
+    - patch: |-
+        - op: remove
+          path: /spec/postgresql/synchronous
+      target:
+        kind: Cluster

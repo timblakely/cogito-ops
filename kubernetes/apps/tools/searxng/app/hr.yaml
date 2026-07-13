@@ -165,5 +165,6 @@ spec:
             trusted_proxies = ['${CLUSTER_CIDR}']
 
             [botdetection.ip_lists]
-            # Hermes runs on the LAN and needs programmatic access to SearXNG.
-            pass_ip = ['${LAN_CIDR}']
+            # Hermes (LAN) and in-cluster clients such as Open WebUI access
+            # SearXNG programmatically without forwarded client-IP headers.
+            pass_ip = ['${LAN_CIDR}', '${CLUSTER_CIDR}']
