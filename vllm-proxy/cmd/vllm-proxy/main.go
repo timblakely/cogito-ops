@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -71,7 +72,6 @@ type proxy struct {
 	container       string
 	backend         *url.URL
 	publicBaseURL   string
-	hermesAPIKey    string
 	httpClient      *http.Client
 	transitionLimit time.Duration
 	maxBody         int64
@@ -128,7 +128,6 @@ func main() {
 		container:       env("VLLM_CONTAINER", "vllm"),
 		backend:         backend,
 		publicBaseURL:   strings.TrimSuffix(env("PUBLIC_BASE_URL", "http://llm-proxy:8080/v1"), "/"),
-		hermesAPIKey:    env("HERMES_API_KEY", "local-key"),
 		httpClient:      &http.Client{Timeout: 15 * time.Second},
 		transitionLimit: durationEnv("TRANSITION_TIMEOUT", defaultTimeout),
 		maxBody:         int64Env("MAX_REQUEST_BODY_BYTES", defaultMaxBody),
@@ -165,28 +164,62 @@ func main() {
 }
 
 type hermesConfigResponse struct {
-	Object   string         `json:"object"`
-	Target   string         `json:"target"`
-	Config   map[string]any `json:"config"`
-	Metadata map[string]any `json:"metadata"`
+	Object   string              `json:"object"`
+	Target   string              `json:"target"`
+	Config   hermesConfigPayload `json:"config"`
+	Metadata map[string]any      `json:"metadata"`
+}
+
+type hermesConfigPayload struct {
+	Model           hermesModelConfig      `json:"model"`
+	CustomProviders []hermesCustomProvider `json:"custom_providers"`
+}
+
+type hermesModelConfig struct {
+	Default  string `json:"default"`
+	Provider string `json:"provider"`
+	BaseURL  string `json:"base_url"`
+}
+
+type hermesCustomProvider struct {
+	Name    string                               `json:"name"`
+	BaseURL string                               `json:"base_url"`
+	APIMode string                               `json:"api_mode"`
+	Models  map[string]hermesCustomProviderModel `json:"models"`
+}
+
+type hermesCustomProviderModel struct {
+	ContextLength int `json:"context_length"`
 }
 
 func (p *proxy) hermesConfig(w http.ResponseWriter, r *http.Request) {
 	p.stateMu.RLock()
 	cfg, ok := p.registry.models[p.active]
+	models := make([]modelConfig, 0, len(p.registry.models))
+	for _, model := range p.registry.models {
+		models = append(models, model)
+	}
 	p.stateMu.RUnlock()
 	if !ok {
 		openAIError(w, http.StatusServiceUnavailable, "server_error", "No active model is available.")
 		return
+	}
+	sort.Slice(models, func(i, j int) bool { return models[i].ID < models[j].ID })
+	providerModels := make(map[string]hermesCustomProviderModel, len(models))
+	for _, model := range models {
+		providerModels[model.ID] = hermesCustomProviderModel{ContextLength: model.MaxModelLen}
 	}
 	card := modelCard(cfg)
 	metadata, _ := card["metadata"].(map[string]any)
 	writeJSON(w, http.StatusOK, hermesConfigResponse{
 		Object: "vllm_proxy.hermes_config",
 		Target: r.PathValue("target"),
-		Config: map[string]any{"model": map[string]any{
-			"default": cfg.ID, "provider": "custom", "base_url": p.publicBaseURL, "api_key": p.hermesAPIKey,
-		}},
+		Config: hermesConfigPayload{
+			Model: hermesModelConfig{Default: cfg.ID, Provider: "custom:llm-proxy"},
+			CustomProviders: []hermesCustomProvider{{
+				Name: "llm-proxy", BaseURL: p.publicBaseURL, APIMode: "chat_completions", Models: providerModels,
+			}},
+		},
 		Metadata: metadata,
 	})
 }
@@ -232,15 +265,69 @@ func runSyncHermesWithClient(args []string, output io.Writer, client *http.Clien
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&remote); err != nil {
 		return fmt.Errorf("decode proxy config: %w", err)
 	}
-	model, ok := remote.Config["model"].(map[string]any)
-	if !ok {
-		return errors.New("proxy response does not contain Hermes model configuration")
+	if err := validateHermesConfig(remote.Config); err != nil {
+		upgraded, upgradeErr := upgradeLegacyHermesConfig(ctx, client, *proxyURL, remote.Config)
+		if upgradeErr != nil {
+			return fmt.Errorf("invalid proxy Hermes configuration: %w", err)
+		}
+		remote.Config = upgraded
 	}
-	if err := writeHermesConfig(*configPath, model); err != nil {
+	if err := writeHermesConfig(*configPath, remote.Config); err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(output, "Updated %s with active model %s from %s.\n", *configPath, model["default"], u.String())
+	_, err = fmt.Fprintf(output, "Updated %s with active model %s from %s.\n", *configPath, remote.Config.Model.Default, u.String())
 	return err
+}
+
+type openAIModelsResponse struct {
+	Data []struct {
+		ID       string `json:"id"`
+		Metadata struct {
+			ContextLength int `json:"context_length"`
+		} `json:"metadata"`
+	} `json:"data"`
+}
+
+// upgradeLegacyHermesConfig supports a proxy that predates its native Hermes
+// catalog endpoint. Its OpenAI-compatible /v1/models response already contains
+// the full registry and per-model context limits needed for the catalog.
+func upgradeLegacyHermesConfig(ctx context.Context, client *http.Client, proxyURL string, legacy hermesConfigPayload) (hermesConfigPayload, error) {
+	if legacy.Model.Provider != "custom" || legacy.Model.Default == "" || legacy.Model.BaseURL == "" {
+		return hermesConfigPayload{}, errors.New("not a legacy custom proxy configuration")
+	}
+	endpoint, err := url.Parse(strings.TrimSuffix(proxyURL, "/") + "/v1/models")
+	if err != nil {
+		return hermesConfigPayload{}, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
+	if err != nil {
+		return hermesConfigPayload{}, err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return hermesConfigPayload{}, fmt.Errorf("fetch proxy model catalog: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return hermesConfigPayload{}, fmt.Errorf("fetch proxy model catalog: proxy returned %s", resp.Status)
+	}
+	var catalog openAIModelsResponse
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&catalog); err != nil {
+		return hermesConfigPayload{}, fmt.Errorf("decode proxy model catalog: %w", err)
+	}
+	models := make(map[string]hermesCustomProviderModel, len(catalog.Data))
+	for _, model := range catalog.Data {
+		if model.ID == "" || model.Metadata.ContextLength < 1 {
+			return hermesConfigPayload{}, errors.New("proxy model catalog contains an invalid model")
+		}
+		models[model.ID] = hermesCustomProviderModel{ContextLength: model.Metadata.ContextLength}
+	}
+	return hermesConfigPayload{
+		Model: hermesModelConfig{Default: legacy.Model.Default, Provider: "custom:llm-proxy"},
+		CustomProviders: []hermesCustomProvider{{
+			Name: "llm-proxy", BaseURL: legacy.Model.BaseURL, APIMode: "chat_completions", Models: models,
+		}},
+	}, nil
 }
 
 func defaultHermesConfigPath() string {
@@ -251,7 +338,36 @@ func defaultHermesConfigPath() string {
 	return home + "/.hermes/config.yaml"
 }
 
-func writeHermesConfig(path string, model map[string]any) error {
+func validateHermesConfig(remote hermesConfigPayload) error {
+	if remote.Model.Default == "" || remote.Model.Provider == "" {
+		return errors.New("model.default and model.provider are required")
+	}
+	if !strings.HasPrefix(remote.Model.Provider, "custom:") {
+		return errors.New("model.provider must name a custom provider")
+	}
+	providerName := strings.TrimPrefix(remote.Model.Provider, "custom:")
+	for _, provider := range remote.CustomProviders {
+		if provider.Name != providerName {
+			continue
+		}
+		if provider.BaseURL == "" || provider.APIMode != "chat_completions" {
+			return errors.New("custom provider requires base_url and chat_completions api_mode")
+		}
+		model, ok := provider.Models[remote.Model.Default]
+		if !ok || model.ContextLength < 1 {
+			return errors.New("active model must be present with a positive context_length")
+		}
+		for id, model := range provider.Models {
+			if strings.TrimSpace(id) == "" || model.ContextLength < 1 {
+				return errors.New("custom provider models require IDs and positive context_length values")
+			}
+		}
+		return nil
+	}
+	return fmt.Errorf("custom provider %q is missing", providerName)
+}
+
+func writeHermesConfig(path string, remote hermesConfigPayload) error {
 	config := map[string]any{}
 	if body, err := os.ReadFile(path); err == nil {
 		if err := yaml.Unmarshal(body, &config); err != nil {
@@ -260,7 +376,50 @@ func writeHermesConfig(path string, model map[string]any) error {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
+	model, ok := config["model"].(map[string]any)
+	if !ok {
+		model = map[string]any{}
+	}
+	model["default"] = remote.Model.Default
+	model["provider"] = remote.Model.Provider
+	delete(model, "base_url")
+	delete(model, "api_key")
+	delete(model, "api_mode")
 	config["model"] = model
+
+	providerName := strings.TrimPrefix(remote.Model.Provider, "custom:")
+	providers := make([]any, 0, len(remote.CustomProviders))
+	if existing, exists := config["custom_providers"]; exists {
+		var ok bool
+		providers, ok = existing.([]any)
+		if !ok {
+			return errors.New("custom_providers must be a YAML list")
+		}
+	}
+	updated := make([]any, 0, len(providers)+1)
+	for _, provider := range providers {
+		entry, ok := provider.(map[string]any)
+		if !ok {
+			return errors.New("custom_providers entries must be YAML mappings")
+		}
+		if entry["name"] == providerName {
+			continue
+		}
+		updated = append(updated, entry)
+	}
+	for _, provider := range remote.CustomProviders {
+		if provider.Name != providerName {
+			continue
+		}
+		models := make(map[string]any, len(provider.Models))
+		for id, details := range provider.Models {
+			models[id] = map[string]any{"context_length": details.ContextLength}
+		}
+		updated = append(updated, map[string]any{
+			"name": provider.Name, "base_url": provider.BaseURL, "api_mode": provider.APIMode, "models": models,
+		})
+	}
+	config["custom_providers"] = updated
 	body, err := yaml.Marshal(config)
 	if err != nil {
 		return err
