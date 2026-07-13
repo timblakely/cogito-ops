@@ -60,17 +60,17 @@ func TestSyncActiveDeploymentPreservesInFlightTransition(t *testing.T) {
 
 func TestParseModelConfig(t *testing.T) {
 	cfg, err := parseModelConfig("gemma", map[string]string{
-		"model_name": "example/gemma", "display_name": "Gemma 4", "max_model_len": "8192", "created_at": "2026-07-11T00:00:00Z",
+		"model_name": "benchmark/gemma", "model_source": "example/gemma", "display_name": "Gemma 4", "max_model_len": "8192", "created_at": "2026-07-11T00:00:00Z",
 		"vllm_args.json": `["--override-generation-config","{\"top_p\":0.9}"]`,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.MaxModelLen != 8192 || cfg.Name != "example/gemma" || cfg.Args[1] != `{"top_p":0.9}` {
+	if cfg.MaxModelLen != 8192 || cfg.Name != "benchmark/gemma" || cfg.ModelSource != "example/gemma" || cfg.Args[1] != `{"top_p":0.9}` {
 		t.Fatalf("unexpected config: %#v", cfg)
 	}
 	args := effectiveVLLMArgs(cfg)
-	if strings.Join(args, " ") != `--model example/gemma --override-generation-config {"top_p":0.9}` {
+	if strings.Join(args, " ") != `--model example/gemma --served-model-name benchmark/gemma --override-generation-config {"top_p":0.9}` {
 		t.Fatalf("unexpected effective arguments: %#v", args)
 	}
 }
@@ -81,6 +81,19 @@ func TestParseModelConfigRejectsInvalidArgs(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected validation error")
+	}
+}
+
+func TestParseModelConfigDefaultsModelSourceToModelName(t *testing.T) {
+	cfg, err := parseModelConfig("gemma", map[string]string{
+		"model_name": "example/gemma", "display_name": "Gemma 4", "max_model_len": "8192", "created_at": "2026-07-11T00:00:00Z",
+		"vllm_args.json": `["--host","0.0.0.0"]`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.ModelSource != cfg.Name {
+		t.Fatalf("model source = %q, want %q", cfg.ModelSource, cfg.Name)
 	}
 }
 

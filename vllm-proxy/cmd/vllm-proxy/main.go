@@ -41,6 +41,7 @@ const (
 
 type modelConfig struct {
 	Name        string
+	ModelSource string
 	DisplayName string
 	MaxModelLen int
 	Created     time.Time
@@ -729,6 +730,10 @@ func parseModelConfig(name string, data map[string]string) (modelConfig, error) 
 	if cfg.Name == "" || cfg.DisplayName == "" {
 		return cfg, errors.New("model_name and display_name are required")
 	}
+	cfg.ModelSource = strings.TrimSpace(data["model_source"])
+	if cfg.ModelSource == "" {
+		cfg.ModelSource = cfg.Name
+	}
 	maxLen, err := strconv.Atoi(data["max_model_len"])
 	if err != nil || maxLen < 1 {
 		return cfg, errors.New("max_model_len must be a positive integer")
@@ -762,8 +767,8 @@ func parseModelConfig(name string, data map[string]string) (modelConfig, error) 
 }
 
 func effectiveVLLMArgs(cfg modelConfig) []string {
-	args := make([]string, 0, len(cfg.Args)+2)
-	args = append(args, "--model", cfg.Name)
+	args := make([]string, 0, len(cfg.Args)+4)
+	args = append(args, "--model", cfg.ModelSource, "--served-model-name", cfg.Name)
 	return append(args, cfg.Args...)
 }
 
@@ -947,7 +952,7 @@ func (p *proxy) persistRuntimeMetadata(ctx context.Context, cfg modelConfig) err
 }
 
 func (p *proxy) modelCardFallback(ctx context.Context, cfg modelConfig) (string, error) {
-	repo := cfg.Name
+	repo := cfg.ModelSource
 	if len(strings.Split(repo, "/")) != 2 {
 		return "", errors.New("model repository is not OWNER/MODEL")
 	}
