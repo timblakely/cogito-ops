@@ -24,6 +24,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -140,6 +141,7 @@ func main() {
 	}
 	cancel()
 	go p.watchConfigs(logger)
+	go p.watchDeployment(logger)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", p.healthz)
@@ -641,13 +643,35 @@ func (p *proxy) watchConfigs(logger *slog.Logger) {
 	}
 }
 
+// watchDeployment keeps the proxy's active-model state aligned with external
+// Deployment reconciliations, such as Helm restoring the manifest arguments.
+func (p *proxy) watchDeployment(logger *slog.Logger) {
+	selector := fields.OneTermEqualSelector("metadata.name", p.deployment).String()
+	for {
+		watch, err := p.client.AppsV1().Deployments(p.namespace).Watch(context.Background(), metav1.ListOptions{FieldSelector: selector})
+		if err != nil {
+			p.configErrors.Add(1)
+			logger.Warn("watch vLLM Deployment", "error", err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		for range watch.ResultChan() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			if err := p.syncActiveDeployment(ctx); err != nil {
+				p.configErrors.Add(1)
+				logger.Warn("sync active model from vLLM Deployment", "error", err)
+			}
+			cancel()
+		}
+	}
+}
+
 func (p *proxy) refresh(ctx context.Context) error {
 	items, err := p.client.CoreV1().ConfigMaps(p.namespace).List(ctx, metav1.ListOptions{LabelSelector: modelLabel})
 	if err != nil {
 		return err
 	}
 	next := registry{models: make(map[string]modelConfig, len(items.Items))}
-	var activeConfig *modelConfig
 	for _, cm := range items.Items {
 		cfg, err := parseModelConfig(cm.Name, cm.Data)
 		if err != nil {
@@ -661,25 +685,41 @@ func (p *proxy) refresh(ctx context.Context) error {
 	p.stateMu.Lock()
 	p.registry = next
 	p.ready = true
-	if p.active == "" {
-		if deployment, err := p.client.AppsV1().Deployments(p.namespace).Get(ctx, p.deployment, metav1.GetOptions{}); err == nil {
-			if model := deployment.Spec.Template.Annotations[activeModelAnno]; model != "" {
-				if _, ok := next.models[model]; ok {
-					p.active = model
-					p.activeSince = time.Now()
-					cfg := next.models[model]
-					if len(cfg.Runtime) == 0 {
-						activeConfig = &cfg
-					}
-				}
-			}
-		}
-	}
 	p.stateMu.Unlock()
-	if activeConfig != nil && p.backendHealthy(ctx) {
-		if err := p.persistRuntimeMetadata(ctx, *activeConfig); err != nil {
+	if err := p.syncActiveDeployment(ctx); err != nil {
+		return err
+	}
+	p.stateMu.RLock()
+	activeConfig, ok := p.registry.models[p.active]
+	p.stateMu.RUnlock()
+	if ok && len(activeConfig.Runtime) == 0 && p.backendHealthy(ctx) {
+		if err := p.persistRuntimeMetadata(ctx, activeConfig); err != nil {
 			p.configErrors.Add(1)
 		}
+	}
+	return nil
+}
+
+func (p *proxy) syncActiveDeployment(ctx context.Context) error {
+	deployment, err := p.client.AppsV1().Deployments(p.namespace).Get(ctx, p.deployment, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("get vLLM Deployment: %w", err)
+	}
+	model := deployment.Spec.Template.Annotations[activeModelAnno]
+	if model == "" {
+		return nil
+	}
+	p.stateMu.Lock()
+	defer p.stateMu.Unlock()
+	if p.transitioning {
+		return nil
+	}
+	if _, ok := p.registry.models[model]; !ok {
+		return fmt.Errorf("vLLM Deployment active model %q is not configured", model)
+	}
+	if p.active != model {
+		p.active = model
+		p.activeSince = time.Now()
 	}
 	return nil
 }

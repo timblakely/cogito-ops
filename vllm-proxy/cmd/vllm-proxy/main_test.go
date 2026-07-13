@@ -13,7 +13,50 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
+
+func TestSyncActiveDeploymentReconcilesExternalModelChange(t *testing.T) {
+	client := fake.NewSimpleClientset(&appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Name: "llm-vllm", Namespace: "home-infra"},
+		Spec: appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{activeModelAnno: "gemma"},
+		}}},
+	})
+	p := &proxy{
+		client: client, namespace: "home-infra", deployment: "llm-vllm", active: "qwen",
+		registry: registry{models: map[string]modelConfig{"gemma": {Name: "gemma"}, "qwen": {Name: "qwen"}}},
+	}
+	if err := p.syncActiveDeployment(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if p.active != "gemma" {
+		t.Fatalf("active model = %q, want gemma", p.active)
+	}
+}
+
+func TestSyncActiveDeploymentPreservesInFlightTransition(t *testing.T) {
+	client := fake.NewSimpleClientset(&appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Name: "llm-vllm", Namespace: "home-infra"},
+		Spec: appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{activeModelAnno: "gemma"},
+		}}},
+	})
+	p := &proxy{
+		client: client, namespace: "home-infra", deployment: "llm-vllm", active: "qwen", transitioning: true,
+		registry: registry{models: map[string]modelConfig{"gemma": {Name: "gemma"}, "qwen": {Name: "qwen"}}},
+	}
+	if err := p.syncActiveDeployment(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if p.active != "qwen" {
+		t.Fatalf("active model = %q, want qwen during transition", p.active)
+	}
+}
 
 func TestParseModelConfig(t *testing.T) {
 	cfg, err := parseModelConfig("gemma", map[string]string{
