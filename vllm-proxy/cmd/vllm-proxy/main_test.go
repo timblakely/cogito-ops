@@ -101,7 +101,7 @@ func TestWriteHermesConfigPreservesOtherSettings(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte("agent:\n  max_turns: 20\ncustom_providers:\n  - name: other\n    base_url: https://other.example/v1\n  - name: llm-proxy\n    base_url: https://old.example/v1\n    models:\n      stale:\n        context_length: 1\nmodel:\n  aliases:\n    fav: custom:llm-proxy:gemma\n  base_url: https://old.example/v1\n"), 0600); err != nil {
+	if err := os.WriteFile(path, []byte("agent:\n  max_turns: 20\ncustom_providers:\n  - name: other\n    base_url: https://other.example/v1\n  - name: llm-proxy\n    base_url: https://old.example/v1\n    models:\n      stale:\n        context_length: 1\nmodel:\n  aliases:\n    fav: custom:llm-proxy:gemma\n  provider: custom:llm-proxy\n  base_url: https://old.example/v1\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	remote := hermesConfigPayload{
@@ -124,6 +124,35 @@ func TestWriteHermesConfigPreservesOtherSettings(t *testing.T) {
 	}
 	if strings.Contains(string(body), "stale") || strings.Contains(string(body), "https://old.example") {
 		t.Fatalf("stale proxy configuration remained:\n%s", body)
+	}
+}
+
+func TestWriteHermesConfigPreservesOpenAIModelSelection(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	original := "model:\n  provider: openai-api\n  default: gpt-5\n  base_url: https://api.openai.example/v1\ncustom_providers:\n  - name: llm-proxy\n    base_url: https://old.example/v1\n    models:\n      stale:\n        context_length: 1\n"
+	if err := os.WriteFile(path, []byte(original), 0600); err != nil {
+		t.Fatal(err)
+	}
+	remote := hermesConfigPayload{
+		Model: hermesModelConfig{Default: "gemma", Provider: "custom:llm-proxy"},
+		CustomProviders: []hermesCustomProvider{{Name: "llm-proxy", BaseURL: "https://llm.example/v1", APIMode: "chat_completions", Models: map[string]hermesCustomProviderModel{
+			"gemma": {ContextLength: 32768},
+		}}},
+	}
+	if err := writeHermesConfig(path, remote); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"provider: openai-api", "default: gpt-5", "base_url: https://api.openai.example/v1", "name: llm-proxy", "base_url: https://llm.example/v1", "context_length: 32768"} {
+		if !strings.Contains(string(body), want) {
+			t.Fatalf("synced config missing %q:\n%s", want, body)
+		}
+	}
+	if strings.Contains(string(body), "stale") || strings.Contains(string(body), "default: gemma") {
+		t.Fatalf("unexpected proxy model overwrite:\n%s", body)
 	}
 }
 

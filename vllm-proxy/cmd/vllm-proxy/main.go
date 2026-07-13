@@ -376,16 +376,18 @@ func writeHermesConfig(path string, remote hermesConfigPayload) error {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	model, ok := config["model"].(map[string]any)
-	if !ok {
-		model = map[string]any{}
+	if shouldSyncHermesModel(config["model"], remote.Model.Provider) {
+		model, ok := config["model"].(map[string]any)
+		if !ok {
+			model = map[string]any{}
+		}
+		model["default"] = remote.Model.Default
+		model["provider"] = remote.Model.Provider
+		delete(model, "base_url")
+		delete(model, "api_key")
+		delete(model, "api_mode")
+		config["model"] = model
 	}
-	model["default"] = remote.Model.Default
-	model["provider"] = remote.Model.Provider
-	delete(model, "base_url")
-	delete(model, "api_key")
-	delete(model, "api_mode")
-	config["model"] = model
 
 	providerName := strings.TrimPrefix(remote.Model.Provider, "custom:")
 	providers := make([]any, 0, len(remote.CustomProviders))
@@ -428,6 +430,21 @@ func writeHermesConfig(path string, remote hermesConfigPayload) error {
 		return err
 	}
 	return os.WriteFile(path, body, 0600)
+}
+
+func shouldSyncHermesModel(current any, proxyProvider string) bool {
+	if current == nil {
+		return true
+	}
+	if sentinel, ok := current.(string); ok {
+		return strings.TrimSpace(sentinel) == ""
+	}
+	model, ok := current.(map[string]any)
+	if !ok {
+		return false
+	}
+	provider, _ := model["provider"].(string)
+	return provider == "" || provider == proxyProvider
 }
 
 func runGenerateConfig(args []string, output io.Writer) error {
