@@ -39,7 +39,7 @@ const (
 )
 
 type modelConfig struct {
-	ID          string
+	Name        string
 	DisplayName string
 	MaxModelLen int
 	Created     time.Time
@@ -53,7 +53,7 @@ type runtimeMetadata struct {
 	SchemaVersion         int               `json:"schema_version"`
 	Source                string            `json:"source"`
 	ObservedAt            time.Time         `json:"observed_at"`
-	ModelID               string            `json:"model_id"`
+	ModelName             string            `json:"model_name"`
 	ServedModelIDs        []string          `json:"served_model_ids,omitempty"`
 	ContextLength         int               `json:"context_length"`
 	MaxConcurrentRequests int               `json:"max_concurrent_requests,omitempty"`
@@ -204,10 +204,10 @@ func (p *proxy) hermesConfig(w http.ResponseWriter, r *http.Request) {
 		openAIError(w, http.StatusServiceUnavailable, "server_error", "No active model is available.")
 		return
 	}
-	sort.Slice(models, func(i, j int) bool { return models[i].ID < models[j].ID })
+	sort.Slice(models, func(i, j int) bool { return models[i].Name < models[j].Name })
 	providerModels := make(map[string]hermesCustomProviderModel, len(models))
 	for _, model := range models {
-		providerModels[model.ID] = hermesCustomProviderModel{ContextLength: model.MaxModelLen}
+		providerModels[model.Name] = hermesCustomProviderModel{ContextLength: model.MaxModelLen}
 	}
 	card := modelCard(cfg)
 	metadata, _ := card["metadata"].(map[string]any)
@@ -215,7 +215,7 @@ func (p *proxy) hermesConfig(w http.ResponseWriter, r *http.Request) {
 		Object: "vllm_proxy.hermes_config",
 		Target: r.PathValue("target"),
 		Config: hermesConfigPayload{
-			Model: hermesModelConfig{Default: cfg.ID, Provider: "custom:llm-proxy"},
+			Model: hermesModelConfig{Default: cfg.Name, Provider: "custom:llm-proxy"},
 			CustomProviders: []hermesCustomProvider{{
 				Name: "llm-proxy", BaseURL: p.publicBaseURL, APIMode: "chat_completions", Models: providerModels,
 			}},
@@ -434,13 +434,12 @@ func runGenerateConfig(args []string, output io.Writer) error {
 	flags := flag.NewFlagSet("generate-config", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	revision := flags.String("revision", "main", "Hugging Face revision containing config.json")
-	modelID := flags.String("model-id", "", "OpenAI model ID (defaults to a slug of the repository)")
 	maxModelLen := flags.Int("max-model-len", 0, "runtime vLLM context cap (defaults to the model-declared limit)")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
 	if flags.NArg() != 1 {
-		return errors.New("usage: vllm-proxy generate-config [--revision REVISION] [--model-id ID] [--max-model-len TOKENS] OWNER/MODEL")
+		return errors.New("usage: vllm-proxy generate-config [--revision REVISION] [--max-model-len TOKENS] OWNER/MODEL")
 	}
 	repo := strings.TrimSpace(flags.Arg(0))
 	if len(strings.Split(repo, "/")) != 2 || strings.Contains(repo, " ") {
@@ -459,15 +458,11 @@ func runGenerateConfig(args []string, output io.Writer) error {
 	if *maxModelLen > 0 {
 		effective = *maxModelLen
 	}
-	id := *modelID
-	if id == "" {
-		id = modelSlug(repo)
-	}
 	fallback := map[string]any{"source": "huggingface", "model_max_context": declared}
 	if parameters, err := fetchModelParameters(ctx, http.DefaultClient, repo); err == nil && parameters > 0 {
 		fallback["total_parameters"] = parameters
 	}
-	return writeGeneratedConfig(output, repo, id, declared, effective, fallback)
+	return writeGeneratedConfig(output, repo, declared, effective, fallback)
 }
 
 func fetchModelContext(ctx context.Context, client *http.Client, repo, revision string) (int, error) {
@@ -561,8 +556,8 @@ func positiveInt(value any) (int, bool) {
 	return int(number), err == nil && number > 0 && int64(int(number)) == number
 }
 
-func writeGeneratedConfig(output io.Writer, repo, id string, declared, effective int, fallback map[string]any) error {
-	args, err := json.Marshal([]string{"--model", repo, "--served-model-name", id, "--max-model-len", strconv.Itoa(effective), "--host", "0.0.0.0", "--port", "8000"})
+func writeGeneratedConfig(output io.Writer, repo string, declared, effective int, fallback map[string]any) error {
+	args, err := json.Marshal([]string{"--max-model-len", strconv.Itoa(effective), "--host", "0.0.0.0", "--port", "8000"})
 	if err != nil {
 		return err
 	}
@@ -579,14 +574,14 @@ metadata:
   labels:
     llm.cogito.dev/model-config: "true"
 data:
-  model_id: %s
+  model_name: %s
   display_name: %s
   model_max_context: "%d"
   max_model_len: "%d"
   model_card_metadata.json: %s
   created_at: "%s"
   vllm_args.json: %s
-`, repo, modelSlug(repo), yamlQuote(id), yamlQuote(repo), declared, effective, yamlQuote(string(fallbackJSON)), time.Now().UTC().Format(time.RFC3339), yamlQuote(string(args)))
+	`, repo, modelSlug(repo), yamlQuote(repo), yamlQuote(repo), declared, effective, yamlQuote(string(fallbackJSON)), time.Now().UTC().Format(time.RFC3339), yamlQuote(string(args)))
 	return err
 }
 
@@ -641,10 +636,10 @@ func (p *proxy) refresh(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("%s: %w", cm.Name, err)
 		}
-		if _, exists := next.models[cfg.ID]; exists {
-			return fmt.Errorf("duplicate model_id %q", cfg.ID)
+		if _, exists := next.models[cfg.Name]; exists {
+			return fmt.Errorf("duplicate model_name %q", cfg.Name)
 		}
-		next.models[cfg.ID] = cfg
+		next.models[cfg.Name] = cfg
 	}
 	p.stateMu.Lock()
 	p.registry = next
@@ -673,9 +668,9 @@ func (p *proxy) refresh(ctx context.Context) error {
 }
 
 func parseModelConfig(name string, data map[string]string) (modelConfig, error) {
-	cfg := modelConfig{ID: strings.TrimSpace(data["model_id"]), DisplayName: strings.TrimSpace(data["display_name"]), Source: name}
-	if cfg.ID == "" || cfg.DisplayName == "" {
-		return cfg, errors.New("model_id and display_name are required")
+	cfg := modelConfig{Name: strings.TrimSpace(data["model_name"]), DisplayName: strings.TrimSpace(data["display_name"]), Source: name}
+	if cfg.Name == "" || cfg.DisplayName == "" {
+		return cfg, errors.New("model_name and display_name are required")
 	}
 	maxLen, err := strconv.Atoi(data["max_model_len"])
 	if err != nil || maxLen < 1 {
@@ -693,8 +688,8 @@ func parseModelConfig(name string, data map[string]string) (modelConfig, error) 
 			return cfg, errors.New("vllm_args.json cannot contain empty arguments")
 		}
 	}
-	if !contains(cfg.Args, "--model") {
-		return cfg, errors.New("vllm_args.json must contain --model")
+	if contains(cfg.Args, "--model") || contains(cfg.Args, "--served-model-name") {
+		return cfg, errors.New("vllm_args.json must not contain --model or --served-model-name")
 	}
 	if value := data["model_card_metadata.json"]; value != "" && !json.Valid([]byte(value)) {
 		return cfg, errors.New("model_card_metadata.json must be valid JSON")
@@ -707,6 +702,12 @@ func parseModelConfig(name string, data map[string]string) (modelConfig, error) 
 		cfg.Runtime = json.RawMessage(value)
 	}
 	return cfg, nil
+}
+
+func effectiveVLLMArgs(cfg modelConfig) []string {
+	args := make([]string, 0, len(cfg.Args)+2)
+	args = append(args, "--model", cfg.Name)
+	return append(args, cfg.Args...)
 }
 
 func (p *proxy) models(w http.ResponseWriter, _ *http.Request) {
@@ -731,7 +732,7 @@ func (p *proxy) model(w http.ResponseWriter, r *http.Request) {
 }
 
 func modelCard(cfg modelConfig) map[string]any {
-	card := map[string]any{"id": cfg.ID, "object": "model", "created": cfg.Created.Unix(), "owned_by": "vllm-proxy"}
+	card := map[string]any{"id": cfg.Name, "object": "model", "created": cfg.Created.Unix(), "owned_by": "vllm-proxy"}
 	metadata := map[string]any{"context_length": cfg.MaxModelLen, "source": "manual_config"}
 	mergeJSONMetadata(metadata, cfg.Fallback)
 	mergeJSONMetadata(metadata, cfg.Runtime)
@@ -816,7 +817,7 @@ func (p *proxy) ensureActive(ctx context.Context, requested string) error {
 	p.switchesTotal.Add(1)
 	p.lastSwitch.Store(time.Since(started).Nanoseconds())
 	p.stateMu.Lock()
-	p.active = cfg.ID
+	p.active = cfg.Name
 	p.activeSince = time.Now()
 	p.stateMu.Unlock()
 	return nil
@@ -827,8 +828,8 @@ func (p *proxy) transition(parent context.Context, cfg modelConfig) error {
 	defer cancel()
 	patchedAt := time.Now()
 	patch, err := json.Marshal(map[string]any{"spec": map[string]any{"template": map[string]any{
-		"metadata": map[string]any{"annotations": map[string]string{activeModelAnno: cfg.ID, switchedAtAnno: time.Now().UTC().Format(time.RFC3339Nano)}},
-		"spec":     map[string]any{"containers": []map[string]any{{"name": p.container, "args": cfg.Args}}},
+		"metadata": map[string]any{"annotations": map[string]string{activeModelAnno: cfg.Name, switchedAtAnno: time.Now().UTC().Format(time.RFC3339Nano)}},
+		"spec":     map[string]any{"containers": []map[string]any{{"name": p.container, "args": effectiveVLLMArgs(cfg)}}},
 	}}})
 	if err != nil {
 		return err
@@ -889,7 +890,7 @@ func (p *proxy) persistRuntimeMetadata(ctx context.Context, cfg modelConfig) err
 }
 
 func (p *proxy) modelCardFallback(ctx context.Context, cfg modelConfig) (string, error) {
-	repo := launchArguments(cfg.Args)["--model"]
+	repo := cfg.Name
 	if len(strings.Split(repo, "/")) != 2 {
 		return "", errors.New("model repository is not OWNER/MODEL")
 	}
@@ -909,9 +910,9 @@ func (p *proxy) collectRuntimeMetadata(ctx context.Context, cfg modelConfig) (ru
 		SchemaVersion:   1,
 		Source:          "vllm_runtime",
 		ObservedAt:      time.Now().UTC(),
-		ModelID:         cfg.ID,
+		ModelName:       cfg.Name,
 		ContextLength:   cfg.MaxModelLen,
-		LaunchArguments: launchArguments(cfg.Args),
+		LaunchArguments: launchArguments(effectiveVLLMArgs(cfg)),
 	}
 	metadata.MaxConcurrentRequests, _ = strconv.Atoi(metadata.LaunchArguments["--max-num-seqs"])
 	metrics, err := p.backendText(ctx, "/metrics")
@@ -1088,7 +1089,7 @@ func (p *proxy) metrics(w http.ResponseWriter, r *http.Request) {
 	p.stateMu.RUnlock()
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
 	if active != "" {
-		fmt.Fprintf(w, "vllm_proxy_active_model_info{model_id=%q} 1\n", active)
+		fmt.Fprintf(w, "vllm_proxy_active_model_info{model_name=%q} 1\n", active)
 	}
 	fmt.Fprintf(w, "vllm_proxy_transitioning %d\n", boolNumber(transitioning))
 	fmt.Fprintf(w, "vllm_proxy_switches_total %d\n", p.switchesTotal.Load())

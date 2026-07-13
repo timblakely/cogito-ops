@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,20 +17,24 @@ import (
 
 func TestParseModelConfig(t *testing.T) {
 	cfg, err := parseModelConfig("gemma", map[string]string{
-		"model_id": "gemma-4", "display_name": "Gemma 4", "max_model_len": "8192", "created_at": "2026-07-11T00:00:00Z",
-		"vllm_args.json": `["serve","--model","example/gemma","--override-generation-config","{\"top_p\":0.9}"]`,
+		"model_name": "example/gemma", "display_name": "Gemma 4", "max_model_len": "8192", "created_at": "2026-07-11T00:00:00Z",
+		"vllm_args.json": `["--override-generation-config","{\"top_p\":0.9}"]`,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.MaxModelLen != 8192 || cfg.Args[4] != `{"top_p":0.9}` {
+	if cfg.MaxModelLen != 8192 || cfg.Name != "example/gemma" || cfg.Args[1] != `{"top_p":0.9}` {
 		t.Fatalf("unexpected config: %#v", cfg)
+	}
+	args := effectiveVLLMArgs(cfg)
+	if strings.Join(args, " ") != `--model example/gemma --override-generation-config {"top_p":0.9}` {
+		t.Fatalf("unexpected effective arguments: %#v", args)
 	}
 }
 
 func TestParseModelConfigRejectsInvalidArgs(t *testing.T) {
 	_, err := parseModelConfig("invalid", map[string]string{
-		"model_id": "invalid", "display_name": "Invalid", "max_model_len": "1", "created_at": "2026-07-11T00:00:00Z", "vllm_args.json": `["serve"]`,
+		"model_name": "example/invalid", "display_name": "Invalid", "max_model_len": "1", "created_at": "2026-07-11T00:00:00Z", "vllm_args.json": `["--model","example/invalid"]`,
 	})
 	if err == nil {
 		t.Fatal("expected validation error")
@@ -45,11 +50,11 @@ func TestModelContextLength(t *testing.T) {
 
 func TestWriteGeneratedConfig(t *testing.T) {
 	var output bytes.Buffer
-	if err := writeGeneratedConfig(&output, "NousResearch/Hermes-3-Llama-3.1-8B", "hermes-3", 131072, 65536, map[string]any{"model_max_context": 131072}); err != nil {
+	if err := writeGeneratedConfig(&output, "NousResearch/Hermes-3-Llama-3.1-8B", 131072, 65536, map[string]any{"model_max_context": 131072}); err != nil {
 		t.Fatal(err)
 	}
 	config := output.String()
-	for _, want := range []string{"model_max_context: \"131072\"", "max_model_len: \"65536\"", "model_card_metadata.json", "--model"} {
+	for _, want := range []string{"model_name: 'NousResearch/Hermes-3-Llama-3.1-8B'", "model_max_context: \"131072\"", "max_model_len: \"65536\"", "model_card_metadata.json"} {
 		if !strings.Contains(config, want) {
 			t.Fatalf("generated config missing %q:\n%s", want, config)
 		}
@@ -66,7 +71,7 @@ func TestCacheConfigInfo(t *testing.T) {
 }
 
 func TestModelCardPrefersRuntimeMetadata(t *testing.T) {
-	cfg := modelConfig{ID: "model", Created: time.Unix(1, 0), Fallback: json.RawMessage(`{"source":"huggingface"}`), Runtime: json.RawMessage(`{"source":"vllm_runtime"}`)}
+	cfg := modelConfig{Name: "model", Created: time.Unix(1, 0), Fallback: json.RawMessage(`{"source":"huggingface"}`), Runtime: json.RawMessage(`{"source":"vllm_runtime"}`)}
 	metadata, ok := modelCard(cfg)["metadata"].(map[string]any)
 	if !ok || metadata["source"] != "vllm_runtime" {
 		t.Fatalf("runtime metadata was not selected: %#v", modelCard(cfg))
@@ -75,8 +80,8 @@ func TestModelCardPrefersRuntimeMetadata(t *testing.T) {
 
 func TestHermesConfigEndpointUsesActiveModel(t *testing.T) {
 	p := &proxy{registry: registry{models: map[string]modelConfig{
-		"gemma": {ID: "gemma", MaxModelLen: 32768, Created: time.Unix(1, 0)},
-		"qwen":  {ID: "qwen", MaxModelLen: 65536, Created: time.Unix(2, 0)},
+		"gemma": {Name: "gemma", MaxModelLen: 32768, Created: time.Unix(1, 0)},
+		"qwen":  {Name: "qwen", MaxModelLen: 65536, Created: time.Unix(2, 0)},
 	}}, active: "gemma", publicBaseURL: "https://llm.example/v1"}
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest("GET", "/vllm-proxy/config/hermes-agent", nil)
@@ -170,6 +175,41 @@ func TestUpgradeLegacyHermesConfigReadsModelCatalog(t *testing.T) {
 	}
 	if upgraded.Model.Provider != "custom:llm-proxy" || upgraded.CustomProviders[0].Models["qwen"].ContextLength != 65536 {
 		t.Fatalf("unexpected upgraded config: %#v", upgraded)
+	}
+}
+
+func TestInferenceForwardsCanonicalModelName(t *testing.T) {
+	const modelName = "Lorbus/Qwen3.6-27B-int4-AutoRound"
+	var receivedModel string
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload struct {
+			Model string `json:"model"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		receivedModel = payload.Model
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer backend.Close()
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := &proxy{
+		backend: backendURL,
+		registry: registry{models: map[string]modelConfig{
+			modelName: {Name: modelName},
+		}},
+		active:  modelName,
+		maxBody: 1 << 20,
+	}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"`+modelName+`","messages":[]}`))
+	p.inference(recorder, request)
+	if recorder.Code != http.StatusOK || receivedModel != modelName {
+		t.Fatalf("got status=%d backend model=%q, want %q", recorder.Code, receivedModel, modelName)
 	}
 }
 
