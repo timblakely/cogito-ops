@@ -1,17 +1,16 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: Build vLLM Proxy
+name: Test vLLM Proxy
 
 on:
   pull_request:
-    paths: ["vllm-proxy/**", ".github/workflows/vllm-proxy.yaml"]
+    paths: ["vllm/vllm-proxy/**", ".github/workflows/vllm-proxy.yaml"]
   push:
     branches: ["main"]
-    paths: ["vllm-proxy/**", ".github/workflows/vllm-proxy.yaml"]
+    paths: ["vllm/vllm-proxy/**", ".github/workflows/vllm-proxy.yaml"]
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   build:
@@ -22,17 +21,4 @@ jobs:
         with:
           go-version: "1.26.0"
       - run: go test ./...
-        working-directory: vllm-proxy
-      - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
-        if: github.event_name == 'push'
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
-        with:
-          context: vllm-proxy
-          push: ${{ github.event_name == 'push' }}
-          tags: |-
-            ghcr.io/timblakely/vllm-proxy:latest
-            ghcr.io/timblakely/vllm-proxy:${{ github.sha }}
+        working-directory: vllm/vllm-proxy

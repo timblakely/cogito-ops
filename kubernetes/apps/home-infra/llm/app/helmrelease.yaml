@@ -115,9 +115,7 @@ spec:
           proxy:
             image:
               repository: ghcr.io/timblakely/vllm-proxy
-              # TODO(llm): Pin an immutable commit-SHA tag after the development cycle.
-              # The image workflow should publish ghcr.io/timblakely/vllm-proxy:<commit-sha>,
-              # update this tag, and commit the manifest change; Flux then rolls out that revision.
+              # Build and push locally with `make -C vllm push-proxy TAG=<tag>`, then pin the tag here.
               tag: latest
               pullPolicy: Always
             env:
