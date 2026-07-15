@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
@@ -141,6 +142,7 @@ func main() {
 		logger.Warn("initial model registry load failed; will retry", "error", err)
 	}
 	cancel()
+	go p.reconcileActiveDeployment(logger)
 	go p.watchConfigs(logger)
 	go p.watchDeployment(logger)
 
@@ -640,6 +642,7 @@ func (p *proxy) watchConfigs(logger *slog.Logger) {
 				logger.Warn("refresh model ConfigMaps", "error", err)
 			}
 			cancel()
+			go p.reconcileActiveDeployment(logger)
 		}
 	}
 }
@@ -772,6 +775,71 @@ func effectiveVLLMArgs(cfg modelConfig) []string {
 	return append(args, cfg.Args...)
 }
 
+func deploymentNeedsActivation(deployment *appsv1.Deployment, container string, cfg modelConfig) bool {
+	if deployment.Spec.Replicas == nil || *deployment.Spec.Replicas != 1 {
+		return true
+	}
+	want := effectiveVLLMArgs(cfg)
+	for _, candidate := range deployment.Spec.Template.Spec.Containers {
+		if candidate.Name != container {
+			continue
+		}
+		if len(candidate.Args) != len(want) {
+			return true
+		}
+		for i := range want {
+			if candidate.Args[i] != want[i] {
+				return true
+			}
+		}
+		return false
+	}
+	return true
+}
+
+// reconcileActiveDeployment materializes the active model ConfigMap into the
+// Helm-managed Deployment. Helm owns the pod template; Switchboard owns only
+// the selected model arguments and replica count.
+func (p *proxy) reconcileActiveDeployment(logger *slog.Logger) {
+	ctx, cancel := context.WithTimeout(context.Background(), p.transitionLimit)
+	defer cancel()
+
+	p.stateMu.RLock()
+	cfg, ok := p.registry.models[p.active]
+	p.stateMu.RUnlock()
+	if !ok {
+		return
+	}
+
+	deployment, err := p.client.AppsV1().Deployments(p.namespace).Get(ctx, p.deployment, metav1.GetOptions{})
+	if err != nil {
+		p.configErrors.Add(1)
+		logger.Warn("get vLLM Deployment for active-model reconciliation", "error", err)
+		return
+	}
+	if !deploymentNeedsActivation(deployment, p.container, cfg) {
+		return
+	}
+
+	p.stateMu.Lock()
+	if p.transitioning || p.active != cfg.Name {
+		p.stateMu.Unlock()
+		return
+	}
+	p.transitioning = true
+	p.stateMu.Unlock()
+	defer func() {
+		p.stateMu.Lock()
+		p.transitioning = false
+		p.stateMu.Unlock()
+	}()
+
+	if err := p.transition(ctx, cfg); err != nil {
+		p.configErrors.Add(1)
+		logger.Warn("reconcile active vLLM model", "model", cfg.Name, "error", err)
+	}
+}
+
 func (p *proxy) models(w http.ResponseWriter, _ *http.Request) {
 	p.stateMu.RLock()
 	data := make([]map[string]any, 0, len(p.registry.models))
@@ -889,7 +957,7 @@ func (p *proxy) transition(parent context.Context, cfg modelConfig) error {
 	ctx, cancel := context.WithTimeout(parent, p.transitionLimit)
 	defer cancel()
 	patchedAt := time.Now()
-	patch, err := json.Marshal(map[string]any{"spec": map[string]any{"template": map[string]any{
+	patch, err := json.Marshal(map[string]any{"spec": map[string]any{"replicas": 1, "template": map[string]any{
 		"metadata": map[string]any{"annotations": map[string]string{activeModelAnno: cfg.Name, switchedAtAnno: time.Now().UTC().Format(time.RFC3339Nano)}},
 		"spec":     map[string]any{"containers": []map[string]any{{"name": p.container, "args": effectiveVLLMArgs(cfg)}}},
 	}}})

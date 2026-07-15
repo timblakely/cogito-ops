@@ -35,7 +35,9 @@ spec:
   values:
     controllers:
       vllm:
-        replicas: 1
+        # Switchboard materializes the annotated default model's arguments and
+        # scales this workload to one replica during its startup reconciliation.
+        replicas: 0
         strategy: Recreate
         serviceAccount:
           name: default
@@ -67,39 +69,6 @@ spec:
               VLLM_SERVER_DEV_MODE: "1"
               VLLM_WORKER_MULTIPROC_METHOD: spawn
               VLLM_ALLOW_LONG_MAX_MODEL_LEN: "1"
-            args:
-              - --disable-custom-all-reduce
-              - --model
-              - cyankiwi/gemma-4-31B-it-qat-AWQ-INT4
-              - --tensor-parallel-size
-              - "2"
-              - --pipeline-parallel-size
-              - "1"
-              - --kv-cache-dtype
-              - auto
-              - --max-model-len
-              - "229376"
-              - --gpu-memory-utilization
-              - "0.95"
-              - --max-num-seqs
-              - "2"
-              - --max-num-batched-tokens
-              - "4096"
-              - --trust-remote-code
-              - --enable-auto-tool-choice
-              - --tool-call-parser
-              - gemma4
-              - --reasoning-parser
-              - gemma4
-              - --chat-template
-              - /vllm-workspace/examples/tool_chat_template_gemma4.jinja
-              - --enable-prefix-caching
-              - --override-generation-config
-              - '{"temperature":1.0,"top_p":0.95,"top_k":64,"min_p":0.0,"repetition_penalty":1.0}'
-              - --host
-              - 0.0.0.0
-              - --port
-              - "8000"
             resources:
               requests:
                 cpu: "4"
@@ -115,9 +84,7 @@ spec:
           proxy:
             image:
               repository: ghcr.io/timblakely/vllm-proxy
-              # Build and push locally with `make -C vllm push-proxy TAG=<tag>`, then pin the tag here.
-              tag: latest
-              pullPolicy: Always
+              tag: gemma4-bootstrap-20260715
             env:
               BACKEND_URL: http://llm-vllm:8000
               PUBLIC_BASE_URL: https://llm-switch.${DOMAIN_NAME}/v1
@@ -184,6 +151,14 @@ spec:
           vllm:
             vllm:
               - path: /root/.cache/vllm
+      gemma4-chat-template:
+        type: configMap
+        name: gemma4-canonical-chat-template
+        advancedMounts:
+          vllm:
+            vllm:
+              - path: /opt/cogito/templates/gemma4-canonical-chat-template.jinja
+                subPath: gemma4-canonical-chat-template.jinja
     rbac:
       roles:
         proxy:

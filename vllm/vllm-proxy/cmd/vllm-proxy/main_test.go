@@ -97,6 +97,32 @@ func TestParseModelConfigDefaultsModelSourceToModelName(t *testing.T) {
 	}
 }
 
+func TestDeploymentNeedsActivation(t *testing.T) {
+	replicas := int32(1)
+	cfg := modelConfig{Name: "gemma", ModelSource: "google/gemma", Args: []string{"--host", "0.0.0.0"}}
+	deployment := &appsv1.Deployment{Spec: appsv1.DeploymentSpec{
+		Replicas: &replicas,
+		Template: corev1.PodTemplateSpec{Spec: corev1.PodSpec{Containers: []corev1.Container{{
+			Name: "vllm", Args: effectiveVLLMArgs(cfg),
+		}}}},
+	}}
+	if deploymentNeedsActivation(deployment, "vllm", cfg) {
+		t.Fatal("matching one-replica Deployment should not require activation")
+	}
+
+	zero := int32(0)
+	deployment.Spec.Replicas = &zero
+	if !deploymentNeedsActivation(deployment, "vllm", cfg) {
+		t.Fatal("zero-replica Deployment should require activation")
+	}
+
+	deployment.Spec.Replicas = &replicas
+	deployment.Spec.Template.Spec.Containers[0].Args = []string{"--model", "wrong"}
+	if !deploymentNeedsActivation(deployment, "vllm", cfg) {
+		t.Fatal("Deployment with stale arguments should require activation")
+	}
+}
+
 func TestModelContextLength(t *testing.T) {
 	length, ok := modelContextLength(map[string]any{"text_config": map[string]any{"max_position_embeddings": json.Number("131072")}})
 	if !ok || length != 131072 {

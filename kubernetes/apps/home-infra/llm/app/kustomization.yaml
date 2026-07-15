@@ -8,3 +8,9 @@ resources:
   - ./helmrelease.yaml
   - ./pvc.yaml
   - ./servicemonitor.yaml
+configMapGenerator:
+  - name: gemma4-canonical-chat-template
+    files:
+      - gemma4-canonical-chat-template.jinja
+    options:
+      disableNameSuffixHash: true
