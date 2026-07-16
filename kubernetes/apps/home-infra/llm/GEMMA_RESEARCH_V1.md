@@ -278,6 +278,118 @@ does not presently provide Hermes-style workflow policy. If Gemma emits
 chain. If Gemma stops at the snippet, Open WebUI treats that as the model's
 final decision unless a separate retrieval-oriented harness is added.
 
+## How to push Open WebUI toward an agent loop
+
+Open WebUI has several supported levers, but they have different strengths.
+The first three are model steering; the last two move policy out of the model
+and are the reliable answer when steering is not enough.
+
+### What does not solve it
+
+* **Raising the tool-call limit:** Native mode already permits up to **256
+  sequential tool-call rounds per user message** by default. That is an ample
+  ceiling for research; the failure is Gemma choosing to stop after the first
+  search, not Open WebUI stopping it. [Environment reference](https://docs.openwebui.com/reference/env-configuration/)
+* **`ENABLE_SEARCH_QUERY_GENERATION`:** this only applies to legacy function
+  calling. Native mode uses the model's own `search_web` call, so it does not
+  make Gemma reformulate queries or fetch pages. [Environment reference](https://docs.openwebui.com/reference/env-configuration/)
+* **Legacy tool calling:** Open WebUI explicitly treats Legacy as unsupported
+  and excludes modern native tools, agentic research, and interleaved thinking.
+  It is not a fallback for a hesitant local model. [Tools documentation](https://docs.openwebui.com/features/extensibility/plugin/tools/)
+
+### 1. Create a dedicated “Grounded Research” model preset
+
+Open WebUI model presets can bind a system prompt, web-search capability,
+default features, tools, and builtin tool categories to one base model. Keep
+ordinary Gemma chat lean; make this a separate profile so every research chat
+starts with the appropriate policy. [Open WebUI Models](https://docs.openwebui.com/features/workspace/models/)
+
+Set the preset to Native function calling, enable Web Search as a capability
+and default feature, and enable the Task Management builtin category. Use a
+system prompt with explicit, testable rules such as:
+
+> For current, financial, weather, pricing, availability, legal, medical, or
+> other externally verifiable claims: search results are leads, not evidence.
+> Do not state a value from a title or snippet. Fetch the most relevant primary
+> source before answering. If the page does not confirm the value, search again
+> or say it could not be verified. For comparison/research requests, create a
+> task list, fetch at least two relevant sources, reconcile conflicts using
+> source date and authority, and cite the fetched URLs. Do not claim that a
+> `previous close`, delayed quote, or undated value is today’s close.
+
+This gives Gemma a clearer tool-selection rule than “use web search when
+needed.” It remains **soft enforcement**: the model can still ignore it or
+make a malformed/incorrect follow-up call.
+
+### 2. Give the loop a visible plan
+
+Native Open WebUI includes `create_tasks` and `update_task`; Task Management is
+intended for research and investigations where the agent should break work
+down, execute it, track progress, and adapt. Enabling it in the research preset
+and requiring a task list for multi-source prompts makes skipped fetches visible
+in the UI and gives the model a durable intermediate state.
+[Task Management](https://docs.openwebui.com/features/chat-conversations/chat-features/task-management/)
+
+This is useful for a workshop-light report; it is unnecessary overhead for
+“what is the weather?” A system prompt should reserve tasks for investigations,
+not force them into every short lookup.
+
+### 3. Configure an actual page loader before enforcing fetches
+
+This cluster currently has SearXNG discovery but no Open WebUI web-loader
+engine. Enforcing `fetch_url` without a loader risks replacing an incorrect
+snippet with an extraction error. The intended local configuration is
+SearXNG for discovery plus the existing self-hosted Firecrawl service for page
+extraction; Open WebUI supports Firecrawl as a loader. [Web-search
+troubleshooting](https://docs.openwebui.com/troubleshooting/web-search/),
+[environment reference](https://docs.openwebui.com/reference/env-configuration/)
+
+### 4. Use a Pipe when the sequence itself is policy
+
+If the required behavior is “for this class of question, always search,
+automatically fetch/rank the top sources, then ask Gemma to synthesize,” do not
+leave that sequence to a prompt. Open WebUI's supported extension point is a
+**Pipe Function**: it registers as a model and controls the entire request /
+response cycle, including multi-step agents, retrieval, routing, and caching.
+[Open WebUI Functions](https://docs.openwebui.com/features/extensibility/plugin/functions/)
+
+A local research Pipe can implement a bounded deterministic policy:
+
+```text
+classify current/research request
+  -> search SearXNG
+  -> discard stale/low-authority snippets
+  -> fetch selected URLs through Firecrawl
+  -> chunk/rank extracted text
+  -> call Gemma once with only the evidence and citation metadata
+```
+
+That is the robust fix for “the model thinks the snippet is enough.” It also
+creates a clear place to route finance/weather to dedicated structured sources
+instead of pretending web search is a quote feed.
+
+### 5. Use Hermes behind Open WebUI when the agent, not the UI, is the product
+
+Open WebUI can connect an autonomous agent—Hermes included—as an
+OpenAI-compatible model connection. This keeps Open WebUI's conversation,
+authentication, and presentation layer while Hermes owns the tool loop, skills,
+browser/file access, and scheduled-workflow policy. [Connect an Agent](https://docs.openwebui.com/getting-started/quick-start/connect-an-agent/)
+
+This is the lowest-risk way to test whether Hermes' outer harness improves the
+same Gemma model: point a separate Open WebUI model entry at Hermes, run a fixed
+evaluation set, and compare its tool traces and citations with direct vLLM.
+
+### Recommended order
+
+1. Configure the local Firecrawl page loader and validate `fetch_url`.
+2. Add the Grounded Research model preset and evaluate its explicit fetch/task
+   policy with Gemma and Qwen.
+3. For research where a skipped fetch is unacceptable, build a bounded local
+   research Pipe rather than escalating prompt wording indefinitely.
+4. Keep dedicated structured tools for market quotes, weather, and other
+   telemetry; no agent-loop prompt can turn SERP snippets into authoritative
+   data.
+
 ## What major LLM providers changed to make this work
 
 Major providers generally do not present “a normal chat completion with a web
@@ -405,6 +517,9 @@ tool-heavy tasks.
 * [Open WebUI: environment configuration](https://docs.openwebui.com/reference/env-configuration/)
 * [Open WebUI: Tools and Native Mode](https://docs.openwebui.com/features/extensibility/plugin/tools/)
 * [Open WebUI: Interleaved Thinking with Tool Calls](https://docs.openwebui.com/features/chat-conversations/chat-features/reasoning-models/)
+* [Open WebUI: Task Management](https://docs.openwebui.com/features/chat-conversations/chat-features/task-management/)
+* [Open WebUI: Functions](https://docs.openwebui.com/features/extensibility/plugin/functions/)
+* [Open WebUI: Connect an Agent](https://docs.openwebui.com/getting-started/quick-start/connect-an-agent/)
 * [Google: Function calling with Gemma 4](https://ai.google.dev/gemma/docs/capabilities/text/function-calling-gemma4)
 * [vLLM: Gemma 4 recipe](https://docs.vllm.ai/projects/recipes/en/stable/Google/Gemma4.html)
 * [SearXNG outgoing settings](https://docs.searxng.org/admin/settings/settings_outgoing.html)

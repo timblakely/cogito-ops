@@ -1,0 +1,12 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: firecrawl
+spec:
+  patches:
+    - patch: |-
+        - op: remove
+          path: /spec/postgresql/synchronous
+      target:
+        kind: Cluster

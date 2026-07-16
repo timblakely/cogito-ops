@@ -43,7 +43,7 @@ spec:
             args: [--start-docker]
             env:
               HOST: 0.0.0.0
-              PORT: &apiPort "3002"
+              PORT: "3002"
               EXTRACT_WORKER_PORT: "3004"
               WORKER_PORT: "3005"
               ENV: local
@@ -78,7 +78,7 @@ spec:
                 spec:
                   httpGet:
                     path: /health
-                    port: *apiPort
+                    port: &apiPort 3002
                   initialDelaySeconds: 30
                   periodSeconds: 15
                   timeoutSeconds: 3
@@ -110,7 +110,7 @@ spec:
               repository: ghcr.io/firecrawl/playwright-service
               tag: latest@sha256:6359b0d9070f27400b4a9b615509be06919e40121fc1fdc42d4efeddf02653d2
             env:
-              PORT: &playwrightPort "3000"
+              PORT: "3000"
               MAX_CONCURRENT_PAGES: "3"
               BLOCK_MEDIA: "true"
             resources:
@@ -129,7 +129,7 @@ spec:
                 spec:
                   httpGet:
                     path: /health
-                    port: *playwrightPort
+                    port: &playwrightPort 3000
                   initialDelaySeconds: 20
                   periodSeconds: 15
                   timeoutSeconds: 3
@@ -157,8 +157,15 @@ spec:
               limits:
                 memory: 1Gi
             securityContext:
+              # The official image fixes ownership, then drops to the
+              # unprivileged rabbitmq user during its entrypoint.
+              runAsUser: 0
+              runAsGroup: 0
+              runAsNonRoot: false
               allowPrivilegeEscalation: false
-              capabilities: { drop: [ALL] }
+              capabilities:
+                drop: [ALL]
+                add: [CHOWN, SETGID, SETUID]
             probes:
               liveness: &rabbitmqProbes
                 enabled: true
