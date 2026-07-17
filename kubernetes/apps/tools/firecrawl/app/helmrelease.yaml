@@ -38,7 +38,7 @@ spec:
           main:
             image:
               repository: ghcr.io/firecrawl/firecrawl
-              tag: latest@sha256:651e0c8f73006ad13b0e926ba4eeb3358a953ceffca43b32bd149ee95c3574fe
+              tag: 2.10.1@sha256:651e0c8f73006ad13b0e926ba4eeb3358a953ceffca43b32bd149ee95c3574fe
             command: [node, dist/src/harness.js]
             args: [--start-docker]
             env:
@@ -76,8 +76,7 @@ spec:
                 enabled: true
                 custom: true
                 spec:
-                  httpGet:
-                    path: /health
+                  tcpSocket:
                     port: &apiPort 3002
                   initialDelaySeconds: 30
                   periodSeconds: 15
@@ -171,8 +170,8 @@ spec:
                 enabled: true
                 custom: true
                 spec:
-                  exec:
-                    command: [rabbitmq-diagnostics, -q, check_running]
+                  tcpSocket:
+                    port: 5672
                   initialDelaySeconds: 15
                   periodSeconds: 15
                   timeoutSeconds: 3

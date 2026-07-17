@@ -1,0 +1,3 @@
+GRANT USAGE ON SCHEMA nuq TO app;
+GRANT USAGE ON TYPE nuq.job_status, nuq.group_status TO app;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA nuq TO app;

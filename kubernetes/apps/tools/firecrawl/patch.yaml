@@ -10,3 +10,35 @@ spec:
           path: /spec/postgresql/synchronous
       target:
         kind: Cluster
+    - patch: |-
+        apiVersion: postgresql.cnpg.io/v1
+        kind: Cluster
+        metadata:
+          name: patch
+        spec:
+          postgresql:
+            shared_preload_libraries:
+              - pg_cron
+            parameters:
+              cron.database_name: app
+            extensions:
+              - name: pg-cron
+                image:
+                  reference: ghcr.io/pglayers/pgx-pg_cron:18@sha256:95aecb0ca0d6cd3df779250ede5d7279cba383bf16718e70e9a9861331039d58
+      target:
+        kind: Cluster
+    - patch: |-
+        - op: add
+          path: /spec/bootstrap
+          value:
+            initdb:
+              database: app
+              owner: app
+              postInitApplicationSQLRefs:
+                configMapRefs:
+                  - name: firecrawl-nuq-schema
+                    key: nuq.cnpg.sql
+                  - name: firecrawl-nuq-grants
+                    key: nuq-grants.sql
+      target:
+        kind: Cluster

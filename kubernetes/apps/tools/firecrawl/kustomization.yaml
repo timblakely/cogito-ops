@@ -9,6 +9,16 @@ configMapGenerator:
       - SUBDOMAIN=firecrawl
       - CNPG_CAPACITY=10Gi
       - CNPG_REPLICAS=1
+  - name: firecrawl-nuq-schema
+    options:
+      disableNameSuffixHash: true
+    files:
+      - nuq.cnpg.sql=./nuq.cnpg.sql
+  - name: firecrawl-nuq-grants
+    options:
+      disableNameSuffixHash: true
+    files:
+      - nuq-grants.sql=./nuq-grants.sql
 patches:
   - path: ./patch.yaml
     target:
