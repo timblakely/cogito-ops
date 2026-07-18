@@ -83,9 +83,13 @@ type proxy struct {
 	registry      registry
 	active        string
 	transitioning bool
-	ready         bool
-	startedAt     time.Time
-	activeSince   time.Time
+	// transitionCancel interrupts an obsolete active-model rollout when its
+	// ConfigMap changes. The next reconciliation then applies the new args.
+	transitionCancel context.CancelFunc
+	reconcilePending bool
+	ready            bool
+	startedAt        time.Time
+	activeSince      time.Time
 
 	switchesTotal atomic.Uint64
 	configErrors  atomic.Uint64
@@ -822,21 +826,39 @@ func (p *proxy) reconcileActiveDeployment(logger *slog.Logger) {
 	}
 
 	p.stateMu.Lock()
-	if p.transitioning || p.active != cfg.Name {
+	if p.active != cfg.Name {
 		p.stateMu.Unlock()
 		return
 	}
+	if p.transitioning {
+		p.reconcilePending = true
+		transitionCancel := p.transitionCancel
+		p.stateMu.Unlock()
+		if transitionCancel != nil {
+			transitionCancel()
+		}
+		return
+	}
 	p.transitioning = true
+	p.transitionCancel = cancel
 	p.stateMu.Unlock()
 	defer func() {
 		p.stateMu.Lock()
 		p.transitioning = false
+		p.transitionCancel = nil
+		pending := p.reconcilePending
+		p.reconcilePending = false
 		p.stateMu.Unlock()
+		if pending {
+			go p.reconcileActiveDeployment(logger)
+		}
 	}()
 
 	if err := p.transition(ctx, cfg); err != nil {
-		p.configErrors.Add(1)
-		logger.Warn("reconcile active vLLM model", "model", cfg.Name, "error", err)
+		if !errors.Is(err, context.Canceled) {
+			p.configErrors.Add(1)
+			logger.Warn("reconcile active vLLM model", "model", cfg.Name, "error", err)
+		}
 	}
 }
 

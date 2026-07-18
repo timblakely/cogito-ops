@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -36,6 +37,40 @@ func TestSyncActiveDeploymentReconcilesExternalModelChange(t *testing.T) {
 	}
 	if p.active != "gemma" {
 		t.Fatalf("active model = %q, want gemma", p.active)
+	}
+}
+
+func TestReconcileActiveDeploymentCancelsStaleTransition(t *testing.T) {
+	replicas := int32(1)
+	client := fake.NewSimpleClientset(&appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Name: "llm-vllm", Namespace: "home-infra"},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Template: corev1.PodTemplateSpec{Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "vllm"}}}},
+		},
+	})
+	canceled := make(chan struct{})
+	p := &proxy{
+		client:           client,
+		namespace:        "home-infra",
+		deployment:       "llm-vllm",
+		container:        "vllm",
+		active:           "gemma",
+		transitioning:    true,
+		transitionCancel: func() { close(canceled) },
+		registry: registry{models: map[string]modelConfig{
+			"gemma": {Name: "gemma", ModelSource: "google/gemma"},
+		}},
+	}
+
+	p.reconcileActiveDeployment(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	select {
+	case <-canceled:
+	case <-time.After(time.Second):
+		t.Fatal("stale transition was not canceled")
+	}
+	if !p.reconcilePending {
+		t.Fatal("updated active model was not queued for reconciliation")
 	}
 }
 
