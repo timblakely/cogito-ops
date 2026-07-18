@@ -100,7 +100,11 @@ spec:
               - {path: /config/sources.yaml, subPath: sources.yaml}
       hf-cache:
         type: persistentVolumeClaim
-        existingClaim: knowledge-hf-cache
+        forceRename: knowledge-hf-cache
+        annotations:
+          kustomize.toolkit.fluxcd.io/prune: disabled
+        accessMode: ReadWriteOnce
+        size: 5Gi
         advancedMounts:
           embeddings:
             main:

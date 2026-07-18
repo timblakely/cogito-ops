@@ -126,7 +126,12 @@ spec:
                 port: 8080
     persistence:
       huggingface-cache:
-        existingClaim: llm-huggingface-cache
+        type: persistentVolumeClaim
+        annotations:
+          kustomize.toolkit.fluxcd.io/prune: disabled
+        accessMode: ReadWriteOnce
+        storageClass: openebs-hostpath
+        size: 300Gi
         advancedMounts:
           vllm:
             vllm:
@@ -140,13 +145,23 @@ spec:
             vllm:
               - path: /dev/shm
       triton-cache:
-        existingClaim: llm-triton-cache
+        type: persistentVolumeClaim
+        annotations:
+          kustomize.toolkit.fluxcd.io/prune: disabled
+        accessMode: ReadWriteOnce
+        storageClass: openebs-hostpath
+        size: 50Gi
         advancedMounts:
           vllm:
             vllm:
               - path: /root/.triton/cache
       vllm-cache:
-        existingClaim: llm-vllm-cache
+        type: persistentVolumeClaim
+        annotations:
+          kustomize.toolkit.fluxcd.io/prune: disabled
+        accessMode: ReadWriteOnce
+        storageClass: openebs-hostpath
+        size: 100Gi
         advancedMounts:
           vllm:
             vllm:
