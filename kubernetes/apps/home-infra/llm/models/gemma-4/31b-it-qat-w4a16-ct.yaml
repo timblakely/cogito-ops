@@ -10,7 +10,7 @@ data:
   # compressed-tensors quantization from the model configuration.
   model_name: google/gemma-4-31B-it-qat-w4a16-ct
   display_name: "Gemma 4 31B IT QAT W4A16 (Google, Compressed Tensors)"
-  max_model_len: "185000"
+  max_model_len: "229376"
   created_at: "2026-07-16T00:00:00Z"
   vllm_args.json: |-
     [
@@ -18,7 +18,7 @@ data:
       "--tensor-parallel-size", "2",
       "--pipeline-parallel-size", "1",
       "--kv-cache-dtype", "auto",
-      "--max-model-len", "185000",
+      "--max-model-len", "229376",
       "--gpu-memory-utilization", "0.95",
       "--max-num-seqs", "2",
       "--max-num-batched-tokens", "4096",
@@ -27,7 +27,6 @@ data:
       "--tool-call-parser", "gemma4",
       "--reasoning-parser", "gemma4",
       "--chat-template", "/opt/cogito/templates/gemma4-canonical-chat-template.jinja",
-      "--enable-prefix-caching",
       "--override-generation-config", "{\"temperature\": 1.0, \"top_p\": 0.95, \"top_k\": 64, \"min_p\": 0.0, \"repetition_penalty\": 1.0}",
       "--host", "0.0.0.0",
       "--port", "8000"
