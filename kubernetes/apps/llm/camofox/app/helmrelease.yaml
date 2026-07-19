@@ -1,0 +1,75 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/refs/tags/app-template-4.6.0/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: camofox
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+    namespace: flux-system
+  install:
+    timeout: 5m
+    remediation:
+      retries: 3
+  upgrade:
+    timeout: 5m
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      camofox:
+        containers:
+          app:
+            image:
+              repository: ghcr.io/jo-inc/camofox-browser
+              tag: 1.8.0
+            env:
+              CAMOFOX_CRASH_REPORT_ENABLED: "false"
+              MAX_SESSIONS: "10"
+              MAX_TABS_PER_SESSION: "5"
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: &port 9377
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+                  timeoutSeconds: 3
+                  failureThreshold: 3
+              readiness: *probes
+            resources:
+              requests:
+                cpu: 250m
+                memory: 1Gi
+              limits:
+                memory: 3Gi
+    service:
+      app:
+        controller: camofox
+        ports:
+          http:
+            port: *port
+    route:
+      app:
+        hostnames:
+          - ${APP_URL}
+        parentRefs:
+          - name: envoy-internal
+            namespace: envoy-system
+            sectionName: https
+        rules:
+          - backendRefs:
+              - identifier: app
+                port: *port
+    persistence:
+      data:
+        existingClaim: camofox
+        globalMounts:
+          - path: /root/.camofox

@@ -1,0 +1,15 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: APP-app-vars
+    literals:
+      - APP=camofox
+      - VOLSYNC_CAPACITY=5Gi
+      # Camofox writes browser profiles as root; preserve ownership in backups.
+      - VOLSYNC_PUID=0
+      - VOLSYNC_PGID=0
+components:
+  - ../../../components/ks/app
+  - ../../../components/kustomize/volsync
