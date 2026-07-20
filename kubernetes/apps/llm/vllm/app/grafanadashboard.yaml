@@ -92,7 +92,7 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "sum(rate(vllm:spec_decode_num_accepted_tokens_total{namespace=\"home-infra\",vllm_instance=~\"$instance\"}[$__rate_interval])) / clamp_min(sum(rate(vllm:spec_decode_num_draft_tokens_total{namespace=\"home-infra\",vllm_instance=~\"$instance\"}[$__rate_interval])), 1)",
+              "expr": "sum(rate(vllm:spec_decode_num_accepted_tokens_total{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval])) / clamp_min(sum(rate(vllm:spec_decode_num_draft_tokens_total{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval])), 1)",
               "legendFormat": "accepted / drafted",
               "range": true,
               "refId": "A"
@@ -151,7 +151,7 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "1 + sum(rate(vllm:spec_decode_num_accepted_tokens_total{namespace=\"home-infra\",vllm_instance=~\"$instance\"}[$__rate_interval])) / clamp_min(sum(rate(vllm:spec_decode_num_drafts{namespace=\"home-infra\",vllm_instance=~\"$instance\"}[$__rate_interval])), 1)",
+              "expr": "1 + sum(rate(vllm:spec_decode_num_accepted_tokens_total{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval])) / clamp_min(sum(rate(vllm:spec_decode_num_drafts{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval])), 1)",
               "legendFormat": "tokens / draft",
               "range": true,
               "refId": "A"
@@ -210,7 +210,7 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "sum(rate(vllm:spec_decode_num_draft_tokens_total{namespace=\"home-infra\",vllm_instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "sum(rate(vllm:spec_decode_num_draft_tokens_total{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval]))",
               "legendFormat": "draft",
               "range": true,
               "refId": "A"
@@ -269,7 +269,7 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "sum(rate(vllm:spec_decode_num_accepted_tokens_total{namespace=\"home-infra\",vllm_instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "sum(rate(vllm:spec_decode_num_accepted_tokens_total{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval]))",
               "legendFormat": "accepted",
               "range": true,
               "refId": "A"
@@ -328,7 +328,7 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "sum(rate(vllm:prompt_tokens_total{namespace=\"home-infra\",vllm_instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "sum(rate(vllm:prompt_tokens_total{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval]))",
               "legendFormat": "prompt",
               "range": true,
               "refId": "A"
@@ -387,7 +387,7 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "sum(rate(vllm:generation_tokens_total{namespace=\"home-infra\",vllm_instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "sum(rate(vllm:generation_tokens_total{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval]))",
               "legendFormat": "generation",
               "range": true,
               "refId": "A"
@@ -446,7 +446,7 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "sum(rate(vllm:request_success_total{namespace=\"home-infra\",vllm_instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "sum(rate(vllm:request_success_total{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval]))",
               "legendFormat": "requests",
               "range": true,
               "refId": "A"
@@ -505,14 +505,14 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "sum(vllm:num_requests_running{namespace=\"home-infra\",vllm_instance=~\"$instance\"})",
+              "expr": "sum(vllm:num_requests_running{namespace=\"llm\",vllm_instance=~\"$instance\"})",
               "legendFormat": "running",
               "range": true,
               "refId": "A"
             },
             {
               "editorMode": "code",
-              "expr": "sum(vllm:num_requests_waiting{namespace=\"home-infra\",vllm_instance=~\"$instance\"})",
+              "expr": "sum(vllm:num_requests_waiting{namespace=\"llm\",vllm_instance=~\"$instance\"})",
               "legendFormat": "waiting",
               "range": true,
               "refId": "B"
@@ -602,14 +602,14 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "sum by (vllm_instance) (rate(vllm:prompt_tokens_total{namespace=\"home-infra\",vllm_instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "sum by (vllm_instance) (rate(vllm:prompt_tokens_total{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval]))",
               "legendFormat": "{{vllm_instance}} prompt",
               "range": true,
               "refId": "A"
             },
             {
               "editorMode": "code",
-              "expr": "sum by (vllm_instance) (rate(vllm:generation_tokens_total{namespace=\"home-infra\",vllm_instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "sum by (vllm_instance) (rate(vllm:generation_tokens_total{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval]))",
               "legendFormat": "{{vllm_instance}} generation",
               "range": true,
               "refId": "B"
@@ -680,7 +680,7 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "max by (vllm_instance) (vllm:kv_cache_usage_perc{namespace=\"home-infra\",vllm_instance=~\"$instance\"}) * 100",
+              "expr": "max by (vllm_instance) (vllm:kv_cache_usage_perc{namespace=\"llm\",vllm_instance=~\"$instance\"}) * 100",
               "legendFormat": "{{vllm_instance}}",
               "range": true,
               "refId": "A"
@@ -767,7 +767,7 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "histogram_quantile(0.95, sum by (le, vllm_instance) (rate(vllm:e2e_request_latency_seconds_bucket{namespace=\"home-infra\",vllm_instance=~\"$instance\"}[$__rate_interval])))",
+              "expr": "histogram_quantile(0.95, sum by (le, vllm_instance) (rate(vllm:e2e_request_latency_seconds_bucket{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval])))",
               "legendFormat": "{{vllm_instance}} p95",
               "range": true,
               "refId": "A"
@@ -854,7 +854,7 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "histogram_quantile(0.95, sum by (le, vllm_instance) (rate(vllm:time_to_first_token_seconds_bucket{namespace=\"home-infra\",vllm_instance=~\"$instance\"}[$__rate_interval])))",
+              "expr": "histogram_quantile(0.95, sum by (le, vllm_instance) (rate(vllm:time_to_first_token_seconds_bucket{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval])))",
               "legendFormat": "{{vllm_instance}} p95",
               "range": true,
               "refId": "A"
@@ -941,7 +941,7 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "histogram_quantile(0.95, sum by (le, vllm_instance) (rate(vllm:request_time_per_output_token_seconds_bucket{namespace=\"home-infra\",vllm_instance=~\"$instance\"}[$__rate_interval]))) * 1000",
+              "expr": "histogram_quantile(0.95, sum by (le, vllm_instance) (rate(vllm:request_time_per_output_token_seconds_bucket{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval]))) * 1000",
               "legendFormat": "{{vllm_instance}} p95",
               "range": true,
               "refId": "A"
@@ -1028,14 +1028,14 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "sum by (vllm_instance) (vllm:num_requests_running{namespace=\"home-infra\",vllm_instance=~\"$instance\"})",
+              "expr": "sum by (vllm_instance) (vllm:num_requests_running{namespace=\"llm\",vllm_instance=~\"$instance\"})",
               "legendFormat": "{{vllm_instance}} running",
               "range": true,
               "refId": "A"
             },
             {
               "editorMode": "code",
-              "expr": "sum by (vllm_instance) (vllm:num_requests_waiting{namespace=\"home-infra\",vllm_instance=~\"$instance\"})",
+              "expr": "sum by (vllm_instance) (vllm:num_requests_waiting{namespace=\"llm\",vllm_instance=~\"$instance\"})",
               "legendFormat": "{{vllm_instance}} waiting",
               "range": true,
               "refId": "B"
@@ -1122,14 +1122,14 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "sum by (vllm_instance) (increase(vllm:prompt_tokens_total{namespace=\"home-infra\",vllm_instance=~\"$instance\"}[$__range]))",
+              "expr": "sum by (vllm_instance) (increase(vllm:prompt_tokens_total{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__range]))",
               "legendFormat": "{{vllm_instance}} prompt",
               "range": true,
               "refId": "A"
             },
             {
               "editorMode": "code",
-              "expr": "sum by (vllm_instance) (increase(vllm:generation_tokens_total{namespace=\"home-infra\",vllm_instance=~\"$instance\"}[$__range]))",
+              "expr": "sum by (vllm_instance) (increase(vllm:generation_tokens_total{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__range]))",
               "legendFormat": "{{vllm_instance}} generation",
               "range": true,
               "refId": "B"
@@ -1219,7 +1219,7 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "100 * sum by (vllm_instance) (rate(vllm:prefix_cache_hits_total{namespace=\"home-infra\",vllm_instance=~\"$instance\"}[$__rate_interval])) / clamp_min(sum by (vllm_instance) (rate(vllm:prefix_cache_queries_total{namespace=\"home-infra\",vllm_instance=~\"$instance\"}[$__rate_interval])), 1)",
+              "expr": "100 * sum by (vllm_instance) (rate(vllm:prefix_cache_hits_total{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval])) / clamp_min(sum by (vllm_instance) (rate(vllm:prefix_cache_queries_total{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval])), 1)",
               "legendFormat": "{{vllm_instance}}",
               "range": true,
               "refId": "A"
@@ -1281,7 +1281,7 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "sum by (vllm_instance, model_name, finished_reason) (increase(vllm:request_success_total{namespace=\"home-infra\",vllm_instance=~\"$instance\"}[$__range]))",
+              "expr": "sum by (vllm_instance, model_name, finished_reason) (increase(vllm:request_success_total{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__range]))",
               "format": "table",
               "instant": true,
               "legendFormat": "__auto",
@@ -1386,7 +1386,7 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "sum by (vllm_instance) (rate(vllm:num_preemptions_total{namespace=\"home-infra\",vllm_instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "sum by (vllm_instance) (rate(vllm:num_preemptions_total{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval]))",
               "legendFormat": "{{vllm_instance}}",
               "range": true,
               "refId": "A"
@@ -1453,7 +1453,7 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "vllm_proxy_last_startup_duration_seconds{namespace=\"home-infra\"}",
+              "expr": "vllm_proxy_last_startup_duration_seconds{namespace=\"llm\"}",
               "legendFormat": "startup",
               "range": false,
               "refId": "A"
@@ -1520,7 +1520,7 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "vllm_proxy_last_switch_duration_seconds{namespace=\"home-infra\"}",
+              "expr": "vllm_proxy_last_switch_duration_seconds{namespace=\"llm\"}",
               "legendFormat": "switch",
               "range": false,
               "refId": "A"
@@ -1607,7 +1607,7 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "sum by (vllm_instance) (vllm:gpu_memory_usage_bytes{namespace=\"home-infra\",vllm_instance=~\"$instance\"})",
+              "expr": "sum by (vllm_instance) (vllm:gpu_memory_usage_bytes{namespace=\"llm\",vllm_instance=~\"$instance\"})",
               "legendFormat": "{{vllm_instance}}",
               "range": true,
               "refId": "A"
@@ -1676,7 +1676,7 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "vllm_proxy_active_model_info{namespace=\"home-infra\"}",
+              "expr": "vllm_proxy_active_model_info{namespace=\"llm\"}",
               "legendFormat": "__auto",
               "range": false,
               "refId": "A"
@@ -1705,7 +1705,7 @@ spec:
               "type": "prometheus",
               "uid": "prometheus"
             },
-            "definition": "label_values(vllm:kv_cache_usage_perc{namespace=\"home-infra\"}, vllm_instance) or label_values(vllm_proxy_last_startup_duration_seconds{namespace=\"home-infra\"}, vllm_instance)",
+            "definition": "label_values(vllm:kv_cache_usage_perc{namespace=\"llm\"}, vllm_instance) or label_values(vllm_proxy_last_startup_duration_seconds{namespace=\"llm\"}, vllm_instance)",
             "hide": 0,
             "includeAll": true,
             "label": "Instance",
@@ -1714,7 +1714,7 @@ spec:
             "options": [],
             "query": {
               "qryType": 0,
-              "query": "label_values(vllm:kv_cache_usage_perc{namespace=\"home-infra\"}, vllm_instance) or label_values(vllm_proxy_last_startup_duration_seconds{namespace=\"home-infra\"}, vllm_instance)",
+              "query": "label_values(vllm:kv_cache_usage_perc{namespace=\"llm\"}, vllm_instance) or label_values(vllm_proxy_last_startup_duration_seconds{namespace=\"llm\"}, vllm_instance)",
               "refId": "PrometheusVariableQueryEditor-VariableQuery"
             },
             "refresh": 1,

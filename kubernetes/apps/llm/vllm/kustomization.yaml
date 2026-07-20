@@ -2,10 +2,11 @@
 # yaml-language-server: $schema=https://json.schemastore.org/kustomization
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+resources:
+  - ./models
 configMapGenerator:
   - name: APP-app-vars
     literals:
-      - APP=llm
-      - RESOURCES=models
+      - APP=vllm
 components:
-  - ../../../components/ks/app-resources
+  - ../../../components/ks/app
