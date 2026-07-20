@@ -25,3 +25,9 @@ query the proxy's `/v1/models` catalog rather than copying a static model list
 into `config.yaml`. If a locally selected default is later removed from the
 proxy, Hermes receives `model_not_found` until a user selects an available
 model; the next pod start does not overwrite that choice.
+
+The catalog can also contain GitOps-managed virtual model overlays. For example,
+`gemma4-agentic` selects the Gemma 4 QAT base model while providing default
+chat-template kwargs for thinking and preserved tool-turn reasoning. Clients
+can override those defaults in an individual request; the base model remains
+available as a separate catalog entry.
