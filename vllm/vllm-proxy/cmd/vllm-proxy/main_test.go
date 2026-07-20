@@ -119,6 +119,114 @@ func TestParseModelConfigRejectsInvalidArgs(t *testing.T) {
 	}
 }
 
+func TestParseOverlayConfig(t *testing.T) {
+	cfg, err := parseOverlayConfig("gemma-agentic", map[string]string{
+		"model_name": "gemma4-agentic", "display_name": "Gemma 4 Agentic", "base_model": "gemma", "created_at": "2026-07-20T00:00:00Z",
+		"request_defaults.json": `{"chat_template_kwargs":{"enable_thinking":true,"preserve_thinking":true}}`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Name != "gemma4-agentic" || cfg.BaseModel != "gemma" {
+		t.Fatalf("unexpected overlay config: %#v", cfg)
+	}
+	if _, err := parseOverlayConfig("invalid", map[string]string{
+		"model_name": "invalid", "display_name": "Invalid", "base_model": "gemma", "created_at": "2026-07-20T00:00:00Z", "request_defaults.json": `{"model":"qwen"}`,
+	}); err == nil {
+		t.Fatal("expected overlay model override to be rejected")
+	}
+}
+
+func TestRefreshLoadsOverlayAndRejectsUnknownBase(t *testing.T) {
+	model := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "gemma", Namespace: "home-infra", Labels: map[string]string{"llm.cogito.dev/model-config": "true"}},
+		Data:       map[string]string{"model_name": "gemma", "display_name": "Gemma", "max_model_len": "32768", "created_at": "2026-07-20T00:00:00Z", "vllm_args.json": `["--host","0.0.0.0"]`, "runtime_metadata.json": `{}`},
+	}
+	overlay := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "gemma-agentic", Namespace: "home-infra", Labels: map[string]string{"llm.cogito.dev/model-overlay": "true"}},
+		Data:       map[string]string{"model_name": "gemma4-agentic", "display_name": "Gemma Agentic", "base_model": "gemma", "created_at": "2026-07-20T00:00:00Z", "request_defaults.json": `{}`},
+	}
+	deployment := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "llm-vllm", Namespace: "home-infra"}, Spec: appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{activeModelAnno: "gemma"}}}}}
+	p := &proxy{client: fake.NewSimpleClientset(model, overlay, deployment), namespace: "home-infra", deployment: "llm-vllm"}
+	if err := p.refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := p.registry.overlays["gemma4-agentic"]; !ok || p.active != "gemma" {
+		t.Fatalf("unexpected registry: %#v active=%q", p.registry, p.active)
+	}
+}
+
+func TestApplyOverlayUsesClientOverridesAndBaseModel(t *testing.T) {
+	overlay := overlayConfig{BaseModel: "gemma", RequestDefaults: json.RawMessage(`{"chat_template_kwargs":{"enable_thinking":true,"preserve_thinking":true},"temperature":0.7}`)}
+	body, err := applyOverlay([]byte(`{"model":"gemma4-agentic","temperature":0.2,"chat_template_kwargs":{"enable_thinking":false}}`), overlay)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["model"] != "gemma" || got["temperature"] != 0.2 {
+		t.Fatalf("unexpected overlay request: %#v", got)
+	}
+	kwargs := got["chat_template_kwargs"].(map[string]any)
+	if kwargs["enable_thinking"] != false || kwargs["preserve_thinking"] != true {
+		t.Fatalf("unexpected template kwargs: %#v", kwargs)
+	}
+}
+
+func TestOverlayModelCatalog(t *testing.T) {
+	p := &proxy{registry: registry{
+		models:   map[string]modelConfig{"gemma": {Name: "gemma", MaxModelLen: 32768, Created: time.Unix(1, 0)}},
+		overlays: map[string]overlayConfig{"gemma4-agentic": {Name: "gemma4-agentic", BaseModel: "gemma", Created: time.Unix(2, 0)}},
+	}}
+	recorder := httptest.NewRecorder()
+	p.models(recorder, httptest.NewRequest(http.MethodGet, "/v1/models", nil))
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `"id":"gemma4-agentic"`) || !strings.Contains(recorder.Body.String(), `"base_model":"gemma"`) {
+		t.Fatalf("unexpected catalog: %d %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestInferenceOverlayForwardsBaseModel(t *testing.T) {
+	var received map[string]any
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&received); err != nil {
+			t.Fatal(err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer backend.Close()
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := &proxy{
+		backend: backendURL,
+		active:  "gemma",
+		maxBody: 1 << 20,
+		registry: registry{
+			models: map[string]modelConfig{"gemma": {Name: "gemma"}},
+			overlays: map[string]overlayConfig{"gemma4-agentic": {
+				Name: "gemma4-agentic", BaseModel: "gemma", RequestDefaults: json.RawMessage(`{"chat_template_kwargs":{"enable_thinking":true,"preserve_thinking":true}}`),
+			}},
+		},
+	}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"gemma4-agentic","messages":[],"chat_template_kwargs":{"enable_thinking":false}}`))
+	p.inference(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("unexpected status %d: %s", recorder.Code, recorder.Body.String())
+	}
+	if received["model"] != "gemma" {
+		t.Fatalf("forwarded model = %#v, want gemma", received["model"])
+	}
+	kwargs := received["chat_template_kwargs"].(map[string]any)
+	if kwargs["enable_thinking"] != false || kwargs["preserve_thinking"] != true {
+		t.Fatalf("forwarded kwargs = %#v", kwargs)
+	}
+}
+
 func TestParseModelConfigDefaultsModelSourceToModelName(t *testing.T) {
 	cfg, err := parseModelConfig("gemma", map[string]string{
 		"model_name": "example/gemma", "display_name": "Gemma 4", "max_model_len": "8192", "created_at": "2026-07-11T00:00:00Z",

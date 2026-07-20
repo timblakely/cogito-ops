@@ -33,6 +33,7 @@ import (
 
 const (
 	modelLabel       = "llm.cogito.dev/model-config=true"
+	overlayLabel     = "llm.cogito.dev/model-overlay=true"
 	activeModelAnno  = "llm.cogito.dev/active-model"
 	switchedAtAnno   = "llm.cogito.dev/switched-at"
 	defaultMaxBody   = 32 << 20
@@ -52,6 +53,17 @@ type modelConfig struct {
 	Runtime     json.RawMessage
 }
 
+// overlayConfig is a virtual chat model. It selects BaseModel for vLLM while
+// merging request defaults into the client request before it is forwarded.
+type overlayConfig struct {
+	Name            string
+	DisplayName     string
+	BaseModel       string
+	Created         time.Time
+	RequestDefaults json.RawMessage
+	Source          string
+}
+
 type runtimeMetadata struct {
 	SchemaVersion         int               `json:"schema_version"`
 	Source                string            `json:"source"`
@@ -65,7 +77,8 @@ type runtimeMetadata struct {
 }
 
 type registry struct {
-	models map[string]modelConfig
+	models   map[string]modelConfig
+	overlays map[string]overlayConfig
 }
 
 type proxy struct {
@@ -815,11 +828,16 @@ func yamlQuote(value string) string {
 }
 
 func (p *proxy) watchConfigs(logger *slog.Logger) {
+	go p.watchConfigLabel(logger, modelLabel, "model")
+	p.watchConfigLabel(logger, overlayLabel, "overlay")
+}
+
+func (p *proxy) watchConfigLabel(logger *slog.Logger, label, kind string) {
 	for {
-		watch, err := p.client.CoreV1().ConfigMaps(p.namespace).Watch(context.Background(), metav1.ListOptions{LabelSelector: modelLabel})
+		watch, err := p.client.CoreV1().ConfigMaps(p.namespace).Watch(context.Background(), metav1.ListOptions{LabelSelector: label})
 		if err != nil {
 			p.configErrors.Add(1)
-			logger.Warn("watch model ConfigMaps", "error", err)
+			logger.Warn("watch ConfigMaps", "kind", kind, "error", err)
 			time.Sleep(5 * time.Second)
 			continue
 		}
@@ -827,7 +845,7 @@ func (p *proxy) watchConfigs(logger *slog.Logger) {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			if err := p.refresh(ctx); err != nil {
 				p.configErrors.Add(1)
-				logger.Warn("refresh model ConfigMaps", "error", err)
+				logger.Warn("refresh ConfigMaps", "kind", kind, "error", err)
 			}
 			cancel()
 			go p.reconcileActiveDeployment(logger)
@@ -859,12 +877,19 @@ func (p *proxy) watchDeployment(logger *slog.Logger) {
 }
 
 func (p *proxy) refresh(ctx context.Context) error {
-	items, err := p.client.CoreV1().ConfigMaps(p.namespace).List(ctx, metav1.ListOptions{LabelSelector: modelLabel})
+	modelItems, err := p.client.CoreV1().ConfigMaps(p.namespace).List(ctx, metav1.ListOptions{LabelSelector: modelLabel})
 	if err != nil {
 		return err
 	}
-	next := registry{models: make(map[string]modelConfig, len(items.Items))}
-	for _, cm := range items.Items {
+	overlayItems, err := p.client.CoreV1().ConfigMaps(p.namespace).List(ctx, metav1.ListOptions{LabelSelector: overlayLabel})
+	if err != nil {
+		return err
+	}
+	next := registry{
+		models:   make(map[string]modelConfig, len(modelItems.Items)),
+		overlays: make(map[string]overlayConfig, len(overlayItems.Items)),
+	}
+	for _, cm := range modelItems.Items {
 		cfg, err := parseModelConfig(cm.Name, cm.Data)
 		if err != nil {
 			return fmt.Errorf("%s: %w", cm.Name, err)
@@ -873,6 +898,22 @@ func (p *proxy) refresh(ctx context.Context) error {
 			return fmt.Errorf("duplicate model_name %q", cfg.Name)
 		}
 		next.models[cfg.Name] = cfg
+	}
+	for _, cm := range overlayItems.Items {
+		cfg, err := parseOverlayConfig(cm.Name, cm.Data)
+		if err != nil {
+			return fmt.Errorf("%s: %w", cm.Name, err)
+		}
+		if _, exists := next.models[cfg.Name]; exists {
+			return fmt.Errorf("overlay model_name %q conflicts with a base model", cfg.Name)
+		}
+		if _, exists := next.overlays[cfg.Name]; exists {
+			return fmt.Errorf("duplicate overlay model_name %q", cfg.Name)
+		}
+		if _, exists := next.models[cfg.BaseModel]; !exists {
+			return fmt.Errorf("overlay %q references unknown base_model %q", cfg.Name, cfg.BaseModel)
+		}
+		next.overlays[cfg.Name] = cfg
 	}
 	p.stateMu.Lock()
 	p.registry = next
@@ -954,6 +995,35 @@ func parseModelConfig(name string, data map[string]string) (modelConfig, error) 
 	} else {
 		cfg.Runtime = json.RawMessage(value)
 	}
+	return cfg, nil
+}
+
+func parseOverlayConfig(name string, data map[string]string) (overlayConfig, error) {
+	cfg := overlayConfig{
+		Name:        strings.TrimSpace(data["model_name"]),
+		DisplayName: strings.TrimSpace(data["display_name"]),
+		BaseModel:   strings.TrimSpace(data["base_model"]),
+		Source:      name,
+	}
+	if cfg.Name == "" || cfg.DisplayName == "" || cfg.BaseModel == "" {
+		return cfg, errors.New("model_name, display_name, and base_model are required")
+	}
+	var err error
+	if cfg.Created, err = time.Parse(time.RFC3339, data["created_at"]); err != nil {
+		return cfg, fmt.Errorf("created_at must be RFC3339: %w", err)
+	}
+	defaults := strings.TrimSpace(data["request_defaults.json"])
+	if defaults == "" {
+		return cfg, errors.New("request_defaults.json is required")
+	}
+	var values map[string]any
+	if err := json.Unmarshal([]byte(defaults), &values); err != nil || values == nil {
+		return cfg, errors.New("request_defaults.json must be a JSON object")
+	}
+	if _, exists := values["model"]; exists {
+		return cfg, errors.New("request_defaults.json must not set model")
+	}
+	cfg.RequestDefaults = json.RawMessage(defaults)
 	return cfg, nil
 }
 
@@ -1048,20 +1118,30 @@ func (p *proxy) reconcileActiveDeployment(logger *slog.Logger) {
 
 func (p *proxy) models(w http.ResponseWriter, _ *http.Request) {
 	p.stateMu.RLock()
-	data := make([]map[string]any, 0, len(p.registry.models))
+	data := make([]map[string]any, 0, len(p.registry.models)+len(p.registry.overlays))
 	for _, cfg := range p.registry.models {
 		data = append(data, modelCard(cfg))
 	}
+	for _, overlay := range p.registry.overlays {
+		data = append(data, overlayModelCard(overlay, p.registry.models[overlay.BaseModel]))
+	}
 	p.stateMu.RUnlock()
+	sort.Slice(data, func(i, j int) bool { return data[i]["id"].(string) < data[j]["id"].(string) })
 	writeJSON(w, http.StatusOK, map[string]any{"object": "list", "data": data})
 }
 
 func (p *proxy) model(w http.ResponseWriter, r *http.Request) {
 	p.stateMu.RLock()
 	cfg, ok := p.registry.models[r.PathValue("id")]
+	overlay, isOverlay := p.registry.overlays[r.PathValue("id")]
+	base := p.registry.models[overlay.BaseModel]
 	p.stateMu.RUnlock()
-	if !ok {
+	if !ok && !isOverlay {
 		openAIError(w, http.StatusNotFound, "model_not_found", "The requested model is not configured.")
+		return
+	}
+	if isOverlay {
+		writeJSON(w, http.StatusOK, overlayModelCard(overlay, base))
 		return
 	}
 	writeJSON(w, http.StatusOK, modelCard(cfg))
@@ -1072,6 +1152,23 @@ func modelCard(cfg modelConfig) map[string]any {
 	metadata := map[string]any{"context_length": cfg.MaxModelLen, "source": "manual_config"}
 	mergeJSONMetadata(metadata, cfg.Fallback)
 	mergeJSONMetadata(metadata, cfg.Runtime)
+	card["metadata"] = metadata
+	return card
+}
+
+func overlayModelCard(overlay overlayConfig, base modelConfig) map[string]any {
+	card := map[string]any{"id": overlay.Name, "object": "model", "created": overlay.Created.Unix(), "owned_by": "vllm-proxy"}
+	metadata := map[string]any{
+		"context_length": base.MaxModelLen,
+		"source":         "model_overlay",
+		"overlay":        true,
+		"base_model":     overlay.BaseModel,
+	}
+	mergeJSONMetadata(metadata, base.Fallback)
+	mergeJSONMetadata(metadata, base.Runtime)
+	// Overlay identity must not be masked by base model metadata.
+	metadata["overlay"] = true
+	metadata["base_model"] = overlay.BaseModel
 	card["metadata"] = metadata
 	return card
 }
@@ -1105,6 +1202,21 @@ func (p *proxy) inference(w http.ResponseWriter, r *http.Request) {
 		if json.Unmarshal(body, &header) == nil {
 			requested = header.Model
 		}
+		if overlay, ok := p.overlay(requested); ok {
+			if r.Method != http.MethodPost || r.URL.Path != "/v1/chat/completions" {
+				openAIError(w, http.StatusBadRequest, "invalid_request_error", "model overlays are supported only by POST /v1/chat/completions")
+				return
+			}
+			body, err = applyOverlay(body, overlay)
+			if err != nil {
+				openAIError(w, http.StatusBadRequest, "invalid_request_error", err.Error())
+				return
+			}
+			r.Body = io.NopCloser(bytes.NewReader(body))
+			r.ContentLength = int64(len(body))
+			r.Header.Set("Content-Length", strconv.Itoa(len(body)))
+			requested = overlay.BaseModel
+		}
 	}
 	if requested != "" {
 		if err := p.ensureActive(r.Context(), requested); err != nil {
@@ -1116,6 +1228,44 @@ func (p *proxy) inference(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p.reverseProxy().ServeHTTP(w, r)
+}
+
+func (p *proxy) overlay(name string) (overlayConfig, bool) {
+	p.stateMu.RLock()
+	overlay, ok := p.registry.overlays[name]
+	p.stateMu.RUnlock()
+	return overlay, ok
+}
+
+func applyOverlay(body []byte, overlay overlayConfig) ([]byte, error) {
+	var request map[string]any
+	if err := json.Unmarshal(body, &request); err != nil || request == nil {
+		return nil, errors.New("overlay requests must contain a JSON object")
+	}
+	var defaults map[string]any
+	if err := json.Unmarshal(overlay.RequestDefaults, &defaults); err != nil {
+		return nil, fmt.Errorf("decode overlay request defaults: %w", err)
+	}
+	mergeDefaults(request, defaults)
+	request["model"] = overlay.BaseModel
+	return json.Marshal(request)
+}
+
+// mergeDefaults recursively fills omitted request fields. Explicit client
+// values, including nested chat_template_kwargs, take precedence.
+func mergeDefaults(request, defaults map[string]any) {
+	for key, defaultValue := range defaults {
+		requestValue, exists := request[key]
+		if !exists {
+			request[key] = defaultValue
+			continue
+		}
+		requestMap, requestIsMap := requestValue.(map[string]any)
+		defaultMap, defaultIsMap := defaultValue.(map[string]any)
+		if requestIsMap && defaultIsMap {
+			mergeDefaults(requestMap, defaultMap)
+		}
+	}
 }
 
 var (
