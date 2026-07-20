@@ -273,6 +273,79 @@ func TestWriteHermesConfigPreservesOpenAIModelSelection(t *testing.T) {
 	}
 }
 
+func TestBootstrapHermesConfigSeedsDynamicProvider(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "nested", "config.yaml")
+	remote := hermesConfigPayload{
+		Model: hermesModelConfig{Default: "gemma", Provider: "custom:llm-proxy"},
+		CustomProviders: []hermesCustomProvider{{Name: "llm-proxy", BaseURL: "https://llm.example/v1", APIMode: "chat_completions", Models: map[string]hermesCustomProviderModel{
+			"gemma": {ContextLength: 32768}, "qwen": {ContextLength: 65536},
+		}}},
+	}
+	changed, err := bootstrapHermesConfig(path, remote)
+	if err != nil || !changed {
+		t.Fatalf("bootstrapHermesConfig changed=%v err=%v", changed, err)
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"provider: custom:llm-proxy", "default: gemma", "name: llm-proxy", "base_url: https://llm.example/v1", "api_mode: chat_completions", "discover_models: true"} {
+		if !strings.Contains(string(body), want) {
+			t.Fatalf("bootstrap config missing %q:\n%s", want, body)
+		}
+	}
+	if strings.Contains(string(body), "context_length") || strings.Contains(string(body), "qwen") {
+		t.Fatalf("bootstrap should not persist a model catalog:\n%s", body)
+	}
+}
+
+func TestBootstrapHermesConfigPreservesExistingChoices(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	original := "model:\n  provider: openai-api\n  default: gpt-5\ncustom_providers:\n  - name: llm-proxy\n    base_url: https://custom.example/v1\n    extra_body:\n      chat_template_kwargs:\n        enable_thinking: true\n"
+	if err := os.WriteFile(path, []byte(original), 0600); err != nil {
+		t.Fatal(err)
+	}
+	remote := hermesConfigPayload{
+		Model:           hermesModelConfig{Default: "gemma", Provider: "custom:llm-proxy"},
+		CustomProviders: []hermesCustomProvider{{Name: "llm-proxy", BaseURL: "https://llm.example/v1", APIMode: "chat_completions", Models: map[string]hermesCustomProviderModel{"gemma": {ContextLength: 32768}}}},
+	}
+	changed, err := bootstrapHermesConfig(path, remote)
+	if err != nil || changed {
+		t.Fatalf("bootstrapHermesConfig changed=%v err=%v", changed, err)
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != original {
+		t.Fatalf("existing config changed:\n%s", body)
+	}
+}
+
+func TestBootstrapHermesConfigCompletesProxyModelWithoutReplacingProvider(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("model:\n  provider: custom:llm-proxy\nagent:\n  max_turns: 20\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	remote := hermesConfigPayload{
+		Model:           hermesModelConfig{Default: "gemma", Provider: "custom:llm-proxy"},
+		CustomProviders: []hermesCustomProvider{{Name: "llm-proxy", BaseURL: "https://llm.example/v1", APIMode: "chat_completions", Models: map[string]hermesCustomProviderModel{"gemma": {ContextLength: 32768}}}},
+	}
+	changed, err := bootstrapHermesConfig(path, remote)
+	if err != nil || !changed {
+		t.Fatalf("bootstrapHermesConfig changed=%v err=%v", changed, err)
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"max_turns: 20", "provider: custom:llm-proxy", "default: gemma", "discover_models: true"} {
+		if !strings.Contains(string(body), want) {
+			t.Fatalf("bootstrap config missing %q:\n%s", want, body)
+		}
+	}
+}
+
 func TestRunSyncHermes(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
@@ -287,6 +360,23 @@ func TestRunSyncHermes(t *testing.T) {
 	}
 	if !strings.Contains(string(body), "default: gemma") || !strings.Contains(string(body), "provider: custom:llm-proxy") || !strings.Contains(string(body), "context_length: 32768") {
 		t.Fatalf("unexpected synced config:\n%s", body)
+	}
+}
+
+func TestRunBootstrapHermes(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 200, Status: "200 OK", Body: io.NopCloser(strings.NewReader(`{"object":"vllm_proxy.hermes_config","target":"hermes-agent","config":{"model":{"default":"gemma","provider":"custom:llm-proxy"},"custom_providers":[{"name":"llm-proxy","base_url":"https://llm.example/v1","api_mode":"chat_completions","models":{"gemma":{"context_length":32768}}}]},"metadata":{}}`)), Header: make(http.Header)}, nil
+	})}
+	if err := runBootstrapHermesWithClient([]string{"--proxy-url", "https://llm.example", "--config", path}, io.Discard, client); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(body), "default: gemma") || !strings.Contains(string(body), "discover_models: true") || strings.Contains(string(body), "context_length") {
+		t.Fatalf("unexpected bootstrap config:\n%s", body)
 	}
 }
 

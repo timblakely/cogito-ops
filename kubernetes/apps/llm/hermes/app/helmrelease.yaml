@@ -30,12 +30,12 @@ spec:
             fsGroupChangePolicy: OnRootMismatch
             seccompProfile: {type: RuntimeDefault}
         initContainers:
-          sync-llm-switch:
+          bootstrap-llm-proxy:
             image:
               repository: ghcr.io/timblakely/vllm-proxy
-              tag: mtp-reconcile-20260718
+              tag: dynamic-catalog-20260720
             args:
-              - sync-hermes
+              - bootstrap-hermes
               - --proxy-url
               - http://llm-proxy.llm.svc.cluster.local:8080
               - --config

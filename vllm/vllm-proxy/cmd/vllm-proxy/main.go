@@ -112,6 +112,13 @@ func main() {
 		}
 		return
 	}
+	if len(os.Args) > 1 && os.Args[1] == "bootstrap-hermes" {
+		if err := runBootstrapHermes(os.Args[2:], os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, "bootstrap-hermes:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -252,40 +259,86 @@ func runSyncHermesWithClient(args []string, output io.Writer, client *http.Clien
 	if *proxyURL == "" {
 		return errors.New("--proxy-url or VLLM_PROXY_URL is required")
 	}
-	u, err := url.Parse(strings.TrimSuffix(*proxyURL, "/") + "/vllm-proxy/config/" + url.PathEscape(*target))
+	remote, endpoint, err := fetchHermesConfig(client, *proxyURL, *target)
 	if err != nil {
 		return err
+	}
+	if err := writeHermesConfig(*configPath, remote.Config); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(output, "Updated %s with active model %s from %s.\n", *configPath, remote.Config.Model.Default, endpoint)
+	return err
+}
+
+// runBootstrapHermes installs the minimum named-provider configuration needed
+// for Hermes to discover the proxy's live /v1/models catalog. Unlike
+// sync-hermes, it never reconciles an existing model choice or provider entry.
+func runBootstrapHermes(args []string, output io.Writer) error {
+	return runBootstrapHermesWithClient(args, output, http.DefaultClient)
+}
+
+func runBootstrapHermesWithClient(args []string, output io.Writer, client *http.Client) error {
+	flags := flag.NewFlagSet("bootstrap-hermes", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	proxyURL := flags.String("proxy-url", env("VLLM_PROXY_URL", ""), "vLLM proxy base URL")
+	target := flags.String("target", "hermes-agent", "proxy configuration target")
+	configPath := flags.String("config", defaultHermesConfigPath(), "Hermes config.yaml path")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return errors.New("usage: vllm-proxy bootstrap-hermes --proxy-url URL [--config PATH] [--target NAME]")
+	}
+	if *proxyURL == "" {
+		return errors.New("--proxy-url or VLLM_PROXY_URL is required")
+	}
+	remote, endpoint, err := fetchHermesConfig(client, *proxyURL, *target)
+	if err != nil {
+		return err
+	}
+	changed, err := bootstrapHermesConfig(*configPath, remote.Config)
+	if err != nil {
+		return err
+	}
+	if changed {
+		_, err = fmt.Fprintf(output, "Bootstrapped %s with llm-proxy (initial model %s) from %s.\n", *configPath, remote.Config.Model.Default, endpoint)
+	} else {
+		_, err = fmt.Fprintf(output, "%s already has Hermes model and llm-proxy settings; left unchanged.\n", *configPath)
+	}
+	return err
+}
+
+func fetchHermesConfig(client *http.Client, proxyURL, target string) (hermesConfigResponse, string, error) {
+	u, err := url.Parse(strings.TrimSuffix(proxyURL, "/") + "/vllm-proxy/config/" + url.PathEscape(target))
+	if err != nil {
+		return hermesConfigResponse{}, "", err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
-		return err
+		return hermesConfigResponse{}, "", err
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("fetch proxy config: %w", err)
+		return hermesConfigResponse{}, "", fmt.Errorf("fetch proxy config: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("fetch proxy config: proxy returned %s", resp.Status)
+		return hermesConfigResponse{}, "", fmt.Errorf("fetch proxy config: proxy returned %s", resp.Status)
 	}
 	var remote hermesConfigResponse
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&remote); err != nil {
-		return fmt.Errorf("decode proxy config: %w", err)
+		return hermesConfigResponse{}, "", fmt.Errorf("decode proxy config: %w", err)
 	}
 	if err := validateHermesConfig(remote.Config); err != nil {
-		upgraded, upgradeErr := upgradeLegacyHermesConfig(ctx, client, *proxyURL, remote.Config)
+		upgraded, upgradeErr := upgradeLegacyHermesConfig(ctx, client, proxyURL, remote.Config)
 		if upgradeErr != nil {
-			return fmt.Errorf("invalid proxy Hermes configuration: %w", err)
+			return hermesConfigResponse{}, "", fmt.Errorf("invalid proxy Hermes configuration: %w", err)
 		}
 		remote.Config = upgraded
 	}
-	if err := writeHermesConfig(*configPath, remote.Config); err != nil {
-		return err
-	}
-	_, err = fmt.Fprintf(output, "Updated %s with active model %s from %s.\n", *configPath, remote.Config.Model.Default, u.String())
-	return err
+	return remote, u.String(), nil
 }
 
 type openAIModelsResponse struct {
@@ -439,6 +492,137 @@ func writeHermesConfig(path string, remote hermesConfigPayload) error {
 		return err
 	}
 	return os.WriteFile(path, body, 0600)
+}
+
+// bootstrapHermesConfig installs only the durable connection information that
+// Hermes needs to query the proxy's live model catalog. It deliberately does
+// not copy the proxy's models map: Hermes discovers that data from /v1/models.
+// Existing user choices always win over bootstrap defaults.
+func bootstrapHermesConfig(path string, remote hermesConfigPayload) (bool, error) {
+	if err := validateHermesConfig(remote); err != nil {
+		return false, err
+	}
+	config := map[string]any{}
+	if body, err := os.ReadFile(path); err == nil {
+		if err := yaml.Unmarshal(body, &config); err != nil {
+			return false, fmt.Errorf("parse Hermes config: %w", err)
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return false, err
+	}
+
+	changed := false
+	providerName := strings.TrimPrefix(remote.Model.Provider, "custom:")
+	providers, err := hermesProviderEntries(config["custom_providers"])
+	if err != nil {
+		return false, err
+	}
+	if !hasHermesProvider(providers, providerName) {
+		var source *hermesCustomProvider
+		for i := range remote.CustomProviders {
+			if remote.CustomProviders[i].Name == providerName {
+				source = &remote.CustomProviders[i]
+				break
+			}
+		}
+		if source == nil {
+			return false, fmt.Errorf("custom provider %q is missing", providerName)
+		}
+		providers = append(providers, map[string]any{
+			"name":            source.Name,
+			"base_url":        source.BaseURL,
+			"api_mode":        source.APIMode,
+			"discover_models": true,
+		})
+		config["custom_providers"] = providers
+		changed = true
+	}
+
+	model, modelChanged, err := bootstrapHermesModel(config["model"], remote.Model)
+	if err != nil {
+		return false, err
+	}
+	if modelChanged {
+		config["model"] = model
+		changed = true
+	}
+	if !changed {
+		return false, nil
+	}
+	body, err := yaml.Marshal(config)
+	if err != nil {
+		return false, err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return false, err
+	}
+	if err := os.WriteFile(path, body, 0600); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func hermesProviderEntries(raw any) ([]any, error) {
+	if raw == nil {
+		return []any{}, nil
+	}
+	providers, ok := raw.([]any)
+	if !ok {
+		return nil, errors.New("custom_providers must be a YAML list")
+	}
+	for _, provider := range providers {
+		if _, ok := provider.(map[string]any); !ok {
+			return nil, errors.New("custom_providers entries must be YAML mappings")
+		}
+	}
+	return providers, nil
+}
+
+func hasHermesProvider(providers []any, name string) bool {
+	for _, provider := range providers {
+		entry := provider.(map[string]any)
+		if entry["name"] == name {
+			return true
+		}
+	}
+	return false
+}
+
+func bootstrapHermesModel(raw any, remote hermesModelConfig) (map[string]any, bool, error) {
+	if raw == nil {
+		return map[string]any{"provider": remote.Provider, "default": remote.Default}, true, nil
+	}
+	if legacy, ok := raw.(string); ok {
+		if strings.TrimSpace(legacy) == "" {
+			return map[string]any{"provider": remote.Provider, "default": remote.Default}, true, nil
+		}
+		// A legacy scalar model value is already an explicit user choice.
+		return nil, false, nil
+	}
+	model, ok := raw.(map[string]any)
+	if !ok {
+		return nil, false, errors.New("model must be a YAML mapping")
+	}
+	provider, _ := model["provider"].(string)
+	defaultModel, _ := model["default"].(string)
+	provider = strings.TrimSpace(provider)
+	defaultModel = strings.TrimSpace(defaultModel)
+
+	// A configured non-proxy model is a user decision. Do not turn a partial
+	// OpenAI/other-provider configuration into an invalid proxy selection.
+	if provider != "" && provider != remote.Provider {
+		return model, false, nil
+	}
+	if provider == remote.Provider && defaultModel == "" {
+		model["default"] = remote.Default
+		return model, true, nil
+	}
+	if provider == "" && defaultModel == "" {
+		model["provider"] = remote.Provider
+		model["default"] = remote.Default
+		return model, true, nil
+	}
+	return model, false, nil
 }
 
 func shouldSyncHermesModel(current any, proxyProvider string) bool {
