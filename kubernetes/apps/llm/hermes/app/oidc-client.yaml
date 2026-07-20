@@ -1,0 +1,17 @@
+---
+apiVersion: pocketid.internal/v1alpha1
+kind: PocketIDOIDCClient
+metadata:
+  name: ${APP}
+spec:
+  clientID: hermes
+  isPublic: true
+  pkceEnabled: true
+  launchUrl: https://${APP_URL}
+  callbackUrls:
+    - https://${APP_URL}/auth/callback
+  allowedUserGroups:
+    - name: hermes
+      namespace: ${NS}
+  secret:
+    enabled: false

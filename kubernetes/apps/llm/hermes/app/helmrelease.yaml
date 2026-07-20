@@ -40,6 +40,14 @@ spec:
               HERMES_DASHBOARD_HOST: 0.0.0.0
               HERMES_DASHBOARD_PORT: "9119"
               HERMES_DASHBOARD_PUBLIC_URL: https://${APP_URL}
+              HERMES_DASHBOARD_OIDC_ISSUER: https://pid.${DOMAIN_NAME}
+              HERMES_DASHBOARD_OIDC_CLIENT_ID: hermes
+              # These values arrive via envFrom for provider/API credentials.
+              # Blank them explicitly so the PocketID provider is the only
+              # dashboard login option.
+              HERMES_DASHBOARD_BASIC_AUTH_USERNAME: ""
+              HERMES_DASHBOARD_BASIC_AUTH_PASSWORD: ""
+              HERMES_DASHBOARD_BASIC_AUTH_SECRET: ""
               HERMES_UID: "1000"
               HERMES_GID: "1000"
             envFrom:
