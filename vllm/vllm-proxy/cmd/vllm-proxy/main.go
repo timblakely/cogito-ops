@@ -92,12 +92,13 @@ type proxy struct {
 	transitionLimit time.Duration
 	maxBody         int64
 
-	stateMu       sync.RWMutex
-	registry      registry
-	active        string
-	transitioning bool
-	// transitionCancel interrupts an obsolete active-model rollout when its
-	// ConfigMap changes. The next reconciliation then applies the new args.
+	stateMu         sync.RWMutex
+	registry        registry
+	active          string
+	transitioning   bool
+	transitionModel string
+	// transitionCancel interrupts an obsolete rollout. The next reconciliation
+	// applies the current desired model's arguments.
 	transitionCancel context.CancelFunc
 	reconcilePending bool
 	ready            bool
@@ -1094,11 +1095,13 @@ func (p *proxy) reconcileActiveDeployment(logger *slog.Logger) {
 		return
 	}
 	p.transitioning = true
+	p.transitionModel = cfg.Name
 	p.transitionCancel = cancel
 	p.stateMu.Unlock()
 	defer func() {
 		p.stateMu.Lock()
 		p.transitioning = false
+		p.transitionModel = ""
 		p.transitionCancel = nil
 		pending := p.reconcilePending
 		p.reconcilePending = false
@@ -1281,20 +1284,46 @@ func (p *proxy) ensureActive(ctx context.Context, requested string) error {
 		return fmt.Errorf("unknown model %q", requested)
 	}
 	if p.transitioning {
+		if p.transitionModel == requested {
+			p.stateMu.Unlock()
+			return errTransitioning
+		}
+		// A request for another model supersedes the model currently starting.
+		// Keep active as the desired model so the queued reconciliation starts it
+		// as soon as the canceled rollout releases the transition lock.
+		if p.active != requested {
+			p.active = requested
+		}
+		p.reconcilePending = true
+		transitionCancel := p.transitionCancel
 		p.stateMu.Unlock()
+		if transitionCancel != nil {
+			transitionCancel()
+		}
 		return errTransitioning
 	}
 	if p.active == requested {
 		p.stateMu.Unlock()
 		return nil
 	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	p.transitioning = true
+	p.transitionModel = cfg.Name
+	p.transitionCancel = cancel
 	p.stateMu.Unlock()
 
 	defer func() {
 		p.stateMu.Lock()
 		p.transitioning = false
+		p.transitionModel = ""
+		p.transitionCancel = nil
+		pending := p.reconcilePending
+		p.reconcilePending = false
 		p.stateMu.Unlock()
+		if pending {
+			go p.reconcileActiveDeployment(slog.Default())
+		}
 	}()
 	started := time.Now()
 	if err := p.transition(ctx, cfg); err != nil {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -90,6 +91,35 @@ func TestSyncActiveDeploymentPreservesInFlightTransition(t *testing.T) {
 	}
 	if p.active != "qwen" {
 		t.Fatalf("active model = %q, want qwen during transition", p.active)
+	}
+}
+
+func TestEnsureActiveCancelsInFlightTransitionForRequestedModel(t *testing.T) {
+	canceled := make(chan struct{})
+	p := &proxy{
+		active:          "qwen",
+		transitioning:   true,
+		transitionModel: "gemma",
+		transitionCancel: func() {
+			close(canceled)
+		},
+		registry: registry{models: map[string]modelConfig{
+			"gemma": {Name: "gemma"},
+			"qwen":  {Name: "qwen"},
+		}},
+	}
+
+	err := p.ensureActive(context.Background(), "qwen")
+	if !errors.Is(err, errTransitioning) {
+		t.Fatalf("ensureActive error = %v, want %v", err, errTransitioning)
+	}
+	select {
+	case <-canceled:
+	case <-time.After(time.Second):
+		t.Fatal("in-flight transition was not canceled")
+	}
+	if !p.reconcilePending {
+		t.Fatal("requested model was not queued for reconciliation")
 	}
 }
 
