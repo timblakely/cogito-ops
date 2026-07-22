@@ -48,11 +48,12 @@ spec:
         initContainers:
           download-model:
             image:
-              repository: ghcr.io/huggingface/huggingface-hub
-              tag: v0.34.4
+              repository: python
+              tag: 3.12-slim
             command: ["/bin/sh", "-ec"]
             args:
               - >-
+                pip install --no-cache-dir huggingface_hub==0.34.4 &&
                 hf download poolside/Laguna-S-2.1-GGUF
                 laguna-s-2.1-Q4_K_M.gguf laguna-s-2.1-DFlash-BF16.gguf
                 --local-dir /models/laguna
