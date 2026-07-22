@@ -43,6 +43,7 @@ const (
 
 type modelConfig struct {
 	Name        string
+	Backend     string
 	ModelSource string
 	DisplayName string
 	MaxModelLen int
@@ -51,6 +52,16 @@ type modelConfig struct {
 	Source      string
 	Fallback    json.RawMessage
 	Runtime     json.RawMessage
+}
+
+// backendConfig is deliberately configured by the Helm release, not by model
+// ConfigMaps. A model may select a known runtime, but cannot direct the proxy
+// to arbitrary Services, Deployments, or containers.
+type backendConfig struct {
+	Name       string
+	Deployment string
+	Container  string
+	URL        *url.URL
 }
 
 // overlayConfig is a virtual chat model. It selects BaseModel for vLLM while
@@ -87,6 +98,8 @@ type proxy struct {
 	deployment      string
 	container       string
 	backend         *url.URL
+	backendName     string
+	backends        map[string]backendConfig
 	publicBaseURL   string
 	httpClient      *http.Client
 	transitionLimit time.Duration
@@ -149,12 +162,25 @@ func main() {
 		logger.Error("parse BACKEND_URL", "error", err)
 		os.Exit(1)
 	}
+	llamaBackend, err := url.Parse(env("LLAMA_BACKEND_URL", "http://llm-laguna:8000"))
+	if err != nil {
+		logger.Error("parse LLAMA_BACKEND_URL", "error", err)
+		os.Exit(1)
+	}
+	vllmDeployment := env("VLLM_DEPLOYMENT", "llm-vllm")
+	vllmContainer := env("VLLM_CONTAINER", "vllm")
 	p := &proxy{
-		client:          client,
-		namespace:       env("POD_NAMESPACE", mustNamespace()),
-		deployment:      env("VLLM_DEPLOYMENT", "llm-vllm"),
-		container:       env("VLLM_CONTAINER", "vllm"),
-		backend:         backend,
+		client:      client,
+		namespace:   env("POD_NAMESPACE", mustNamespace()),
+		deployment:  vllmDeployment,
+		container:   vllmContainer,
+		backend:     backend,
+		backendName: "vllm",
+		backends: map[string]backendConfig{
+			"vllm":      {Name: "vllm", Deployment: vllmDeployment, Container: vllmContainer, URL: backend},
+			"llama-cpp": {Name: "llama-cpp", Deployment: env("LLAMA_DEPLOYMENT", "llm-laguna"), Container: env("LLAMA_CONTAINER", "laguna"), URL: llamaBackend},
+		},
+		active:          env("DEFAULT_MODEL", ""),
 		publicBaseURL:   strings.TrimSuffix(env("PUBLIC_BASE_URL", "http://llm-proxy:8080/v1"), "/"),
 		httpClient:      &http.Client{Timeout: 15 * time.Second},
 		transitionLimit: durationEnv("TRANSITION_TIMEOUT", defaultTimeout),
@@ -169,7 +195,7 @@ func main() {
 	cancel()
 	go p.reconcileActiveDeployment(logger)
 	go p.watchConfigs(logger)
-	go p.watchDeployment(logger)
+	go p.watchDeployments(logger)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", p.healthz)
@@ -854,15 +880,22 @@ func (p *proxy) watchConfigLabel(logger *slog.Logger, label, kind string) {
 	}
 }
 
-// watchDeployment keeps the proxy's active-model state aligned with external
-// Deployment reconciliations, such as Helm restoring the manifest arguments.
-func (p *proxy) watchDeployment(logger *slog.Logger) {
-	selector := fields.OneTermEqualSelector("metadata.name", p.deployment).String()
+// watchDeployments keeps the proxy state aligned with either configured
+// runtime. Backend definitions are static proxy configuration, so ConfigMaps
+// can select a backend without gaining control over arbitrary Deployments.
+func (p *proxy) watchDeployments(logger *slog.Logger) {
+	for _, backend := range p.backends {
+		go p.watchDeployment(logger, backend)
+	}
+}
+
+func (p *proxy) watchDeployment(logger *slog.Logger, backend backendConfig) {
+	selector := fields.OneTermEqualSelector("metadata.name", backend.Deployment).String()
 	for {
 		watch, err := p.client.AppsV1().Deployments(p.namespace).Watch(context.Background(), metav1.ListOptions{FieldSelector: selector})
 		if err != nil {
 			p.configErrors.Add(1)
-			logger.Warn("watch vLLM Deployment", "error", err)
+			logger.Warn("watch backend Deployment", "backend", backend.Name, "error", err)
 			time.Sleep(5 * time.Second)
 			continue
 		}
@@ -870,7 +903,7 @@ func (p *proxy) watchDeployment(logger *slog.Logger) {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			if err := p.syncActiveDeployment(ctx); err != nil {
 				p.configErrors.Add(1)
-				logger.Warn("sync active model from vLLM Deployment", "error", err)
+				logger.Warn("sync active model from backend Deployment", "backend", backend.Name, "error", err)
 			}
 			cancel()
 		}
@@ -935,12 +968,31 @@ func (p *proxy) refresh(ctx context.Context) error {
 }
 
 func (p *proxy) syncActiveDeployment(ctx context.Context) error {
-	deployment, err := p.client.AppsV1().Deployments(p.namespace).Get(ctx, p.deployment, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("get vLLM Deployment: %w", err)
+	var activeBackend *backendConfig
+	var model string
+	backends := p.backends
+	if len(backends) == 0 {
+		backends = map[string]backendConfig{"vllm": {Name: "vllm", Deployment: p.deployment, Container: p.container, URL: p.backend}}
 	}
-	model := deployment.Spec.Template.Annotations[activeModelAnno]
-	if model == "" {
+	for _, backend := range backends {
+		deployment, err := p.client.AppsV1().Deployments(p.namespace).Get(ctx, backend.Deployment, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("get %s backend Deployment: %w", backend.Name, err)
+		}
+		if deployment.Spec.Replicas != nil && *deployment.Spec.Replicas != 1 {
+			continue
+		}
+		if activeBackend != nil {
+			return errors.New("multiple LLM backends are active")
+		}
+		candidate := deployment.Spec.Template.Annotations[activeModelAnno]
+		if candidate == "" {
+			return fmt.Errorf("active %s backend has no model annotation", backend.Name)
+		}
+		selected := backend
+		activeBackend, model = &selected, candidate
+	}
+	if activeBackend == nil {
 		return nil
 	}
 	p.stateMu.Lock()
@@ -948,13 +1000,18 @@ func (p *proxy) syncActiveDeployment(ctx context.Context) error {
 	if p.transitioning {
 		return nil
 	}
-	if _, ok := p.registry.models[model]; !ok {
-		return fmt.Errorf("vLLM Deployment active model %q is not configured", model)
+	cfg, ok := p.registry.models[model]
+	if !ok {
+		return fmt.Errorf("active model %q is not configured", model)
+	}
+	if cfg.Backend != activeBackend.Name {
+		return fmt.Errorf("active %s backend is annotated with %q configured for %s", activeBackend.Name, model, cfg.Backend)
 	}
 	if p.active != model {
 		p.active = model
 		p.activeSince = time.Now()
 	}
+	p.backend, p.backendName = activeBackend.URL, activeBackend.Name
 	return nil
 }
 
@@ -967,6 +1024,13 @@ func parseModelConfig(name string, data map[string]string) (modelConfig, error) 
 	if cfg.ModelSource == "" {
 		cfg.ModelSource = cfg.Name
 	}
+	cfg.Backend = strings.TrimSpace(data["backend"])
+	if cfg.Backend == "" {
+		return cfg, errors.New("backend is required")
+	}
+	if cfg.Backend != "vllm" && cfg.Backend != "llama-cpp" {
+		return cfg, fmt.Errorf("unsupported backend %q", cfg.Backend)
+	}
 	maxLen, err := strconv.Atoi(data["max_model_len"])
 	if err != nil || maxLen < 1 {
 		return cfg, errors.New("max_model_len must be a positive integer")
@@ -975,16 +1039,23 @@ func parseModelConfig(name string, data map[string]string) (modelConfig, error) 
 	if cfg.Created, err = time.Parse(time.RFC3339, data["created_at"]); err != nil {
 		return cfg, fmt.Errorf("created_at must be RFC3339: %w", err)
 	}
-	if err := json.Unmarshal([]byte(data["vllm_args.json"]), &cfg.Args); err != nil || len(cfg.Args) == 0 {
-		return cfg, errors.New("vllm_args.json must be a non-empty JSON string array")
+	argsKey := "vllm_args.json"
+	if cfg.Backend == "llama-cpp" {
+		argsKey = "llama_args.json"
+	}
+	if err := json.Unmarshal([]byte(data[argsKey]), &cfg.Args); err != nil || len(cfg.Args) == 0 {
+		return cfg, fmt.Errorf("%s must be a non-empty JSON string array", argsKey)
 	}
 	for i := range cfg.Args {
 		if strings.TrimSpace(cfg.Args[i]) == "" {
-			return cfg, errors.New("vllm_args.json cannot contain empty arguments")
+			return cfg, fmt.Errorf("%s cannot contain empty arguments", argsKey)
 		}
 	}
-	if contains(cfg.Args, "--model") || contains(cfg.Args, "--served-model-name") {
+	if cfg.Backend == "vllm" && (contains(cfg.Args, "--model") || contains(cfg.Args, "--served-model-name")) {
 		return cfg, errors.New("vllm_args.json must not contain --model or --served-model-name")
+	}
+	if cfg.Backend == "llama-cpp" && (contains(cfg.Args, "-m") || contains(cfg.Args, "--model") || contains(cfg.Args, "--alias")) {
+		return cfg, errors.New("llama_args.json must not contain -m, --model, or --alias")
 	}
 	if value := data["model_card_metadata.json"]; value != "" && !json.Valid([]byte(value)) {
 		return cfg, errors.New("model_card_metadata.json must be valid JSON")
@@ -1034,11 +1105,36 @@ func effectiveVLLMArgs(cfg modelConfig) []string {
 	return append(args, cfg.Args...)
 }
 
+func effectiveArgs(cfg modelConfig) []string {
+	if cfg.Backend == "llama-cpp" {
+		args := make([]string, 0, len(cfg.Args)+4)
+		args = append(args, "-m", cfg.ModelSource, "--alias", cfg.Name)
+		return append(args, cfg.Args...)
+	}
+	return effectiveVLLMArgs(cfg)
+}
+
+func (p *proxy) backendFor(cfg modelConfig) (backendConfig, error) {
+	name := cfg.Backend
+	if name == "" {
+		name = "vllm"
+	}
+	if backend, ok := p.backends[name]; ok {
+		return backend, nil
+	}
+	// Keep direct unit-test construction compatible with the original single
+	// vLLM backend.
+	if name == "vllm" {
+		return backendConfig{Name: "vllm", Deployment: p.deployment, Container: p.container, URL: p.backend}, nil
+	}
+	return backendConfig{}, fmt.Errorf("backend %q is not configured", name)
+}
+
 func deploymentNeedsActivation(deployment *appsv1.Deployment, container string, cfg modelConfig) bool {
 	if deployment.Spec.Replicas == nil || *deployment.Spec.Replicas != 1 {
 		return true
 	}
-	want := effectiveVLLMArgs(cfg)
+	want := effectiveArgs(cfg)
 	for _, candidate := range deployment.Spec.Template.Spec.Containers {
 		if candidate.Name != container {
 			continue
@@ -1070,13 +1166,19 @@ func (p *proxy) reconcileActiveDeployment(logger *slog.Logger) {
 		return
 	}
 
-	deployment, err := p.client.AppsV1().Deployments(p.namespace).Get(ctx, p.deployment, metav1.GetOptions{})
+	backend, err := p.backendFor(cfg)
 	if err != nil {
 		p.configErrors.Add(1)
-		logger.Warn("get vLLM Deployment for active-model reconciliation", "error", err)
+		logger.Warn("resolve active model backend", "model", cfg.Name, "error", err)
 		return
 	}
-	if !deploymentNeedsActivation(deployment, p.container, cfg) {
+	deployment, err := p.client.AppsV1().Deployments(p.namespace).Get(ctx, backend.Deployment, metav1.GetOptions{})
+	if err != nil {
+		p.configErrors.Add(1)
+		logger.Warn("get backend Deployment for active-model reconciliation", "backend", backend.Name, "error", err)
+		return
+	}
+	if !deploymentNeedsActivation(deployment, backend.Container, cfg) {
 		return
 	}
 
@@ -1114,7 +1216,7 @@ func (p *proxy) reconcileActiveDeployment(logger *slog.Logger) {
 	if err := p.transition(ctx, cfg); err != nil {
 		if !errors.Is(err, context.Canceled) {
 			p.configErrors.Add(1)
-			logger.Warn("reconcile active vLLM model", "model", cfg.Name, "error", err)
+			logger.Warn("reconcile active model", "model", cfg.Name, "backend", cfg.Backend, "error", err)
 		}
 	}
 }
@@ -1152,7 +1254,7 @@ func (p *proxy) model(w http.ResponseWriter, r *http.Request) {
 
 func modelCard(cfg modelConfig) map[string]any {
 	card := map[string]any{"id": cfg.Name, "object": "model", "created": cfg.Created.Unix(), "owned_by": "vllm-proxy"}
-	metadata := map[string]any{"context_length": cfg.MaxModelLen, "source": "manual_config"}
+	metadata := map[string]any{"context_length": cfg.MaxModelLen, "source": "manual_config", "backend": cfg.Backend}
 	mergeJSONMetadata(metadata, cfg.Fallback)
 	mergeJSONMetadata(metadata, cfg.Runtime)
 	card["metadata"] = metadata
@@ -1341,26 +1443,53 @@ func (p *proxy) ensureActive(ctx context.Context, requested string) error {
 func (p *proxy) transition(parent context.Context, cfg modelConfig) error {
 	ctx, cancel := context.WithTimeout(parent, p.transitionLimit)
 	defer cancel()
+	target, err := p.backendFor(cfg)
+	if err != nil {
+		return err
+	}
+	p.stateMu.RLock()
+	currentName := p.backendName
+	current, currentOK := p.backends[currentName]
+	p.stateMu.RUnlock()
+	if currentOK && current.Deployment != target.Deployment {
+		if _, err := p.client.AppsV1().Deployments(p.namespace).Patch(ctx, current.Deployment, types.StrategicMergePatchType, []byte(`{"spec":{"replicas":0}}`), metav1.PatchOptions{}); err != nil {
+			return fmt.Errorf("scale down %s backend: %w", current.Name, err)
+		}
+		for {
+			old, err := p.client.AppsV1().Deployments(p.namespace).Get(ctx, current.Deployment, metav1.GetOptions{})
+			if err == nil && old.Status.Replicas == 0 && old.Status.AvailableReplicas == 0 {
+				break
+			}
+			if err := ctx.Err(); err != nil {
+				return fmt.Errorf("wait for %s backend to stop: %w", current.Name, err)
+			}
+			time.Sleep(backendProbeWait)
+		}
+	}
 	patchedAt := time.Now()
 	patch, err := json.Marshal(map[string]any{"spec": map[string]any{"replicas": 1, "template": map[string]any{
 		"metadata": map[string]any{"annotations": map[string]string{activeModelAnno: cfg.Name, switchedAtAnno: time.Now().UTC().Format(time.RFC3339Nano)}},
-		"spec":     map[string]any{"containers": []map[string]any{{"name": p.container, "args": effectiveVLLMArgs(cfg)}}},
+		"spec":     map[string]any{"containers": []map[string]any{{"name": target.Container, "args": effectiveArgs(cfg)}}},
 	}}})
 	if err != nil {
 		return err
 	}
-	deployment, err := p.client.AppsV1().Deployments(p.namespace).Patch(ctx, p.deployment, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
+	deployment, err := p.client.AppsV1().Deployments(p.namespace).Patch(ctx, target.Deployment, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
-		return fmt.Errorf("patch vLLM Deployment: %w", err)
+		return fmt.Errorf("patch %s backend Deployment: %w", target.Name, err)
 	}
 	for {
 		if err := ctx.Err(); err != nil {
 			return fmt.Errorf("wait for vLLM rollout: %w", err)
 		}
-		current, err := p.client.AppsV1().Deployments(p.namespace).Get(ctx, p.deployment, metav1.GetOptions{})
+		current, err := p.client.AppsV1().Deployments(p.namespace).Get(ctx, target.Deployment, metav1.GetOptions{})
 		if err == nil && current.Status.ObservedGeneration >= deployment.Generation && current.Status.UpdatedReplicas == 1 && current.Status.AvailableReplicas == 1 {
-			if p.backendHealthy(ctx) {
+			if p.backendHealthyAt(ctx, target.URL) {
 				p.lastStart.Store(time.Since(patchedAt).Nanoseconds())
+				p.stateMu.Lock()
+				p.backend = target.URL
+				p.backendName = target.Name
+				p.stateMu.Unlock()
 				if err := p.persistRuntimeMetadata(ctx, cfg); err != nil {
 					p.configErrors.Add(1)
 				}
@@ -1427,7 +1556,7 @@ func (p *proxy) collectRuntimeMetadata(ctx context.Context, cfg modelConfig) (ru
 		ObservedAt:      time.Now().UTC(),
 		ModelName:       cfg.Name,
 		ContextLength:   cfg.MaxModelLen,
-		LaunchArguments: launchArguments(effectiveVLLMArgs(cfg)),
+		LaunchArguments: launchArguments(effectiveArgs(cfg)),
 	}
 	metadata.MaxConcurrentRequests, _ = strconv.Atoi(metadata.LaunchArguments["--max-num-seqs"])
 	metrics, err := p.backendText(ctx, "/metrics")
@@ -1544,7 +1673,17 @@ func prometheusLabels(encoded string) map[string]string {
 }
 
 func (p *proxy) backendHealthy(ctx context.Context) bool {
-	u := *p.backend
+	p.stateMu.RLock()
+	backend := p.backend
+	p.stateMu.RUnlock()
+	return p.backendHealthyAt(ctx, backend)
+}
+
+func (p *proxy) backendHealthyAt(ctx context.Context, backend *url.URL) bool {
+	if backend == nil {
+		return false
+	}
+	u := *backend
 	u.Path = "/health"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
@@ -1559,10 +1698,13 @@ func (p *proxy) backendHealthy(ctx context.Context) bool {
 }
 
 func (p *proxy) reverseProxy() *httputil.ReverseProxy {
-	rp := httputil.NewSingleHostReverseProxy(p.backend)
+	p.stateMu.RLock()
+	backend := p.backend
+	p.stateMu.RUnlock()
+	rp := httputil.NewSingleHostReverseProxy(backend)
 	rp.FlushInterval = -1
 	rp.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, err error) {
-		openAIError(w, http.StatusBadGateway, "api_error", "vLLM backend communication failed: "+err.Error())
+		openAIError(w, http.StatusBadGateway, "api_error", "LLM backend communication failed: "+err.Error())
 	}
 	return rp
 }

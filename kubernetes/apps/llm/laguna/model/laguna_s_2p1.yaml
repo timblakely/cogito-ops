@@ -1,0 +1,24 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llm-model-laguna-s-2-1-q4
+  labels:
+    llm.cogito.dev/model-config: "true"
+data:
+  backend: llama-cpp
+  model_name: poolside/Laguna-S-2.1
+  display_name: Laguna S 2.1 Q4 (llama.cpp hybrid MoE)
+  model_source: /models/laguna/laguna-s-2.1-Q4_K_M.gguf
+  max_model_len: "102400"
+  created_at: "2026-07-22T00:00:00Z"
+  llama_args.json: |-
+    [
+      "--host", "0.0.0.0", "--port", "8000", "--jinja",
+      "--ctx-size", "102400", "--parallel", "1", "-t", "24",
+      "-ngl", "999", "--split-mode", "layer", "--flash-attn", "on",
+      "--cache-type-k", "q8_0", "--cache-type-v", "q8_0", "--no-mmap",
+      "-md", "/models/laguna/laguna-s-2.1-DFlash-BF16.gguf",
+      "--spec-type", "draft-dflash", "--spec-draft-n-max", "15",
+      "--override-tensor", "blk\\.(26|27|28|29|30|31|32|33|34|35|36)\\.ffn_(down|gate|up)_exps\\.weight=CUDA0,blk\\.(37|38|39|40|41|42|43|44|45|46|47)\\.ffn_(down|gate|up)_exps\\.weight=CUDA1,ffn_(down|gate|up)_exps\\.weight=CPU"
+    ]

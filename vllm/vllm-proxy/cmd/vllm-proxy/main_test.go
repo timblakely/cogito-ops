@@ -94,6 +94,41 @@ func TestSyncActiveDeploymentPreservesInFlightTransition(t *testing.T) {
 	}
 }
 
+func TestSyncActiveDeploymentSelectsActiveLagunaBackend(t *testing.T) {
+	zero, one := int32(0), int32(1)
+	lagunaURL, _ := url.Parse("http://llm-laguna:8000")
+	client := fake.NewSimpleClientset(
+		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "llm-vllm", Namespace: "home-infra"}, Spec: appsv1.DeploymentSpec{Replicas: &zero}},
+		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "llm-laguna", Namespace: "home-infra"}, Spec: appsv1.DeploymentSpec{Replicas: &one, Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{activeModelAnno: "laguna"}}}}},
+	)
+	p := &proxy{
+		client: client, namespace: "home-infra", active: "gemma",
+		backends: map[string]backendConfig{
+			"vllm":      {Name: "vllm", Deployment: "llm-vllm"},
+			"llama-cpp": {Name: "llama-cpp", Deployment: "llm-laguna", URL: lagunaURL},
+		},
+		registry: registry{models: map[string]modelConfig{"laguna": {Name: "laguna", Backend: "llama-cpp"}}},
+	}
+	if err := p.syncActiveDeployment(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if p.active != "laguna" || p.backendName != "llama-cpp" || p.backend.String() != lagunaURL.String() {
+		t.Fatalf("unexpected active backend: model=%q backend=%q url=%v", p.active, p.backendName, p.backend)
+	}
+}
+
+func TestSyncActiveDeploymentRejectsMultipleBackends(t *testing.T) {
+	one := int32(1)
+	client := fake.NewSimpleClientset(
+		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "llm-vllm", Namespace: "home-infra"}, Spec: appsv1.DeploymentSpec{Replicas: &one, Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{activeModelAnno: "gemma"}}}}},
+		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "llm-laguna", Namespace: "home-infra"}, Spec: appsv1.DeploymentSpec{Replicas: &one, Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{activeModelAnno: "laguna"}}}}},
+	)
+	p := &proxy{client: client, namespace: "home-infra", backends: map[string]backendConfig{"vllm": {Name: "vllm", Deployment: "llm-vllm"}, "llama-cpp": {Name: "llama-cpp", Deployment: "llm-laguna"}}}
+	if err := p.syncActiveDeployment(context.Background()); err == nil || !strings.Contains(err.Error(), "multiple LLM backends") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestEnsureActiveCancelsInFlightTransitionForRequestedModel(t *testing.T) {
 	canceled := make(chan struct{})
 	p := &proxy{
@@ -125,7 +160,7 @@ func TestEnsureActiveCancelsInFlightTransitionForRequestedModel(t *testing.T) {
 
 func TestParseModelConfig(t *testing.T) {
 	cfg, err := parseModelConfig("gemma", map[string]string{
-		"model_name": "benchmark/gemma", "model_source": "example/gemma", "display_name": "Gemma 4", "max_model_len": "8192", "created_at": "2026-07-11T00:00:00Z",
+		"backend": "vllm", "model_name": "benchmark/gemma", "model_source": "example/gemma", "display_name": "Gemma 4", "max_model_len": "8192", "created_at": "2026-07-11T00:00:00Z",
 		"vllm_args.json": `["--override-generation-config","{\"top_p\":0.9}"]`,
 	})
 	if err != nil {
@@ -142,10 +177,40 @@ func TestParseModelConfig(t *testing.T) {
 
 func TestParseModelConfigRejectsInvalidArgs(t *testing.T) {
 	_, err := parseModelConfig("invalid", map[string]string{
-		"model_name": "example/invalid", "display_name": "Invalid", "max_model_len": "1", "created_at": "2026-07-11T00:00:00Z", "vllm_args.json": `["--model","example/invalid"]`,
+		"backend": "vllm", "model_name": "example/invalid", "display_name": "Invalid", "max_model_len": "1", "created_at": "2026-07-11T00:00:00Z", "vllm_args.json": `["--model","example/invalid"]`,
 	})
 	if err == nil {
 		t.Fatal("expected validation error")
+	}
+}
+
+func TestParseModelConfigRequiresBackend(t *testing.T) {
+	_, err := parseModelConfig("invalid", map[string]string{
+		"model_name": "example/model", "display_name": "Invalid", "max_model_len": "1", "created_at": "2026-07-11T00:00:00Z", "vllm_args.json": `["--dtype","float16"]`,
+	})
+	if err == nil || !strings.Contains(err.Error(), "backend is required") {
+		t.Fatalf("expected missing backend error, got %v", err)
+	}
+}
+
+func TestParseLagunaModelConfig(t *testing.T) {
+	cfg, err := parseModelConfig("laguna", map[string]string{
+		"backend": "llama-cpp", "model_name": "poolside/Laguna-S-2.1", "model_source": "/models/laguna/model.gguf", "display_name": "Laguna S 2.1", "max_model_len": "102400", "created_at": "2026-07-22T00:00:00Z",
+		"llama_args.json": `["--jinja","--ctx-size","102400"]`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Backend != "llama-cpp" {
+		t.Fatalf("backend = %q, want llama-cpp", cfg.Backend)
+	}
+	if got := strings.Join(effectiveArgs(cfg), " "); got != "-m /models/laguna/model.gguf --alias poolside/Laguna-S-2.1 --jinja --ctx-size 102400" {
+		t.Fatalf("unexpected effective arguments: %s", got)
+	}
+	if _, err := parseModelConfig("invalid", map[string]string{
+		"backend": "llama-cpp", "model_name": "laguna", "display_name": "Laguna", "max_model_len": "1", "created_at": "2026-07-22T00:00:00Z", "llama_args.json": `["-m","model.gguf"]`,
+	}); err == nil {
+		t.Fatal("expected llama model path override to be rejected")
 	}
 }
 
@@ -259,7 +324,7 @@ func TestInferenceOverlayForwardsBaseModel(t *testing.T) {
 
 func TestParseModelConfigDefaultsModelSourceToModelName(t *testing.T) {
 	cfg, err := parseModelConfig("gemma", map[string]string{
-		"model_name": "example/gemma", "display_name": "Gemma 4", "max_model_len": "8192", "created_at": "2026-07-11T00:00:00Z",
+		"backend": "vllm", "model_name": "example/gemma", "display_name": "Gemma 4", "max_model_len": "8192", "created_at": "2026-07-11T00:00:00Z",
 		"vllm_args.json": `["--host","0.0.0.0"]`,
 	})
 	if err != nil {

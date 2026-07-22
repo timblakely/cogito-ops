@@ -84,9 +84,13 @@ spec:
           proxy:
             image:
               repository: ghcr.io/timblakely/vllm-proxy
-              tag: model-interrupt-20260720
+              tag: model-interrupt-20260722-laguna
             env:
               BACKEND_URL: http://llm-vllm:8000
+              LLAMA_BACKEND_URL: http://llm-laguna:8000
+              LLAMA_DEPLOYMENT: llm-laguna
+              LLAMA_CONTAINER: laguna
+              DEFAULT_MODEL: google/gemma-4-31B-it-qat-w4a16-ct
               PUBLIC_BASE_URL: https://llm-switch.${DOMAIN_NAME}/v1
               VLLM_DEPLOYMENT: llm-vllm
               VLLM_CONTAINER: vllm
@@ -194,6 +198,7 @@ spec:
                 - deployments
               resourceNames:
                 - llm-vllm
+                - llm-laguna
               verbs:
                 - get
                 - patch
