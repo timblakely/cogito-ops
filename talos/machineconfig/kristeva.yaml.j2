@@ -31,6 +31,9 @@ machine:
     - name: i915
   sysctls:
     net.core.bpf_jit_harden: 1
+    # Kopia memory-maps one repository index per pack; the default 65,530
+    # mappings is insufficient for the shared VolSync repository.
+    vm.max_map_count: "262144"
   nodeLabels:
     node-role.kubernetes.io/high-cpu: 'true'
     node-role.kubernetes.io/high-mem: 'true'
