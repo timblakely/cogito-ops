@@ -1004,8 +1004,12 @@ func (p *proxy) syncActiveDeployment(ctx context.Context) error {
 	if !ok {
 		return fmt.Errorf("active model %q is not configured", model)
 	}
-	if cfg.Backend != activeBackend.Name {
-		return fmt.Errorf("active %s backend is annotated with %q configured for %s", activeBackend.Name, model, cfg.Backend)
+	configuredBackend := cfg.Backend
+	if configuredBackend == "" {
+		configuredBackend = "vllm"
+	}
+	if configuredBackend != activeBackend.Name {
+		return fmt.Errorf("active %s backend is annotated with %q configured for %s", activeBackend.Name, model, configuredBackend)
 	}
 	if p.active != model {
 		p.active = model
@@ -1446,6 +1450,12 @@ func (p *proxy) transition(parent context.Context, cfg modelConfig) error {
 	target, err := p.backendFor(cfg)
 	if err != nil {
 		return err
+	}
+	// Verify the selected runtime exists before disrupting the active one.
+	// This keeps a configuration or Helm reconciliation failure from taking
+	// the serving backend offline.
+	if _, err := p.client.AppsV1().Deployments(p.namespace).Get(ctx, target.Deployment, metav1.GetOptions{}); err != nil {
+		return fmt.Errorf("get %s backend Deployment: %w", target.Name, err)
 	}
 	p.stateMu.RLock()
 	currentName := p.backendName

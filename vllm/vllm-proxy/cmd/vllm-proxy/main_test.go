@@ -96,16 +96,16 @@ func TestSyncActiveDeploymentPreservesInFlightTransition(t *testing.T) {
 
 func TestSyncActiveDeploymentSelectsActiveLagunaBackend(t *testing.T) {
 	zero, one := int32(0), int32(1)
-	lagunaURL, _ := url.Parse("http://llm-laguna:8000")
+	lagunaURL, _ := url.Parse("http://laguna:8000")
 	client := fake.NewSimpleClientset(
 		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "llm-vllm", Namespace: "home-infra"}, Spec: appsv1.DeploymentSpec{Replicas: &zero}},
-		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "llm-laguna", Namespace: "home-infra"}, Spec: appsv1.DeploymentSpec{Replicas: &one, Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{activeModelAnno: "laguna"}}}}},
+		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "laguna", Namespace: "home-infra"}, Spec: appsv1.DeploymentSpec{Replicas: &one, Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{activeModelAnno: "laguna"}}}}},
 	)
 	p := &proxy{
 		client: client, namespace: "home-infra", active: "gemma",
 		backends: map[string]backendConfig{
 			"vllm":      {Name: "vllm", Deployment: "llm-vllm"},
-			"llama-cpp": {Name: "llama-cpp", Deployment: "llm-laguna", URL: lagunaURL},
+			"llama-cpp": {Name: "llama-cpp", Deployment: "laguna", URL: lagunaURL},
 		},
 		registry: registry{models: map[string]modelConfig{"laguna": {Name: "laguna", Backend: "llama-cpp"}}},
 	}
@@ -121,11 +121,33 @@ func TestSyncActiveDeploymentRejectsMultipleBackends(t *testing.T) {
 	one := int32(1)
 	client := fake.NewSimpleClientset(
 		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "llm-vllm", Namespace: "home-infra"}, Spec: appsv1.DeploymentSpec{Replicas: &one, Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{activeModelAnno: "gemma"}}}}},
-		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "llm-laguna", Namespace: "home-infra"}, Spec: appsv1.DeploymentSpec{Replicas: &one, Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{activeModelAnno: "laguna"}}}}},
+		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "laguna", Namespace: "home-infra"}, Spec: appsv1.DeploymentSpec{Replicas: &one, Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{activeModelAnno: "laguna"}}}}},
 	)
-	p := &proxy{client: client, namespace: "home-infra", backends: map[string]backendConfig{"vllm": {Name: "vllm", Deployment: "llm-vllm"}, "llama-cpp": {Name: "llama-cpp", Deployment: "llm-laguna"}}}
+	p := &proxy{client: client, namespace: "home-infra", backends: map[string]backendConfig{"vllm": {Name: "vllm", Deployment: "llm-vllm"}, "llama-cpp": {Name: "llama-cpp", Deployment: "laguna"}}}
 	if err := p.syncActiveDeployment(context.Background()); err == nil || !strings.Contains(err.Error(), "multiple LLM backends") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestTransitionKeepsCurrentBackendRunningWhenTargetIsMissing(t *testing.T) {
+	one := int32(1)
+	client := fake.NewSimpleClientset(&appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Name: "llm-vllm", Namespace: "home-infra"},
+		Spec:       appsv1.DeploymentSpec{Replicas: &one},
+	})
+	p := &proxy{
+		client: client, namespace: "home-infra", backendName: "vllm", transitionLimit: time.Second,
+		backends: map[string]backendConfig{
+			"vllm":      {Name: "vllm", Deployment: "llm-vllm", Container: "vllm"},
+			"llama-cpp": {Name: "llama-cpp", Deployment: "laguna", Container: "laguna"},
+		},
+	}
+	if err := p.transition(context.Background(), modelConfig{Name: "laguna", Backend: "llama-cpp"}); err == nil || !strings.Contains(err.Error(), "get llama-cpp backend Deployment") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	deployment, err := client.AppsV1().Deployments("home-infra").Get(context.Background(), "llm-vllm", metav1.GetOptions{})
+	if err != nil || deployment.Spec.Replicas == nil || *deployment.Spec.Replicas != 1 {
+		t.Fatalf("current backend was changed after failed preflight: deployment=%#v err=%v", deployment, err)
 	}
 }
 
