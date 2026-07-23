@@ -6,32 +6,53 @@ metadata:
   labels:
     llm.cogito.dev/model-config: "true"
 data:
-  backend: vllm
-  model_name: Lorbus/Qwen3.6-27B-int4-AutoRound
-  display_name: Qwen 3.6 27B INT4 AutoRound
-  max_model_len: "262144"
-  created_at: "2026-07-11T00:00:00Z"
-  vllm_args.json: |-
-    [
-      "--disable-custom-all-reduce",
-      "--quantization", "auto_round",
-      "--dtype", "float16",
-      "--tensor-parallel-size", "2",
-      "--pipeline-parallel-size", "1",
-      "--max-model-len", "262144",
-      "--gpu-memory-utilization", "0.92",
-      "--max-num-seqs", "2",
-      "--max-num-batched-tokens", "8192",
-      "--kv-cache-dtype", "fp8_e5m2",
-      "--trust-remote-code",
-      "--reasoning-parser", "qwen3",
-      "--default-chat-template-kwargs", "{\"enable_thinking\": false}",
-      "--enable-auto-tool-choice",
-      "--tool-call-parser", "qwen3_coder",
-      "--enable-prefix-caching",
-      "--enable-chunked-prefill",
-      "--speculative-config", "{\"method\": \"mtp\", \"num_speculative_tokens\": 3}",
-      "--override-generation-config", "{\"temperature\": 0.6, \"top_p\": 0.95, \"top_k\": 20, \"min_p\": 0.0, \"repetition_penalty\": 1.0}",
-      "--host", "0.0.0.0",
-      "--port", "8000"
-    ]
+  model.yaml: |-
+    version: 1
+    model:
+      name: Lorbus/Qwen3.6-27B-int4-AutoRound
+      source: Lorbus/Qwen3.6-27B-int4-AutoRound
+      revision: c3aea2d531678621989e5e2db034e32b22536e79
+    serving:
+      backend: vllm
+      displayName: Qwen 3.6 27B INT4 AutoRound
+      maxModelLen: 262144
+      args:
+        - --disable-custom-all-reduce
+        - --quantization
+        - auto_round
+        - --dtype
+        - float16
+        - --tensor-parallel-size
+        - "2"
+        - --pipeline-parallel-size
+        - "1"
+        - --max-model-len
+        - "262144"
+        - --gpu-memory-utilization
+        - "0.92"
+        - --max-num-seqs
+        - "2"
+        - --max-num-batched-tokens
+        - "8192"
+        - --kv-cache-dtype
+        - fp8_e5m2
+        - --trust-remote-code
+        - --reasoning-parser
+        - qwen3
+        - --default-chat-template-kwargs
+        - '{"enable_thinking": false}'
+        - --enable-auto-tool-choice
+        - --tool-call-parser
+        - qwen3_coder
+        - --enable-prefix-caching
+        - --enable-chunked-prefill
+        - --speculative-config
+        - '{"method": "mtp", "num_speculative_tokens": 3}'
+        - --override-generation-config
+        - '{"temperature": 0.6, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "repetition_penalty": 1.0}'
+        - --host
+        - 0.0.0.0
+        - --port
+        - "8000"
+    metadata:
+      createdAt: "2026-07-11T00:00:00Z"

@@ -197,6 +197,54 @@ func TestParseModelConfig(t *testing.T) {
 	}
 }
 
+func TestParseModelConfigCacheSpec(t *testing.T) {
+	cfg, err := parseModelConfig("gemma", map[string]string{
+		"backend": "vllm", "model_name": "example/gemma", "display_name": "Gemma", "max_model_len": "1", "created_at": "2026-07-11T00:00:00Z", "vllm_args.json": `["--host","0.0.0.0"]`,
+		"cache.json": `{"kind":"huggingface-hub","repo_id":"example/gemma","revision":"0123456789012345678901234567890123456789","size_bytes":1024}`,
+	})
+	if err != nil || cfg.Cache.Revision == "" || cfg.Cache.Size != 1024 {
+		t.Fatalf("unexpected cache spec: %#v err=%v", cfg.Cache, err)
+	}
+	if got := strings.Join(effectiveVLLMArgs(cfg), " "); !strings.Contains(got, "--revision 0123456789012345678901234567890123456789") {
+		t.Fatalf("vLLM arguments did not pin revision: %s", got)
+	}
+	if _, err := parseModelConfig("invalid", map[string]string{
+		"backend": "vllm", "model_name": "example/invalid", "display_name": "Invalid", "max_model_len": "1", "created_at": "2026-07-11T00:00:00Z", "vllm_args.json": `["--host","0.0.0.0"]`, "cache.json": `{"kind":"huggingface-hub","repo_id":"example/invalid","revision":"main","size_bytes":0}`,
+	}); err == nil {
+		t.Fatal("expected invalid cache spec to be rejected")
+	}
+	if _, err := parseModelConfig("invalid-revision", map[string]string{
+		"backend": "vllm", "model_name": "example/invalid", "display_name": "Invalid", "max_model_len": "1", "created_at": "2026-07-11T00:00:00Z", "vllm_args.json": `["--revision","main"]`,
+	}); err == nil {
+		t.Fatal("expected model revision override to be rejected")
+	}
+}
+
+func TestParseModelDocument(t *testing.T) {
+	cfg, err := parseModelConfig("gemma", map[string]string{"model.yaml": `
+version: 1
+model:
+  name: example/gemma
+  source: example/gemma
+  revision: 0123456789012345678901234567890123456789
+artifact:
+  expectedSize: 20Gi
+serving:
+  backend: vllm
+  displayName: Gemma
+  maxModelLen: 8192
+  args: [--host, 0.0.0.0]
+metadata:
+  createdAt: "2026-07-11T00:00:00Z"
+`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Cache.Size != 20*1024*1024*1024 || cfg.Cache.RepoID != "example/gemma" || cfg.MaxModelLen != 8192 {
+		t.Fatalf("unexpected parsed model document: %#v", cfg)
+	}
+}
+
 func TestParseModelConfigRejectsInvalidArgs(t *testing.T) {
 	_, err := parseModelConfig("invalid", map[string]string{
 		"backend": "vllm", "model_name": "example/invalid", "display_name": "Invalid", "max_model_len": "1", "created_at": "2026-07-11T00:00:00Z", "vllm_args.json": `["--model","example/invalid"]`,
@@ -257,7 +305,7 @@ func TestParseOverlayConfig(t *testing.T) {
 func TestRefreshLoadsOverlayAndRejectsUnknownBase(t *testing.T) {
 	model := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: "gemma", Namespace: "home-infra", Labels: map[string]string{"llm.cogito.dev/model-config": "true"}},
-		Data:       map[string]string{"model_name": "gemma", "display_name": "Gemma", "max_model_len": "32768", "created_at": "2026-07-20T00:00:00Z", "vllm_args.json": `["--host","0.0.0.0"]`, "runtime_metadata.json": `{}`},
+		Data:       map[string]string{"backend": "vllm", "model_name": "gemma", "display_name": "Gemma", "max_model_len": "32768", "created_at": "2026-07-20T00:00:00Z", "vllm_args.json": `["--host","0.0.0.0"]`, "runtime_metadata.json": `{}`},
 	}
 	overlay := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: "gemma-agentic", Namespace: "home-infra", Labels: map[string]string{"llm.cogito.dev/model-overlay": "true"}},
@@ -270,6 +318,25 @@ func TestRefreshLoadsOverlayAndRejectsUnknownBase(t *testing.T) {
 	}
 	if _, ok := p.registry.overlays["gemma4-agentic"]; !ok || p.active != "gemma" {
 		t.Fatalf("unexpected registry: %#v active=%q", p.registry, p.active)
+	}
+}
+
+func TestRefreshReadsProxyOwnedModelStatus(t *testing.T) {
+	model := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "gemma", Namespace: "home-infra", Labels: map[string]string{"llm.cogito.dev/model-config": "true"}},
+		Data:       map[string]string{"backend": "vllm", "model_name": "gemma", "display_name": "Gemma", "max_model_len": "1", "created_at": "2026-07-20T00:00:00Z", "vllm_args.json": `["--host","0.0.0.0"]`},
+	}
+	status := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: modelStatusName, Namespace: "home-infra"}, Data: map[string]string{"gemma.runtime_metadata.json": `{"schema_version":1}`}}
+	deployment := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "llm-vllm", Namespace: "home-infra"}, Spec: appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{activeModelAnno: "gemma"}}}}}
+	p := &proxy{client: fake.NewSimpleClientset(model, status, deployment), namespace: "home-infra", deployment: "llm-vllm"}
+	if err := p.refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if string(p.registry.models["gemma"].Runtime) != `{"schema_version":1}` {
+		t.Fatalf("runtime metadata = %s", p.registry.models["gemma"].Runtime)
+	}
+	if model.Data["runtime_metadata.json"] != "" {
+		t.Fatal("desired model ConfigMap was mutated")
 	}
 }
 
@@ -409,6 +476,36 @@ func TestCacheConfigInfo(t *testing.T) {
 	cache := cacheConfigInfo(metrics)
 	if cache["block_size"] != "16" || cache["num_gpu_blocks"] != "4096" {
 		t.Fatalf("unexpected cache metadata: %#v", cache)
+	}
+}
+
+func TestArtifactManifestDetectsPayloadChanges(t *testing.T) {
+	dir := t.TempDir()
+	payload := filepath.Join(dir, "payload", "files")
+	if err := os.MkdirAll(payload, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(payload, "model.gguf"), []byte("original model bytes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("model.gguf", filepath.Join(payload, "current.gguf")); err != nil {
+		t.Fatal(err)
+	}
+	spec := cacheSpec{Kind: "huggingface-files", RepoID: "example/model", Revision: "0123456789012345678901234567890123456789", Size: 1024, Files: []string{"model.gguf"}}
+	if err := writeArtifactManifest(dir, spec); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeComplete(dir); err != nil {
+		t.Fatal(err)
+	}
+	if !validArtifact(dir, spec) {
+		t.Fatal("fresh artifact should be valid")
+	}
+	if err := os.WriteFile(filepath.Join(payload, "model.gguf"), []byte("corrupted bytes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if validArtifact(dir, spec) {
+		t.Fatal("corrupted artifact was accepted")
 	}
 }
 

@@ -1,0 +1,43 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/grafana.integreatly.org/grafanadashboard_v1beta1.json
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: llm-model-cache
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  datasources:
+    - datasourceName: prometheus
+      inputName: DS_PROMETHEUS
+  json: |-
+    {
+      "title": "LLM Model Cache",
+      "editable": true,
+      "schemaVersion": 39,
+      "time": {"from": "now-24h", "to": "now"},
+      "panels": [
+        {
+          "id": 1,
+          "title": "Model cache source",
+          "type": "timeseries",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "gridPos": {"h": 9, "w": 12, "x": 0, "y": 0},
+          "targets": [{"expr": "sum by (source) (increase(vllm_proxy_model_cache_hits_total{namespace=\"llm\"}[$__rate_interval]))", "legendFormat": "{{source}}", "refId": "A"}],
+          "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+          "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+        },
+        {
+          "id": 2,
+          "title": "Hot-cache filesystem use",
+          "type": "timeseries",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "gridPos": {"h": 9, "w": 12, "x": 12, "y": 0},
+          "targets": [{"expr": "100 * sum by (backend) (llm_cache_manager_filesystem_bytes{namespace=\"llm\",backend=~\"vllm|llama-cpp\",state=\"used\"}) / sum by (backend) (llm_cache_manager_filesystem_bytes{namespace=\"llm\",backend=~\"vllm|llama-cpp\",state=\"capacity\"})", "legendFormat": "{{backend}}", "refId": "A"}],
+          "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}, "overrides": []},
+          "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+        }
+      ]
+    }

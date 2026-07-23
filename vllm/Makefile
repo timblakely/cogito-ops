@@ -2,18 +2,25 @@ REGISTRY ?= ghcr.io/timblakely
 TAG ?= dev
 
 PROXY_IMAGE := $(REGISTRY)/vllm-proxy:$(TAG)
+CACHE_MANAGER_IMAGE := $(REGISTRY)/llm-cache-manager:$(TAG)
 OPENAI_IMAGE := $(REGISTRY)/vllm-openai:$(TAG)
 LAGUNA_IMAGE := $(REGISTRY)/llama-laguna:$(TAG)
 # Poolside PR #3, pinned to its single commit until it is merged into laguna.
 LAGUNA_CONTEXT := https://github.com/rpw/llama.cpp.git?branch=patch-1&checksum=ffbd3e3f62cb32d0cbe9c496a9d57e19aef5677d
 
-.PHONY: build-proxy push-proxy build-openai push-openai build-laguna push-laguna
+.PHONY: build-proxy push-proxy build-cache-manager push-cache-manager build-openai push-openai build-laguna push-laguna
 
 build-proxy:
-	docker build --tag $(PROXY_IMAGE) vllm-proxy
+	docker build --target proxy --tag $(PROXY_IMAGE) vllm-proxy
 
 push-proxy:
-	docker buildx build --push --tag $(PROXY_IMAGE) vllm-proxy
+	docker buildx build --target proxy --push --tag $(PROXY_IMAGE) vllm-proxy
+
+build-cache-manager:
+	docker build --target cache-manager --tag $(CACHE_MANAGER_IMAGE) vllm-proxy
+
+push-cache-manager:
+	docker buildx build --target cache-manager --push --tag $(CACHE_MANAGER_IMAGE) vllm-proxy
 
 build-openai:
 	docker build --tag $(OPENAI_IMAGE) vllm-openai

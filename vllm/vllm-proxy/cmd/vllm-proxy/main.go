@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -24,6 +25,9 @@ import (
 
 	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
@@ -36,8 +40,10 @@ const (
 	overlayLabel     = "llm.cogito.dev/model-overlay=true"
 	activeModelAnno  = "llm.cogito.dev/active-model"
 	switchedAtAnno   = "llm.cogito.dev/switched-at"
+	modelStatusName  = "llm-model-status"
 	defaultMaxBody   = 32 << 20
 	defaultTimeout   = 30 * time.Minute
+	defaultSweep     = 10 * time.Minute
 	backendProbeWait = 2 * time.Second
 )
 
@@ -52,6 +58,44 @@ type modelConfig struct {
 	Source      string
 	Fallback    json.RawMessage
 	Runtime     json.RawMessage
+	Cache       cacheSpec
+}
+
+// cacheSpec describes an immutable model artifact.  It is intentionally kept
+// separate from ModelSource: ModelSource is an argument to a serving runtime,
+// while this identifies bytes that may safely be restored from cold storage.
+type cacheSpec struct {
+	Kind     string   `json:"kind"`
+	RepoID   string   `json:"repo_id"`
+	Revision string   `json:"revision"`
+	Size     int64    `json:"size_bytes"`
+	Files    []string `json:"files,omitempty"`
+}
+
+// modelDocument is the desired-state schema stored in ConfigMap data.model.yaml.
+// Keeping it separate from modelConfig makes a later CRD migration a direct
+// spec/status lift rather than another data-model rewrite.
+type modelDocument struct {
+	Version int `yaml:"version"`
+	Model   struct {
+		Name     string `yaml:"name"`
+		Source   string `yaml:"source"`
+		Revision string `yaml:"revision"`
+		Artifact string `yaml:"artifactRepository"`
+	} `yaml:"model"`
+	Artifact struct {
+		ExpectedSize string   `yaml:"expectedSize"`
+		Files        []string `yaml:"files"`
+	} `yaml:"artifact"`
+	Serving struct {
+		Backend     string   `yaml:"backend"`
+		DisplayName string   `yaml:"displayName"`
+		MaxModelLen int      `yaml:"maxModelLen"`
+		Args        []string `yaml:"args"`
+	} `yaml:"serving"`
+	Metadata struct {
+		CreatedAt string `yaml:"createdAt"`
+	} `yaml:"metadata"`
 }
 
 // backendConfig is deliberately configured by the Helm release, not by model
@@ -104,6 +148,7 @@ type proxy struct {
 	httpClient      *http.Client
 	transitionLimit time.Duration
 	maxBody         int64
+	cacheManager    *url.URL
 
 	stateMu         sync.RWMutex
 	registry        registry
@@ -120,11 +165,18 @@ type proxy struct {
 
 	switchesTotal atomic.Uint64
 	configErrors  atomic.Uint64
+	cacheHotHits  atomic.Uint64
+	cacheColdHits atomic.Uint64
+	cacheExternal atomic.Uint64
 	lastSwitch    atomic.Int64 // nanoseconds
 	lastStart     atomic.Int64 // nanoseconds
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "cache-manager" {
+		runCacheManager()
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "generate-config" {
 		if err := runGenerateConfig(os.Args[2:], os.Stdout); err != nil {
 			fmt.Fprintln(os.Stderr, "generate-config:", err)
@@ -167,6 +219,14 @@ func main() {
 		logger.Error("parse LLAMA_BACKEND_URL", "error", err)
 		os.Exit(1)
 	}
+	var cacheManager *url.URL
+	if raw := strings.TrimSpace(os.Getenv("CACHE_MANAGER_URL")); raw != "" {
+		cacheManager, err = url.Parse(raw)
+		if err != nil {
+			logger.Error("parse CACHE_MANAGER_URL", "error", err)
+			os.Exit(1)
+		}
+	}
 	vllmDeployment := env("VLLM_DEPLOYMENT", "llm-vllm")
 	vllmContainer := env("VLLM_CONTAINER", "vllm")
 	p := &proxy{
@@ -184,6 +244,7 @@ func main() {
 		publicBaseURL:   strings.TrimSuffix(env("PUBLIC_BASE_URL", "http://llm-proxy:8080/v1"), "/"),
 		httpClient:      &http.Client{Timeout: 15 * time.Second},
 		transitionLimit: durationEnv("TRANSITION_TIMEOUT", defaultTimeout),
+		cacheManager:    cacheManager,
 		maxBody:         int64Env("MAX_REQUEST_BODY_BYTES", defaultMaxBody),
 		startedAt:       time.Now(),
 	}
@@ -194,6 +255,7 @@ func main() {
 	}
 	cancel()
 	go p.reconcileActiveDeployment(logger)
+	go p.sweepCache(logger)
 	go p.watchConfigs(logger)
 	go p.watchDeployments(logger)
 
@@ -923,8 +985,27 @@ func (p *proxy) refresh(ctx context.Context) error {
 		models:   make(map[string]modelConfig, len(modelItems.Items)),
 		overlays: make(map[string]overlayConfig, len(overlayItems.Items)),
 	}
+	status, err := p.client.CoreV1().ConfigMaps(p.namespace).Get(ctx, modelStatusName, metav1.GetOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("get model status ConfigMap: %w", err)
+	}
+	statusData := map[string]string{}
+	if err == nil {
+		statusData = status.Data
+	}
 	for _, cm := range modelItems.Items {
-		cfg, err := parseModelConfig(cm.Name, cm.Data)
+		data := maps.Clone(cm.Data)
+		// Runtime observations used to be written into the desired model
+		// ConfigMap. Ignore any legacy values so status has a single owner.
+		delete(data, "runtime_metadata.json")
+		delete(data, "model_card_metadata.json")
+		if value := statusData[cm.Name+".runtime_metadata.json"]; value != "" {
+			data["runtime_metadata.json"] = value
+		}
+		if value := statusData[cm.Name+".model_card_metadata.json"]; value != "" {
+			data["model_card_metadata.json"] = value
+		}
+		cfg, err := parseModelConfig(cm.Name, data)
 		if err != nil {
 			return fmt.Errorf("%s: %w", cm.Name, err)
 		}
@@ -1020,6 +1101,9 @@ func (p *proxy) syncActiveDeployment(ctx context.Context) error {
 }
 
 func parseModelConfig(name string, data map[string]string) (modelConfig, error) {
+	if document := strings.TrimSpace(data["model.yaml"]); document != "" {
+		return parseModelDocument(name, document)
+	}
 	cfg := modelConfig{Name: strings.TrimSpace(data["model_name"]), DisplayName: strings.TrimSpace(data["display_name"]), Source: name}
 	if cfg.Name == "" || cfg.DisplayName == "" {
 		return cfg, errors.New("model_name and display_name are required")
@@ -1055,8 +1139,8 @@ func parseModelConfig(name string, data map[string]string) (modelConfig, error) 
 			return cfg, fmt.Errorf("%s cannot contain empty arguments", argsKey)
 		}
 	}
-	if cfg.Backend == "vllm" && (contains(cfg.Args, "--model") || contains(cfg.Args, "--served-model-name")) {
-		return cfg, errors.New("vllm_args.json must not contain --model or --served-model-name")
+	if cfg.Backend == "vllm" && (contains(cfg.Args, "--model") || contains(cfg.Args, "--served-model-name") || contains(cfg.Args, "--revision")) {
+		return cfg, errors.New("vllm_args.json must not contain --model, --revision, or --served-model-name")
 	}
 	if cfg.Backend == "llama-cpp" && (contains(cfg.Args, "-m") || contains(cfg.Args, "--model") || contains(cfg.Args, "--alias")) {
 		return cfg, errors.New("llama_args.json must not contain -m, --model, or --alias")
@@ -1071,7 +1155,78 @@ func parseModelConfig(name string, data map[string]string) (modelConfig, error) 
 	} else {
 		cfg.Runtime = json.RawMessage(value)
 	}
+	if value := strings.TrimSpace(data["cache.json"]); value != "" {
+		if err := json.Unmarshal([]byte(value), &cfg.Cache); err != nil {
+			return cfg, errors.New("cache.json must be valid JSON")
+		}
+		if cfg.Cache.Kind != "huggingface-hub" && cfg.Cache.Kind != "huggingface-files" {
+			return cfg, errors.New("cache.json kind must be huggingface-hub or huggingface-files")
+		}
+		if cfg.Cache.RepoID == "" || !isCommitSHA(cfg.Cache.Revision) || cfg.Cache.Size < 0 || (cfg.Cache.Kind == "huggingface-files" && cfg.Cache.Size < 1) {
+			return cfg, errors.New("cache.json requires repo_id, immutable revision, and a size for file artifacts")
+		}
+		if cfg.Cache.Kind == "huggingface-files" && len(cfg.Cache.Files) == 0 {
+			return cfg, errors.New("huggingface-files cache.json requires files")
+		}
+	}
 	return cfg, nil
+}
+
+func parseModelDocument(name, document string) (modelConfig, error) {
+	var spec modelDocument
+	if err := yaml.Unmarshal([]byte(document), &spec); err != nil {
+		return modelConfig{}, fmt.Errorf("model.yaml: %w", err)
+	}
+	if spec.Version != 1 {
+		return modelConfig{}, errors.New("model.yaml version must be 1")
+	}
+	args, err := json.Marshal(spec.Serving.Args)
+	if err != nil {
+		return modelConfig{}, err
+	}
+	data := map[string]string{
+		"backend": spec.Serving.Backend, "model_name": spec.Model.Name, "model_source": spec.Model.Source,
+		"display_name": spec.Serving.DisplayName, "max_model_len": strconv.Itoa(spec.Serving.MaxModelLen),
+		"created_at": spec.Metadata.CreatedAt,
+	}
+	if spec.Serving.Backend == "llama-cpp" {
+		data["llama_args.json"] = string(args)
+	} else {
+		data["vllm_args.json"] = string(args)
+	}
+	if spec.Model.Revision != "" {
+		var size int64
+		if spec.Artifact.ExpectedSize != "" {
+			quantity, err := resource.ParseQuantity(spec.Artifact.ExpectedSize)
+			if err != nil || quantity.Value() < 1 {
+				return modelConfig{}, errors.New("model.yaml artifact.expectedSize must be a positive quantity")
+			}
+			size = quantity.Value()
+		}
+		repository := spec.Model.Artifact
+		if repository == "" {
+			repository = spec.Model.Source
+		}
+		kind := "huggingface-hub"
+		if spec.Serving.Backend == "llama-cpp" {
+			kind = "huggingface-files"
+		}
+		cache, _ := json.Marshal(cacheSpec{Kind: kind, RepoID: repository, Revision: spec.Model.Revision, Size: size, Files: spec.Artifact.Files})
+		data["cache.json"] = string(cache)
+	}
+	return parseModelConfig(name, data)
+}
+
+func isCommitSHA(value string) bool {
+	if len(value) != 40 {
+		return false
+	}
+	for _, character := range value {
+		if !(character >= '0' && character <= '9') && !(character >= 'a' && character <= 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 func parseOverlayConfig(name string, data map[string]string) (overlayConfig, error) {
@@ -1104,8 +1259,12 @@ func parseOverlayConfig(name string, data map[string]string) (overlayConfig, err
 }
 
 func effectiveVLLMArgs(cfg modelConfig) []string {
-	args := make([]string, 0, len(cfg.Args)+4)
-	args = append(args, "--model", cfg.ModelSource, "--served-model-name", cfg.Name)
+	args := make([]string, 0, len(cfg.Args)+6)
+	args = append(args, "--model", cfg.ModelSource)
+	if cfg.Cache.Revision != "" {
+		args = append(args, "--revision", cfg.Cache.Revision)
+	}
+	args = append(args, "--served-model-name", cfg.Name)
 	return append(args, cfg.Args...)
 }
 
@@ -1461,7 +1620,7 @@ func (p *proxy) transition(parent context.Context, cfg modelConfig) error {
 	currentName := p.backendName
 	current, currentOK := p.backends[currentName]
 	p.stateMu.RUnlock()
-	if currentOK && current.Deployment != target.Deployment {
+	if currentOK {
 		if _, err := p.client.AppsV1().Deployments(p.namespace).Patch(ctx, current.Deployment, types.StrategicMergePatchType, []byte(`{"spec":{"replicas":0}}`), metav1.PatchOptions{}); err != nil {
 			return fmt.Errorf("scale down %s backend: %w", current.Name, err)
 		}
@@ -1475,6 +1634,9 @@ func (p *proxy) transition(parent context.Context, cfg modelConfig) error {
 			}
 			time.Sleep(backendProbeWait)
 		}
+	}
+	if err := p.ensureCached(ctx, cfg); err != nil {
+		return err
 	}
 	patchedAt := time.Now()
 	patch, err := json.Marshal(map[string]any{"spec": map[string]any{"replicas": 1, "template": map[string]any{
@@ -1513,6 +1675,93 @@ func (p *proxy) transition(parent context.Context, cfg modelConfig) error {
 	}
 }
 
+func (p *proxy) ensureCached(ctx context.Context, cfg modelConfig) error {
+	if p.cacheManager == nil {
+		return nil
+	}
+	if cfg.Cache.Kind == "" {
+		return fmt.Errorf("model %q has no cache.json", cfg.Name)
+	}
+	body, err := json.Marshal(map[string]any{"model": cfg.Name, "backend": cfg.Backend, "cache": cfg.Cache})
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.cacheManager.ResolveReference(&url.URL{Path: "/v1/ensure"}).String(), bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	// Cache hydration may copy tens of gigabytes from the NAS. The request
+	// context already carries the model-transition deadline; do not reuse the
+	// short timeout intended for backend health and metadata requests.
+	resp, err := (&http.Client{}).Do(req)
+	if err != nil {
+		return fmt.Errorf("ensure cached model %q: %w", cfg.Name, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode/100 != 2 {
+		message, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return fmt.Errorf("ensure cached model %q: %s: %s", cfg.Name, resp.Status, strings.TrimSpace(string(message)))
+	}
+	switch resp.Header.Get("X-LLM-Cache-Result") {
+	case "hot":
+		p.cacheHotHits.Add(1)
+	case "cold":
+		p.cacheColdHits.Add(1)
+	case "external":
+		p.cacheExternal.Add(1)
+	}
+	return nil
+}
+
+// sweepCache keeps the hot volumes below their high-water mark even when no
+// model switch occurs. The manager receives the active artifact key and never
+// evicts it.
+func (p *proxy) sweepCache(logger *slog.Logger) {
+	if p.cacheManager == nil {
+		return
+	}
+	ticker := time.NewTicker(durationEnv("CACHE_SWEEP_INTERVAL", defaultSweep))
+	defer ticker.Stop()
+	for range ticker.C {
+		p.stateMu.RLock()
+		cfg, ok := p.registry.models[p.active]
+		transitioning := p.transitioning
+		p.stateMu.RUnlock()
+		if !ok || transitioning || cfg.Cache.Kind == "" {
+			continue
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), p.transitionLimit)
+		err := p.sweepCached(ctx, cfg)
+		cancel()
+		if err != nil {
+			logger.Warn("sweep model cache", "model", cfg.Name, "error", err)
+		}
+	}
+}
+
+func (p *proxy) sweepCached(ctx context.Context, cfg modelConfig) error {
+	body, err := json.Marshal(cacheRequest{Model: cfg.Name, Backend: cfg.Backend, Cache: cfg.Cache})
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.cacheManager.ResolveReference(&url.URL{Path: "/v1/sweep"}).String(), bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := (&http.Client{}).Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode/100 != 2 {
+		message, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return fmt.Errorf("%s: %s", resp.Status, strings.TrimSpace(string(message)))
+	}
+	return nil
+}
+
 func (p *proxy) persistRuntimeMetadata(ctx context.Context, cfg modelConfig) error {
 	metadata, err := p.collectRuntimeMetadata(ctx, cfg)
 	if err != nil {
@@ -1522,23 +1771,35 @@ func (p *proxy) persistRuntimeMetadata(ctx context.Context, cfg modelConfig) err
 	if err != nil {
 		return err
 	}
-	configMap, err := p.client.CoreV1().ConfigMaps(p.namespace).Get(ctx, cfg.Source, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("read model ConfigMap: %w", err)
+	data := map[string]string{cfg.Source + ".runtime_metadata.json": string(body)}
+	status, err := p.client.CoreV1().ConfigMaps(p.namespace).Get(ctx, modelStatusName, metav1.GetOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("read model status ConfigMap: %w", err)
 	}
-	data := map[string]string{"runtime_metadata.json": string(body)}
-	if configMap.Data["model_card_metadata.json"] == "" {
+	if apierrors.IsNotFound(err) || status == nil {
+		status = &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: modelStatusName, Namespace: p.namespace, Labels: map[string]string{"llm.cogito.dev/model-status": "true"}}, Data: map[string]string{}}
+	}
+	if status.Data[cfg.Source+".model_card_metadata.json"] == "" {
 		if fallback, err := p.modelCardFallback(ctx, cfg); err == nil {
-			data["model_card_metadata.json"] = fallback
+			data[cfg.Source+".model_card_metadata.json"] = fallback
 		}
+	}
+	if apierrors.IsNotFound(err) {
+		for key, value := range data {
+			status.Data[key] = value
+		}
+		if _, err := p.client.CoreV1().ConfigMaps(p.namespace).Create(ctx, status, metav1.CreateOptions{}); err != nil {
+			return fmt.Errorf("create model status ConfigMap: %w", err)
+		}
+		return nil
 	}
 	patch, err := json.Marshal(map[string]any{"data": data})
 	if err != nil {
 		return err
 	}
-	_, err = p.client.CoreV1().ConfigMaps(p.namespace).Patch(ctx, cfg.Source, types.MergePatchType, patch, metav1.PatchOptions{FieldManager: "vllm-proxy"})
+	_, err = p.client.CoreV1().ConfigMaps(p.namespace).Patch(ctx, modelStatusName, types.MergePatchType, patch, metav1.PatchOptions{FieldManager: "vllm-proxy"})
 	if err != nil {
-		return fmt.Errorf("persist runtime metadata: %w", err)
+		return fmt.Errorf("persist model status: %w", err)
 	}
 	return nil
 }
@@ -1761,10 +2022,24 @@ func (p *proxy) metrics(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "vllm_proxy_transitioning %d\n", boolNumber(transitioning))
 	fmt.Fprintf(w, "vllm_proxy_switches_total %d\n", p.switchesTotal.Load())
 	fmt.Fprintf(w, "vllm_proxy_config_errors_total %d\n", p.configErrors.Load())
+	fmt.Fprintf(w, "vllm_proxy_model_cache_hits_total{source=\"hot\"} %d\n", p.cacheHotHits.Load())
+	fmt.Fprintf(w, "vllm_proxy_model_cache_hits_total{source=\"cold\"} %d\n", p.cacheColdHits.Load())
+	fmt.Fprintf(w, "vllm_proxy_model_cache_hits_total{source=\"external\"} %d\n", p.cacheExternal.Load())
 	fmt.Fprintf(w, "vllm_proxy_last_switch_duration_seconds %.6f\n", float64(p.lastSwitch.Load())/float64(time.Second))
 	fmt.Fprintf(w, "vllm_proxy_last_startup_duration_seconds %.6f\n", float64(p.lastStart.Load())/float64(time.Second))
 	if !activeSince.IsZero() {
 		fmt.Fprintf(w, "vllm_proxy_active_model_uptime_seconds %.6f\n", time.Since(activeSince).Seconds())
+	}
+	// The cache manager shares this Pod and has no externally reachable
+	// Service.  Proxy its storage metrics through the already-scraped endpoint.
+	if p.cacheManager != nil {
+		cacheURL := p.cacheManager.ResolveReference(&url.URL{Path: "/metrics"})
+		if req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, cacheURL.String(), nil); err == nil {
+			if resp, err := p.httpClient.Do(req); err == nil {
+				defer resp.Body.Close()
+				_, _ = io.Copy(w, resp.Body)
+			}
+		}
 	}
 	u := *p.backend
 	u.Path = "/metrics"

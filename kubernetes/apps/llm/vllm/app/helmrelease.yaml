@@ -55,6 +55,7 @@ spec:
               tag: v0.25.1
             env: &vllmEnv
               HF_HOME: /root/.cache/huggingface
+              HF_HUB_OFFLINE: "1"
               HF_TOKEN:
                 valueFrom:
                   secretKeyRef:
@@ -80,11 +81,14 @@ spec:
         replicas: 1
         serviceAccount:
           identifier: proxy
+        pod:
+          nodeSelector:
+            kubernetes.io/hostname: iggy
         containers:
           proxy:
             image:
               repository: ghcr.io/timblakely/vllm-proxy
-              tag: model-interrupt-20260722-laguna-fix
+              tag: model-cache-20260723-final7
             env:
               BACKEND_URL: http://llm-vllm:8000
               LLAMA_BACKEND_URL: http://laguna:8000
@@ -95,6 +99,7 @@ spec:
               VLLM_DEPLOYMENT: llm-vllm
               VLLM_CONTAINER: vllm
               TRANSITION_TIMEOUT: 30m
+              CACHE_MANAGER_URL: http://127.0.0.1:8090
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
@@ -105,6 +110,23 @@ spec:
                 memory: 64Mi
               limits:
                 memory: 256Mi
+          cache-manager:
+            image:
+              repository: ghcr.io/timblakely/llm-cache-manager
+              tag: model-cache-20260724-final10
+            env:
+              CACHE_HOT_VLLM: /cache/vllm
+              CACHE_HOT_LAGUNA: /cache/laguna
+              CACHE_COLD: /cold/llm-cache
+              CACHE_SWEEP_INTERVAL: 10m
+              HF_TOKEN:
+                valueFrom:
+                  secretKeyRef:
+                    name: llm-huggingface
+                    key: HF_TOKEN
+            resources:
+              requests: {cpu: 100m, memory: 256Mi}
+              limits: {cpu: "2", memory: 2Gi}
     service:
       vllm:
         controller: vllm
@@ -140,6 +162,25 @@ spec:
           vllm:
             vllm:
               - path: /root/.cache/huggingface
+          proxy:
+            cache-manager:
+              - path: /cache/vllm
+      laguna-models:
+        type: persistentVolumeClaim
+        existingClaim: laguna
+        advancedMounts:
+          proxy:
+            cache-manager:
+              - path: /cache/laguna
+      cold-model-cache:
+        type: nfs
+        server: nuglab-storage.internal
+        path: /volume1/nuglab
+        advancedMounts:
+          proxy:
+            cache-manager:
+              - path: /cold
+                subPath: Models
       shm:
         type: emptyDir
         medium: Memory
@@ -187,7 +228,10 @@ spec:
                 - ""
               resources:
                 - configmaps
+                - pods
+                - persistentvolumeclaims
               verbs:
+                - create
                 - get
                 - list
                 - watch
