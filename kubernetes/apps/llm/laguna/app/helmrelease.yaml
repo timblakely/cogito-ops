@@ -53,7 +53,7 @@ spec:
             command: ["/bin/sh", "-ec"]
             args:
               - >-
-                pip install --no-cache-dir huggingface_hub==0.34.4 &&
+                pip install --no-cache-dir huggingface_hub==0.34.4 hf_xet &&
                 hf download poolside/Laguna-S-2.1-GGUF
                 laguna-s-2.1-Q4_K_M.gguf laguna-s-2.1-DFlash-BF16.gguf
                 --local-dir /models/laguna --max-workers 1
@@ -61,10 +61,9 @@ spec:
               HF_TOKEN:
                 valueFrom:
                   secretKeyRef: {name: llm-huggingface, key: HF_TOKEN}
-              HF_HUB_DISABLE_XET: "1"
             resources:
-              requests: {cpu: "1", memory: 1Gi}
-              limits: {cpu: "2", memory: 2Gi}
+              requests: {cpu: "1", memory: 4Gi}
+              limits: {cpu: "2", memory: 12Gi}
         containers:
           laguna:
             image:
