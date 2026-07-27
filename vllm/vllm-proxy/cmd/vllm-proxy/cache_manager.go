@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"log/slog"
 	"net/http"
@@ -539,8 +540,19 @@ func sameCacheSpec(got, want cacheSpec) bool {
 	return got.Kind == want.Kind && got.RepoID == want.RepoID && got.Revision == want.Revision && (want.Size == 0 || got.Size == want.Size) && (len(want.Files) == 0 || slices.Equal(got.Files, want.Files))
 }
 
+var ioBufferPool = sync.Pool{
+	New: func() interface{} {
+		buf := make([]byte, 1024*1024) // 1MB reusable buffer
+		return &buf
+	},
+}
+
 func artifactInventory(root string) ([]artifactFile, error) {
 	var files []artifactFile
+	bufPtr := ioBufferPool.Get().(*[]byte)
+	defer ioBufferPool.Put(bufPtr)
+	buf := *bufPtr
+
 	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -573,7 +585,7 @@ func artifactInventory(root string) ([]artifactFile, error) {
 			return err
 		}
 		hash := sha256.New()
-		_, copyErr := io.Copy(hash, handle)
+		_, copyErr := io.CopyBuffer(hash, handle, buf)
 		closeErr := handle.Close()
 		if copyErr != nil {
 			return copyErr
@@ -640,8 +652,19 @@ func copyAndVerify(source, destination string, want artifactFile) error {
 	if err != nil {
 		return err
 	}
-	hash := sha256.New()
-	n, copyErr := io.Copy(io.MultiWriter(out, hash), in)
+
+	bufPtr := ioBufferPool.Get().(*[]byte)
+	defer ioBufferPool.Put(bufPtr)
+	buf := *bufPtr
+
+	var writer io.Writer = out
+	var hash hash.Hash
+	if want.SHA256 != "" {
+		hash = sha256.New()
+		writer = io.MultiWriter(out, hash)
+	}
+
+	n, copyErr := io.CopyBuffer(writer, in, buf)
 	closeErr := out.Close()
 	if copyErr != nil {
 		return copyErr
@@ -649,7 +672,7 @@ func copyAndVerify(source, destination string, want artifactFile) error {
 	if closeErr != nil {
 		return closeErr
 	}
-	if n != want.Size || fmt.Sprintf("%x", hash.Sum(nil)) != want.SHA256 {
+	if n != want.Size || (hash != nil && fmt.Sprintf("%x", hash.Sum(nil)) != want.SHA256) {
 		_ = os.Remove(destination)
 		return fmt.Errorf("checksum mismatch for %s", want.Path)
 	}
