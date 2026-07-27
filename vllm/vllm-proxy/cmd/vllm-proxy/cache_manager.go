@@ -299,9 +299,11 @@ func (m *cacheManager) ensureArtifact(r cacheRequest) error {
 		m.logger.Info("model artifact already complete in hot cache", "key", key)
 		if !validArtifactMetadata(coldArtifact, r.Cache) {
 			m.logger.Info("refreshing cold artifact manifest from hot cache", "key", key)
-			if err := m.archiveHot(r, hot, coldArtifact); err != nil {
-				return fmt.Errorf("refresh cold artifact manifest: %w", err)
-			}
+			go func() {
+				if err := m.archiveHot(r, hot, coldArtifact); err != nil {
+					m.logger.Error("background archive hot failed", "key", key, "error", err)
+				}
+			}()
 		}
 		_ = os.Chtimes(hotArtifact, time.Now(), time.Now())
 		return m.sweep(hot, key)
@@ -315,31 +317,26 @@ func (m *cacheManager) ensureArtifact(r cacheRequest) error {
 	if err := m.makeSpace(hot, r.Cache.Size); err != nil {
 		return err
 	}
+
 	manifest, ok := artifactManifestFor(coldArtifact, r.Cache)
-	if !ok {
-		var err error
-		if m.hotArtifactExists(r, hot) {
-			m.logger.Info("archiving hot artifact to cold storage", "key", key)
-			err = m.archiveHot(r, hot, coldArtifact)
-		} else {
-			m.logger.Info("downloading model from HuggingFace to cold storage", "key", key)
-			err = m.downloadToCold(r, coldArtifact)
-		}
-		if err != nil {
+	if ok {
+		m.logger.Info("cold artifact hit, promoting from cold NAS to hot NVMe", "key", key, "files", len(manifest.Files))
+		if err := m.clearMaterialized(r, hot); err != nil {
 			return err
 		}
-		manifest, ok = artifactManifestFor(coldArtifact, r.Cache)
-		if !ok {
-			return errors.New("cold artifact was not published with a valid manifest")
+		if err := m.materialize(r, coldArtifact, hot, manifest); err != nil {
+			return fmt.Errorf("promote from cold: %w", err)
+		}
+	} else {
+		m.logger.Info("downloading model directly from HuggingFace to hot NVMe", "key", key)
+		if err := m.clearMaterialized(r, hot); err != nil {
+			return err
+		}
+		if err := m.downloadToHot(r, hot); err != nil {
+			return fmt.Errorf("download to hot: %w", err)
 		}
 	}
-	m.logger.Info("materializing artifact from cold storage to hot cache", "key", key, "files", len(manifest.Files))
-	if err := m.clearMaterialized(r, hot); err != nil {
-		return err
-	}
-	if err := m.materialize(r, coldArtifact, hot, manifest); err != nil {
-		return fmt.Errorf("promote from cold: %w", err)
-	}
+
 	if err := os.MkdirAll(hotArtifact, 0o755); err != nil {
 		return err
 	}
@@ -350,7 +347,52 @@ func (m *cacheManager) ensureArtifact(r cacheRequest) error {
 	if err := os.WriteFile(filepath.Join(hotArtifact, "cache.json"), metadata, 0o644); err != nil {
 		return err
 	}
+
 	m.logger.Info("successfully ensured hot artifact", "key", key)
+
+	// Asynchronously write to cold storage so hot serving is ready immediately
+	go func() {
+		m.logger.Info("archiving hot artifact to cold storage in background", "key", key)
+		if err := m.archiveHot(r, hot, coldArtifact); err != nil {
+			m.logger.Error("background cold archiving failed", "key", key, "error", err)
+		} else {
+			m.logger.Info("background cold archiving completed", "key", key)
+		}
+	}()
+
+	return nil
+}
+
+func (m *cacheManager) downloadToHot(r cacheRequest, hot string) error {
+	staging, err := stagingDir(filepath.Join(hot, "staging"))
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(staging)
+
+	args := []string{"download", r.Cache.RepoID, "--revision", r.Cache.Revision, "--cache-dir", filepath.Join(staging, "hub")}
+	args = append(args, r.Cache.Files...)
+	command := exec.Command("hf", args...)
+	command.Env = os.Environ()
+	if output, err := command.CombinedOutput(); err != nil {
+		return fmt.Errorf("download %s: %w: %s", r.Cache.RepoID, err, strings.TrimSpace(string(output)))
+	}
+
+	if r.Cache.Kind == "huggingface-hub" {
+		source := filepath.Join(staging, "hub", "models--"+strings.ReplaceAll(r.Cache.RepoID, "/", "--"))
+		dest := filepath.Join(hot, "hub", filepath.Base(source))
+		if err := copyTree(source, dest); err != nil {
+			return err
+		}
+	} else {
+		for _, file := range r.Cache.Files {
+			source := filepath.Join(staging, "hub", "models--"+strings.ReplaceAll(r.Cache.RepoID, "/", "--"), "snapshots", r.Cache.Revision, file)
+			dest := filepath.Join(hot, "laguna", file)
+			if err := copyTree(source, dest); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -821,7 +863,10 @@ func copyTree(source, destination string) error {
 		if err != nil {
 			return err
 		}
-		_, err = io.Copy(out, in)
+		bufPtr := ioBufferPool.Get().(*[]byte)
+		defer ioBufferPool.Put(bufPtr)
+		buf := *bufPtr
+		_, err = io.CopyBuffer(out, in, buf)
 		closeErr := out.Close()
 		if err != nil {
 			return err
