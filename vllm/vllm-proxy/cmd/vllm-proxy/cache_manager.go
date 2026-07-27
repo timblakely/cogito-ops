@@ -172,13 +172,16 @@ func (m *cacheManager) sweepRequest(w http.ResponseWriter, r *http.Request) {
 	if request.Backend == "llama-cpp" {
 		hot = m.hotLaguna
 	}
+	m.logger.Info("sweep request received", "model", request.Model, "backend", request.Backend)
 	m.opMu.Lock()
 	defer m.opMu.Unlock()
 	if err := m.sweep(hot, cacheKey(request.Cache)); err != nil {
 		m.failures.Add(1)
+		m.logger.Error("sweep failed", "model", request.Model, "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	m.logger.Info("sweep request completed", "model", request.Model)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -192,15 +195,19 @@ func (m *cacheManager) ensure(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	m.logger.Info("ensure request received", "model", request.Model, "backend", request.Backend, "repo", request.Cache.RepoID)
 	m.opMu.Lock()
 	defer m.opMu.Unlock()
 	result := m.cacheResult(request)
+	m.logger.Info("cache state evaluated", "model", request.Model, "state", result)
+	start := time.Now()
 	if err := m.ensureArtifact(request); err != nil {
 		m.failures.Add(1)
-		m.logger.Error("ensure artifact", "model", request.Model, "error", err)
+		m.logger.Error("ensure artifact failed", "model", request.Model, "elapsed", time.Since(start), "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	m.logger.Info("ensure request completed", "model", request.Model, "state", result, "elapsed", time.Since(start))
 	w.Header().Set("X-LLM-Cache-Result", result)
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -211,6 +218,7 @@ func (m *cacheManager) removeStaging() error {
 		return err
 	}
 	for _, entry := range entries {
+		m.logger.Info("cleaning up stale staging directory", "path", entry)
 		if err := os.RemoveAll(entry); err != nil {
 			return err
 		}
@@ -256,6 +264,7 @@ func (m *cacheManager) resolveCacheSpec(spec *cacheSpec) error {
 	if spec.Kind != "huggingface-hub" || spec.Size > 0 {
 		return nil
 	}
+	m.logger.Info("discovering HuggingFace repository inventory", "repo", spec.RepoID, "revision", spec.Revision)
 	script := `import json; from huggingface_hub import HfApi; files=[]; total=0
 for x in HfApi().list_repo_tree("` + spec.RepoID + `", revision="` + spec.Revision + `", recursive=True, expand=True):
   path=getattr(x,"path",None); size=getattr(x,"size",None)
@@ -274,6 +283,7 @@ print(json.dumps({"size":total,"files":files}))`
 	}
 	sort.Strings(discovered.Files)
 	spec.Size, spec.Files = discovered.Size, discovered.Files
+	m.logger.Info("discovered HuggingFace inventory", "repo", spec.RepoID, "size_bytes", spec.Size, "file_count", len(spec.Files))
 	return nil
 }
 
@@ -286,10 +296,9 @@ func (m *cacheManager) ensureArtifact(r cacheRequest) error {
 	coldArtifact := filepath.Join(m.cold, "artifacts", key)
 	hotArtifact := filepath.Join(hot, ".llm-cache", key)
 	if complete(hotArtifact) {
-		// A prior version used an identity-only manifest. Refresh it from the
-		// authoritative hot copy once, without hashing the NAS payload on every
-		// ordinary hot-cache hit. A cold restore still performs full validation.
+		m.logger.Info("model artifact already complete in hot cache", "key", key)
 		if !validArtifactMetadata(coldArtifact, r.Cache) {
+			m.logger.Info("refreshing cold artifact manifest from hot cache", "key", key)
 			if err := m.archiveHot(r, hot, coldArtifact); err != nil {
 				return fmt.Errorf("refresh cold artifact manifest: %w", err)
 			}
@@ -310,8 +319,10 @@ func (m *cacheManager) ensureArtifact(r cacheRequest) error {
 	if !ok {
 		var err error
 		if m.hotArtifactExists(r, hot) {
+			m.logger.Info("archiving hot artifact to cold storage", "key", key)
 			err = m.archiveHot(r, hot, coldArtifact)
 		} else {
+			m.logger.Info("downloading model from HuggingFace to cold storage", "key", key)
 			err = m.downloadToCold(r, coldArtifact)
 		}
 		if err != nil {
@@ -322,6 +333,7 @@ func (m *cacheManager) ensureArtifact(r cacheRequest) error {
 			return errors.New("cold artifact was not published with a valid manifest")
 		}
 	}
+	m.logger.Info("materializing artifact from cold storage to hot cache", "key", key, "files", len(manifest.Files))
 	if err := m.clearMaterialized(r, hot); err != nil {
 		return err
 	}
@@ -338,6 +350,7 @@ func (m *cacheManager) ensureArtifact(r cacheRequest) error {
 	if err := os.WriteFile(filepath.Join(hotArtifact, "cache.json"), metadata, 0o644); err != nil {
 		return err
 	}
+	m.logger.Info("successfully ensured hot artifact", "key", key)
 	return nil
 }
 
