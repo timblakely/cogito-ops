@@ -169,7 +169,7 @@ func (m *cacheManager) sweepRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	hot := m.hotVLLM
-	if request.Backend == "llama-cpp" {
+	if request.Backend == "llama-cpp" || request.Backend == "llama-cpp-vanilla" {
 		hot = m.hotLaguna
 	}
 	m.logger.Info("sweep request received", "model", request.Model, "backend", request.Backend)
@@ -228,7 +228,7 @@ func (m *cacheManager) removeStaging() error {
 
 func (m *cacheManager) cacheResult(r cacheRequest) string {
 	hot := m.hotVLLM
-	if r.Backend == "llama-cpp" {
+	if r.Backend == "llama-cpp" || r.Backend == "llama-cpp-vanilla" {
 		hot = m.hotLaguna
 	}
 	if complete(filepath.Join(hot, ".llm-cache", cacheKey(r.Cache))) {
@@ -244,7 +244,7 @@ func (m *cacheManager) cacheResult(r cacheRequest) string {
 }
 
 func validCacheRequest(r cacheRequest) error {
-	if r.Model == "" || (r.Backend != "vllm" && r.Backend != "llama-cpp") {
+	if r.Model == "" || (r.Backend != "vllm" && r.Backend != "llama-cpp" && r.Backend != "llama-cpp-vanilla") {
 		return errors.New("model and supported backend are required")
 	}
 	if (r.Cache.Kind != "huggingface-hub" && r.Cache.Kind != "huggingface-files") || r.Cache.RepoID == "" || r.Cache.Revision == "" || r.Cache.Size < 0 {
@@ -289,7 +289,7 @@ print(json.dumps({"size":total,"files":files}))`
 
 func (m *cacheManager) ensureArtifact(r cacheRequest) error {
 	hot := m.hotVLLM
-	if r.Backend == "llama-cpp" {
+	if r.Backend == "llama-cpp" || r.Backend == "llama-cpp-vanilla" {
 		hot = m.hotLaguna
 	}
 	key := cacheKey(r.Cache)

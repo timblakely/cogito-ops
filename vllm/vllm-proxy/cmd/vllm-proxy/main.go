@@ -219,6 +219,11 @@ func main() {
 		logger.Error("parse LLAMA_BACKEND_URL", "error", err)
 		os.Exit(1)
 	}
+	llamaVanillaBackend, err := url.Parse(env("LLAMA_VANILLA_BACKEND_URL", "http://llm-llama-cpp:8000"))
+	if err != nil {
+		logger.Error("parse LLAMA_VANILLA_BACKEND_URL", "error", err)
+		os.Exit(1)
+	}
 	var cacheManager *url.URL
 	if raw := strings.TrimSpace(os.Getenv("CACHE_MANAGER_URL")); raw != "" {
 		cacheManager, err = url.Parse(raw)
@@ -237,8 +242,9 @@ func main() {
 		backend:     backend,
 		backendName: "vllm",
 		backends: map[string]backendConfig{
-			"vllm":      {Name: "vllm", Deployment: vllmDeployment, Container: vllmContainer, URL: backend},
-			"llama-cpp": {Name: "llama-cpp", Deployment: env("LLAMA_DEPLOYMENT", "llm-laguna"), Container: env("LLAMA_CONTAINER", "laguna"), URL: llamaBackend},
+			"vllm":              {Name: "vllm", Deployment: vllmDeployment, Container: vllmContainer, URL: backend},
+			"llama-cpp":          {Name: "llama-cpp", Deployment: env("LLAMA_DEPLOYMENT", "llm-laguna"), Container: env("LLAMA_CONTAINER", "laguna"), URL: llamaBackend},
+			"llama-cpp-vanilla": {Name: "llama-cpp-vanilla", Deployment: env("LLAMA_VANILLA_DEPLOYMENT", "llm-llama-cpp"), Container: env("LLAMA_VANILLA_CONTAINER", "llama-cpp"), URL: llamaVanillaBackend},
 		},
 		active:          env("DEFAULT_MODEL", ""),
 		publicBaseURL:   strings.TrimSuffix(env("PUBLIC_BASE_URL", "http://llm-proxy:8080/v1"), "/"),
@@ -1116,7 +1122,7 @@ func parseModelConfig(name string, data map[string]string) (modelConfig, error) 
 	if cfg.Backend == "" {
 		return cfg, errors.New("backend is required")
 	}
-	if cfg.Backend != "vllm" && cfg.Backend != "llama-cpp" {
+	if cfg.Backend != "vllm" && cfg.Backend != "llama-cpp" && cfg.Backend != "llama-cpp-vanilla" {
 		return cfg, fmt.Errorf("unsupported backend %q", cfg.Backend)
 	}
 	maxLen, err := strconv.Atoi(data["max_model_len"])
@@ -1128,7 +1134,7 @@ func parseModelConfig(name string, data map[string]string) (modelConfig, error) 
 		return cfg, fmt.Errorf("created_at must be RFC3339: %w", err)
 	}
 	argsKey := "vllm_args.json"
-	if cfg.Backend == "llama-cpp" {
+	if cfg.Backend == "llama-cpp" || cfg.Backend == "llama-cpp-vanilla" {
 		argsKey = "llama_args.json"
 	}
 	if err := json.Unmarshal([]byte(data[argsKey]), &cfg.Args); err != nil || len(cfg.Args) == 0 {
@@ -1142,7 +1148,7 @@ func parseModelConfig(name string, data map[string]string) (modelConfig, error) 
 	if cfg.Backend == "vllm" && (contains(cfg.Args, "--model") || contains(cfg.Args, "--served-model-name") || contains(cfg.Args, "--revision")) {
 		return cfg, errors.New("vllm_args.json must not contain --model, --revision, or --served-model-name")
 	}
-	if cfg.Backend == "llama-cpp" && (contains(cfg.Args, "-m") || contains(cfg.Args, "--model") || contains(cfg.Args, "--alias")) {
+	if (cfg.Backend == "llama-cpp" || cfg.Backend == "llama-cpp-vanilla") && (contains(cfg.Args, "-m") || contains(cfg.Args, "--model") || contains(cfg.Args, "--alias")) {
 		return cfg, errors.New("llama_args.json must not contain -m, --model, or --alias")
 	}
 	if value := data["model_card_metadata.json"]; value != "" && !json.Valid([]byte(value)) {
@@ -1189,7 +1195,7 @@ func parseModelDocument(name, document string) (modelConfig, error) {
 		"display_name": spec.Serving.DisplayName, "max_model_len": strconv.Itoa(spec.Serving.MaxModelLen),
 		"created_at": spec.Metadata.CreatedAt,
 	}
-	if spec.Serving.Backend == "llama-cpp" {
+	if spec.Serving.Backend == "llama-cpp" || spec.Serving.Backend == "llama-cpp-vanilla" {
 		data["llama_args.json"] = string(args)
 	} else {
 		data["vllm_args.json"] = string(args)
