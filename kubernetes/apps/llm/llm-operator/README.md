@@ -9,26 +9,30 @@ release is deliberately configured for observation mode:
 - the cache-manager integration is unset; and
 - Helm creates or replaces the bundled CRDs on install and upgrade.
 
-## Artifact promotion
+## Verified live status
 
-The release cannot install until both immutable artifacts have been published:
+The observation-mode installation was verified live on 2026-07-28:
 
-1. Publish `ghcr.io/timblakely/llm-operator@sha256:<digest>`.
-2. Publish chart `0.1.0` to
-   `oci://ghcr.io/timblakely/charts/llm-operator`, then commit its reviewed OCI
-   digest in `app/repo.yaml`.
-3. Commit the reviewed manager image digest directly in `app/helmrelease.yaml`. The
-   digest is deployment metadata, not a credential, and keeping it in Git
-   makes the promotion auditable.
-4. Reconcile the Cogito Git source, the `llm` Kustomization, the
-   `llm-operator` OCIRepository, and then the HelmRelease.
+- chart `0.1.0` and the manager image are pinned by immutable digest;
+- the `llm-operator` OCIRepository and HelmRelease are both Ready;
+- the Helm release successfully reconciled;
+- both manager pods are Running and Ready with zero restarts; and
+- the live Deployment contains `--enable-transitions=false`.
 
-Do not substitute a mutable tag or a placeholder digest to bypass this gate.
+The four operator CRDs are established, but no `LLMBackend`, `LLMModel`,
+`LLMModelOverlay`, or `LLMActiveModel` resources exist yet.
 
-## Observation check
+## Remaining observation work
 
-After reconciliation, verify the source and release are ready and inspect the
-live Deployment arguments. They must contain exactly
-`--enable-transitions=false`. Then follow the observation-mode validation plan
-from the llm-operator repository before adding any resources from the reserved
-`resources/` directory.
+1. Inventory the live backend Deployments, Services, container names, ports,
+   model revisions, and the fields that must remain unchanged.
+2. Add only Cogito-specific resources reviewed against that inventory to the
+   reserved `resources/` directory.
+3. Activate its separate, operator-dependent Flux Kustomization as described in
+   `resources/README.md` while keeping `transitions.enabled: false`.
+4. Compare operator status with the existing proxy and workload state, and
+   confirm the operator does not change backend replicas, arguments, or active
+   model annotations throughout the observation window.
+
+Do not enable transitions until the observation comparison and remaining
+transition-safety gates pass.

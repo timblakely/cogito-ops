@@ -1,21 +1,21 @@
 # Reviewed LLM resources
 
-This directory is reserved for Cogito-specific `LLMBackend`, `LLMModel`,
-`LLMModelOverlay`, and (when appropriate) `LLMActiveModel` resources.
+This directory contains the reviewed, observation-only Cogito resources. Flux
+reconciles it through a Kustomization that depends on the `llm-operator` app,
+so the bundled CRDs are available first.
 
-It is intentionally not reconciled by Flux yet. Before activating it:
+The inventory supports two backends (`llm-vllm` and `laguna`), four valid
+models, and the Gemma overlay. Each model has an explicit backend reference;
+there is no `LLMActiveModel` resource in this set.
 
-1. Publish and reconcile the operator chart with `transitions.enabled: false`.
-2. Inventory the live backend Deployments, Services, container names, ports, and
-   model revisions.
-3. Add only resources reviewed against that inventory. Do not translate the
-   historical sample manifests or model ConfigMaps blindly.
-4. Add `RESOURCES=resources` to the parent `APP-app-vars` generator and replace
-   the `../../../components/ks/app` component with
-   `../../../components/ks/app-resources`. This creates a separate Flux
-   Kustomization that depends on the operator installation and its CRDs.
-5. Render and review both Kustomizations before committing the activation.
+The Fable Fusion model and its three overlays are intentionally excluded. Its
+existing ConfigMap declares the unsupported `llama-cpp-vanilla` backend and
+contains a controller-injected `--model` argument. The current proxy rejects
+that entry and also looks for the non-existent `llm-llama-cpp` Deployment. The
+live `llm-vllm` annotation also says Gemma while its arguments load Fable.
+These are pre-existing proxy/catalog drift issues, not observation-mode
+findings to be masked by CR migration.
 
 Observation mode permits status reconciliation but must not mutate backend
-Deployments. An `LLMActiveModel` should report transitions disabled until the
-separate transition-safety gate is approved.
+Deployments. `transitions.enabled` remains false; do not add an
+`LLMActiveModel` until the separate transition-safety gate is approved.
