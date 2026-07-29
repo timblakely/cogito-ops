@@ -1,0 +1,47 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: llm-operator
+spec:
+  interval: 1h
+  maxHistory: 1
+  chartRef:
+    kind: OCIRepository
+    name: llm-operator
+  install:
+    crds: CreateReplace
+    timeout: 2m
+    remediation:
+      retries: 1
+  upgrade:
+    crds: CreateReplace
+    timeout: 2m
+    remediation:
+      retries: 1
+  values:
+    image:
+      repository: ghcr.io/timblakely/llm-operator
+      # Reviewed immutable image digest. Keep this promotion record in Git;
+      # an image digest is deployment metadata, not a credential.
+      digest: sha256:3ff7d49a889437e17defddd23e36b4acd92ef092f4d5171c0a30f1268e806996
+    replicaCount: 2
+    leaderElection:
+      enabled: true
+    transitions:
+      # Observation mode is a safety gate. Do not enable until Stage 3 passes.
+      enabled: false
+    metrics:
+      service:
+        enabled: true
+    cacheManager:
+      # Cache operations are outside the observation-mode validation scope.
+      url: ""
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi

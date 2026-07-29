@@ -1,0 +1,17 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/source.toolkit.fluxcd.io/ocirepository_v1.json
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: llm-operator
+spec:
+  interval: 5m
+  layerSelector:
+    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+    operation: copy
+  ref:
+    # tag: 0.1.0
+    # The chart tag is 0.1.0; pin its reviewed OCI artifact digest so a tag
+    # overwrite cannot silently change the deployed operator.
+    digest: sha256:ca9a4c438302625f10bde4fa0c9df24f0eb8dcd021e4047fd1ea1644fd13b4f5
+  url: oci://ghcr.io/timblakely/charts/llm-operator
