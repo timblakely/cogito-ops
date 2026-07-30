@@ -18,16 +18,7 @@ spec:
             severity: warning
           annotations:
             summary: LLM hot model cache is nearly full
-            description: The cache manager should evict inactive artifacts before the 95% admission limit.
-        - alert: LLMModelCacheExternalDownload
-          expr: |-
-            increase(vllm_proxy_model_cache_hits_total{namespace="llm",source="external"}[15m]) > 0
-          for: 0m
-          labels:
-            severity: warning
-          annotations:
-            summary: LLM model was downloaded externally
-            description: No valid cold artifact was available for a requested model; inspect its cold artifact manifest.
+            description: The standalone cache manager should evict inactive artifacts before the 95% admission limit.
         - alert: LLMModelCacheHydrationFailure
           expr: |-
             increase(llm_cache_manager_failures_total{namespace="llm"}[15m]) > 0

@@ -12,5 +12,4 @@ vLLM. Moving it to another node risks an RWO mount failure.
 The proxy runs with `ENABLE_DEPLOYMENT_MUTATIONS=false`; the operator owns the
 canonical Gemma activation and has verified a hot cache ensure through this
 Service. TODO: add runtime/container integration coverage for successful and
-failed transitions, including cache-manager behavior and rollback. The
-separate absent llama-cpp-vanilla backend warning remains deferred.
+failed transitions, including cache-manager behavior and rollback.

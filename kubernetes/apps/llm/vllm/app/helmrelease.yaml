@@ -124,7 +124,7 @@ spec:
           proxy:
             image:
               repository: ghcr.io/timblakely/vllm-proxy
-              tag: m5-handoff-20260729.1
+              tag: m6-status-keys-20260730.1
             env:
               BACKEND_URL: http://llm-vllm:8000
               LLAMA_BACKEND_URL: http://laguna:8000
@@ -228,13 +228,15 @@ spec:
           rules:
             - apiGroups:
                 - ""
+              # Desired catalog ConfigMaps were retired in M6. The proxy owns
+              # only this observed-status record; Flux owns desired CRs.
               resources:
                 - configmaps
+              resourceNames:
+                - llm-model-status
               verbs:
                 - create
                 - get
-                - list
-                - watch
                 - patch
             - apiGroups:
                 - apps
@@ -246,10 +248,11 @@ spec:
                 - llm-llama-cpp
               verbs:
                 - get
-                - patch
                 - watch
             - apiGroups:
                 - llm.cogito.dev
+              # Read-only catalog access. The llm-operator is the sole
+              # reconciler of LLMModel, LLMModelOverlay, and backend state.
               resources:
                 - llmmodels
                 - llmmodeloverlays

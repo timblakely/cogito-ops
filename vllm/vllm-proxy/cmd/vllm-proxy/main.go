@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"maps"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -39,16 +38,13 @@ import (
 )
 
 const (
-	modelLabel           = "llm.cogito.dev/model-config=true"
-	overlayLabel         = "llm.cogito.dev/model-overlay=true"
-	activeModelAnno      = "llm.cogito.dev/active-model"
-	switchedAtAnno       = "llm.cogito.dev/switched-at"
-	modelStatusName      = "llm-model-status"
-	defaultMaxBody       = 32 << 20
-	defaultTimeout       = 30 * time.Minute
-	defaultSweep         = 10 * time.Minute
-	backendProbeWait     = 2 * time.Second
-	maxConfigDiagnostics = 32
+	activeModelAnno  = "llm.cogito.dev/active-model"
+	switchedAtAnno   = "llm.cogito.dev/switched-at"
+	modelStatusName  = "llm-model-status"
+	defaultMaxBody   = 32 << 20
+	defaultTimeout   = 30 * time.Minute
+	defaultSweep     = 10 * time.Minute
+	backendProbeWait = 2 * time.Second
 )
 
 var (
@@ -81,34 +77,8 @@ type cacheSpec struct {
 	Files    []string `json:"files,omitempty"`
 }
 
-// modelDocument is the desired-state schema stored in ConfigMap data.model.yaml.
-// Keeping it separate from modelConfig makes a later CRD migration a direct
-// spec/status lift rather than another data-model rewrite.
-type modelDocument struct {
-	Version int `yaml:"version"`
-	Model   struct {
-		Name     string `yaml:"name"`
-		Source   string `yaml:"source"`
-		Revision string `yaml:"revision"`
-		Artifact string `yaml:"artifactRepository"`
-	} `yaml:"model"`
-	Artifact struct {
-		ExpectedSize string   `yaml:"expectedSize"`
-		Files        []string `yaml:"files"`
-	} `yaml:"artifact"`
-	Serving struct {
-		Backend     string   `yaml:"backend"`
-		DisplayName string   `yaml:"displayName"`
-		MaxModelLen int      `yaml:"maxModelLen"`
-		Args        []string `yaml:"args"`
-	} `yaml:"serving"`
-	Metadata struct {
-		CreatedAt string `yaml:"createdAt"`
-	} `yaml:"metadata"`
-}
-
 // backendConfig is deliberately configured by the Helm release, not by model
-// ConfigMaps. A model may select a known runtime, but cannot direct the proxy
+// resources. A model may select a known runtime, but cannot direct the proxy
 // to arbitrary Services, Deployments, or containers.
 type backendConfig struct {
 	Name       string
@@ -141,9 +111,8 @@ type runtimeMetadata struct {
 }
 
 type registry struct {
-	models      map[string]modelConfig
-	overlays    map[string]overlayConfig
-	diagnostics []string
+	models   map[string]modelConfig
+	overlays map[string]overlayConfig
 }
 
 type proxy struct {
@@ -289,7 +258,6 @@ func main() {
 		logger.Info("deployment mutations disabled; proxy is serving catalog and overlays read-only")
 	}
 	go p.sweepCache(logger)
-	go p.watchConfigs(logger)
 	go p.watchLLMResources(logger)
 	go p.watchDeployments(logger)
 
@@ -299,7 +267,6 @@ func main() {
 	mux.HandleFunc("GET /metrics", p.metrics)
 	mux.HandleFunc("GET /v1/models", p.models)
 	mux.HandleFunc("GET /v1/models/{id}", p.model)
-	mux.HandleFunc("GET /vllm-proxy/catalog-diagnostics", p.catalogDiagnostics)
 	mux.HandleFunc("GET /vllm-proxy/config/{target}", p.hermesConfig)
 	mux.HandleFunc("/v1/", p.inference)
 
@@ -904,31 +871,29 @@ func positiveInt(value any) (int, bool) {
 }
 
 func writeGeneratedConfig(output io.Writer, repo string, declared, effective int, fallback map[string]any) error {
-	args, err := json.Marshal([]string{"--max-model-len", strconv.Itoa(effective), "--host", "0.0.0.0", "--port", "8000"})
-	if err != nil {
-		return err
-	}
-	fallbackJSON, err := json.Marshal(fallback)
-	if err != nil {
-		return err
-	}
-	_, err = fmt.Fprintf(output, `---
+	_ = fallback // Runtime and model-card observations are status-owned by the proxy.
+	_, err := fmt.Fprintf(output, `---
 # Generated from %s/config.json without loading model weights. Review and tune vLLM flags before committing.
-apiVersion: v1
-kind: ConfigMap
+apiVersion: llm.cogito.dev/v1alpha1
+kind: LLMModel
 metadata:
-  name: llm-model-%s
-  labels:
-    llm.cogito.dev/model-config: "true"
-data:
-  model_name: %s
-  display_name: %s
-  model_max_context: "%d"
-  max_model_len: "%d"
-  model_card_metadata.json: %s
-  created_at: "%s"
-  vllm_args.json: %s
-	`, repo, modelSlug(repo), yamlQuote(repo), yamlQuote(repo), declared, effective, yamlQuote(string(fallbackJSON)), time.Now().UTC().Format(time.RFC3339), yamlQuote(string(args)))
+  name: %s
+spec:
+  model:
+    name: %s
+    source: %s
+  serving:
+    backend: vllm
+    displayName: %s
+    maxModelLen: %d
+    args:
+      - --max-model-len
+      - "%d"
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+	`, repo, modelSlug(repo), yamlQuote(repo), yamlQuote(repo), yamlQuote(repo), effective, effective)
 	return err
 }
 
@@ -951,14 +916,7 @@ func yamlQuote(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
 }
 
-func (p *proxy) watchConfigs(logger *slog.Logger) {
-	go p.watchConfigLabel(logger, modelLabel, "model")
-	p.watchConfigLabel(logger, overlayLabel, "overlay")
-}
-
-// watchLLMResources keeps the CRD-backed catalog in sync during the migration
-// from ConfigMaps. A missing CRD is tolerated so older clusters retain the
-// ConfigMap-only behavior.
+// watchLLMResources keeps the CR-only catalog in sync.
 func (p *proxy) watchLLMResources(logger *slog.Logger) {
 	if p.dynamic == nil {
 		return
@@ -983,27 +941,6 @@ func (p *proxy) watchLLMResource(logger *slog.Logger, gvr schema.GroupVersionRes
 			if err := p.refresh(ctx); err != nil {
 				p.configErrors.Add(1)
 				logger.Warn("refresh LLM resources", "kind", kind, "error", err)
-			}
-			cancel()
-			p.reconcileIfMutable(logger)
-		}
-	}
-}
-
-func (p *proxy) watchConfigLabel(logger *slog.Logger, label, kind string) {
-	for {
-		watch, err := p.client.CoreV1().ConfigMaps(p.namespace).Watch(context.Background(), metav1.ListOptions{LabelSelector: label})
-		if err != nil {
-			p.configErrors.Add(1)
-			logger.Warn("watch ConfigMaps", "kind", kind, "error", err)
-			time.Sleep(5 * time.Second)
-			continue
-		}
-		for range watch.ResultChan() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			if err := p.refresh(ctx); err != nil {
-				p.configErrors.Add(1)
-				logger.Warn("refresh ConfigMaps", "kind", kind, "error", err)
 			}
 			cancel()
 			p.reconcileIfMutable(logger)
@@ -1092,13 +1029,6 @@ func (p *proxy) loadCRDRegistry(ctx context.Context, next *registry) error {
 		next.overlays[cfg.Name] = cfg
 	}
 	return nil
-}
-
-func (p *proxy) addDiagnostic(next *registry, message string) {
-	p.configErrors.Add(1)
-	if len(next.diagnostics) < maxConfigDiagnostics {
-		next.diagnostics = append(next.diagnostics, message)
-	}
 }
 
 func parseLLMModel(object unstructured.Unstructured) (modelConfig, error) {
@@ -1194,17 +1124,9 @@ func parseLLMModelOverlay(object unstructured.Unstructured) (overlayConfig, erro
 }
 
 func (p *proxy) refresh(ctx context.Context) error {
-	modelItems, err := p.client.CoreV1().ConfigMaps(p.namespace).List(ctx, metav1.ListOptions{LabelSelector: modelLabel})
-	if err != nil {
-		return err
-	}
-	overlayItems, err := p.client.CoreV1().ConfigMaps(p.namespace).List(ctx, metav1.ListOptions{LabelSelector: overlayLabel})
-	if err != nil {
-		return err
-	}
 	next := registry{
-		models:   make(map[string]modelConfig, len(modelItems.Items)),
-		overlays: make(map[string]overlayConfig, len(overlayItems.Items)),
+		models:   make(map[string]modelConfig),
+		overlays: make(map[string]overlayConfig),
 	}
 	if err := p.loadCRDRegistry(ctx, &next); err != nil {
 		return err
@@ -1217,50 +1139,20 @@ func (p *proxy) refresh(ctx context.Context) error {
 	if err == nil {
 		statusData = status.Data
 	}
-	for _, cm := range modelItems.Items {
-		data := maps.Clone(cm.Data)
-		// Runtime observations used to be written into the desired model
-		// ConfigMap. Ignore any legacy values so status has a single owner.
-		delete(data, "runtime_metadata.json")
-		delete(data, "model_card_metadata.json")
-		if value := statusData[cm.Name+".runtime_metadata.json"]; value != "" {
-			data["runtime_metadata.json"] = value
+	for name, cfg := range next.models {
+		if value := statusData[statusDataKey(cfg.Source, ".runtime_metadata.json")]; value != "" {
+			if !json.Valid([]byte(value)) {
+				return fmt.Errorf("invalid runtime metadata for %s", cfg.Source)
+			}
+			cfg.Runtime = json.RawMessage(value)
 		}
-		if value := statusData[cm.Name+".model_card_metadata.json"]; value != "" {
-			data["model_card_metadata.json"] = value
+		if value := statusData[statusDataKey(cfg.Source, ".model_card_metadata.json")]; value != "" {
+			if !json.Valid([]byte(value)) {
+				return fmt.Errorf("invalid model-card metadata for %s", cfg.Source)
+			}
+			cfg.Fallback = json.RawMessage(value)
 		}
-		cfg, err := parseModelConfig(cm.Name, data)
-		if err != nil {
-			p.addDiagnostic(&next, fmt.Sprintf("skip ConfigMap model %s: %v", cm.Name, err))
-			continue
-		}
-		if _, exists := next.models[cfg.Name]; exists {
-			p.addDiagnostic(&next, fmt.Sprintf("skip ConfigMap model %s: model_name %q is supplied by a CRD or earlier ConfigMap", cm.Name, cfg.Name))
-			continue
-		}
-		cfg.Source = "configmap/" + cm.Name
-		next.models[cfg.Name] = cfg
-	}
-	for _, cm := range overlayItems.Items {
-		cfg, err := parseOverlayConfig(cm.Name, cm.Data)
-		if err != nil {
-			p.addDiagnostic(&next, fmt.Sprintf("skip ConfigMap overlay %s: %v", cm.Name, err))
-			continue
-		}
-		if _, exists := next.models[cfg.Name]; exists {
-			p.addDiagnostic(&next, fmt.Sprintf("skip ConfigMap overlay %s: model_name %q conflicts with a base model", cm.Name, cfg.Name))
-			continue
-		}
-		if _, exists := next.overlays[cfg.Name]; exists {
-			p.addDiagnostic(&next, fmt.Sprintf("skip ConfigMap overlay %s: model_name %q is supplied by a CRD or earlier ConfigMap", cm.Name, cfg.Name))
-			continue
-		}
-		if _, exists := next.models[cfg.BaseModel]; !exists {
-			p.addDiagnostic(&next, fmt.Sprintf("skip ConfigMap overlay %s: base_model %q is not configured", cm.Name, cfg.BaseModel))
-			continue
-		}
-		cfg.Source = "configmap/" + cm.Name
-		next.overlays[cfg.Name] = cfg
+		next.models[name] = cfg
 	}
 	p.stateMu.Lock()
 	p.registry = next
@@ -1274,7 +1166,7 @@ func (p *proxy) refresh(ctx context.Context) error {
 	p.stateMu.RUnlock()
 	if ok && len(activeConfig.Runtime) == 0 && p.backendHealthy(ctx) {
 		if err := p.persistRuntimeMetadata(ctx, activeConfig); err != nil {
-			p.configErrors.Add(1)
+			return fmt.Errorf("persist active runtime metadata: %w", err)
 		}
 	}
 	return nil
@@ -1290,6 +1182,13 @@ func (p *proxy) syncActiveDeployment(ctx context.Context) error {
 	for _, backend := range backends {
 		deployment, err := p.client.AppsV1().Deployments(p.namespace).Get(ctx, backend.Deployment, metav1.GetOptions{})
 		if err != nil {
+			// The legacy vanilla llama.cpp backend has no CR-only catalog
+			// representation and is intentionally absent in Cogito. It cannot
+			// become active, so its missing Deployment must not prevent the
+			// active CR-backed backend from synchronizing or persisting status.
+			if backend.Name == "llama-cpp-vanilla" && apierrors.IsNotFound(err) {
+				continue
+			}
 			return fmt.Errorf("get %s backend Deployment: %w", backend.Name, err)
 		}
 		if deployment.Spec.Replicas != nil && *deployment.Spec.Replicas != 1 {
@@ -1332,123 +1231,6 @@ func (p *proxy) syncActiveDeployment(ctx context.Context) error {
 	return nil
 }
 
-func parseModelConfig(name string, data map[string]string) (modelConfig, error) {
-	if document := strings.TrimSpace(data["model.yaml"]); document != "" {
-		return parseModelDocument(name, document)
-	}
-	cfg := modelConfig{Name: strings.TrimSpace(data["model_name"]), DisplayName: strings.TrimSpace(data["display_name"]), Source: name}
-	if cfg.Name == "" || cfg.DisplayName == "" {
-		return cfg, errors.New("model_name and display_name are required")
-	}
-	cfg.ModelSource = strings.TrimSpace(data["model_source"])
-	if cfg.ModelSource == "" {
-		cfg.ModelSource = cfg.Name
-	}
-	cfg.Backend = strings.TrimSpace(data["backend"])
-	if cfg.Backend == "" {
-		return cfg, errors.New("backend is required")
-	}
-	if cfg.Backend != "vllm" && cfg.Backend != "llama-cpp" && cfg.Backend != "llama-cpp-vanilla" {
-		return cfg, fmt.Errorf("unsupported backend %q", cfg.Backend)
-	}
-	maxLen, err := strconv.Atoi(data["max_model_len"])
-	if err != nil || maxLen < 1 {
-		return cfg, errors.New("max_model_len must be a positive integer")
-	}
-	cfg.MaxModelLen = maxLen
-	if cfg.Created, err = time.Parse(time.RFC3339, data["created_at"]); err != nil {
-		return cfg, fmt.Errorf("created_at must be RFC3339: %w", err)
-	}
-	argsKey := "vllm_args.json"
-	if cfg.Backend == "llama-cpp" || cfg.Backend == "llama-cpp-vanilla" {
-		argsKey = "llama_args.json"
-	}
-	if err := json.Unmarshal([]byte(data[argsKey]), &cfg.Args); err != nil || len(cfg.Args) == 0 {
-		return cfg, fmt.Errorf("%s must be a non-empty JSON string array", argsKey)
-	}
-	for i := range cfg.Args {
-		if strings.TrimSpace(cfg.Args[i]) == "" {
-			return cfg, fmt.Errorf("%s cannot contain empty arguments", argsKey)
-		}
-	}
-	if cfg.Backend == "vllm" && (contains(cfg.Args, "--model") || contains(cfg.Args, "--served-model-name") || contains(cfg.Args, "--revision")) {
-		return cfg, errors.New("vllm_args.json must not contain --model, --revision, or --served-model-name")
-	}
-	if (cfg.Backend == "llama-cpp" || cfg.Backend == "llama-cpp-vanilla") && (contains(cfg.Args, "-m") || contains(cfg.Args, "--model") || contains(cfg.Args, "--alias")) {
-		return cfg, errors.New("llama_args.json must not contain -m, --model, or --alias")
-	}
-	if value := data["model_card_metadata.json"]; value != "" && !json.Valid([]byte(value)) {
-		return cfg, errors.New("model_card_metadata.json must be valid JSON")
-	} else {
-		cfg.Fallback = json.RawMessage(value)
-	}
-	if value := data["runtime_metadata.json"]; value != "" && !json.Valid([]byte(value)) {
-		return cfg, errors.New("runtime_metadata.json must be valid JSON")
-	} else {
-		cfg.Runtime = json.RawMessage(value)
-	}
-	if value := strings.TrimSpace(data["cache.json"]); value != "" {
-		if err := json.Unmarshal([]byte(value), &cfg.Cache); err != nil {
-			return cfg, errors.New("cache.json must be valid JSON")
-		}
-		if cfg.Cache.Kind != "huggingface-hub" && cfg.Cache.Kind != "huggingface-files" {
-			return cfg, errors.New("cache.json kind must be huggingface-hub or huggingface-files")
-		}
-		if cfg.Cache.RepoID == "" || !isCommitSHA(cfg.Cache.Revision) || cfg.Cache.Size < 0 || (cfg.Cache.Kind == "huggingface-files" && cfg.Cache.Size < 1) {
-			return cfg, errors.New("cache.json requires repo_id, immutable revision, and a size for file artifacts")
-		}
-		if cfg.Cache.Kind == "huggingface-files" && len(cfg.Cache.Files) == 0 {
-			return cfg, errors.New("huggingface-files cache.json requires files")
-		}
-	}
-	return cfg, nil
-}
-
-func parseModelDocument(name, document string) (modelConfig, error) {
-	var spec modelDocument
-	if err := yaml.Unmarshal([]byte(document), &spec); err != nil {
-		return modelConfig{}, fmt.Errorf("model.yaml: %w", err)
-	}
-	if spec.Version != 1 {
-		return modelConfig{}, errors.New("model.yaml version must be 1")
-	}
-	args, err := json.Marshal(spec.Serving.Args)
-	if err != nil {
-		return modelConfig{}, err
-	}
-	data := map[string]string{
-		"backend": spec.Serving.Backend, "model_name": spec.Model.Name, "model_source": spec.Model.Source,
-		"display_name": spec.Serving.DisplayName, "max_model_len": strconv.Itoa(spec.Serving.MaxModelLen),
-		"created_at": spec.Metadata.CreatedAt,
-	}
-	if spec.Serving.Backend == "llama-cpp" || spec.Serving.Backend == "llama-cpp-vanilla" {
-		data["llama_args.json"] = string(args)
-	} else {
-		data["vllm_args.json"] = string(args)
-	}
-	if spec.Model.Revision != "" {
-		var size int64
-		if spec.Artifact.ExpectedSize != "" {
-			quantity, err := resource.ParseQuantity(spec.Artifact.ExpectedSize)
-			if err != nil || quantity.Value() < 1 {
-				return modelConfig{}, errors.New("model.yaml artifact.expectedSize must be a positive quantity")
-			}
-			size = quantity.Value()
-		}
-		repository := spec.Model.Artifact
-		if repository == "" {
-			repository = spec.Model.Source
-		}
-		kind := "huggingface-hub"
-		if spec.Serving.Backend == "llama-cpp" {
-			kind = "huggingface-files"
-		}
-		cache, _ := json.Marshal(cacheSpec{Kind: kind, RepoID: repository, Revision: spec.Model.Revision, Size: size, Files: spec.Artifact.Files})
-		data["cache.json"] = string(cache)
-	}
-	return parseModelConfig(name, data)
-}
-
 func isCommitSHA(value string) bool {
 	if len(value) != 40 {
 		return false
@@ -1459,35 +1241,6 @@ func isCommitSHA(value string) bool {
 		}
 	}
 	return true
-}
-
-func parseOverlayConfig(name string, data map[string]string) (overlayConfig, error) {
-	cfg := overlayConfig{
-		Name:        strings.TrimSpace(data["model_name"]),
-		DisplayName: strings.TrimSpace(data["display_name"]),
-		BaseModel:   strings.TrimSpace(data["base_model"]),
-		Source:      name,
-	}
-	if cfg.Name == "" || cfg.DisplayName == "" || cfg.BaseModel == "" {
-		return cfg, errors.New("model_name, display_name, and base_model are required")
-	}
-	var err error
-	if cfg.Created, err = time.Parse(time.RFC3339, data["created_at"]); err != nil {
-		return cfg, fmt.Errorf("created_at must be RFC3339: %w", err)
-	}
-	defaults := strings.TrimSpace(data["request_defaults.json"])
-	if defaults == "" {
-		return cfg, errors.New("request_defaults.json is required")
-	}
-	var values map[string]any
-	if err := json.Unmarshal([]byte(defaults), &values); err != nil || values == nil {
-		return cfg, errors.New("request_defaults.json must be a JSON object")
-	}
-	if _, exists := values["model"]; exists {
-		return cfg, errors.New("request_defaults.json must not set model")
-	}
-	cfg.RequestDefaults = json.RawMessage(defaults)
-	return cfg, nil
 }
 
 func effectiveVLLMArgs(cfg modelConfig) []string {
@@ -1631,13 +1384,6 @@ func (p *proxy) models(w http.ResponseWriter, _ *http.Request) {
 	p.stateMu.RUnlock()
 	sort.Slice(data, func(i, j int) bool { return data[i]["id"].(string) < data[j]["id"].(string) })
 	writeJSON(w, http.StatusOK, map[string]any{"object": "list", "data": data})
-}
-
-func (p *proxy) catalogDiagnostics(w http.ResponseWriter, _ *http.Request) {
-	p.stateMu.RLock()
-	diagnostics := append([]string(nil), p.registry.diagnostics...)
-	p.stateMu.RUnlock()
-	writeJSON(w, http.StatusOK, map[string]any{"diagnostics": diagnostics})
 }
 
 func (p *proxy) model(w http.ResponseWriter, r *http.Request) {
@@ -2027,7 +1773,7 @@ func (p *proxy) persistRuntimeMetadata(ctx context.Context, cfg modelConfig) err
 	if err != nil {
 		return err
 	}
-	data := map[string]string{cfg.Source + ".runtime_metadata.json": string(body)}
+	data := map[string]string{statusDataKey(cfg.Source, ".runtime_metadata.json"): string(body)}
 	status, err := p.client.CoreV1().ConfigMaps(p.namespace).Get(ctx, modelStatusName, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("read model status ConfigMap: %w", err)
@@ -2035,9 +1781,9 @@ func (p *proxy) persistRuntimeMetadata(ctx context.Context, cfg modelConfig) err
 	if apierrors.IsNotFound(err) || status == nil {
 		status = &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: modelStatusName, Namespace: p.namespace, Labels: map[string]string{"llm.cogito.dev/model-status": "true"}}, Data: map[string]string{}}
 	}
-	if status.Data[cfg.Source+".model_card_metadata.json"] == "" {
+	if status.Data[statusDataKey(cfg.Source, ".model_card_metadata.json")] == "" {
 		if fallback, err := p.modelCardFallback(ctx, cfg); err == nil {
-			data[cfg.Source+".model_card_metadata.json"] = fallback
+			data[statusDataKey(cfg.Source, ".model_card_metadata.json")] = fallback
 		}
 	}
 	if apierrors.IsNotFound(err) {
@@ -2058,6 +1804,14 @@ func (p *proxy) persistRuntimeMetadata(ctx context.Context, cfg modelConfig) err
 		return fmt.Errorf("persist model status: %w", err)
 	}
 	return nil
+}
+
+// statusDataKey converts an immutable catalog source into a valid ConfigMap
+// data key. Kubernetes ConfigMap keys cannot contain '/', so a CR source such
+// as crd/<resource> is stored as crd__<resource>; the metadata payload retains
+// the original source value.
+func statusDataKey(source, suffix string) string {
+	return strings.ReplaceAll(source, "/", "__") + suffix
 }
 
 func (p *proxy) modelCardFallback(ctx context.Context, cfg modelConfig) (string, error) {
@@ -2282,10 +2036,6 @@ func (p *proxy) metrics(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "vllm_proxy_transitioning %d\n", boolNumber(transitioning))
 	fmt.Fprintf(w, "vllm_proxy_switches_total %d\n", p.switchesTotal.Load())
 	fmt.Fprintf(w, "vllm_proxy_config_errors_total %d\n", p.configErrors.Load())
-	p.stateMu.RLock()
-	diagnosticCount := len(p.registry.diagnostics)
-	p.stateMu.RUnlock()
-	fmt.Fprintf(w, "vllm_proxy_catalog_diagnostics %d\n", diagnosticCount)
 	fmt.Fprintf(w, "vllm_proxy_model_cache_hits_total{source=\"hot\"} %d\n", p.cacheHotHits.Load())
 	fmt.Fprintf(w, "vllm_proxy_model_cache_hits_total{source=\"cold\"} %d\n", p.cacheColdHits.Load())
 	fmt.Fprintf(w, "vllm_proxy_model_cache_hits_total{source=\"external\"} %d\n", p.cacheExternal.Load())
@@ -2293,17 +2043,6 @@ func (p *proxy) metrics(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "vllm_proxy_last_startup_duration_seconds %.6f\n", float64(p.lastStart.Load())/float64(time.Second))
 	if !activeSince.IsZero() {
 		fmt.Fprintf(w, "vllm_proxy_active_model_uptime_seconds %.6f\n", time.Since(activeSince).Seconds())
-	}
-	// The cache manager shares this Pod and has no externally reachable
-	// Service.  Proxy its storage metrics through the already-scraped endpoint.
-	if p.cacheManager != nil {
-		cacheURL := p.cacheManager.ResolveReference(&url.URL{Path: "/metrics"})
-		if req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, cacheURL.String(), nil); err == nil {
-			if resp, err := p.httpClient.Do(req); err == nil {
-				defer resp.Body.Close()
-				_, _ = io.Copy(w, resp.Body)
-			}
-		}
 	}
 	u := *p.backend
 	u.Path = "/metrics"

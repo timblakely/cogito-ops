@@ -1,8 +1,8 @@
 # llm-operator
 
 Flux installs the operator from the pinned OCI chart in `app/repo.yaml`. It
-started in observation mode and now owns the completed M5 non-production
-Gemma activation:
+started in observation mode and now owns the completed M5/M6
+non-production control plane:
 
 - the controller image is digest-only;
 - leader election is enabled across two replicas;
@@ -38,19 +38,21 @@ M5 completed the operator handoff in non-production: `LLMActiveModel/default`
 owns canonical Gemma, the proxy is read-only, the standalone cache-manager
 returns a hot ensure, and `llm-vllm` is stable at one Ready replica with
 `LLMBackend/vllm` phase `Serving`. Laguna remains unchanged at zero replicas.
-The configured but absent `llm-llama-cpp` backend still causes non-blocking
-proxy refresh warnings and is tracked separately.
+M6 completed the CR-only catalog: legacy model/overlay ConfigMaps were deleted,
+the proxy has read-only Deployment access, and runtime/model-card observations
+are retained only in `llm-model-status` using ConfigMap-safe CR-source keys.
 
-## Remaining observation work
+## Remaining follow-up
 
-1. Maintain a sustained observation window and periodically record the
-   `LLMBackend`, `LLMModel`, and overlay conditions alongside the live workload
-   replicas, arguments, annotations, proxy health, and manager logs.
-2. Treat any change to backend/proxy replicas, arguments, cache-manager state,
-   or activation annotations as a failed passive-observation invariant until
-   explained.
-3. Resolve the pre-existing Fable proxy/catalog drift documented in
-   `resources/README.md` separately; do not add it to the CR set as a shortcut.
-4. TODO: add runtime/container integration coverage for successful and failed
+1. TODO: add runtime/container integration coverage for successful and failed
    transitions, including cache-manager interaction, backend rollout/health,
    and handoff rollback.
+2. TODO: exercise and document a repeatable rollback path before any
+   production cutover.
+3. Potential TODO: wire the opt-in admission webhook to certificate-managed
+   TLS and validate rejection end-to-end before production use.
+4. Potential TODO: make the registered but stopped Laguna llama.cpp backend a
+   live CR-backed serving path, then validate discovery, cache behavior,
+   health, and an operator-owned transition.
+5. Potential TODO: add additional backend instances, such as SGLang, through
+   the same CRD and GitOps workflow.

@@ -1,0 +1,86 @@
+---
+# The former catalog ConfigMaps were applied by the prune:false parent
+# Kustomization, so they are no longer in the vLLM child inventory. Delete
+# only this audited, immutable list; do not use a broad label selector that
+# could delete a newly introduced ConfigMap.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: llm-legacy-catalog-prune
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: llm-legacy-catalog-prune
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    resourceNames:
+      - llm-model-gemma-4-31b-it-qat-w4a16-ct
+      - llm-model-gemma-4-31b-qat-awq-int4
+      - llm-model-laguna-s-2-1-q4
+      - llm-model-qwen-3-6-27b-autoround
+      - llm-model-qwen-3-6-27b-fable-fusion-heretic
+      - llm-overlay-fable-fusion-heretic-coding
+      - llm-overlay-fable-fusion-heretic-instruct
+      - llm-overlay-fable-fusion-heretic-thinking
+      - llm-overlay-gemma4-agentic
+    verbs:
+      - delete
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: llm-legacy-catalog-prune
+subjects:
+  - kind: ServiceAccount
+    name: llm-legacy-catalog-prune
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: llm-legacy-catalog-prune
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # Job pod templates are immutable. The v3 name replaces the failed initial
+  # image pull; Flux prunes the predecessors from this Kustomization inventory.
+  name: llm-legacy-catalog-prune-v3
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      automountServiceAccountToken: true
+      serviceAccountName: llm-legacy-catalog-prune
+      restartPolicy: Never
+      containers:
+        - name: prune
+          image: registry.k8s.io/kubectl:v1.34.0
+          args:
+            - delete
+            - configmap
+            - --ignore-not-found=true
+            - llm-model-gemma-4-31b-it-qat-w4a16-ct
+            - llm-model-gemma-4-31b-qat-awq-int4
+            - llm-model-laguna-s-2-1-q4
+            - llm-model-qwen-3-6-27b-autoround
+            - llm-model-qwen-3-6-27b-fable-fusion-heretic
+            - llm-overlay-fable-fusion-heretic-coding
+            - llm-overlay-fable-fusion-heretic-instruct
+            - llm-overlay-fable-fusion-heretic-thinking
+            - llm-overlay-gemma4-agentic
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            # The official kubectl image defaults to root; the binary and
+            # projected service-account files work with this unprivileged UID.
+            runAsUser: 1000
+            runAsGroup: 1000

@@ -26,6 +26,16 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
+func TestStatusDataKeyEncodesCRSourceForConfigMap(t *testing.T) {
+	got := statusDataKey("crd/gemma-4-31b", ".runtime_metadata.json")
+	if got != "crd__gemma-4-31b.runtime_metadata.json" {
+		t.Fatalf("status key = %q", got)
+	}
+	if strings.Contains(got, "/") {
+		t.Fatalf("ConfigMap data key contains slash: %q", got)
+	}
+}
+
 func TestSyncActiveDeploymentReconcilesExternalModelChange(t *testing.T) {
 	client := fake.NewSimpleClientset(&appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: "llm-vllm", Namespace: "home-infra"},
@@ -226,166 +236,6 @@ func TestReadOnlyTransitionsServeActiveAndRejectInactiveModels(t *testing.T) {
 	}
 }
 
-func TestParseModelConfig(t *testing.T) {
-	cfg, err := parseModelConfig("gemma", map[string]string{
-		"backend": "vllm", "model_name": "benchmark/gemma", "model_source": "example/gemma", "display_name": "Gemma 4", "max_model_len": "8192", "created_at": "2026-07-11T00:00:00Z",
-		"vllm_args.json": `["--override-generation-config","{\"top_p\":0.9}"]`,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.MaxModelLen != 8192 || cfg.Name != "benchmark/gemma" || cfg.ModelSource != "example/gemma" || cfg.Args[1] != `{"top_p":0.9}` {
-		t.Fatalf("unexpected config: %#v", cfg)
-	}
-	args := effectiveVLLMArgs(cfg)
-	if strings.Join(args, " ") != `--model example/gemma --served-model-name benchmark/gemma --override-generation-config {"top_p":0.9}` {
-		t.Fatalf("unexpected effective arguments: %#v", args)
-	}
-}
-
-func TestParseModelConfigCacheSpec(t *testing.T) {
-	cfg, err := parseModelConfig("gemma", map[string]string{
-		"backend": "vllm", "model_name": "example/gemma", "display_name": "Gemma", "max_model_len": "1", "created_at": "2026-07-11T00:00:00Z", "vllm_args.json": `["--host","0.0.0.0"]`,
-		"cache.json": `{"kind":"huggingface-hub","repo_id":"example/gemma","revision":"0123456789012345678901234567890123456789","size_bytes":1024}`,
-	})
-	if err != nil || cfg.Cache.Revision == "" || cfg.Cache.Size != 1024 {
-		t.Fatalf("unexpected cache spec: %#v err=%v", cfg.Cache, err)
-	}
-	if got := strings.Join(effectiveVLLMArgs(cfg), " "); !strings.Contains(got, "--revision 0123456789012345678901234567890123456789") {
-		t.Fatalf("vLLM arguments did not pin revision: %s", got)
-	}
-	if _, err := parseModelConfig("invalid", map[string]string{
-		"backend": "vllm", "model_name": "example/invalid", "display_name": "Invalid", "max_model_len": "1", "created_at": "2026-07-11T00:00:00Z", "vllm_args.json": `["--host","0.0.0.0"]`, "cache.json": `{"kind":"huggingface-hub","repo_id":"example/invalid","revision":"main","size_bytes":0}`,
-	}); err == nil {
-		t.Fatal("expected invalid cache spec to be rejected")
-	}
-	if _, err := parseModelConfig("invalid-revision", map[string]string{
-		"backend": "vllm", "model_name": "example/invalid", "display_name": "Invalid", "max_model_len": "1", "created_at": "2026-07-11T00:00:00Z", "vllm_args.json": `["--revision","main"]`,
-	}); err == nil {
-		t.Fatal("expected model revision override to be rejected")
-	}
-}
-
-func TestParseModelDocument(t *testing.T) {
-	cfg, err := parseModelConfig("gemma", map[string]string{"model.yaml": `
-version: 1
-model:
-  name: example/gemma
-  source: example/gemma
-  revision: 0123456789012345678901234567890123456789
-artifact:
-  expectedSize: 20Gi
-serving:
-  backend: vllm
-  displayName: Gemma
-  maxModelLen: 8192
-  args: [--host, 0.0.0.0]
-metadata:
-  createdAt: "2026-07-11T00:00:00Z"
-`})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.Cache.Size != 20*1024*1024*1024 || cfg.Cache.RepoID != "example/gemma" || cfg.MaxModelLen != 8192 {
-		t.Fatalf("unexpected parsed model document: %#v", cfg)
-	}
-}
-
-func TestParseModelConfigRejectsInvalidArgs(t *testing.T) {
-	_, err := parseModelConfig("invalid", map[string]string{
-		"backend": "vllm", "model_name": "example/invalid", "display_name": "Invalid", "max_model_len": "1", "created_at": "2026-07-11T00:00:00Z", "vllm_args.json": `["--model","example/invalid"]`,
-	})
-	if err == nil {
-		t.Fatal("expected validation error")
-	}
-}
-
-func TestParseModelConfigRequiresBackend(t *testing.T) {
-	_, err := parseModelConfig("invalid", map[string]string{
-		"model_name": "example/model", "display_name": "Invalid", "max_model_len": "1", "created_at": "2026-07-11T00:00:00Z", "vllm_args.json": `["--dtype","float16"]`,
-	})
-	if err == nil || !strings.Contains(err.Error(), "backend is required") {
-		t.Fatalf("expected missing backend error, got %v", err)
-	}
-}
-
-func TestParseLagunaModelConfig(t *testing.T) {
-	cfg, err := parseModelConfig("laguna", map[string]string{
-		"backend": "llama-cpp", "model_name": "poolside/Laguna-S-2.1", "model_source": "/models/laguna/model.gguf", "display_name": "Laguna S 2.1", "max_model_len": "102400", "created_at": "2026-07-22T00:00:00Z",
-		"llama_args.json": `["--jinja","--ctx-size","102400"]`,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.Backend != "llama-cpp" {
-		t.Fatalf("backend = %q, want llama-cpp", cfg.Backend)
-	}
-	if got := strings.Join(effectiveArgs(cfg), " "); got != "-m /models/laguna/model.gguf --alias poolside/Laguna-S-2.1 --jinja --ctx-size 102400" {
-		t.Fatalf("unexpected effective arguments: %s", got)
-	}
-	if _, err := parseModelConfig("invalid", map[string]string{
-		"backend": "llama-cpp", "model_name": "laguna", "display_name": "Laguna", "max_model_len": "1", "created_at": "2026-07-22T00:00:00Z", "llama_args.json": `["-m","model.gguf"]`,
-	}); err == nil {
-		t.Fatal("expected llama model path override to be rejected")
-	}
-}
-
-func TestParseOverlayConfig(t *testing.T) {
-	cfg, err := parseOverlayConfig("gemma-agentic", map[string]string{
-		"model_name": "gemma4-agentic", "display_name": "Gemma 4 Agentic", "base_model": "gemma", "created_at": "2026-07-20T00:00:00Z",
-		"request_defaults.json": `{"chat_template_kwargs":{"enable_thinking":true,"preserve_thinking":true}}`,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.Name != "gemma4-agentic" || cfg.BaseModel != "gemma" {
-		t.Fatalf("unexpected overlay config: %#v", cfg)
-	}
-	if _, err := parseOverlayConfig("invalid", map[string]string{
-		"model_name": "invalid", "display_name": "Invalid", "base_model": "gemma", "created_at": "2026-07-20T00:00:00Z", "request_defaults.json": `{"model":"qwen"}`,
-	}); err == nil {
-		t.Fatal("expected overlay model override to be rejected")
-	}
-}
-
-func TestRefreshLoadsOverlayAndRejectsUnknownBase(t *testing.T) {
-	model := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: "gemma", Namespace: "home-infra", Labels: map[string]string{"llm.cogito.dev/model-config": "true"}},
-		Data:       map[string]string{"backend": "vllm", "model_name": "gemma", "display_name": "Gemma", "max_model_len": "32768", "created_at": "2026-07-20T00:00:00Z", "vllm_args.json": `["--host","0.0.0.0"]`, "runtime_metadata.json": `{}`},
-	}
-	overlay := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: "gemma-agentic", Namespace: "home-infra", Labels: map[string]string{"llm.cogito.dev/model-overlay": "true"}},
-		Data:       map[string]string{"model_name": "gemma4-agentic", "display_name": "Gemma Agentic", "base_model": "gemma", "created_at": "2026-07-20T00:00:00Z", "request_defaults.json": `{}`},
-	}
-	deployment := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "llm-vllm", Namespace: "home-infra"}, Spec: appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{activeModelAnno: "gemma"}}}}}
-	p := &proxy{client: fake.NewSimpleClientset(model, overlay, deployment), namespace: "home-infra", deployment: "llm-vllm"}
-	if err := p.refresh(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := p.registry.overlays["gemma4-agentic"]; !ok || p.active != "gemma" {
-		t.Fatalf("unexpected registry: %#v active=%q", p.registry, p.active)
-	}
-}
-
-func TestRefreshReadsProxyOwnedModelStatus(t *testing.T) {
-	model := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: "gemma", Namespace: "home-infra", Labels: map[string]string{"llm.cogito.dev/model-config": "true"}},
-		Data:       map[string]string{"backend": "vllm", "model_name": "gemma", "display_name": "Gemma", "max_model_len": "1", "created_at": "2026-07-20T00:00:00Z", "vllm_args.json": `["--host","0.0.0.0"]`},
-	}
-	status := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: modelStatusName, Namespace: "home-infra"}, Data: map[string]string{"gemma.runtime_metadata.json": `{"schema_version":1}`}}
-	deployment := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "llm-vllm", Namespace: "home-infra"}, Spec: appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{activeModelAnno: "gemma"}}}}}
-	p := &proxy{client: fake.NewSimpleClientset(model, status, deployment), namespace: "home-infra", deployment: "llm-vllm"}
-	if err := p.refresh(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	if string(p.registry.models["gemma"].Runtime) != `{"schema_version":1}` {
-		t.Fatalf("runtime metadata = %s", p.registry.models["gemma"].Runtime)
-	}
-	if model.Data["runtime_metadata.json"] != "" {
-		t.Fatal("desired model ConfigMap was mutated")
-	}
-}
-
 func llmModelObject(name, modelName string) *unstructured.Unstructured {
 	return &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": "llm.cogito.dev/v1alpha1", "kind": "LLMModel",
@@ -426,14 +276,21 @@ func newLLMDynamicClient(objects ...runtime.Object) *dynamicfake.FakeDynamicClie
 func TestRefreshReadsCRDModelsAndOverlays(t *testing.T) {
 	model := llmModelObject("gemma", "google/gemma")
 	overlay := llmOverlayObject("gemma-agentic", "google/gemma")
+	status := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: modelStatusName, Namespace: "home-infra"}, Data: map[string]string{
+		"crd__gemma.runtime_metadata.json":    `{"schema_version":1,"source":"runtime"}`,
+		"crd__gemma.model_card_metadata.json": `{"source":"catalog"}`,
+	}}
 	deployment := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "llm-vllm", Namespace: "home-infra"}, Spec: appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{activeModelAnno: "google/gemma"}}}}}
-	p := &proxy{client: fake.NewSimpleClientset(deployment), dynamic: newLLMDynamicClient(model, overlay), namespace: "home-infra", deployment: "llm-vllm"}
+	p := &proxy{client: fake.NewSimpleClientset(status, deployment), dynamic: newLLMDynamicClient(model, overlay), namespace: "home-infra", deployment: "llm-vllm"}
 	if err := p.refresh(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	cfg, ok := p.registry.models["google/gemma"]
 	if !ok || cfg.Source != "crd/gemma" {
 		t.Fatalf("CRD model not loaded: %#v", p.registry.models)
+	}
+	if string(cfg.Runtime) != `{"schema_version":1,"source":"runtime"}` || string(cfg.Fallback) != `{"source":"catalog"}` {
+		t.Fatalf("CRD status metadata was not attached: %#v", cfg)
 	}
 	if _, ok := p.registry.overlays["gemma-agentic"]; !ok {
 		t.Fatalf("CRD overlay not loaded: %#v", p.registry.overlays)
@@ -442,27 +299,6 @@ func TestRefreshReadsCRDModelsAndOverlays(t *testing.T) {
 	p.models(recorder, httptest.NewRequest(http.MethodGet, "/v1/models", nil))
 	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `"config_source":"crd/gemma"`) || !strings.Contains(recorder.Body.String(), `"id":"gemma-agentic"`) {
 		t.Fatalf("unexpected CRD catalog: %d %s", recorder.Code, recorder.Body.String())
-	}
-}
-
-func TestRefreshCRDTakesPrecedenceAndIsolatesInvalidLegacyConfig(t *testing.T) {
-	legacy := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "legacy-gemma", Namespace: "home-infra", Labels: map[string]string{"llm.cogito.dev/model-config": "true"}}, Data: map[string]string{"backend": "vllm", "model_name": "google/gemma", "display_name": "Legacy", "max_model_len": "1", "created_at": "2026-07-20T00:00:00Z", "vllm_args.json": `["--host","0.0.0.0"]`}}
-	invalid := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "fable", Namespace: "home-infra", Labels: map[string]string{"llm.cogito.dev/model-config": "true"}}, Data: map[string]string{"backend": "llama-cpp", "model_name": "fable", "display_name": "Fable", "max_model_len": "1", "created_at": "2026-07-20T00:00:00Z", "llama_args.json": `["-m","bad.gguf"]`}}
-	deployment := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "llm-vllm", Namespace: "home-infra"}, Spec: appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{activeModelAnno: "google/gemma"}}}}}
-	p := &proxy{client: fake.NewSimpleClientset(legacy, invalid, deployment), dynamic: newLLMDynamicClient(llmModelObject("gemma", "google/gemma")), namespace: "home-infra", deployment: "llm-vllm"}
-	if err := p.refresh(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	if got := p.registry.models["google/gemma"].Source; got != "crd/gemma" {
-		t.Fatalf("source = %q, want CRD precedence", got)
-	}
-	if _, ok := p.registry.models["fable"]; ok || len(p.registry.diagnostics) != 2 {
-		t.Fatalf("invalid/duplicate legacy entries were not isolated: %#v", p.registry)
-	}
-	recorder := httptest.NewRecorder()
-	p.catalogDiagnostics(recorder, httptest.NewRequest(http.MethodGet, "/vllm-proxy/catalog-diagnostics", nil))
-	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "legacy-gemma") || !strings.Contains(recorder.Body.String(), "fable") {
-		t.Fatalf("unexpected diagnostics: %d %s", recorder.Code, recorder.Body.String())
 	}
 }
 
@@ -553,19 +389,6 @@ func TestInferenceOverlayForwardsBaseModel(t *testing.T) {
 	}
 }
 
-func TestParseModelConfigDefaultsModelSourceToModelName(t *testing.T) {
-	cfg, err := parseModelConfig("gemma", map[string]string{
-		"backend": "vllm", "model_name": "example/gemma", "display_name": "Gemma 4", "max_model_len": "8192", "created_at": "2026-07-11T00:00:00Z",
-		"vllm_args.json": `["--host","0.0.0.0"]`,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.ModelSource != cfg.Name {
-		t.Fatalf("model source = %q, want %q", cfg.ModelSource, cfg.Name)
-	}
-}
-
 func TestDeploymentNeedsActivation(t *testing.T) {
 	replicas := int32(1)
 	cfg := modelConfig{Name: "gemma", ModelSource: "google/gemma", Args: []string{"--host", "0.0.0.0"}}
@@ -605,7 +428,7 @@ func TestWriteGeneratedConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := output.String()
-	for _, want := range []string{"model_name: 'NousResearch/Hermes-3-Llama-3.1-8B'", "model_max_context: \"131072\"", "max_model_len: \"65536\"", "model_card_metadata.json"} {
+	for _, want := range []string{"kind: LLMModel", "name: 'NousResearch/Hermes-3-Llama-3.1-8B'", "maxModelLen: 65536", "source: 'NousResearch/Hermes-3-Llama-3.1-8B'"} {
 		if !strings.Contains(config, want) {
 			t.Fatalf("generated config missing %q:\n%s", want, config)
 		}
