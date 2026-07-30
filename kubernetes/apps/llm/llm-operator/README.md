@@ -28,9 +28,16 @@ objects report their zero-replica backends as `Stopped`, four `LLMModel` objects
 report `ModelConfigured=True` and phase `Ready`, and the Gemma overlay reports
 `OverlayValid=True`. There is deliberately no `LLMActiveModel`.
 
-The rollout did not alter the vLLM or Laguna replicas, container arguments, or
-active-model annotations, and did not alter the proxy workload. The manager
-Deployment rolled only to install the reviewed image.
+The initial passive rollout did not alter the vLLM or Laguna replicas, container
+arguments, or active-model annotations, and did not alter the proxy workload.
+The manager Deployment rolled only to install the reviewed image.
+
+The later M4 proxy catalog rollout intentionally activated canonical Gemma on
+vLLM. The operator's `LLMActiveModel` controller remains disabled; the
+`vllm-proxy` remains the transition owner and materialized the accepted Gemma
+Deployment. Laguna remains unchanged at zero replicas. The configured but
+absent `llm-llama-cpp` backend causes non-blocking proxy refresh warnings and
+is tracked separately from the accepted Gemma activation.
 
 ## Remaining observation work
 

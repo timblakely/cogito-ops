@@ -88,7 +88,7 @@ spec:
           proxy:
             image:
               repository: ghcr.io/timblakely/vllm-proxy
-              tag: model-cache-20260727-opt4
+              tag: m4-crd-read-20260729.1
             env:
               BACKEND_URL: http://llm-vllm:8000
               LLAMA_BACKEND_URL: http://laguna:8000
@@ -247,6 +247,15 @@ spec:
               verbs:
                 - get
                 - patch
+                - watch
+            - apiGroups:
+                - llm.cogito.dev
+              resources:
+                - llmmodels
+                - llmmodeloverlays
+              verbs:
+                - get
+                - list
                 - watch
       bindings:
         proxy:

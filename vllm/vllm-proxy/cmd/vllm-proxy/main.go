@@ -29,22 +29,31 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
 const (
-	modelLabel       = "llm.cogito.dev/model-config=true"
-	overlayLabel     = "llm.cogito.dev/model-overlay=true"
-	activeModelAnno  = "llm.cogito.dev/active-model"
-	switchedAtAnno   = "llm.cogito.dev/switched-at"
-	modelStatusName  = "llm-model-status"
-	defaultMaxBody   = 32 << 20
-	defaultTimeout   = 30 * time.Minute
-	defaultSweep     = 10 * time.Minute
-	backendProbeWait = 2 * time.Second
+	modelLabel           = "llm.cogito.dev/model-config=true"
+	overlayLabel         = "llm.cogito.dev/model-overlay=true"
+	activeModelAnno      = "llm.cogito.dev/active-model"
+	switchedAtAnno       = "llm.cogito.dev/switched-at"
+	modelStatusName      = "llm-model-status"
+	defaultMaxBody       = 32 << 20
+	defaultTimeout       = 30 * time.Minute
+	defaultSweep         = 10 * time.Minute
+	backendProbeWait     = 2 * time.Second
+	maxConfigDiagnostics = 32
+)
+
+var (
+	llmModelGVR   = schema.GroupVersionResource{Group: "llm.cogito.dev", Version: "v1alpha1", Resource: "llmmodels"}
+	llmOverlayGVR = schema.GroupVersionResource{Group: "llm.cogito.dev", Version: "v1alpha1", Resource: "llmmodeloverlays"}
 )
 
 type modelConfig struct {
@@ -132,12 +141,14 @@ type runtimeMetadata struct {
 }
 
 type registry struct {
-	models   map[string]modelConfig
-	overlays map[string]overlayConfig
+	models      map[string]modelConfig
+	overlays    map[string]overlayConfig
+	diagnostics []string
 }
 
 type proxy struct {
 	client          kubernetes.Interface
+	dynamic         dynamic.Interface
 	namespace       string
 	deployment      string
 	container       string
@@ -209,6 +220,11 @@ func main() {
 		logger.Error("create Kubernetes client", "error", err)
 		os.Exit(1)
 	}
+	dynamicClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		logger.Error("create dynamic Kubernetes client", "error", err)
+		os.Exit(1)
+	}
 	backend, err := url.Parse(env("BACKEND_URL", "http://llm-vllm:8000"))
 	if err != nil {
 		logger.Error("parse BACKEND_URL", "error", err)
@@ -236,6 +252,7 @@ func main() {
 	vllmContainer := env("VLLM_CONTAINER", "vllm")
 	p := &proxy{
 		client:      client,
+		dynamic:     dynamicClient,
 		namespace:   env("POD_NAMESPACE", mustNamespace()),
 		deployment:  vllmDeployment,
 		container:   vllmContainer,
@@ -243,7 +260,7 @@ func main() {
 		backendName: "vllm",
 		backends: map[string]backendConfig{
 			"vllm":              {Name: "vllm", Deployment: vllmDeployment, Container: vllmContainer, URL: backend},
-			"llama-cpp":          {Name: "llama-cpp", Deployment: env("LLAMA_DEPLOYMENT", "llm-laguna"), Container: env("LLAMA_CONTAINER", "laguna"), URL: llamaBackend},
+			"llama-cpp":         {Name: "llama-cpp", Deployment: env("LLAMA_DEPLOYMENT", "llm-laguna"), Container: env("LLAMA_CONTAINER", "laguna"), URL: llamaBackend},
 			"llama-cpp-vanilla": {Name: "llama-cpp-vanilla", Deployment: env("LLAMA_VANILLA_DEPLOYMENT", "llm-llama-cpp"), Container: env("LLAMA_VANILLA_CONTAINER", "llama-cpp"), URL: llamaVanillaBackend},
 		},
 		active:          env("DEFAULT_MODEL", ""),
@@ -263,6 +280,7 @@ func main() {
 	go p.reconcileActiveDeployment(logger)
 	go p.sweepCache(logger)
 	go p.watchConfigs(logger)
+	go p.watchLLMResources(logger)
 	go p.watchDeployments(logger)
 
 	mux := http.NewServeMux()
@@ -271,6 +289,7 @@ func main() {
 	mux.HandleFunc("GET /metrics", p.metrics)
 	mux.HandleFunc("GET /v1/models", p.models)
 	mux.HandleFunc("GET /v1/models/{id}", p.model)
+	mux.HandleFunc("GET /vllm-proxy/catalog-diagnostics", p.catalogDiagnostics)
 	mux.HandleFunc("GET /vllm-proxy/config/{target}", p.hermesConfig)
 	mux.HandleFunc("/v1/", p.inference)
 
@@ -927,6 +946,40 @@ func (p *proxy) watchConfigs(logger *slog.Logger) {
 	p.watchConfigLabel(logger, overlayLabel, "overlay")
 }
 
+// watchLLMResources keeps the CRD-backed catalog in sync during the migration
+// from ConfigMaps. A missing CRD is tolerated so older clusters retain the
+// ConfigMap-only behavior.
+func (p *proxy) watchLLMResources(logger *slog.Logger) {
+	if p.dynamic == nil {
+		return
+	}
+	go p.watchLLMResource(logger, llmModelGVR, "LLMModel")
+	p.watchLLMResource(logger, llmOverlayGVR, "LLMModelOverlay")
+}
+
+func (p *proxy) watchLLMResource(logger *slog.Logger, gvr schema.GroupVersionResource, kind string) {
+	for {
+		watch, err := p.dynamic.Resource(gvr).Namespace(p.namespace).Watch(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				p.configErrors.Add(1)
+				logger.Warn("watch LLM resources", "kind", kind, "error", err)
+			}
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		for range watch.ResultChan() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			if err := p.refresh(ctx); err != nil {
+				p.configErrors.Add(1)
+				logger.Warn("refresh LLM resources", "kind", kind, "error", err)
+			}
+			cancel()
+			go p.reconcileActiveDeployment(logger)
+		}
+	}
+}
+
 func (p *proxy) watchConfigLabel(logger *slog.Logger, label, kind string) {
 	for {
 		watch, err := p.client.CoreV1().ConfigMaps(p.namespace).Watch(context.Background(), metav1.ListOptions{LabelSelector: label})
@@ -978,6 +1031,152 @@ func (p *proxy) watchDeployment(logger *slog.Logger, backend backendConfig) {
 	}
 }
 
+func (p *proxy) loadCRDRegistry(ctx context.Context, next *registry) error {
+	if p.dynamic == nil {
+		return nil
+	}
+	models, err := p.dynamic.Resource(llmModelGVR).Namespace(p.namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("list LLMModels: %w", err)
+	}
+	for _, object := range models.Items {
+		cfg, err := parseLLMModel(object)
+		if err != nil {
+			return fmt.Errorf("LLMModel %s: %w", object.GetName(), err)
+		}
+		if _, exists := next.models[cfg.Name]; exists {
+			return fmt.Errorf("duplicate LLMModel model.name %q", cfg.Name)
+		}
+		next.models[cfg.Name] = cfg
+	}
+	overlays, err := p.dynamic.Resource(llmOverlayGVR).Namespace(p.namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("list LLMModelOverlays: %w", err)
+	}
+	for _, object := range overlays.Items {
+		cfg, err := parseLLMModelOverlay(object)
+		if err != nil {
+			return fmt.Errorf("LLMModelOverlay %s: %w", object.GetName(), err)
+		}
+		if _, exists := next.models[cfg.Name]; exists {
+			return fmt.Errorf("LLMModelOverlay %s conflicts with base model %q", object.GetName(), cfg.Name)
+		}
+		if _, exists := next.overlays[cfg.Name]; exists {
+			return fmt.Errorf("duplicate LLMModelOverlay name %q", cfg.Name)
+		}
+		if _, exists := next.models[cfg.BaseModel]; !exists {
+			return fmt.Errorf("LLMModelOverlay %s references unknown base model %q", object.GetName(), cfg.BaseModel)
+		}
+		next.overlays[cfg.Name] = cfg
+	}
+	return nil
+}
+
+func (p *proxy) addDiagnostic(next *registry, message string) {
+	p.configErrors.Add(1)
+	if len(next.diagnostics) < maxConfigDiagnostics {
+		next.diagnostics = append(next.diagnostics, message)
+	}
+}
+
+func parseLLMModel(object unstructured.Unstructured) (modelConfig, error) {
+	name, found, err := unstructured.NestedString(object.Object, "spec", "model", "name")
+	if err != nil || !found || strings.TrimSpace(name) == "" {
+		return modelConfig{}, errors.New("spec.model.name is required")
+	}
+	source, found, err := unstructured.NestedString(object.Object, "spec", "model", "source")
+	if err != nil || !found || strings.TrimSpace(source) == "" {
+		return modelConfig{}, errors.New("spec.model.source is required")
+	}
+	backend, found, err := unstructured.NestedString(object.Object, "spec", "serving", "backend")
+	if err != nil || !found || (backend != "vllm" && backend != "llama-cpp") {
+		return modelConfig{}, fmt.Errorf("unsupported spec.serving.backend %q", backend)
+	}
+	displayName, found, err := unstructured.NestedString(object.Object, "spec", "serving", "displayName")
+	if err != nil || !found || strings.TrimSpace(displayName) == "" {
+		return modelConfig{}, errors.New("spec.serving.displayName is required")
+	}
+	maxModelLen, found, err := unstructured.NestedInt64(object.Object, "spec", "serving", "maxModelLen")
+	if err != nil || !found || maxModelLen < 1 || maxModelLen > int64(^uint(0)>>1) {
+		return modelConfig{}, errors.New("spec.serving.maxModelLen must be a positive integer")
+	}
+	args, found, err := unstructured.NestedStringSlice(object.Object, "spec", "serving", "args")
+	if err != nil || !found || len(args) == 0 {
+		return modelConfig{}, errors.New("spec.serving.args must be a non-empty string array")
+	}
+	for _, arg := range args {
+		if strings.TrimSpace(arg) == "" {
+			return modelConfig{}, errors.New("spec.serving.args cannot contain empty arguments")
+		}
+	}
+	if backend == "vllm" && (contains(args, "--model") || contains(args, "--revision") || contains(args, "--served-model-name")) {
+		return modelConfig{}, errors.New("spec.serving.args must not contain --model, --revision, or --served-model-name")
+	}
+	if backend == "llama-cpp" && (contains(args, "-m") || contains(args, "--model") || contains(args, "--alias")) {
+		return modelConfig{}, errors.New("spec.serving.args must not contain -m, --model, or --alias")
+	}
+	cfg := modelConfig{Name: name, ModelSource: source, Backend: backend, DisplayName: displayName, MaxModelLen: int(maxModelLen), Args: args, Created: object.GetCreationTimestamp().Time, Source: "crd/" + object.GetName()}
+	if revision, found, _ := unstructured.NestedString(object.Object, "spec", "model", "revision"); found && revision != "" {
+		if !isCommitSHA(revision) {
+			return modelConfig{}, fmt.Errorf("spec.model.revision %q must be an immutable commit SHA", revision)
+		}
+		artifact, _, _ := unstructured.NestedString(object.Object, "spec", "model", "artifactRepository")
+		if artifact == "" {
+			artifact = source
+		}
+		cfg.Cache = cacheSpec{Kind: "huggingface-hub", RepoID: artifact, Revision: revision}
+		if expectedSize, found, _ := unstructured.NestedString(object.Object, "spec", "artifact", "expectedSize"); found && expectedSize != "" {
+			quantity, err := resource.ParseQuantity(expectedSize)
+			if err != nil || quantity.Value() < 1 {
+				return modelConfig{}, fmt.Errorf("spec.artifact.expectedSize %q must be a positive quantity", expectedSize)
+			}
+			cfg.Cache.Size = quantity.Value()
+		}
+		if backend == "llama-cpp" {
+			cfg.Cache.Kind = "huggingface-files"
+			files, _, _ := unstructured.NestedStringSlice(object.Object, "spec", "artifact", "files")
+			if len(files) == 0 {
+				return modelConfig{}, errors.New("spec.artifact.files is required for llama-cpp")
+			}
+			cfg.Cache.Files = files
+		}
+	}
+	return cfg, nil
+}
+
+func parseLLMModelOverlay(object unstructured.Unstructured) (overlayConfig, error) {
+	displayName, found, err := unstructured.NestedString(object.Object, "spec", "displayName")
+	if err != nil || !found || strings.TrimSpace(displayName) == "" {
+		return overlayConfig{}, errors.New("spec.displayName is required")
+	}
+	baseModel, found, err := unstructured.NestedString(object.Object, "spec", "baseModel")
+	if err != nil || !found || strings.TrimSpace(baseModel) == "" {
+		return overlayConfig{}, errors.New("spec.baseModel is required")
+	}
+	defaults, found, err := unstructured.NestedFieldCopy(object.Object, "spec", "requestDefaults")
+	if err != nil || !found {
+		return overlayConfig{}, errors.New("spec.requestDefaults is required")
+	}
+	raw, err := json.Marshal(defaults)
+	if err != nil {
+		return overlayConfig{}, fmt.Errorf("encode spec.requestDefaults: %w", err)
+	}
+	var values map[string]any
+	if json.Unmarshal(raw, &values) != nil || values == nil {
+		return overlayConfig{}, errors.New("spec.requestDefaults must be a JSON object")
+	}
+	if _, exists := values["model"]; exists {
+		return overlayConfig{}, errors.New("spec.requestDefaults must not set model")
+	}
+	return overlayConfig{Name: object.GetName(), DisplayName: displayName, BaseModel: baseModel, Created: object.GetCreationTimestamp().Time, RequestDefaults: raw, Source: "crd/" + object.GetName()}, nil
+}
+
 func (p *proxy) refresh(ctx context.Context) error {
 	modelItems, err := p.client.CoreV1().ConfigMaps(p.namespace).List(ctx, metav1.ListOptions{LabelSelector: modelLabel})
 	if err != nil {
@@ -990,6 +1189,9 @@ func (p *proxy) refresh(ctx context.Context) error {
 	next := registry{
 		models:   make(map[string]modelConfig, len(modelItems.Items)),
 		overlays: make(map[string]overlayConfig, len(overlayItems.Items)),
+	}
+	if err := p.loadCRDRegistry(ctx, &next); err != nil {
+		return err
 	}
 	status, err := p.client.CoreV1().ConfigMaps(p.namespace).Get(ctx, modelStatusName, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
@@ -1013,27 +1215,35 @@ func (p *proxy) refresh(ctx context.Context) error {
 		}
 		cfg, err := parseModelConfig(cm.Name, data)
 		if err != nil {
-			return fmt.Errorf("%s: %w", cm.Name, err)
+			p.addDiagnostic(&next, fmt.Sprintf("skip ConfigMap model %s: %v", cm.Name, err))
+			continue
 		}
 		if _, exists := next.models[cfg.Name]; exists {
-			return fmt.Errorf("duplicate model_name %q", cfg.Name)
+			p.addDiagnostic(&next, fmt.Sprintf("skip ConfigMap model %s: model_name %q is supplied by a CRD or earlier ConfigMap", cm.Name, cfg.Name))
+			continue
 		}
+		cfg.Source = "configmap/" + cm.Name
 		next.models[cfg.Name] = cfg
 	}
 	for _, cm := range overlayItems.Items {
 		cfg, err := parseOverlayConfig(cm.Name, cm.Data)
 		if err != nil {
-			return fmt.Errorf("%s: %w", cm.Name, err)
+			p.addDiagnostic(&next, fmt.Sprintf("skip ConfigMap overlay %s: %v", cm.Name, err))
+			continue
 		}
 		if _, exists := next.models[cfg.Name]; exists {
-			return fmt.Errorf("overlay model_name %q conflicts with a base model", cfg.Name)
+			p.addDiagnostic(&next, fmt.Sprintf("skip ConfigMap overlay %s: model_name %q conflicts with a base model", cm.Name, cfg.Name))
+			continue
 		}
 		if _, exists := next.overlays[cfg.Name]; exists {
-			return fmt.Errorf("duplicate overlay model_name %q", cfg.Name)
+			p.addDiagnostic(&next, fmt.Sprintf("skip ConfigMap overlay %s: model_name %q is supplied by a CRD or earlier ConfigMap", cm.Name, cfg.Name))
+			continue
 		}
 		if _, exists := next.models[cfg.BaseModel]; !exists {
-			return fmt.Errorf("overlay %q references unknown base_model %q", cfg.Name, cfg.BaseModel)
+			p.addDiagnostic(&next, fmt.Sprintf("skip ConfigMap overlay %s: base_model %q is not configured", cm.Name, cfg.BaseModel))
+			continue
 		}
+		cfg.Source = "configmap/" + cm.Name
 		next.overlays[cfg.Name] = cfg
 	}
 	p.stateMu.Lock()
@@ -1404,6 +1614,13 @@ func (p *proxy) models(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"object": "list", "data": data})
 }
 
+func (p *proxy) catalogDiagnostics(w http.ResponseWriter, _ *http.Request) {
+	p.stateMu.RLock()
+	diagnostics := append([]string(nil), p.registry.diagnostics...)
+	p.stateMu.RUnlock()
+	writeJSON(w, http.StatusOK, map[string]any{"diagnostics": diagnostics})
+}
+
 func (p *proxy) model(w http.ResponseWriter, r *http.Request) {
 	p.stateMu.RLock()
 	cfg, ok := p.registry.models[r.PathValue("id")]
@@ -1424,6 +1641,9 @@ func (p *proxy) model(w http.ResponseWriter, r *http.Request) {
 func modelCard(cfg modelConfig) map[string]any {
 	card := map[string]any{"id": cfg.Name, "object": "model", "created": cfg.Created.Unix(), "owned_by": "vllm-proxy"}
 	metadata := map[string]any{"context_length": cfg.MaxModelLen, "source": "manual_config", "backend": cfg.Backend}
+	if cfg.Source != "" {
+		metadata["config_source"] = cfg.Source
+	}
 	mergeJSONMetadata(metadata, cfg.Fallback)
 	mergeJSONMetadata(metadata, cfg.Runtime)
 	card["metadata"] = metadata
@@ -1437,6 +1657,9 @@ func overlayModelCard(overlay overlayConfig, base modelConfig) map[string]any {
 		"source":         "model_overlay",
 		"overlay":        true,
 		"base_model":     overlay.BaseModel,
+	}
+	if overlay.Source != "" {
+		metadata["config_source"] = overlay.Source
 	}
 	mergeJSONMetadata(metadata, base.Fallback)
 	mergeJSONMetadata(metadata, base.Runtime)
@@ -2028,6 +2251,10 @@ func (p *proxy) metrics(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "vllm_proxy_transitioning %d\n", boolNumber(transitioning))
 	fmt.Fprintf(w, "vllm_proxy_switches_total %d\n", p.switchesTotal.Load())
 	fmt.Fprintf(w, "vllm_proxy_config_errors_total %d\n", p.configErrors.Load())
+	p.stateMu.RLock()
+	diagnosticCount := len(p.registry.diagnostics)
+	p.stateMu.RUnlock()
+	fmt.Fprintf(w, "vllm_proxy_catalog_diagnostics %d\n", diagnosticCount)
 	fmt.Fprintf(w, "vllm_proxy_model_cache_hits_total{source=\"hot\"} %d\n", p.cacheHotHits.Load())
 	fmt.Fprintf(w, "vllm_proxy_model_cache_hits_total{source=\"cold\"} %d\n", p.cacheColdHits.Load())
 	fmt.Fprintf(w, "vllm_proxy_model_cache_hits_total{source=\"external\"} %d\n", p.cacheExternal.Load())

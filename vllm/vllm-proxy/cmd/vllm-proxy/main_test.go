@@ -19,6 +19,10 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -337,6 +341,102 @@ func TestRefreshReadsProxyOwnedModelStatus(t *testing.T) {
 	}
 	if model.Data["runtime_metadata.json"] != "" {
 		t.Fatal("desired model ConfigMap was mutated")
+	}
+}
+
+func llmModelObject(name, modelName string) *unstructured.Unstructured {
+	return &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "llm.cogito.dev/v1alpha1", "kind": "LLMModel",
+		"metadata": map[string]any{"name": name, "namespace": "home-infra", "creationTimestamp": "2026-07-29T00:00:00Z"},
+		"spec": map[string]any{
+			"model":   map[string]any{"name": modelName, "source": modelName, "revision": "52f3f65bc7a02d555763bc923bd1d9094898219d"},
+			"serving": map[string]any{"backend": "vllm", "displayName": "Gemma", "maxModelLen": int64(32768), "args": []any{"--host", "0.0.0.0"}},
+		},
+	}}
+}
+
+func llmOverlayObject(name, base string) *unstructured.Unstructured {
+	return &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "llm.cogito.dev/v1alpha1", "kind": "LLMModelOverlay",
+		"metadata": map[string]any{"name": name, "namespace": "home-infra", "creationTimestamp": "2026-07-29T00:00:00Z"},
+		"spec":     map[string]any{"displayName": "Gemma Agentic", "baseModel": base, "requestDefaults": map[string]any{"temperature": 0.7}},
+	}}
+}
+
+func newLLMDynamicClient(objects ...runtime.Object) *dynamicfake.FakeDynamicClient {
+	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), map[schema.GroupVersionResource]string{
+		llmModelGVR:   "LLMModelList",
+		llmOverlayGVR: "LLMModelOverlayList",
+	})
+	for _, object := range objects {
+		item := object.(*unstructured.Unstructured)
+		gvr := llmModelGVR
+		if item.GetKind() == "LLMModelOverlay" {
+			gvr = llmOverlayGVR
+		}
+		if _, err := client.Resource(gvr).Namespace(item.GetNamespace()).Create(context.Background(), item, metav1.CreateOptions{}); err != nil {
+			panic(err)
+		}
+	}
+	return client
+}
+
+func TestRefreshReadsCRDModelsAndOverlays(t *testing.T) {
+	model := llmModelObject("gemma", "google/gemma")
+	overlay := llmOverlayObject("gemma-agentic", "google/gemma")
+	deployment := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "llm-vllm", Namespace: "home-infra"}, Spec: appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{activeModelAnno: "google/gemma"}}}}}
+	p := &proxy{client: fake.NewSimpleClientset(deployment), dynamic: newLLMDynamicClient(model, overlay), namespace: "home-infra", deployment: "llm-vllm"}
+	if err := p.refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	cfg, ok := p.registry.models["google/gemma"]
+	if !ok || cfg.Source != "crd/gemma" {
+		t.Fatalf("CRD model not loaded: %#v", p.registry.models)
+	}
+	if _, ok := p.registry.overlays["gemma-agentic"]; !ok {
+		t.Fatalf("CRD overlay not loaded: %#v", p.registry.overlays)
+	}
+	recorder := httptest.NewRecorder()
+	p.models(recorder, httptest.NewRequest(http.MethodGet, "/v1/models", nil))
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `"config_source":"crd/gemma"`) || !strings.Contains(recorder.Body.String(), `"id":"gemma-agentic"`) {
+		t.Fatalf("unexpected CRD catalog: %d %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestRefreshCRDTakesPrecedenceAndIsolatesInvalidLegacyConfig(t *testing.T) {
+	legacy := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "legacy-gemma", Namespace: "home-infra", Labels: map[string]string{"llm.cogito.dev/model-config": "true"}}, Data: map[string]string{"backend": "vllm", "model_name": "google/gemma", "display_name": "Legacy", "max_model_len": "1", "created_at": "2026-07-20T00:00:00Z", "vllm_args.json": `["--host","0.0.0.0"]`}}
+	invalid := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "fable", Namespace: "home-infra", Labels: map[string]string{"llm.cogito.dev/model-config": "true"}}, Data: map[string]string{"backend": "llama-cpp", "model_name": "fable", "display_name": "Fable", "max_model_len": "1", "created_at": "2026-07-20T00:00:00Z", "llama_args.json": `["-m","bad.gguf"]`}}
+	deployment := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "llm-vllm", Namespace: "home-infra"}, Spec: appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{activeModelAnno: "google/gemma"}}}}}
+	p := &proxy{client: fake.NewSimpleClientset(legacy, invalid, deployment), dynamic: newLLMDynamicClient(llmModelObject("gemma", "google/gemma")), namespace: "home-infra", deployment: "llm-vllm"}
+	if err := p.refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := p.registry.models["google/gemma"].Source; got != "crd/gemma" {
+		t.Fatalf("source = %q, want CRD precedence", got)
+	}
+	if _, ok := p.registry.models["fable"]; ok || len(p.registry.diagnostics) != 2 {
+		t.Fatalf("invalid/duplicate legacy entries were not isolated: %#v", p.registry)
+	}
+	recorder := httptest.NewRecorder()
+	p.catalogDiagnostics(recorder, httptest.NewRequest(http.MethodGet, "/vllm-proxy/catalog-diagnostics", nil))
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "legacy-gemma") || !strings.Contains(recorder.Body.String(), "fable") {
+		t.Fatalf("unexpected diagnostics: %d %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestParseLLMModelPreservesArtifactSize(t *testing.T) {
+	model := llmModelObject("laguna", "poolside/Laguna-S-2.1")
+	_ = unstructured.SetNestedField(model.Object, "llama-cpp", "spec", "serving", "backend")
+	_ = unstructured.SetNestedStringSlice(model.Object, []string{"--host", "0.0.0.0"}, "spec", "serving", "args")
+	_ = unstructured.SetNestedField(model.Object, "poolside/Laguna-S-2.1-GGUF", "spec", "model", "artifactRepository")
+	_ = unstructured.SetNestedField(model.Object, "60Gi", "spec", "artifact", "expectedSize")
+	_ = unstructured.SetNestedStringSlice(model.Object, []string{"laguna.gguf"}, "spec", "artifact", "files")
+	cfg, err := parseLLMModel(*model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Cache.Kind != "huggingface-files" || cfg.Cache.Size != 60*1024*1024*1024 || len(cfg.Cache.Files) != 1 {
+		t.Fatalf("artifact cache = %#v", cfg.Cache)
 	}
 }
 
