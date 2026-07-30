@@ -35,9 +35,9 @@ spec:
   values:
     controllers:
       vllm:
-        # Switchboard materializes the annotated default model's arguments and
-        # scales this workload to one replica during its startup reconciliation.
-        replicas: 0
+        # Keep Helm's baseline aligned with the accepted canonical Gemma
+        # activation while the operator owns subsequent transitions.
+        replicas: 1
         strategy: Recreate
         serviceAccount:
           name: default
@@ -53,6 +53,42 @@ spec:
             image: &vllmImage
               repository: vllm/vllm-openai
               tag: v0.25.1
+            args:
+              - --disable-custom-all-reduce
+              - --tensor-parallel-size
+              - "2"
+              - --pipeline-parallel-size
+              - "1"
+              - --kv-cache-dtype
+              - auto
+              - --max-model-len
+              - "229376"
+              - --gpu-memory-utilization
+              - "0.95"
+              - --max-num-seqs
+              - "2"
+              - --max-num-batched-tokens
+              - "4096"
+              - --trust-remote-code
+              - --enable-auto-tool-choice
+              - --tool-call-parser
+              - gemma4
+              - --reasoning-parser
+              - gemma4
+              - --override-generation-config
+              - '{"temperature": 1.0, "top_p": 0.95, "top_k": 64, "min_p": 0.0, "repetition_penalty": 1.0}'
+              - --host
+              - 0.0.0.0
+              - --port
+              - "8000"
+              # The controller appends these immutable identity flags after
+              # spec.serving.args; preserve that exact effective order.
+              - --model
+              - google/gemma-4-31B-it-qat-w4a16-ct
+              - --revision
+              - 52f3f65bc7a02d555763bc923bd1d9094898219d
+              - --served-model-name
+              - google/gemma-4-31B-it-qat-w4a16-ct
             env: &vllmEnv
               HF_HOME: /root/.cache/huggingface
               HF_HUB_OFFLINE: "1"
@@ -88,7 +124,7 @@ spec:
           proxy:
             image:
               repository: ghcr.io/timblakely/vllm-proxy
-              tag: m4-crd-read-20260729.1
+              tag: m5-handoff-20260729.1
             env:
               BACKEND_URL: http://llm-vllm:8000
               LLAMA_BACKEND_URL: http://laguna:8000
@@ -99,7 +135,9 @@ spec:
               VLLM_DEPLOYMENT: llm-vllm
               VLLM_CONTAINER: vllm
               TRANSITION_TIMEOUT: 30m
-              CACHE_MANAGER_URL: http://127.0.0.1:8090
+              # The operator owns deployment mutations during the M5 handoff.
+              ENABLE_DEPLOYMENT_MUTATIONS: "false"
+              CACHE_MANAGER_URL: http://cache-manager:8090
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
@@ -110,23 +148,6 @@ spec:
                 memory: 64Mi
               limits:
                 memory: 256Mi
-          cache-manager:
-            image:
-              repository: ghcr.io/timblakely/llm-cache-manager
-              tag: model-cache-20260727-opt3
-            env:
-              CACHE_HOT_VLLM: /cache/vllm
-              CACHE_HOT_LAGUNA: /cache/laguna
-              CACHE_COLD: /cold/llm-cache
-              CACHE_SWEEP_INTERVAL: 10m
-              HF_TOKEN:
-                valueFrom:
-                  secretKeyRef:
-                    name: llm-huggingface
-                    key: HF_TOKEN
-            resources:
-              requests: {cpu: 100m, memory: 256Mi}
-              limits: {cpu: "2", memory: 4Gi}
     service:
       vllm:
         controller: vllm
@@ -162,25 +183,6 @@ spec:
           vllm:
             vllm:
               - path: /root/.cache/huggingface
-          proxy:
-            cache-manager:
-              - path: /cache/vllm
-      laguna-models:
-        type: persistentVolumeClaim
-        existingClaim: laguna
-        advancedMounts:
-          proxy:
-            cache-manager:
-              - path: /cache/laguna
-      cold-model-cache:
-        type: nfs
-        server: nuglab-storage.internal
-        path: /volume1/nuglab
-        advancedMounts:
-          proxy:
-            cache-manager:
-              - path: /cold
-                subPath: Models
       shm:
         type: emptyDir
         medium: Memory
@@ -228,8 +230,6 @@ spec:
                 - ""
               resources:
                 - configmaps
-                - pods
-                - persistentvolumeclaims
               verbs:
                 - create
                 - get

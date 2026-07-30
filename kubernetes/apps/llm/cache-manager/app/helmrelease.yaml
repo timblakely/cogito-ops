@@ -1,0 +1,123 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/refs/tags/app-template-4.6.0/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cache-manager
+spec:
+  interval: 1h
+  maxHistory: 1
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+    namespace: flux-system
+  install:
+    timeout: 5m
+    remediation:
+      retries: 3
+  upgrade:
+    timeout: 5m
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      cache-manager:
+        # This is a shadow instance for the M5 canary. The proxy remains
+        # pointed at its localhost sidecar until a separately reviewed switch.
+        replicas: 1
+        strategy: Recreate
+        serviceAccount:
+          identifier: cache-manager
+        pod:
+          automountServiceAccountToken: true
+          nodeSelector:
+            # The shared hostpath PVCs are RWO and are mounted by vLLM here.
+            kubernetes.io/hostname: iggy
+        containers:
+          cache-manager:
+            image:
+              repository: ghcr.io/timblakely/llm-cache-manager
+              tag: model-cache-20260727-opt3
+            env:
+              CACHE_HOT_VLLM: /cache/vllm
+              CACHE_HOT_LAGUNA: /cache/laguna
+              CACHE_COLD: /cold/llm-cache
+              CACHE_SWEEP_INTERVAL: 10m
+              HF_TOKEN:
+                valueFrom:
+                  secretKeyRef:
+                    name: llm-huggingface
+                    key: HF_TOKEN
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /healthz
+                    port: &port 8090
+                  initialDelaySeconds: 5
+                  periodSeconds: 15
+                  timeoutSeconds: 3
+                  failureThreshold: 3
+              readiness: *probes
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                cpu: "2"
+                memory: 4Gi
+    service:
+      cache-manager:
+        controller: cache-manager
+        ports:
+          http:
+            port: *port
+    persistence:
+      huggingface-cache:
+        type: persistentVolumeClaim
+        existingClaim: llm-huggingface-cache
+        advancedMounts:
+          cache-manager:
+            cache-manager:
+              - path: /cache/vllm
+      laguna-models:
+        type: persistentVolumeClaim
+        existingClaim: laguna
+        advancedMounts:
+          cache-manager:
+            cache-manager:
+              - path: /cache/laguna
+      cold-model-cache:
+        type: nfs
+        server: nuglab-storage.internal
+        path: /volume1/nuglab
+        advancedMounts:
+          cache-manager:
+            cache-manager:
+              - path: /cold
+                subPath: Models
+    rbac:
+      roles:
+        cache-manager:
+          type: Role
+          rules:
+            - apiGroups:
+                - ""
+              resources:
+                - pods
+                - persistentvolumeclaims
+              verbs:
+                - get
+                - list
+      bindings:
+        cache-manager:
+          type: RoleBinding
+          roleRef:
+            identifier: cache-manager
+          subjects:
+            - identifier: cache-manager
+    serviceAccount:
+      cache-manager: {}

@@ -25,19 +25,19 @@ spec:
       repository: ghcr.io/timblakely/llm-operator
       # Reviewed immutable image digest. Keep this promotion record in Git;
       # an image digest is deployment metadata, not a credential.
-      digest: sha256:56863a45d3c63d11eadb5d08330deb3ea7dc4e74b8ca399a38d0f9e858e6a596
+      digest: sha256:769442e1b753608d028e3c5774c7e36bef837696921d3c1d2e6a57ae5efdef74
     replicaCount: 2
     leaderElection:
       enabled: true
     transitions:
-      # Observation mode is a safety gate. Do not enable until Stage 3 passes.
-      enabled: false
+      # Non-production M5 handoff: the proxy mutation gate is disabled first.
+      enabled: true
+      canaryModels: ""
     metrics:
       service:
         enabled: true
     cacheManager:
-      # Cache operations are outside the observation-mode validation scope.
-      url: ""
+      url: http://cache-manager:8090
     resources:
       requests:
         cpu: 100m

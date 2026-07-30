@@ -11,6 +11,9 @@ spec:
     name: google/gemma-4-31B-it-qat-w4a16-ct
     source: google/gemma-4-31B-it-qat-w4a16-ct
     revision: 52f3f65bc7a02d555763bc923bd1d9094898219d
+  # An explicit hub artifact lets the operator issue a cache-manager ensure;
+  # the manager discovers the immutable inventory when it is not already hot.
+  artifact: {}
   serving:
     backend: vllm
     displayName: Gemma 4 31B IT QAT W4A16 (Google, Compressed Tensors)

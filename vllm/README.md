@@ -31,8 +31,8 @@ reported there instead of blocking valid CR-backed catalog entries.
 
 Before retiring a ConfigMap, compare the proxy `/v1/models` catalog and
 diagnostics with the matching CR resource, including model identity, backend,
-context limit, arguments, artifact metadata, and overlays. Keep
-`transitions.enabled=false` during this comparison; CR reads do not authorize
+context limit, arguments, artifact metadata, and overlays. The original
+comparison ran with transitions disabled; CR reads alone do not authorize
 backend or proxy workload changes.
 
 ## Accepted Gemma activation
@@ -44,11 +44,9 @@ The M4 catalog rollout intentionally activated the canonical Gemma backend.
 the hot cache artifact were verified during activation; Laguna remains scaled
 to zero and unchanged.
 
-The llm-operator active-model controller remains disabled. `vllm-proxy` is
-still the transition owner and is the component that materializes the selected
-model into the backend Deployment. The configured but absent
-`llm-llama-cpp` (llama-cpp-vanilla) Deployment still produces non-blocking
-proxy refresh warnings; resolve that separately from the accepted Gemma path.
+This describes the accepted M4 state; it was superseded by the M5 operator
+handoff below. The configured but absent `llm-llama-cpp` (llama-cpp-vanilla)
+Deployment still produces deferred proxy refresh warnings.
 
 ## Accepted non-production comparison
 
@@ -68,3 +66,23 @@ Fable Fusion and its three overlays are explicitly deferred: the legacy model
 uses unsupported `llama-cpp-vanilla` arguments and its required
 `llm-llama-cpp` backend is absent. Their diagnostic entries are expected until
 that independent backend/catalog issue is resolved.
+
+## M5 non-production transition handoff
+
+The M5 handoff is complete in the non-production cluster. The standalone
+`cache-manager` Deployment and Service are now in use; the proxy is configured
+with `CACHE_MANAGER_URL=http://cache-manager:8090` and no longer carries a
+cache-manager sidecar. The Hugging Face and Laguna hot caches remain hostpath
+`ReadWriteOnce` claims, so cache-manager and vLLM stay pinned to `iggy`.
+
+`ENABLE_DEPLOYMENT_MUTATIONS=false` leaves the proxy serving the CR-first
+catalog and overlays without patching backend Deployments. The operator owns
+the `LLMActiveModel/default` activation of canonical Gemma. The accepted result
+is a stable one-replica `llm-vllm`, a hot cache ensure, and
+`LLMBackend/vllm` phase `Serving`; Laguna remains at zero replicas.
+
+TODO: add runtime/container integration coverage for both successful and
+failed transitions, including cache-manager interaction, rollout readiness,
+and the handoff/rollback behavior. The configured but absent
+`llm-llama-cpp` (llama-cpp-vanilla) backend still produces deferred proxy
+refresh warnings and must be resolved separately.

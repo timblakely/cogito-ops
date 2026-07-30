@@ -160,6 +160,11 @@ type proxy struct {
 	transitionLimit time.Duration
 	maxBody         int64
 	cacheManager    *url.URL
+	// readOnlyTransitions keeps the catalog, overlay, and backend-observation
+	// paths live while preventing this proxy from changing Deployments. It is
+	// used for the operator handoff canary; false is deliberately the zero value
+	// so existing callers and tests retain the current transition behavior.
+	readOnlyTransitions bool
 
 	stateMu         sync.RWMutex
 	registry        registry
@@ -263,13 +268,14 @@ func main() {
 			"llama-cpp":         {Name: "llama-cpp", Deployment: env("LLAMA_DEPLOYMENT", "llm-laguna"), Container: env("LLAMA_CONTAINER", "laguna"), URL: llamaBackend},
 			"llama-cpp-vanilla": {Name: "llama-cpp-vanilla", Deployment: env("LLAMA_VANILLA_DEPLOYMENT", "llm-llama-cpp"), Container: env("LLAMA_VANILLA_CONTAINER", "llama-cpp"), URL: llamaVanillaBackend},
 		},
-		active:          env("DEFAULT_MODEL", ""),
-		publicBaseURL:   strings.TrimSuffix(env("PUBLIC_BASE_URL", "http://llm-proxy:8080/v1"), "/"),
-		httpClient:      &http.Client{Timeout: 15 * time.Second},
-		transitionLimit: durationEnv("TRANSITION_TIMEOUT", defaultTimeout),
-		cacheManager:    cacheManager,
-		maxBody:         int64Env("MAX_REQUEST_BODY_BYTES", defaultMaxBody),
-		startedAt:       time.Now(),
+		active:              env("DEFAULT_MODEL", ""),
+		publicBaseURL:       strings.TrimSuffix(env("PUBLIC_BASE_URL", "http://llm-proxy:8080/v1"), "/"),
+		httpClient:          &http.Client{Timeout: 15 * time.Second},
+		transitionLimit:     durationEnv("TRANSITION_TIMEOUT", defaultTimeout),
+		cacheManager:        cacheManager,
+		maxBody:             int64Env("MAX_REQUEST_BODY_BYTES", defaultMaxBody),
+		readOnlyTransitions: !boolEnv("ENABLE_DEPLOYMENT_MUTATIONS", true),
+		startedAt:           time.Now(),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -277,7 +283,11 @@ func main() {
 		logger.Warn("initial model registry load failed; will retry", "error", err)
 	}
 	cancel()
-	go p.reconcileActiveDeployment(logger)
+	if !p.readOnlyTransitions {
+		go p.reconcileActiveDeployment(logger)
+	} else {
+		logger.Info("deployment mutations disabled; proxy is serving catalog and overlays read-only")
+	}
 	go p.sweepCache(logger)
 	go p.watchConfigs(logger)
 	go p.watchLLMResources(logger)
@@ -975,7 +985,7 @@ func (p *proxy) watchLLMResource(logger *slog.Logger, gvr schema.GroupVersionRes
 				logger.Warn("refresh LLM resources", "kind", kind, "error", err)
 			}
 			cancel()
-			go p.reconcileActiveDeployment(logger)
+			p.reconcileIfMutable(logger)
 		}
 	}
 }
@@ -996,8 +1006,14 @@ func (p *proxy) watchConfigLabel(logger *slog.Logger, label, kind string) {
 				logger.Warn("refresh ConfigMaps", "kind", kind, "error", err)
 			}
 			cancel()
-			go p.reconcileActiveDeployment(logger)
+			p.reconcileIfMutable(logger)
 		}
+	}
+}
+
+func (p *proxy) reconcileIfMutable(logger *slog.Logger) {
+	if !p.readOnlyTransitions {
+		go p.reconcileActiveDeployment(logger)
 	}
 }
 
@@ -1535,6 +1551,9 @@ func deploymentNeedsActivation(deployment *appsv1.Deployment, container string, 
 // Helm-managed Deployment. Helm owns the pod template; Switchboard owns only
 // the selected model arguments and replica count.
 func (p *proxy) reconcileActiveDeployment(logger *slog.Logger) {
+	if p.readOnlyTransitions {
+		return
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), p.transitionLimit)
 	defer cancel()
 
@@ -1766,8 +1785,9 @@ func mergeDefaults(request, defaults map[string]any) {
 }
 
 var (
-	errTransitioning      = errors.New("model transition in progress")
-	errBackendUnavailable = errors.New("no active vLLM backend")
+	errTransitioning               = errors.New("model transition in progress")
+	errBackendUnavailable          = errors.New("no active vLLM backend")
+	errDeploymentMutationsDisabled = errors.New("model transitions are disabled")
 )
 
 func (p *proxy) ensureActive(ctx context.Context, requested string) error {
@@ -1776,6 +1796,10 @@ func (p *proxy) ensureActive(ctx context.Context, requested string) error {
 	if !exists {
 		p.stateMu.Unlock()
 		return fmt.Errorf("unknown model %q", requested)
+	}
+	if p.readOnlyTransitions && p.active != requested {
+		p.stateMu.Unlock()
+		return errDeploymentMutationsDisabled
 	}
 	if p.transitioning {
 		if p.transitionModel == requested {
@@ -1816,7 +1840,7 @@ func (p *proxy) ensureActive(ctx context.Context, requested string) error {
 		p.reconcilePending = false
 		p.stateMu.Unlock()
 		if pending {
-			go p.reconcileActiveDeployment(slog.Default())
+			p.reconcileIfMutable(slog.Default())
 		}
 	}()
 	started := time.Now()
@@ -1833,6 +1857,9 @@ func (p *proxy) ensureActive(ctx context.Context, requested string) error {
 }
 
 func (p *proxy) transition(parent context.Context, cfg modelConfig) error {
+	if p.readOnlyTransitions {
+		return errDeploymentMutationsDisabled
+	}
 	ctx, cancel := context.WithTimeout(parent, p.transitionLimit)
 	defer cancel()
 	target, err := p.backendFor(cfg)
@@ -2220,6 +2247,10 @@ func (p *proxy) respondTransitionError(w http.ResponseWriter, err error) {
 		openAIError(w, http.StatusNotFound, "model_not_found", err.Error())
 		return
 	}
+	if errors.Is(err, errDeploymentMutationsDisabled) {
+		openAIError(w, http.StatusConflict, "server_error", err.Error())
+		return
+	}
 	if errors.Is(err, errTransitioning) || errors.Is(err, errBackendUnavailable) {
 		w.Header().Set("Retry-After", "15")
 		openAIError(w, http.StatusServiceUnavailable, "server_error", err.Error())
@@ -2312,6 +2343,17 @@ func env(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+func boolEnv(key string, fallback bool) bool {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
 }
 func durationEnv(key string, fallback time.Duration) time.Duration {
 	if value, err := time.ParseDuration(os.Getenv(key)); err == nil && value > 0 {

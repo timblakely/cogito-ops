@@ -79,6 +79,31 @@ func TestReconcileActiveDeploymentCancelsStaleTransition(t *testing.T) {
 	}
 }
 
+func TestReadOnlyTransitionsDoNotReconcileDeployments(t *testing.T) {
+	zero := int32(0)
+	client := fake.NewSimpleClientset(&appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Name: "llm-vllm", Namespace: "home-infra"},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &zero,
+			Template: corev1.PodTemplateSpec{Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "vllm"}}}},
+		},
+	})
+	p := &proxy{
+		client:              client,
+		namespace:           "home-infra",
+		container:           "vllm",
+		active:              "gemma",
+		readOnlyTransitions: true,
+		backends:            map[string]backendConfig{"vllm": {Name: "vllm", Deployment: "llm-vllm", Container: "vllm"}},
+		registry:            registry{models: map[string]modelConfig{"gemma": {Name: "gemma", Backend: "vllm", ModelSource: "google/gemma"}}},
+	}
+
+	p.reconcileActiveDeployment(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if actions := client.Actions(); len(actions) != 0 {
+		t.Fatalf("read-only reconciliation made Kubernetes calls: %#v", actions)
+	}
+}
+
 func TestSyncActiveDeploymentPreservesInFlightTransition(t *testing.T) {
 	client := fake.NewSimpleClientset(&appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: "llm-vllm", Namespace: "home-infra"},
@@ -181,6 +206,23 @@ func TestEnsureActiveCancelsInFlightTransitionForRequestedModel(t *testing.T) {
 	}
 	if !p.reconcilePending {
 		t.Fatal("requested model was not queued for reconciliation")
+	}
+}
+
+func TestReadOnlyTransitionsServeActiveAndRejectInactiveModels(t *testing.T) {
+	p := &proxy{
+		active:              "gemma",
+		readOnlyTransitions: true,
+		registry: registry{models: map[string]modelConfig{
+			"gemma": {Name: "gemma"},
+			"qwen":  {Name: "qwen"},
+		}},
+	}
+	if err := p.ensureActive(context.Background(), "gemma"); err != nil {
+		t.Fatalf("active model was rejected in read-only mode: %v", err)
+	}
+	if err := p.ensureActive(context.Background(), "qwen"); !errors.Is(err, errDeploymentMutationsDisabled) {
+		t.Fatalf("inactive model error = %v, want %v", err, errDeploymentMutationsDisabled)
 	}
 }
 
