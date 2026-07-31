@@ -1,7 +1,7 @@
 # llm-operator
 
 Flux installs the operator from the pinned OCI chart in `app/repo.yaml`. It
-started in observation mode and now owns the completed M5/M6
+started in observation mode and now owns the completed M5–M7
 non-production control plane:
 
 - the controller image is digest-only;
@@ -42,6 +42,11 @@ M6 completed the CR-only catalog: legacy model/overlay ConfigMaps were deleted,
 the proxy has read-only Deployment access, and runtime/model-card observations
 are retained only in `llm-model-status` using ConfigMap-safe CR-source keys.
 
+M7 validated the registered Laguna llama.cpp backend: its GGUF artifacts were
+already hot, the operator transitioned from vLLM Gemma in about 40 seconds,
+the proxy served a completion, and `LLMBackend/laguna` converged to `Serving`.
+Laguna is the current active backend; vLLM is scaled to zero.
+
 ## Remaining follow-up
 
 1. TODO: add runtime/container integration coverage for successful and failed
@@ -51,8 +56,5 @@ are retained only in `llm-model-status` using ConfigMap-safe CR-source keys.
    production cutover.
 3. Potential TODO: wire the opt-in admission webhook to certificate-managed
    TLS and validate rejection end-to-end before production use.
-4. Potential TODO: make the registered but stopped Laguna llama.cpp backend a
-   live CR-backed serving path, then validate discovery, cache behavior,
-   health, and an operator-owned transition.
-5. Potential TODO: add additional backend instances, such as SGLang, through
+4. Potential TODO: add additional backend instances, such as SGLang, through
    the same CRD and GitOps workflow.

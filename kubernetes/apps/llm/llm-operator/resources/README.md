@@ -9,9 +9,10 @@ completed a stable operator-owned Gemma activation, and M6 retired the legacy
 ConfigMap catalog. The active CR set is reconciled through Flux.
 
 The inventory supports two backends (`llm-vllm` and `laguna`), four valid
-models, the Gemma overlay, and `LLMActiveModel/default` for canonical Gemma.
-The non-production M5 handoff is complete: the operator owns Gemma activation,
-the proxy is read-only, and cache-manager reports Gemma hot.
+models, the Gemma overlay, and `LLMActiveModel/default`. M7 completed the
+operator-owned transition to `poolside/Laguna-S-2.1`: Laguna is Serving, the
+proxy is read-only, and cache-manager reported the GGUF artifacts hot. vLLM is
+currently scaled to zero.
 
 The Fable Fusion model and its three overlays are intentionally absent from the
 CR catalog. Their legacy ConfigMaps were retired in M6; reintroduce them only

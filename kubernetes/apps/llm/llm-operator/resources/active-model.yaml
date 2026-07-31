@@ -1,10 +1,10 @@
 ---
-# Non-production M5 handoff: the read-only proxy no longer owns deployment
-# mutation, so the operator reconciles the currently selected Gemma model.
+# Non-production llama.cpp validation: the operator switches from the stable
+# vLLM Gemma path to the registered, cache-hot Laguna backend.
 apiVersion: llm.cogito.dev/v1alpha1
 kind: LLMActiveModel
 metadata:
   name: default
   namespace: llm
 spec:
-  modelName: google/gemma-4-31B-it-qat-w4a16-ct
+  modelName: poolside/Laguna-S-2.1

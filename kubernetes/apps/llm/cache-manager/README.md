@@ -9,7 +9,8 @@ cache metrics.
 Deployment must remain a single `Recreate` replica on `iggy`, colocated with
 vLLM. Moving it to another node risks an RWO mount failure.
 
-The proxy runs with `ENABLE_DEPLOYMENT_MUTATIONS=false`; the operator owns the
-canonical Gemma activation and has verified a hot cache ensure through this
-Service. TODO: add runtime/container integration coverage for successful and
+The proxy runs with `ENABLE_DEPLOYMENT_MUTATIONS=false`; the operator owns
+activation and has verified hot cache ensures for both Gemma and the active
+Laguna llama.cpp artifacts through this Service. TODO: add runtime/container
+integration coverage for successful and
 failed transitions, including cache-manager behavior and rollback.
