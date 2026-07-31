@@ -1,10 +1,14 @@
 ---
-# Non-production llama.cpp validation: the operator switches from the stable
-# vLLM Gemma path to the registered, cache-hot Laguna backend.
+# Bootstrap selection for a new cluster. In a running cluster, the proxy may
+# request a model through this CR and the operator performs the transition.
 apiVersion: llm.cogito.dev/v1alpha1
 kind: LLMActiveModel
 metadata:
   name: default
   namespace: llm
+  annotations:
+    # The proxy requests model changes here; the operator owns workload
+    # mutation. Flux creates this singleton but must not reset runtime choices.
+    kustomize.toolkit.fluxcd.io/ssa: IfNotPresent
 spec:
-  modelName: poolside/Laguna-S-2.1
+  modelName: google/gemma-4-31B-it-qat-w4a16-ct

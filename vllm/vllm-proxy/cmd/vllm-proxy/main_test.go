@@ -219,20 +219,36 @@ func TestEnsureActiveCancelsInFlightTransitionForRequestedModel(t *testing.T) {
 	}
 }
 
-func TestReadOnlyTransitionsServeActiveAndRejectInactiveModels(t *testing.T) {
+func TestReadOnlyTransitionsRequestOperatorHandoffForInactiveModels(t *testing.T) {
+	active := activeModelObject(activeModelName, "gemma")
 	p := &proxy{
-		active:              "gemma",
 		readOnlyTransitions: true,
-		registry: registry{models: map[string]modelConfig{
-			"gemma": {Name: "gemma"},
-			"qwen":  {Name: "qwen"},
-		}},
+		namespace:           "home-infra",
+		dynamic:             newLLMDynamicClient(active),
 	}
-	if err := p.ensureActive(context.Background(), "gemma"); err != nil {
-		t.Fatalf("active model was rejected in read-only mode: %v", err)
+	if err := p.requestOperatorTransition(context.Background(), "qwen"); err != nil {
+		t.Fatal(err)
 	}
-	if err := p.ensureActive(context.Background(), "qwen"); !errors.Is(err, errDeploymentMutationsDisabled) {
-		t.Fatalf("inactive model error = %v, want %v", err, errDeploymentMutationsDisabled)
+	got, err := p.dynamic.Resource(activeModelGVR).Namespace("home-infra").Get(context.Background(), activeModelName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	modelName, _, err := unstructured.NestedString(got.Object, "spec", "modelName")
+	if err != nil || modelName != "qwen" {
+		t.Fatalf("requested active model = %q, err = %v", modelName, err)
+	}
+}
+
+func TestWaitForOperatorTransitionReturnsWhenStable(t *testing.T) {
+	active := activeModelObject(activeModelName, "qwen")
+	active.Object["status"] = map[string]any{"modelName": "qwen", "phase": "Stable"}
+	p := &proxy{
+		namespace:       "home-infra",
+		dynamic:         newLLMDynamicClient(active),
+		transitionLimit: time.Second,
+	}
+	if err := p.waitForOperatorTransition(context.Background(), "qwen"); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -255,16 +271,27 @@ func llmOverlayObject(name, base string) *unstructured.Unstructured {
 	}}
 }
 
+func activeModelObject(name, modelName string) *unstructured.Unstructured {
+	return &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "llm.cogito.dev/v1alpha1", "kind": "LLMActiveModel",
+		"metadata": map[string]any{"name": name, "namespace": "home-infra"},
+		"spec":     map[string]any{"modelName": modelName},
+	}}
+}
+
 func newLLMDynamicClient(objects ...runtime.Object) *dynamicfake.FakeDynamicClient {
 	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), map[schema.GroupVersionResource]string{
-		llmModelGVR:   "LLMModelList",
-		llmOverlayGVR: "LLMModelOverlayList",
+		llmModelGVR:    "LLMModelList",
+		llmOverlayGVR:  "LLMModelOverlayList",
+		activeModelGVR: "LLMActiveModelList",
 	})
 	for _, object := range objects {
 		item := object.(*unstructured.Unstructured)
 		gvr := llmModelGVR
 		if item.GetKind() == "LLMModelOverlay" {
 			gvr = llmOverlayGVR
+		} else if item.GetKind() == "LLMActiveModel" {
+			gvr = activeModelGVR
 		}
 		if _, err := client.Resource(gvr).Namespace(item.GetNamespace()).Create(context.Background(), item, metav1.CreateOptions{}); err != nil {
 			panic(err)

@@ -45,11 +45,13 @@ const (
 	defaultTimeout   = 30 * time.Minute
 	defaultSweep     = 10 * time.Minute
 	backendProbeWait = 2 * time.Second
+	activeModelName  = "default"
 )
 
 var (
-	llmModelGVR   = schema.GroupVersionResource{Group: "llm.cogito.dev", Version: "v1alpha1", Resource: "llmmodels"}
-	llmOverlayGVR = schema.GroupVersionResource{Group: "llm.cogito.dev", Version: "v1alpha1", Resource: "llmmodeloverlays"}
+	llmModelGVR    = schema.GroupVersionResource{Group: "llm.cogito.dev", Version: "v1alpha1", Resource: "llmmodels"}
+	llmOverlayGVR  = schema.GroupVersionResource{Group: "llm.cogito.dev", Version: "v1alpha1", Resource: "llmmodeloverlays"}
+	activeModelGVR = schema.GroupVersionResource{Group: "llm.cogito.dev", Version: "v1alpha1", Resource: "llmactivemodels"}
 )
 
 type modelConfig struct {
@@ -1543,9 +1545,21 @@ func (p *proxy) ensureActive(ctx context.Context, requested string) error {
 		p.stateMu.Unlock()
 		return fmt.Errorf("unknown model %q", requested)
 	}
-	if p.readOnlyTransitions && p.active != requested {
+	if p.readOnlyTransitions {
 		p.stateMu.Unlock()
-		return errDeploymentMutationsDisabled
+		statusModel, phase, err := p.operatorTransitionState(ctx)
+		if err != nil {
+			return err
+		}
+		if statusModel != cfg.Name || phase != "Stable" {
+			if err := p.requestOperatorTransition(ctx, cfg.Name); err != nil {
+				return err
+			}
+			if err := p.waitForOperatorTransition(ctx, cfg.Name); err != nil {
+				return err
+			}
+		}
+		return p.syncActiveDeployment(ctx)
 	}
 	if p.transitioning {
 		if p.transitionModel == requested {
@@ -1600,6 +1614,60 @@ func (p *proxy) ensureActive(ctx context.Context, requested string) error {
 	p.activeSince = time.Now()
 	p.stateMu.Unlock()
 	return nil
+}
+
+// requestOperatorTransition keeps the proxy read-only with respect to
+// workloads. It changes only the desired LLMActiveModel; the operator remains
+// the sole component that mutates backend Deployments.
+func (p *proxy) requestOperatorTransition(ctx context.Context, modelName string) error {
+	if p.dynamic == nil {
+		return errDeploymentMutationsDisabled
+	}
+	patch, err := json.Marshal(map[string]any{"spec": map[string]string{"modelName": modelName}})
+	if err != nil {
+		return err
+	}
+	if _, err := p.dynamic.Resource(activeModelGVR).Namespace(p.namespace).Patch(ctx, activeModelName, types.MergePatchType, patch, metav1.PatchOptions{FieldManager: "llm-proxy"}); err != nil {
+		return fmt.Errorf("request operator transition to %q: %w", modelName, err)
+	}
+	return nil
+}
+
+// waitForOperatorTransition preserves the proxy's synchronous model-selection
+// contract while leaving workload mutation to the operator. A request holds
+// until the ActiveModel controller reports the selected model stable.
+func (p *proxy) waitForOperatorTransition(parent context.Context, modelName string) error {
+	ctx, cancel := context.WithTimeout(parent, p.transitionLimit)
+	defer cancel()
+	ticker := time.NewTicker(backendProbeWait)
+	defer ticker.Stop()
+	for {
+		statusModel, phase, err := p.operatorTransitionState(ctx)
+		if err != nil {
+			return err
+		}
+		if statusModel == modelName && phase == "Stable" {
+			return nil
+		}
+		if statusModel == modelName && phase == "Failed" {
+			return fmt.Errorf("operator transition to %q failed", modelName)
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("wait for operator transition to %q: %w", modelName, ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+func (p *proxy) operatorTransitionState(ctx context.Context) (string, string, error) {
+	active, err := p.dynamic.Resource(activeModelGVR).Namespace(p.namespace).Get(ctx, activeModelName, metav1.GetOptions{})
+	if err != nil {
+		return "", "", fmt.Errorf("read operator ActiveModel: %w", err)
+	}
+	modelName, _, _ := unstructured.NestedString(active.Object, "status", "modelName")
+	phase, _, _ := unstructured.NestedString(active.Object, "status", "phase")
+	return modelName, phase, nil
 }
 
 func (p *proxy) transition(parent context.Context, cfg modelConfig) error {

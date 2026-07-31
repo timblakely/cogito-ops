@@ -10,9 +10,10 @@ ConfigMap catalog. The active CR set is reconciled through Flux.
 
 The inventory supports two backends (`llm-vllm` and `laguna`), four valid
 models, the Gemma overlay, and `LLMActiveModel/default`. M7 completed the
-operator-owned transition to `poolside/Laguna-S-2.1`: Laguna is Serving, the
-proxy is read-only, and cache-manager reported the GGUF artifacts hot. vLLM is
-currently scaled to zero.
+operator-owned transition to `poolside/Laguna-S-2.1`: Laguna served through
+the read-only proxy and cache-manager reported the GGUF artifacts hot. M8 then
+validated proxy-requested Qwen and Gemma transitions; Gemma/vLLM is currently
+Serving and Laguna is scaled to zero.
 
 The Fable Fusion model and its three overlays are intentionally absent from the
 CR catalog. Their legacy ConfigMaps were retired in M6; reintroduce them only

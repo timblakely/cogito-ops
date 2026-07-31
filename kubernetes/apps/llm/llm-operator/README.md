@@ -45,7 +45,10 @@ are retained only in `llm-model-status` using ConfigMap-safe CR-source keys.
 M7 validated the registered Laguna llama.cpp backend: its GGUF artifacts were
 already hot, the operator transitioned from vLLM Gemma in about 40 seconds,
 the proxy served a completion, and `LLMBackend/laguna` converged to `Serving`.
-Laguna is the current active backend; vLLM is scaled to zero.
+M8 then validated proxy-to-operator model selection with Qwen and Gemma: the
+proxy requests `LLMActiveModel/default`, waits for the operator transition,
+and serves the original request. Gemma/vLLM is currently active; Laguna is
+scaled to zero.
 
 ## Remaining follow-up
 

@@ -24,3 +24,13 @@ Deployment or status ConfigMap.
 
 The proxy runs with deployment mutations disabled during observation. Its
 remaining Deployment access is read-only so it can report the serving backend.
+
+## M8 model-selection handoff
+
+For a request targeting a non-active model, the proxy patches only
+`LLMActiveModel/default`; the operator performs the cache, Deployment, and
+health workflow. The proxy waits for `LLMActiveModel/default` to report
+`Stable`, then serves the original request; a transition failure or request
+timeout is returned to the client. The proxy has no Deployment patch
+permission. Flux creates the ActiveModel singleton but leaves runtime
+selections intact.

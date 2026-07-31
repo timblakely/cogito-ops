@@ -124,7 +124,7 @@ spec:
           proxy:
             image:
               repository: ghcr.io/timblakely/vllm-proxy
-              tag: m6-status-keys-20260730.1
+              tag: m8-status-handoff-20260731.1
             env:
               BACKEND_URL: http://llm-vllm:8000
               LLAMA_BACKEND_URL: http://laguna:8000
@@ -251,8 +251,8 @@ spec:
                 - watch
             - apiGroups:
                 - llm.cogito.dev
-              # Read-only catalog access. The llm-operator is the sole
-              # reconciler of LLMModel, LLMModelOverlay, and backend state.
+              # Read-only catalog access. The proxy may request an active-model
+              # change, but the llm-operator is the sole workload reconciler.
               resources:
                 - llmmodels
                 - llmmodeloverlays
@@ -260,6 +260,15 @@ spec:
                 - get
                 - list
                 - watch
+            - apiGroups:
+                - llm.cogito.dev
+              resources:
+                - llmactivemodels
+              resourceNames:
+                - default
+              verbs:
+                - get
+                - patch
       bindings:
         proxy:
           type: RoleBinding
