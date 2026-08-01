@@ -50,6 +50,23 @@ proxy requests `LLMActiveModel/default`, waits for the operator transition,
 and serves the original request. Gemma/vLLM is currently active; Laguna is
 scaled to zero.
 
+## M9 — managed serving templates
+
+M9 is complete for the Qwen/vLLM scope. `LLMModel.spec.serving.chatTemplate` selects a
+same-namespace, digest-pinned ConfigMap key. The operator validates the bytes,
+mounts the selected template only in the runtime container, and passes the
+backend-specific launch flag. The ConfigMap remains GitOps-owned; the operator
+never fetches upstream template content.
+
+The first use is Qwen 3.6. The vendored froggeric v21.3 template is recorded
+with its upstream URL/revision and content digest in
+`resources/kustomization.yaml`. Qwen retains `toolCallParser: qwen3_coder`.
+Cogito validated chart `0.1.9` and manager image
+`sha256:5f141b6db574191ed23fc2f73c7dc27839eb3fa98d4d8245a879cd9a9bcac44f`:
+the live pod has the expected mount, digest annotation, and vLLM argument. The
+captured Pi request returned a structured `bash` tool call, and its post-tool
+response completed normally.
+
 ## Remaining follow-up
 
 1. TODO: add runtime/container integration coverage for successful and failed
@@ -61,3 +78,6 @@ scaled to zero.
    TLS and validate rejection end-to-end before production use.
 4. Potential TODO: add additional backend instances, such as SGLang, through
    the same CRD and GitOps workflow.
+5. M9 TODO: add a Gemma regression fixture before any Gemma template update,
+   verify the deployed llama.cpp template flags, and evaluate SGLang support
+   before enabling templates for either backend.

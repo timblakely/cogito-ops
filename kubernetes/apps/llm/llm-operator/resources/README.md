@@ -21,3 +21,14 @@ after defining a supported backend and valid model arguments as reviewed CRs.
 
 TODO: add runtime/container integration coverage for both successful and
 failed transitions, including cache-manager ensure behavior and rollback.
+
+## Managed templates (M9)
+
+`kustomization.yaml` generates `qwen-fixed-chat-template` without a name
+suffix because `LLMModel.spec.serving.chatTemplate` references its stable name.
+The ConfigMap annotation and Qwen CR both pin the SHA-256 of the rendered file.
+Update the vendored file, annotation, and CR digest together in one reviewed
+change; do not use a request-level template override or allow the runtime to
+fetch upstream content. Qwen keeps the `qwen3_coder` parser. The M9 rollout
+validated this template against the captured Pi request: it returned a
+structured `bash` tool call and completed the supplied tool-result turn.

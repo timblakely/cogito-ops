@@ -111,6 +111,12 @@ spec:
     backend: vllm
     displayName: Qwen 3.6 27B INT4 AutoRound
     maxModelLen: 262144
+    toolCallParser: qwen3_coder
+    chatTemplate:
+      configMapKeyRef:
+        name: qwen-fixed-chat-template
+        key: chat_template.jinja
+      sha256: a56322d9a2b8b3f893f80ce1acd6eab3f07379bbd4a1f98332d570abbfddfedd
     args:
       - --disable-custom-all-reduce
       - --quantization
@@ -137,8 +143,6 @@ spec:
       - --default-chat-template-kwargs
       - '{"enable_thinking": false}'
       - --enable-auto-tool-choice
-      - --tool-call-parser
-      - qwen3_coder
       - --enable-prefix-caching
       - --enable-chunked-prefill
       - --speculative-config
