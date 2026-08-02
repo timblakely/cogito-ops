@@ -1,0 +1,83 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/refs/tags/app-template-4.6.0/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: deepseek-v4-flash
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+    namespace: flux-system
+  driftDetection:
+    mode: enabled
+    ignore:
+      - paths:
+          - /spec/replicas
+          - /spec/template/metadata/annotations/llm.cogito.dev~1active-model
+          - /spec/template/metadata/annotations/llm.cogito.dev~1switched-at
+          - /spec/template/spec/containers/0/args
+        target:
+          group: apps
+          version: v1
+          kind: Deployment
+          name: deepseek-v4-flash
+  install:
+    disableWait: true
+    timeout: 45m
+    remediation: {retries: 3}
+  upgrade:
+    disableWait: true
+    timeout: 45m
+    cleanupOnFail: true
+    remediation: {retries: 3}
+  values:
+    controllers:
+      deepseek-v4-flash:
+        # The operator scales this only when the DeepSeek model is selected.
+        replicas: 0
+        strategy: Recreate
+        pod:
+          automountServiceAccountToken: false
+          annotations:
+            llm.cogito.dev/active-model: deepseek-ai/DeepSeek-V4-Flash-0731
+          nodeSelector:
+            kubernetes.io/hostname: iggy
+          runtimeClassName: nvidia
+        containers:
+          deepseek-v4-flash:
+            # b10223 (11924d4c) includes the DeepSeek-V4 template and response
+            # parser fixes introduced in b10093. Pin the reviewed manifest
+            # index rather than following the mutable CUDA 13 tag.
+            image:
+              repository: ghcr.io/ggml-org/llama.cpp
+              tag: server-cuda13@sha256:2ac50c8a47cc06134b11774c33f91397e81ab832d4b7b22537fc64656261c709
+              pullPolicy: IfNotPresent
+            resources:
+              # The model itself is 117 GiB; llama.cpp needs additional RAM for
+              # buffers and hybrid MoE execution. iggy exposes ~123 GiB.
+              requests: {cpu: "22", memory: 118Gi}
+              limits:
+                cpu: "24"
+                memory: 120Gi
+                nvidia.com/gpu: 2
+    service:
+      deepseek-v4-flash:
+        controller: deepseek-v4-flash
+        ports:
+          http: {port: 8000}
+    persistence:
+      models:
+        type: persistentVolumeClaim
+        annotations:
+          kustomize.toolkit.fluxcd.io/prune: disabled
+        accessMode: ReadWriteOnce
+        storageClass: openebs-hostpath
+        # The UD-IQ3_S shards total 117 GiB. Keep space for cache-manager
+        # metadata and an interrupted/download-retry artifact.
+        size: 140Gi
+        advancedMounts:
+          deepseek-v4-flash:
+            deepseek-v4-flash:
+              - path: /models

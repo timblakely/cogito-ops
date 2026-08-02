@@ -207,3 +207,62 @@ spec:
       - "15"
       - --override-tensor
       - 'blk\.(26|27|28|29|30|31|32|33|34|35|36)\.ffn_(down|gate|up)_exps\.weight=CUDA0,blk\.(37|38|39|40|41|42|43|44|45|46|47)\.ffn_(down|gate|up)_exps\.weight=CUDA1,ffn_(down|gate|up)_exps\.weight=CPU'
+---
+apiVersion: llm.cogito.dev/v1alpha1
+kind: LLMModel
+metadata:
+  name: deepseek-v4-flash-0731-ud-iq3-s
+  namespace: llm
+spec:
+  backendRef:
+    name: deepseek-v4-flash
+  model:
+    name: deepseek-ai/DeepSeek-V4-Flash-0731
+    source: /models/deepseek-v4-flash/DeepSeek-V4-Flash-UD-IQ3_S-00001-of-00004.gguf
+    # Pin the Unsloth GGUF inventory rather than the mutable main branch.
+    revision: 525e9fec5480b7ca96539c8dc1e8f1ec54047605
+    artifactRepository: unsloth/DeepSeek-V4-Flash-GGUF
+  artifact:
+    expectedSize: 117Gi
+    files:
+      - UD-IQ3_S/DeepSeek-V4-Flash-UD-IQ3_S-00001-of-00004.gguf
+      - UD-IQ3_S/DeepSeek-V4-Flash-UD-IQ3_S-00002-of-00004.gguf
+      - UD-IQ3_S/DeepSeek-V4-Flash-UD-IQ3_S-00003-of-00004.gguf
+      - UD-IQ3_S/DeepSeek-V4-Flash-UD-IQ3_S-00004-of-00004.gguf
+  serving:
+    backend: llama-cpp
+    displayName: DeepSeek V4 Flash 0731 UD-IQ3_S (llama.cpp hybrid MoE)
+    maxModelLen: 143360
+    args:
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --jinja
+      - --ctx-size
+      - "143360"
+      - --parallel
+      - "1"
+      - -t
+      - "22"
+      - -ngl
+      - "999"
+      # The fitter maximizes VRAM residency while retaining a 140k context and
+      # one GiB of headroom per GPU. The remaining expert tensors use system RAM.
+      - --fit
+      - "on"
+      - --fit-ctx
+      - "143360"
+      - --fit-target
+      - "1024"
+      - --n-cpu-moe
+      - "39"
+      - --split-mode
+      - layer
+      - --flash-attn
+      - "on"
+      - --cache-type-k
+      - q8_0
+      - --cache-type-v
+      - q8_0
+      - --no-mmap

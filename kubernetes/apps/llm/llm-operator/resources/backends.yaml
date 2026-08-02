@@ -38,3 +38,25 @@ spec:
       nvidia.com/gpu: "2"
     limits:
       nvidia.com/gpu: "2"
+---
+apiVersion: llm.cogito.dev/v1alpha1
+kind: LLMBackend
+metadata:
+  name: deepseek-v4-flash
+  namespace: llm
+spec:
+  # DeepSeek V4 needs current llama.cpp support for its architecture and
+  # DSpark weights. Keep it isolated from the pinned Laguna runtime.
+  type: llama-cpp
+  deploymentRef:
+    name: deepseek-v4-flash
+  containerName: deepseek-v4-flash
+  serviceRef:
+    name: deepseek-v4-flash
+  port: 8000
+  runtimeClassName: nvidia
+  gpuResources:
+    requests:
+      nvidia.com/gpu: "2"
+    limits:
+      nvidia.com/gpu: "2"
