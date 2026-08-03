@@ -245,20 +245,18 @@ spec:
       - "143360"
       - --parallel
       - "1"
-      - -t
+      # Benchmark canary: let llama.cpp fit layer and expert placement while
+      # reserving one GiB on each GPU. Keep the working 143,360-token Q8 KV.
+      - --threads
+      - "12"
+      - --threads-batch
       - "22"
-      - -ngl
-      - "999"
-      # The fitter maximizes VRAM residency while retaining a 140k context and
-      # one GiB of headroom per GPU. The remaining expert tensors use system RAM.
       - --fit
       - "on"
       - --fit-ctx
       - "143360"
       - --fit-target
-      - "1024"
-      - --n-cpu-moe
-      - "37"
+      - "1024,1024"
       - --split-mode
       - layer
       - --flash-attn
@@ -267,4 +265,8 @@ spec:
       - q8_0
       - --cache-type-v
       - q8_0
+      - --batch-size
+      - "4096"
+      - --ubatch-size
+      - "1024"
       - --no-mmap
