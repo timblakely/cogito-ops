@@ -6,8 +6,9 @@ KV cache. Measurements use the first request in the retained Pi capture
 through the production proxy, with a 128-token completion cap. llama.cpp
 rendered 10,330 prompt tokens after its chat/tool template (the captured
 surrogate is labelled 18,067 tokens). Server prompt/decode timing is the
-reproducible comparison metric; clean-client TTFT is collected for the final
-retained configuration separately.
+reproducible comparison metric. The final retained-37 clean-client run returned
+HTTP 200 with TTFT **265.097 s** and 125 completion tokens in 273.955 s
+(14.112 client-observed completion tok/s).
 
 | `n_cpu_moe` | Placement | PP tok/s | Decode tok/s | GPU0 used/free MiB | GPU1 used/free MiB | Host RSS GiB | Result |
 | ---: | --- | ---: | ---: | --- | --- | ---: | --- |
