@@ -38,10 +38,9 @@ spec:
           cache-manager:
             image:
               repository: ghcr.io/timblakely/llm-cache-manager
-              tag: model-cache-20260727-opt3
+              tag: shared-cache-20260802.1@sha256:2990176abc04777860f61c70ebacf5d74c4bf6aad943d1db0fe5daa5b13884e9
             env:
-              CACHE_HOT_VLLM: /cache/vllm
-              CACHE_HOT_LAGUNA: /cache/laguna
+              CACHE_HOT_ROOT: /cache/hot
               CACHE_COLD: /cold/llm-cache
               CACHE_SWEEP_INTERVAL: 10m
               HF_TOKEN:
@@ -82,14 +81,7 @@ spec:
         advancedMounts:
           cache-manager:
             cache-manager:
-              - path: /cache/vllm
-      laguna-models:
-        type: persistentVolumeClaim
-        existingClaim: laguna
-        advancedMounts:
-          cache-manager:
-            cache-manager:
-              - path: /cache/laguna
+              - path: /cache/hot
       cold-model-cache:
         type: nfs
         server: nuglab-storage.internal

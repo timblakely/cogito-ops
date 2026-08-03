@@ -68,8 +68,9 @@ spec:
           kustomize.toolkit.fluxcd.io/prune: disabled
         accessMode: ReadWriteOnce
         storageClass: openebs-hostpath
-        size: 100Gi
+        existingClaim: llm-huggingface-cache
         advancedMounts:
           laguna:
             laguna:
               - path: /models
+                subPath: gguf
