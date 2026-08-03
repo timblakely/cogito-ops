@@ -73,11 +73,9 @@ spec:
         annotations:
           kustomize.toolkit.fluxcd.io/prune: disabled
         accessMode: ReadWriteOnce
-        storageClass: openebs-hostpath
-        # The UD-IQ3_S shards total 117 GiB. Keep space for cache-manager
-        # metadata and an interrupted/download-retry artifact.
-        size: 140Gi
+        existingClaim: llm-huggingface-cache
         advancedMounts:
           deepseek-v4-flash:
             deepseek-v4-flash:
               - path: /models
+                subPath: gguf
