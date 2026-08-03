@@ -104,6 +104,42 @@ func TestMaterializeFileArtifactUsesRequestedTarget(t *testing.T) {
 	}
 }
 
+func TestMaterializeFileArtifactRewritesNestedBlobSymlinks(t *testing.T) {
+	artifact, hot := t.TempDir(), t.TempDir()
+	blob := filepath.Join(artifact, "blobs", "digest")
+	if err := os.MkdirAll(filepath.Dir(blob), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := []byte("DeepSeek shard")
+	if err := os.WriteFile(blob, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	payload := filepath.Join(artifact, "payload", "files", "UD-IQ3_S", "model.gguf")
+	if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("../../../blobs/digest", payload); err != nil {
+		t.Fatal(err)
+	}
+	manifest := artifactManifest{Files: []artifactFile{{Path: "files/UD-IQ3_S/model.gguf", SymlinkTo: "../../../blobs/digest"}}}
+	m := &cacheManager{}
+	spec := cacheSpec{Kind: "huggingface-files", MaterializationTarget: "gguf/deepseek-v4-flash"}
+	if err := m.materialize(cacheRequest{Cache: spec}, artifact, hot, manifest); err != nil {
+		t.Fatal(err)
+	}
+	model := filepath.Join(hot, "gguf", "deepseek-v4-flash", "UD-IQ3_S", "model.gguf")
+	if target, err := os.Readlink(model); err != nil || target != "../../../blobs/digest" {
+		t.Fatalf("materialized symlink = (%q, %v), want ../../../blobs/digest", target, err)
+	}
+	got, err := os.ReadFile(model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(body) {
+		t.Fatalf("materialized %q, want %q", got, body)
+	}
+}
+
 func TestFileCacheTargetValidation(t *testing.T) {
 	base := cacheRequest{Model: "model", Backend: "llama-cpp", Cache: cacheSpec{
 		Kind: "huggingface-files", RepoID: "example/model", Revision: "0123456789012345678901234567890123456789", Size: 1, Files: []string{"model.gguf"},

@@ -700,10 +700,35 @@ func (m *cacheManager) materialize(r cacheRequest, artifact, hot string, manifes
 			if err != nil || target != file.SymlinkTo {
 				return fmt.Errorf("verify symlink %s", file.Path)
 			}
+			// Hugging Face snapshots link files into their local blob store.  A
+			// materialized model lives at a different depth, so preserve the blob
+			// once under the shared hot root and derive a new relative link from
+			// its final location.
+			sourceBlob := filepath.Clean(filepath.Join(filepath.Dir(from), target))
+			artifactRelative, err := filepath.Rel(artifact, sourceBlob)
+			if err != nil || artifactRelative == ".." || strings.HasPrefix(artifactRelative, ".."+string(filepath.Separator)) {
+				return fmt.Errorf("invalid symlink target for %s", file.Path)
+			}
+			info, err := os.Stat(sourceBlob)
+			if err != nil || !info.Mode().IsRegular() {
+				return fmt.Errorf("resolve symlink %s", file.Path)
+			}
+			hotBlob := filepath.Join(hot, "blobs", filepath.Base(sourceBlob))
+			if _, err := os.Lstat(hotBlob); os.IsNotExist(err) {
+				if err := copyAndVerify(sourceBlob, hotBlob, artifactFile{Path: file.Path, Size: info.Size()}); err != nil {
+					return err
+				}
+			} else if err != nil {
+				return err
+			}
 			if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
 				return err
 			}
-			if err := os.Symlink(target, to); err != nil {
+			hotTarget, err := filepath.Rel(filepath.Dir(to), hotBlob)
+			if err != nil {
+				return err
+			}
+			if err := os.Symlink(hotTarget, to); err != nil {
 				return err
 			}
 			continue
