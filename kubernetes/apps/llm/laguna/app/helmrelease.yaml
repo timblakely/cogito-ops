@@ -64,10 +64,6 @@ spec:
     persistence:
       models:
         type: persistentVolumeClaim
-        annotations:
-          kustomize.toolkit.fluxcd.io/prune: disabled
-        accessMode: ReadWriteOnce
-        storageClass: openebs-hostpath
         existingClaim: llm-huggingface-cache
         advancedMounts:
           laguna:

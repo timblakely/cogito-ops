@@ -70,9 +70,6 @@ spec:
     persistence:
       models:
         type: persistentVolumeClaim
-        annotations:
-          kustomize.toolkit.fluxcd.io/prune: disabled
-        accessMode: ReadWriteOnce
         existingClaim: llm-huggingface-cache
         advancedMounts:
           deepseek-v4-flash:
