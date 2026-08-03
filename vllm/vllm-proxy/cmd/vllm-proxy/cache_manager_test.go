@@ -182,6 +182,56 @@ func TestCopyHuggingFaceFileRewritesBlobLinkForDestinationDepth(t *testing.T) {
 	}
 }
 
+func TestEnsureRepairsCompletedHotArtifactWithNestedBrokenLink(t *testing.T) {
+	hot := t.TempDir()
+	cache := cacheSpec{
+		Kind:                  "huggingface-files",
+		RepoID:                "example/deepseek",
+		Revision:              "0123456789012345678901234567890123456789",
+		Size:                  1,
+		Files:                 []string{"UD-IQ3_S/model.gguf"},
+		MaterializationTarget: "gguf/deepseek-v4-flash",
+	}
+	request := cacheRequest{Model: "deepseek", Backend: "llama-cpp", Cache: cache}
+	key := cacheKey(cache)
+	blob := filepath.Join(hot, "blobs", "digest")
+	if err := os.MkdirAll(filepath.Dir(blob), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(blob, []byte("model bytes"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	model := filepath.Join(hot, "gguf", "deepseek-v4-flash", "UD-IQ3_S", "model.gguf")
+	if err := os.MkdirAll(filepath.Dir(model), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// This is the previously emitted fixed-depth link. It escapes the gguf
+	// mount and os.Stat therefore fails, while the completed hot marker remains.
+	if err := os.Symlink("../../../blobs/digest", model); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(hot, ".llm-cache", key), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeComplete(filepath.Join(hot, ".llm-cache", key)); err != nil {
+		t.Fatal(err)
+	}
+
+	m := &cacheManager{hotRoot: hot, logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	if err := m.ensureArtifact(request); err != nil {
+		t.Fatal(err)
+	}
+	if target, err := os.Readlink(model); err != nil || target != "../../.blobs/digest" {
+		t.Fatalf("repaired symlink = (%q, %v), want ../../.blobs/digest", target, err)
+	}
+	if got, err := os.ReadFile(model); err != nil || string(got) != "model bytes" {
+		t.Fatalf("repaired target = (%q, %v)", got, err)
+	}
+	if _, err := os.Stat(filepath.Join(hot, "gguf", ".blobs", "digest")); err != nil {
+		t.Fatalf("relocated blob store: %v", err)
+	}
+}
+
 func TestFileCacheTargetValidation(t *testing.T) {
 	base := cacheRequest{Model: "model", Backend: "llama-cpp", Cache: cacheSpec{
 		Kind: "huggingface-files", RepoID: "example/model", Revision: "0123456789012345678901234567890123456789", Size: 1, Files: []string{"model.gguf"},

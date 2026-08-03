@@ -321,6 +321,17 @@ func (m *cacheManager) ensureArtifact(r cacheRequest) error {
 	coldArtifact := filepath.Join(m.cold, "artifacts", key)
 	hotArtifact := filepath.Join(hot, ".llm-cache", key)
 	if complete(hotArtifact) {
+		// A completed artifact records that its bytes are hot, not that a
+		// particular materialization layout is still valid.  In particular,
+		// older releases could leave a nested GGUF snapshot link pointing
+		// outside the gguf subPath mounted by llama.cpp. Repair that small link
+		// tree from the retained hot blobs rather than treating it as a cache
+		// miss and downloading the model again.
+		if !m.hotArtifactExists(r, hot) {
+			if err := m.repairHotMaterialization(r, hot); err != nil {
+				return fmt.Errorf("repair hot materialization: %w", err)
+			}
+		}
 		m.logger.Info("model artifact already complete in hot cache", "key", key)
 		if !validArtifactMetadata(coldArtifact, r.Cache) {
 			m.logger.Info("refreshing cold artifact manifest from hot cache", "key", key)
@@ -388,6 +399,56 @@ func (m *cacheManager) ensureArtifact(r cacheRequest) error {
 	return nil
 }
 
+// repairHotMaterialization repairs the GGUF link tree in place. Earlier
+// releases kept blobs at hot/blobs and nested links escaped the gguf subPath
+// mounted at /models. Move that existing blob store below gguf first, then
+// atomically relink the requested artifact. This deliberately never fetches
+// or copies model bytes.
+func (m *cacheManager) repairHotMaterialization(r cacheRequest, hot string) error {
+	if r.Cache.Kind != "huggingface-files" {
+		return errors.New("cannot repair invalid non-file hot materialization")
+	}
+	legacyBlobs := filepath.Join(hot, "blobs")
+	hotBlobs := filepath.Join(hot, "gguf", ".blobs")
+	if _, err := os.Lstat(hotBlobs); os.IsNotExist(err) {
+		if err := os.MkdirAll(filepath.Dir(hotBlobs), 0o755); err != nil {
+			return err
+		}
+		if err := os.Rename(legacyBlobs, hotBlobs); err != nil {
+			return fmt.Errorf("move legacy blob store: %w", err)
+		}
+		// Preserve the old host-root path for any other hot artifact that has
+		// not yet been re-linked. It remains intentionally unreachable from a
+		// gguf subPath mount, while the corrected links stay within that mount.
+		if err := os.Symlink(filepath.Join("gguf", ".blobs"), legacyBlobs); err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	}
+
+	for _, file := range r.Cache.Files {
+		path := filepath.Join(materializedPath(hot, r.Cache), file)
+		oldTarget, err := os.Readlink(path)
+		if err != nil {
+			return fmt.Errorf("read legacy link %s: %w", file, err)
+		}
+		blob := filepath.Join(hotBlobs, filepath.Base(oldTarget))
+		info, err := os.Stat(blob)
+		if err != nil || !info.Mode().IsRegular() {
+			return fmt.Errorf("resolve retained blob for %s", file)
+		}
+		target, err := relativeBlobLink(path, blob)
+		if err != nil {
+			return err
+		}
+		if err := replaceSymlink(path, target); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (m *cacheManager) downloadToHot(r cacheRequest, hot string) error {
 	staging, err := stagingDir(filepath.Join(hot, "staging"))
 	if err != nil {
@@ -434,7 +495,18 @@ func (m *cacheManager) hotArtifactExists(r cacheRequest, hot string) bool {
 		return err == nil
 	}
 	for _, file := range r.Cache.Files {
-		if _, err := os.Stat(filepath.Join(materializedPath(hot, r.Cache), file)); err != nil {
+		path := filepath.Join(materializedPath(hot, r.Cache), file)
+		if _, err := os.Stat(path); err != nil {
+			return false
+		}
+		// llama.cpp sees hot/gguf as /models, so a host-valid link that climbs
+		// above gguf is still invalid to the inference container.
+		resolved, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			return false
+		}
+		relative, err := filepath.Rel(filepath.Join(hot, "gguf"), resolved)
+		if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
 			return false
 		}
 	}
@@ -730,11 +802,11 @@ func (m *cacheManager) materialize(r cacheRequest, artifact, hot string, manifes
 			if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
 				return err
 			}
-			hotTarget, err := filepath.Rel(filepath.Dir(to), hotBlob)
+			hotTarget, err := relativeBlobLink(to, hotBlob)
 			if err != nil {
 				return err
 			}
-			if err := os.Symlink(hotTarget, to); err != nil {
+			if err := replaceSymlink(to, hotTarget); err != nil {
 				return err
 			}
 			continue
@@ -970,9 +1042,32 @@ func copyHuggingFaceFile(source, destination, blobs string) error {
 	if err := os.Remove(destination); err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	link, err := filepath.Rel(filepath.Dir(destination), destinationBlob)
+	link, err := relativeBlobLink(destination, destinationBlob)
 	if err != nil {
 		return err
 	}
-	return os.Symlink(link, destination)
+	return replaceSymlink(destination, link)
+}
+
+// relativeBlobLink computes the symlink target from the linked file's parent,
+// rather than assuming a fixed snapshot depth. File-backed model repositories
+// commonly nest quantization files below one or more directories.
+func relativeBlobLink(linkPath, blobPath string) (string, error) {
+	return filepath.Rel(filepath.Dir(linkPath), blobPath)
+}
+
+func replaceSymlink(path, target string) error {
+	dir := filepath.Dir(path)
+	tmp, err := os.MkdirTemp(dir, ".relink-")
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(tmp); err != nil {
+		return err
+	}
+	defer os.Remove(tmp)
+	if err := os.Symlink(target, tmp); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
 }
