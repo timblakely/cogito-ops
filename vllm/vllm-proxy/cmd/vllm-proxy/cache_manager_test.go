@@ -3,10 +3,46 @@ package main
 import (
 	"crypto/sha256"
 	"fmt"
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
 )
+
+func TestRemoveStagingRemovesColdAndHotIncompleteDirectories(t *testing.T) {
+	hot, cold := t.TempDir(), t.TempDir()
+	paths := []string{
+		filepath.Join(cold, "artifacts", "cold.staging-123"),
+		filepath.Join(hot, "staging", "download.staging-456"),
+		filepath.Join(hot, "staging.staging-789"), // pre-shared-cache layout
+	}
+	for _, path := range paths {
+		if err := os.MkdirAll(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(path, "partial"), []byte("partial"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	complete := filepath.Join(hot, "gguf", "model")
+	if err := os.MkdirAll(complete, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	m := &cacheManager{hotRoot: hot, cold: cold, logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	if err := m.removeStaging(); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range paths {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("staging directory %q still exists: %v", path, err)
+		}
+	}
+	if _, err := os.Stat(complete); err != nil {
+		t.Fatalf("complete artifact was removed: %v", err)
+	}
+}
 
 func TestCacheUsageUsesMountedTreeWithPVCLimit(t *testing.T) {
 	hot := t.TempDir()

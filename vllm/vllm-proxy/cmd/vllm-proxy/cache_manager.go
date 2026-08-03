@@ -208,14 +208,26 @@ func (m *cacheManager) ensure(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m *cacheManager) removeStaging() error {
-	entries, err := filepath.Glob(filepath.Join(m.cold, "artifacts", "*.staging-*"))
-	if err != nil {
-		return err
+	// A cache-manager restart can interrupt a Hugging Face download.  Neither
+	// cold nor hot staging directories contain a complete artifact, so remove
+	// them before accepting another ensure request.  Keep the legacy hot-root
+	// pattern as well: previous releases placed the temporary directory beside
+	// (rather than within) hotRoot/staging.
+	patterns := []string{
+		filepath.Join(m.cold, "artifacts", "*.staging-*"),
+		filepath.Join(m.hotRoot, "staging", "*.staging-*"),
+		filepath.Join(m.hotRoot, "staging.staging-*"),
 	}
-	for _, entry := range entries {
-		m.logger.Info("cleaning up stale staging directory", "path", entry)
-		if err := os.RemoveAll(entry); err != nil {
+	for _, pattern := range patterns {
+		entries, err := filepath.Glob(pattern)
+		if err != nil {
 			return err
+		}
+		for _, entry := range entries {
+			m.logger.Info("cleaning up stale staging directory", "path", entry)
+			if err := os.RemoveAll(entry); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
