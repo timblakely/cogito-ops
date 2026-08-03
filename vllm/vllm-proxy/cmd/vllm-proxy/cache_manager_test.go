@@ -140,6 +140,46 @@ func TestMaterializeFileArtifactRewritesNestedBlobSymlinks(t *testing.T) {
 	}
 }
 
+func TestCopyHuggingFaceFileRewritesBlobLinkForDestinationDepth(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		destination string
+		wantLink    string
+	}{
+		{name: "flat", destination: "gguf/laguna/model.gguf", wantLink: "../../blobs/digest"},
+		{name: "nested", destination: "gguf/deepseek-v4-flash/UD-IQ3_S/model.gguf", wantLink: "../../../blobs/digest"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			blob := filepath.Join(root, "hub", "models--example", "blobs", "digest")
+			if err := os.MkdirAll(filepath.Dir(blob), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(blob, []byte("model bytes"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			source := filepath.Join(root, "hub", "models--example", "snapshots", "revision", "UD-IQ3_S", "model.gguf")
+			if err := os.MkdirAll(filepath.Dir(source), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink("../../../blobs/digest", source); err != nil {
+				t.Fatal(err)
+			}
+			hot := filepath.Join(root, "hot")
+			destination := filepath.Join(hot, tc.destination)
+			if err := copyHuggingFaceFile(source, destination, filepath.Join(hot, "blobs")); err != nil {
+				t.Fatal(err)
+			}
+			if got, err := os.Readlink(destination); err != nil || got != tc.wantLink {
+				t.Fatalf("rewritten symlink = (%q, %v), want %q", got, err, tc.wantLink)
+			}
+			if got, err := os.ReadFile(destination); err != nil || string(got) != "model bytes" {
+				t.Fatalf("rewritten target = (%q, %v)", got, err)
+			}
+		})
+	}
+}
+
 func TestFileCacheTargetValidation(t *testing.T) {
 	base := cacheRequest{Model: "model", Backend: "llama-cpp", Cache: cacheSpec{
 		Kind: "huggingface-files", RepoID: "example/model", Revision: "0123456789012345678901234567890123456789", Size: 1, Files: []string{"model.gguf"},

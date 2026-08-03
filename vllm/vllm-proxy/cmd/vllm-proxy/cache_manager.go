@@ -413,7 +413,7 @@ func (m *cacheManager) downloadToHot(r cacheRequest, hot string) error {
 		for _, file := range r.Cache.Files {
 			source := filepath.Join(staging, "hub", "models--"+strings.ReplaceAll(r.Cache.RepoID, "/", "--"), "snapshots", r.Cache.Revision, file)
 			dest := filepath.Join(materializedPath(hot, r.Cache), file)
-			if err := copyTree(source, dest); err != nil {
+			if err := copyHuggingFaceFile(source, dest, filepath.Join(hot, "blobs")); err != nil {
 				return err
 			}
 		}
@@ -451,7 +451,7 @@ func (m *cacheManager) archiveHot(r cacheRequest, hot, destination string) error
 		}
 	} else {
 		for _, file := range r.Cache.Files {
-			if err := copyTree(filepath.Join(materializedPath(hot, r.Cache), file), filepath.Join(staging, "payload", "files", file)); err != nil {
+			if err := copyHuggingFaceFile(filepath.Join(materializedPath(hot, r.Cache), file), filepath.Join(staging, "payload", "files", file), filepath.Join(staging, "blobs")); err != nil {
 				return err
 			}
 		}
@@ -537,7 +537,7 @@ func (m *cacheManager) downloadToCold(r cacheRequest, destination string) error 
 	} else {
 		for _, file := range r.Cache.Files {
 			source := filepath.Join(staging, "hub", "models--"+strings.ReplaceAll(r.Cache.RepoID, "/", "--"), "snapshots", r.Cache.Revision, file)
-			if err := copyTree(source, filepath.Join(staging, "payload", "files", file)); err != nil {
+			if err := copyHuggingFaceFile(source, filepath.Join(staging, "payload", "files", file), filepath.Join(staging, "blobs")); err != nil {
 				return err
 			}
 		}
@@ -932,4 +932,41 @@ func copyTree(source, destination string) error {
 		}
 	}
 	return nil
+}
+
+// copyHuggingFaceFile preserves Hugging Face's deduplicated blob layout while
+// rewriting a snapshot symlink for its new destination. This makes both flat
+// and nested GGUF paths resolve through the destination's shared blobs root.
+func copyHuggingFaceFile(source, destination, blobs string) error {
+	info, err := os.Lstat(source)
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		return copyTree(source, destination)
+	}
+	target, err := os.Readlink(source)
+	if err != nil {
+		return err
+	}
+	sourceBlob := filepath.Clean(filepath.Join(filepath.Dir(source), target))
+	blobInfo, err := os.Stat(sourceBlob)
+	if err != nil || !blobInfo.Mode().IsRegular() {
+		return fmt.Errorf("resolve Hugging Face blob %s", source)
+	}
+	destinationBlob := filepath.Join(blobs, filepath.Base(sourceBlob))
+	if err := copyTree(sourceBlob, destinationBlob); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+		return err
+	}
+	if err := os.Remove(destination); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	link, err := filepath.Rel(filepath.Dir(destination), destinationBlob)
+	if err != nil {
+		return err
+	}
+	return os.Symlink(link, destination)
 }
