@@ -48,7 +48,7 @@ spec:
               # concurrent ranges). Keep hydration bounded so the manager can
               # coexist with a 120Gi llama.cpp workload after promotion.
               HF_XET_SHARD_CACHE_SIZE_LIMIT: "536870912"
-              HF_XET_NUM_CONCURRENT_RANGE_GETS: "1"
+              HF_XET_NUM_CONCURRENT_RANGE_GETS: "8"
               HF_TOKEN:
                 valueFrom:
                   secretKeyRef:
