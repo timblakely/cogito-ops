@@ -258,9 +258,13 @@ spec:
       - --fit-target
       - "1024"
       - --n-cpu-moe
-      - "39"
+      - "35"
       - --split-mode
-      - layer
+      - row
+      # Put 75% of the offloaded weights on GPU0.  With row splitting GPU0
+      # also owns KV/intermediates; this avoids exhausting GPU1 as layer mode did.
+      - --tensor-split
+      - 3,1
       - --flash-attn
       - "on"
       - --cache-type-k
