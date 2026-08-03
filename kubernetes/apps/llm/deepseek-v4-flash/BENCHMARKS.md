@@ -17,11 +17,24 @@ HTTP 200 with TTFT **265.097 s** and 125 completion tokens in 273.955 s
 | 36 | layer | 40.31 | 11.07 | 6,730 / 17,397 | 21,976 / 2,149 | 86.8 | Stable, but only 101 MiB above the 2 GiB safety gate |
 | 35 | layer | — | — | 3,582 / 20,545 | 23,378 / 747 | — | rejected: GPU1 safety/headroom failure |
 | 35 | row | — | — | — | — | — | rejected: unsupported llama.cpp row split for this model |
+| fitter (`--fit-target 1024,1024`) | layer | 80.66 | 13.73 | 22,432 / 1,695 | 22,676 / 1,449 | 72.8 | Stable; retained |
 
-`37` is retained: it gains 4.9% prefill throughput over the control while
-preserving 4.4 GiB on the constrained GPU. `36` is 2.3% faster in prefill but
-its 2.1 GiB free headroom leaves only 101 MiB above the hard gate and its decode
-rate is slightly lower. No context or KV-cache capacity was reduced.
+The automatic fitter is retained. It uses `--threads 12`, `--threads-batch 22`,
+`--fit on`, `--fit-ctx 143360`, `--fit-target 1024,1024`, `--split-mode layer`,
+`--batch-size 4096`, and `--ubatch-size 1024`; it deliberately has no
+`--n-cpu-moe` override. The one-GiB-per-GPU safety floor passed (1,695 MiB and
+1,449 MiB free). No context or KV-cache capacity was reduced.
+
+The final clean-client run was performed after a controlled DeepSeek-only
+restart, so its slot had zero cached prompt tokens. It returned HTTP 200 with
+85 completion tokens in 134.345 s. True TTFT, measured to the first generated
+content/reasoning/tool-call delta rather than llama.cpp's earlier progress SSE
+event, was **128.154 s**. Client-observed decode was **13.73 tok/s**; llama.cpp
+reported **80.66 prompt tok/s** and **13.73 decode tok/s**. The first SSE event
+arrived at 30.081 s and must not be interpreted as TTFT. Against the retained
+37-layer control, the fitter more than doubles server prompt throughput (80.66
+vs 39.39 tok/s) and cuts the comparable clean-client TTFT from 265.097 s to
+128.154 s.
 
 At the retained 37-layer placement the unallocated GPU memory is approximately
 21.4 GiB total (17.0 + 4.4 GiB). It is not safe to turn that into another full
