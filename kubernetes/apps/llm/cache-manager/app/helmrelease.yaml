@@ -38,17 +38,18 @@ spec:
           cache-manager:
             image:
               repository: ghcr.io/timblakely/llm-cache-manager
-              tag: shared-cache-20260802.1@sha256:2990176abc04777860f61c70ebacf5d74c4bf6aad943d1db0fe5daa5b13884e9
+              tag: shared-cache-oomfix-20260803.1@sha256:6b869a3f0ea0be196414413e2d1ab00f69587e4e6cf3445fcfdf59a944b821b2
             env:
               CACHE_HOT_ROOT: /cache/hot
               CACHE_COLD: /cold/llm-cache
               CACHE_SWEEP_INTERVAL: 10m
               # DeepSeek's Xet-backed GGUF is large enough to exhaust the
               # manager's 4Gi limit at hf-xet defaults (4Gi shard cache, 16
-              # concurrent ranges). Keep hydration bounded so the manager can
-              # coexist with a 120Gi llama.cpp workload after promotion.
+              # concurrent ranges). Use one range to minimize peak memory;
+              # the 8Gi limit applies only during cache hydration and the
+              # request remains low so DeepSeek can schedule after it is hot.
               HF_XET_SHARD_CACHE_SIZE_LIMIT: "536870912"
-              HF_XET_NUM_CONCURRENT_RANGE_GETS: "8"
+              HF_XET_NUM_CONCURRENT_RANGE_GETS: "1"
               HF_TOKEN:
                 valueFrom:
                   secretKeyRef:
@@ -73,7 +74,7 @@ spec:
                 memory: 256Mi
               limits:
                 cpu: "2"
-                memory: 4Gi
+                memory: 8Gi
     service:
       cache-manager:
         controller: cache-manager
