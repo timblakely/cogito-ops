@@ -55,8 +55,7 @@ type artifactFile struct {
 }
 
 type cacheManager struct {
-	hotVLLM    string
-	hotLaguna  string
+	hotRoot    string
 	cold       string
 	maxPercent float64
 	logger     *slog.Logger
@@ -71,8 +70,8 @@ type cacheManager struct {
 
 func runCacheManager() {
 	m := &cacheManager{
-		hotVLLM: env("CACHE_HOT_VLLM", "/cache/vllm"), hotLaguna: env("CACHE_HOT_LAGUNA", "/cache/laguna"),
-		cold: env("CACHE_COLD", "/cold"), maxPercent: 95,
+		hotRoot: env("CACHE_HOT_ROOT", "/cache/hot"),
+		cold:    env("CACHE_COLD", "/cold"), maxPercent: 95,
 		limits: map[string]int64{},
 		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
 	}
@@ -122,7 +121,7 @@ func (m *cacheManager) discoverPVCLimits() {
 		}
 	}
 	for _, mount := range mounts {
-		if mount.MountPath != m.hotVLLM && mount.MountPath != m.hotLaguna {
+		if mount.MountPath != m.hotRoot {
 			continue
 		}
 		for _, volume := range pod.Spec.Volumes {
@@ -135,21 +134,21 @@ func (m *cacheManager) discoverPVCLimits() {
 			}
 		}
 	}
-	m.logger.Info("discovered hot PVC limits", "vllm", m.limits[m.hotVLLM], "laguna", m.limits[m.hotLaguna])
+	m.logger.Info("discovered shared hot PVC limit", "hot_root", m.hotRoot, "capacity_bytes", m.limits[m.hotRoot])
 }
 
 func (m *cacheManager) metrics(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
-	for _, hot := range []struct {
-		backend string
-		path    string
-	}{{"vllm", m.hotVLLM}, {"llama-cpp", m.hotLaguna}, {"cold", m.cold}} {
-		capacity, used, err := m.cacheUsage(hot.path)
+	for _, cache := range []struct {
+		name string
+		path string
+	}{{"hot", m.hotRoot}, {"cold", m.cold}} {
+		capacity, used, err := m.cacheUsage(cache.path)
 		if err != nil {
 			continue
 		}
-		fmt.Fprintf(w, "llm_cache_manager_filesystem_bytes{backend=%q,state=\"capacity\"} %d\n", hot.backend, capacity)
-		fmt.Fprintf(w, "llm_cache_manager_filesystem_bytes{backend=%q,state=\"used\"} %d\n", hot.backend, used)
+		fmt.Fprintf(w, "llm_cache_manager_filesystem_bytes{cache=%q,state=\"capacity\"} %d\n", cache.name, capacity)
+		fmt.Fprintf(w, "llm_cache_manager_filesystem_bytes{cache=%q,state=\"used\"} %d\n", cache.name, used)
 	}
 	fmt.Fprintf(w, "llm_cache_manager_sweeps_total %d\n", m.sweeps.Load())
 	fmt.Fprintf(w, "llm_cache_manager_evictions_total %d\n", m.evictions.Load())
@@ -168,14 +167,10 @@ func (m *cacheManager) sweepRequest(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	hot := m.hotVLLM
-	if request.Backend == "llama-cpp" || request.Backend == "llama-cpp-vanilla" {
-		hot = m.hotLaguna
-	}
 	m.logger.Info("sweep request received", "model", request.Model, "backend", request.Backend)
 	m.opMu.Lock()
 	defer m.opMu.Unlock()
-	if err := m.sweep(hot, cacheKey(request.Cache)); err != nil {
+	if err := m.sweep(m.hotRoot, cacheKey(request.Cache)); err != nil {
 		m.failures.Add(1)
 		m.logger.Error("sweep failed", "model", request.Model, "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -227,17 +222,13 @@ func (m *cacheManager) removeStaging() error {
 }
 
 func (m *cacheManager) cacheResult(r cacheRequest) string {
-	hot := m.hotVLLM
-	if r.Backend == "llama-cpp" || r.Backend == "llama-cpp-vanilla" {
-		hot = m.hotLaguna
-	}
-	if complete(filepath.Join(hot, ".llm-cache", cacheKey(r.Cache))) {
+	if complete(filepath.Join(m.hotRoot, ".llm-cache", cacheKey(r.Cache))) {
 		return "hot"
 	}
 	if complete(filepath.Join(m.cold, "artifacts", cacheKey(r.Cache))) {
 		return "cold"
 	}
-	if m.hotArtifactExists(r, hot) {
+	if m.hotArtifactExists(r, m.hotRoot) {
 		return "hot"
 	}
 	return "external"
@@ -253,7 +244,32 @@ func validCacheRequest(r cacheRequest) error {
 	if r.Cache.Kind == "huggingface-files" && (len(r.Cache.Files) == 0 || r.Cache.Size < 1) {
 		return errors.New("file cache requires files")
 	}
+	if r.Cache.Kind == "huggingface-files" {
+		if err := validMaterializationTarget(r.Cache.MaterializationTarget); err != nil {
+			return err
+		}
+	} else if r.Cache.MaterializationTarget != "" {
+		return errors.New("hub cache must not set materialization_target")
+	}
 	return nil
+}
+
+// validMaterializationTarget confines file artifacts to an immutable directory
+// below gguf. The target is supplied by the operator, so it is treated as an
+// untrusted path even though the manager is the only hot-cache writer.
+func validMaterializationTarget(target string) error {
+	clean := filepath.ToSlash(filepath.Clean(target))
+	if target == "" || filepath.IsAbs(target) || clean != target || target == "gguf" || !strings.HasPrefix(target, "gguf/") {
+		return errors.New("file cache requires a clean materialization_target below gguf/")
+	}
+	return nil
+}
+
+func materializedPath(hot string, spec cacheSpec) string {
+	if spec.Kind == "huggingface-hub" {
+		return filepath.Join(hot, "hub", "models--"+strings.ReplaceAll(spec.RepoID, "/", "--"))
+	}
+	return filepath.Join(hot, filepath.FromSlash(spec.MaterializationTarget))
 }
 
 // resolveCacheSpec keeps desired model configuration small: a HF hub model
@@ -288,10 +304,7 @@ print(json.dumps({"size":total,"files":files}))`
 }
 
 func (m *cacheManager) ensureArtifact(r cacheRequest) error {
-	hot := m.hotVLLM
-	if r.Backend == "llama-cpp" || r.Backend == "llama-cpp-vanilla" {
-		hot = m.hotLaguna
-	}
+	hot := m.hotRoot
 	key := cacheKey(r.Cache)
 	coldArtifact := filepath.Join(m.cold, "artifacts", key)
 	hotArtifact := filepath.Join(hot, ".llm-cache", key)
@@ -380,14 +393,14 @@ func (m *cacheManager) downloadToHot(r cacheRequest, hot string) error {
 
 	if r.Cache.Kind == "huggingface-hub" {
 		source := filepath.Join(staging, "hub", "models--"+strings.ReplaceAll(r.Cache.RepoID, "/", "--"))
-		dest := filepath.Join(hot, "hub", filepath.Base(source))
+		dest := materializedPath(hot, r.Cache)
 		if err := copyTree(source, dest); err != nil {
 			return err
 		}
 	} else {
 		for _, file := range r.Cache.Files {
 			source := filepath.Join(staging, "hub", "models--"+strings.ReplaceAll(r.Cache.RepoID, "/", "--"), "snapshots", r.Cache.Revision, file)
-			dest := filepath.Join(hot, "laguna", file)
+			dest := filepath.Join(materializedPath(hot, r.Cache), file)
 			if err := copyTree(source, dest); err != nil {
 				return err
 			}
@@ -397,19 +410,16 @@ func (m *cacheManager) downloadToHot(r cacheRequest, hot string) error {
 }
 
 func (m *cacheManager) clearMaterialized(r cacheRequest, hot string) error {
-	if r.Cache.Kind == "huggingface-hub" {
-		return os.RemoveAll(filepath.Join(hot, "hub", "models--"+strings.ReplaceAll(r.Cache.RepoID, "/", "--")))
-	}
-	return os.RemoveAll(filepath.Join(hot, "laguna"))
+	return os.RemoveAll(materializedPath(hot, r.Cache))
 }
 
 func (m *cacheManager) hotArtifactExists(r cacheRequest, hot string) bool {
 	if r.Cache.Kind == "huggingface-hub" {
-		_, err := os.Stat(filepath.Join(hot, "hub", "models--"+strings.ReplaceAll(r.Cache.RepoID, "/", "--")))
+		_, err := os.Stat(materializedPath(hot, r.Cache))
 		return err == nil
 	}
 	for _, file := range r.Cache.Files {
-		if _, err := os.Stat(filepath.Join(hot, "laguna", file)); err != nil {
+		if _, err := os.Stat(filepath.Join(materializedPath(hot, r.Cache), file)); err != nil {
 			return false
 		}
 	}
@@ -423,13 +433,13 @@ func (m *cacheManager) archiveHot(r cacheRequest, hot, destination string) error
 	}
 	defer os.RemoveAll(staging)
 	if r.Cache.Kind == "huggingface-hub" {
-		source := filepath.Join(hot, "hub", "models--"+strings.ReplaceAll(r.Cache.RepoID, "/", "--"))
+		source := materializedPath(hot, r.Cache)
 		if err := copyTree(source, filepath.Join(staging, "payload", "hub", filepath.Base(source))); err != nil {
 			return err
 		}
 	} else {
 		for _, file := range r.Cache.Files {
-			if err := copyTree(filepath.Join(hot, "laguna", file), filepath.Join(staging, "payload", "files", file)); err != nil {
+			if err := copyTree(filepath.Join(materializedPath(hot, r.Cache), file), filepath.Join(staging, "payload", "files", file)); err != nil {
 				return err
 			}
 		}
@@ -669,7 +679,7 @@ func (m *cacheManager) materialize(r cacheRequest, artifact, hot string, manifes
 			if !ok || relative == "" {
 				return fmt.Errorf("invalid file artifact path %s", file.Path)
 			}
-			relative = filepath.ToSlash(filepath.Join("laguna", relative))
+			relative = filepath.ToSlash(filepath.Join(r.Cache.MaterializationTarget, relative))
 		}
 		from := filepath.Join(artifact, "payload", filepath.FromSlash(file.Path))
 		to := filepath.Join(hot, filepath.FromSlash(relative))
@@ -813,17 +823,16 @@ func directoryUsage(path string) (int64, error) {
 }
 
 func (m *cacheManager) evict(hot, marker string) error {
-	// The manifest key maps to exactly one HF repo/revision or one Laguna file
-	// set. Remove the serving copy as well as its marker, but never cold data.
+	// The manifest key maps to exactly one immutable artifact. Remove its serving
+	// copy and marker, but never cold data or another artifact's target.
 	var spec cacheSpec
 	if body, err := os.ReadFile(filepath.Join(marker, "cache.json")); err == nil {
 		_ = json.Unmarshal(body, &spec)
 	}
 	if spec.Kind == "huggingface-hub" && spec.RepoID != "" {
-		_ = os.RemoveAll(filepath.Join(hot, "hub", "models--"+strings.ReplaceAll(spec.RepoID, "/", "--")))
+		_ = os.RemoveAll(materializedPath(hot, spec))
 	} else if spec.Kind == "huggingface-files" {
-		// Laguna's model directory is dedicated to this single file artifact.
-		_ = os.RemoveAll(filepath.Join(hot, "laguna"))
+		_ = os.RemoveAll(materializedPath(hot, spec))
 	}
 	if err := os.RemoveAll(marker); err != nil {
 		return err

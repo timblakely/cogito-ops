@@ -72,11 +72,12 @@ type modelConfig struct {
 // separate from ModelSource: ModelSource is an argument to a serving runtime,
 // while this identifies bytes that may safely be restored from cold storage.
 type cacheSpec struct {
-	Kind     string   `json:"kind"`
-	RepoID   string   `json:"repo_id"`
-	Revision string   `json:"revision"`
-	Size     int64    `json:"size_bytes"`
-	Files    []string `json:"files,omitempty"`
+	Kind                  string   `json:"kind"`
+	RepoID                string   `json:"repo_id"`
+	Revision              string   `json:"revision"`
+	Size                  int64    `json:"size_bytes"`
+	Files                 []string `json:"files,omitempty"`
+	MaterializationTarget string   `json:"materialization_target,omitempty"`
 }
 
 // backendConfig is deliberately configured by the Helm release, not by model
@@ -1093,6 +1094,8 @@ func parseLLMModel(object unstructured.Unstructured) (modelConfig, error) {
 				return modelConfig{}, errors.New("spec.artifact.files is required for llama-cpp")
 			}
 			cfg.Cache.Files = files
+			target, _, _ := unstructured.NestedString(object.Object, "spec", "artifact", "materializationTarget")
+			cfg.Cache.MaterializationTarget = target
 		}
 	}
 	return cfg, nil
