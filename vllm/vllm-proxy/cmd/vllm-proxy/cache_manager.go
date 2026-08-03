@@ -413,7 +413,10 @@ func (m *cacheManager) downloadToHot(r cacheRequest, hot string) error {
 		for _, file := range r.Cache.Files {
 			source := filepath.Join(staging, "hub", "models--"+strings.ReplaceAll(r.Cache.RepoID, "/", "--"), "snapshots", r.Cache.Revision, file)
 			dest := filepath.Join(materializedPath(hot, r.Cache), file)
-			if err := copyHuggingFaceFile(source, dest, filepath.Join(hot, "blobs")); err != nil {
+			// llama.cpp mounts only hot/gguf at /models. Keep the shared blob
+			// store below that mount so file symlinks remain resolvable to the
+			// inference container without duplicating blobs per model.
+			if err := copyHuggingFaceFile(source, dest, filepath.Join(hot, "gguf", ".blobs")); err != nil {
 				return err
 			}
 		}
@@ -713,7 +716,10 @@ func (m *cacheManager) materialize(r cacheRequest, artifact, hot string, manifes
 			if err != nil || !info.Mode().IsRegular() {
 				return fmt.Errorf("resolve symlink %s", file.Path)
 			}
-			hotBlob := filepath.Join(hot, "blobs", filepath.Base(sourceBlob))
+			// File-backed models are exposed through hot/gguf (mounted as
+			// /models).  Keeping blobs under gguf/.blobs ensures the rewritten
+			// relative links resolve both from the cache-manager and llama.cpp.
+			hotBlob := filepath.Join(hot, "gguf", ".blobs", filepath.Base(sourceBlob))
 			if _, err := os.Lstat(hotBlob); os.IsNotExist(err) {
 				if err := copyAndVerify(sourceBlob, hotBlob, artifactFile{Path: file.Path, Size: info.Size()}); err != nil {
 					return err

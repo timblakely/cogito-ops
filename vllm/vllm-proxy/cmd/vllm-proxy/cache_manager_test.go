@@ -128,10 +128,12 @@ func TestMaterializeFileArtifactRewritesNestedBlobSymlinks(t *testing.T) {
 		t.Fatal(err)
 	}
 	model := filepath.Join(hot, "gguf", "deepseek-v4-flash", "UD-IQ3_S", "model.gguf")
-	if target, err := os.Readlink(model); err != nil || target != "../../../blobs/digest" {
-		t.Fatalf("materialized symlink = (%q, %v), want ../../../blobs/digest", target, err)
+	if target, err := os.Readlink(model); err != nil || target != "../../.blobs/digest" {
+		t.Fatalf("materialized symlink = (%q, %v), want ../../.blobs/digest", target, err)
 	}
-	got, err := os.ReadFile(model)
+	// Simulate llama.cpp's /models subPath mount: only hot/gguf is visible.
+	modelFromMount := filepath.Join(hot, "gguf", "deepseek-v4-flash", "UD-IQ3_S", "model.gguf")
+	got, err := os.ReadFile(modelFromMount)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,8 +148,8 @@ func TestCopyHuggingFaceFileRewritesBlobLinkForDestinationDepth(t *testing.T) {
 		destination string
 		wantLink    string
 	}{
-		{name: "flat", destination: "gguf/laguna/model.gguf", wantLink: "../../blobs/digest"},
-		{name: "nested", destination: "gguf/deepseek-v4-flash/UD-IQ3_S/model.gguf", wantLink: "../../../blobs/digest"},
+		{name: "flat", destination: "gguf/laguna/model.gguf", wantLink: "../.blobs/digest"},
+		{name: "nested", destination: "gguf/deepseek-v4-flash/UD-IQ3_S/model.gguf", wantLink: "../../.blobs/digest"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
@@ -167,7 +169,7 @@ func TestCopyHuggingFaceFileRewritesBlobLinkForDestinationDepth(t *testing.T) {
 			}
 			hot := filepath.Join(root, "hot")
 			destination := filepath.Join(hot, tc.destination)
-			if err := copyHuggingFaceFile(source, destination, filepath.Join(hot, "blobs")); err != nil {
+			if err := copyHuggingFaceFile(source, destination, filepath.Join(hot, "gguf", ".blobs")); err != nil {
 				t.Fatal(err)
 			}
 			if got, err := os.Readlink(destination); err != nil || got != tc.wantLink {
