@@ -43,6 +43,12 @@ spec:
               CACHE_HOT_ROOT: /cache/hot
               CACHE_COLD: /cold/llm-cache
               CACHE_SWEEP_INTERVAL: 10m
+              # DeepSeek's Xet-backed GGUF is large enough to exhaust the
+              # manager's 4Gi limit at hf-xet defaults (4Gi shard cache, 16
+              # concurrent ranges). Keep hydration bounded so the manager can
+              # coexist with a 120Gi llama.cpp workload after promotion.
+              HF_XET_SHARD_CACHE_SIZE_LIMIT: "536870912"
+              HF_XET_NUM_CONCURRENT_RANGE_GETS: "1"
               HF_TOKEN:
                 valueFrom:
                   secretKeyRef:
