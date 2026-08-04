@@ -129,10 +129,10 @@ spec:
               tag: m8-status-handoff-20260731.1
             env:
               BACKEND_URL: http://llm-vllm:8000
-              # M3 routes the sole llama.cpp slot to the isolated CR-owned
-              # Laguna canary. The proxy remains read-only for workloads.
-              LLAMA_BACKEND_URL: http://laguna-operator-canary:8000
-              LLAMA_DEPLOYMENT: laguna-operator-canary
+              # M5 routes the sole llama.cpp slot to the isolated CR-owned
+              # DeepSeek canary. The proxy remains read-only for workloads.
+              LLAMA_BACKEND_URL: http://deepseek-v4-flash-operator-canary:8000
+              LLAMA_DEPLOYMENT: deepseek-v4-flash-operator-canary
               LLAMA_CONTAINER: runtime
               DEFAULT_MODEL: google/gemma-4-31B-it-qat-w4a16-ct
               PUBLIC_BASE_URL: https://llm-switch.${DOMAIN_NAME}/v1
@@ -251,6 +251,7 @@ spec:
                 - laguna
                 - deepseek-v4-flash
                 - laguna-operator-canary
+                - deepseek-v4-flash-operator-canary
                 - llm-llama-cpp
               verbs:
                 - get
