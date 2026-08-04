@@ -1,0 +1,51 @@
+---
+# M2 canary: this is deliberately a separate, zero-replica workload. It does
+# not adopt or route traffic to the Helm-owned `laguna` Deployment or Service.
+apiVersion: llm.cogito.dev/v1alpha1
+kind: LLMBackend
+metadata:
+  name: laguna-operator-canary
+  namespace: llm
+spec:
+  type: llama-cpp
+  # Iggy has two physical RTX 3090s. Its eight schedulable GPU slots are
+  # time-sliced replicas, not eight independently usable serving GPUs.
+  capacity:
+    gpus: 2
+    resourceName: nvidia.com/gpu
+  workload:
+    containerName: runtime
+    service:
+      name: laguna-operator-canary
+      port: 8000
+    deployment:
+      name: laguna-operator-canary
+      replicas: 0
+      strategy:
+        type: Recreate
+      podTemplate:
+        spec:
+          automountServiceAccountToken: false
+          runtimeClassName: nvidia
+          nodeSelector:
+            kubernetes.io/hostname: iggy
+          containers:
+            - name: runtime
+              image: ghcr.io/timblakely/llama-laguna:2026-07-22
+              resources:
+                requests:
+                  cpu: "22"
+                  memory: 88Gi
+                  nvidia.com/gpu: "2"
+                limits:
+                  cpu: "24"
+                  memory: 96Gi
+                  nvidia.com/gpu: "2"
+              volumeMounts:
+                - name: model-cache
+                  mountPath: /models
+                  subPath: gguf
+          volumes:
+            - name: model-cache
+              persistentVolumeClaim:
+                claimName: llm-huggingface-cache
