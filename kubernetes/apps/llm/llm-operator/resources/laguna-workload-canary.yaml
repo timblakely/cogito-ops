@@ -8,6 +8,9 @@ metadata:
   namespace: llm
 spec:
   type: llama-cpp
+  # Kept during the v1alpha1 migration for the CRD's legacy required field;
+  # workload.service.port remains the source for the generated Service.
+  port: 8000
   # Iggy has two physical RTX 3090s. Its eight schedulable GPU slots are
   # time-sliced replicas, not eight independently usable serving GPUs.
   capacity:
