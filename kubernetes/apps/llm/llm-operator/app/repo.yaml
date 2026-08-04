@@ -10,8 +10,7 @@ spec:
     mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
     operation: copy
   ref:
-    # tag: 0.1.12
-    # The chart tag is 0.1.9; pin its reviewed OCI artifact digest so a tag
-    # overwrite cannot silently change the deployed operator.
-    digest: sha256:e5b49b05715b0c8bfd0ebe7dabb858e1ec1735113f5a0dbc99d4a627afebc0fb
+    # Chart 0.1.12 adds workload-owning LLMBackend support. Pin its reviewed
+    # OCI artifact digest so a tag overwrite cannot silently change it.
+    digest: sha256:3d67fc1ea31ccdb0272f8e08927b3e0b467739750a1e2d287e77790af87e6e90
   url: oci://ghcr.io/timblakely/charts/llm-operator

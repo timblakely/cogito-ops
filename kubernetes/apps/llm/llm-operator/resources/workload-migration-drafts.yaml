@@ -1,0 +1,144 @@
+# REVIEW ONLY: this file is deliberately not listed by kustomization.yaml and
+# cannot be reconciled by Flux. It captures the CR-owned replacement shape for
+# the current Helm backends before any workload handoff is approved.
+---
+apiVersion: llm.cogito.dev/v1alpha1
+kind: LLMBackend
+metadata:
+  name: vllm-operator-draft
+  namespace: llm
+spec:
+  type: vllm
+  workload:
+    containerName: runtime
+    service:
+      name: vllm-operator-draft
+      port: 8000
+    deployment:
+      name: vllm-operator-draft
+      replicas: 0
+      strategy:
+        type: Recreate
+      podTemplate:
+        spec:
+          automountServiceAccountToken: false
+          runtimeClassName: nvidia
+          nodeSelector:
+            kubernetes.io/hostname: iggy
+          containers:
+            - name: runtime
+              image: vllm/vllm-openai:v0.25.1
+              env:
+                - name: HF_HOME
+                  value: /root/.cache/huggingface
+                - name: HF_HUB_OFFLINE
+                  value: "1"
+                - name: HF_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: llm-huggingface
+                      key: HF_TOKEN
+                - name: NCCL_CUMEM_ENABLE
+                  value: "0"
+                - name: NCCL_P2P_DISABLE
+                  value: "1"
+                - name: OMP_NUM_THREADS
+                  value: "1"
+                - name: PYTORCH_CUDA_ALLOC_CONF
+                  value: expandable_segments:True,max_split_size_mb:512
+                - name: TRITON_CACHE_DIR
+                  value: /root/.triton/cache
+                - name: VLLM_NO_USAGE_STATS
+                  value: "1"
+                - name: VLLM_SERVER_DEV_MODE
+                  value: "1"
+                - name: VLLM_WORKER_MULTIPROC_METHOD
+                  value: spawn
+                - name: VLLM_ALLOW_LONG_MAX_MODEL_LEN
+                  value: "1"
+              resources:
+                requests: {cpu: "4", memory: 24Gi}
+                limits: {memory: 96Gi, nvidia.com/gpu: "4"}
+              volumeMounts:
+                - {name: huggingface-cache, mountPath: /root/.cache/huggingface}
+                - {name: shm, mountPath: /dev/shm}
+                - {name: triton-cache, mountPath: /root/.triton/cache}
+                - {name: vllm-cache, mountPath: /root/.cache/vllm}
+                - name: gemma4-chat-template
+                  mountPath: /opt/cogito/templates/gemma4-canonical-chat-template.jinja
+                  subPath: gemma4-canonical-chat-template.jinja
+          volumes:
+            - name: huggingface-cache
+              persistentVolumeClaim: {claimName: llm-huggingface-cache}
+            - name: shm
+              emptyDir: {medium: Memory, sizeLimit: 16Gi}
+            - name: triton-cache
+              persistentVolumeClaim: {claimName: llm-triton-cache}
+            - name: vllm-cache
+              persistentVolumeClaim: {claimName: llm-vllm-cache}
+            - name: gemma4-chat-template
+              configMap:
+                name: gemma4-canonical-chat-template
+---
+apiVersion: llm.cogito.dev/v1alpha1
+kind: LLMBackend
+metadata:
+  name: laguna-operator-draft
+  namespace: llm
+spec:
+  type: llama-cpp
+  workload:
+    containerName: runtime
+    service: {name: laguna-operator-draft, port: 8000}
+    deployment:
+      name: laguna-operator-draft
+      replicas: 0
+      strategy: {type: Recreate}
+      podTemplate:
+        spec:
+          automountServiceAccountToken: false
+          runtimeClassName: nvidia
+          nodeSelector: {kubernetes.io/hostname: iggy}
+          containers:
+            - name: runtime
+              image: ghcr.io/timblakely/llama-laguna:2026-07-22
+              resources:
+                requests: {cpu: "22", memory: 88Gi}
+                limits: {cpu: "24", memory: 96Gi, nvidia.com/gpu: "2"}
+              volumeMounts:
+                - {name: model-cache, mountPath: /models, subPath: gguf}
+          volumes:
+            - name: model-cache
+              persistentVolumeClaim: {claimName: llm-huggingface-cache}
+---
+apiVersion: llm.cogito.dev/v1alpha1
+kind: LLMBackend
+metadata:
+  name: deepseek-v4-flash-operator-draft
+  namespace: llm
+spec:
+  type: llama-cpp
+  workload:
+    containerName: runtime
+    service: {name: deepseek-v4-flash-operator-draft, port: 8000}
+    deployment:
+      name: deepseek-v4-flash-operator-draft
+      replicas: 0
+      strategy: {type: Recreate}
+      podTemplate:
+        spec:
+          automountServiceAccountToken: false
+          runtimeClassName: nvidia
+          nodeSelector: {kubernetes.io/hostname: iggy}
+          containers:
+            - name: runtime
+              image: ghcr.io/ggml-org/llama.cpp:server-cuda13@sha256:2ac50c8a47cc06134b11774c33f91397e81ab832d4b7b22537fc64656261c709
+              imagePullPolicy: IfNotPresent
+              resources:
+                requests: {cpu: "22", memory: 118Gi}
+                limits: {cpu: "24", memory: 120Gi, nvidia.com/gpu: "2"}
+              volumeMounts:
+                - {name: model-cache, mountPath: /models, subPath: gguf}
+          volumes:
+            - name: model-cache
+              persistentVolumeClaim: {claimName: llm-huggingface-cache}
