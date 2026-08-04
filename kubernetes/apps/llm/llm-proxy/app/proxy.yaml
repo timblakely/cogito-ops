@@ -1,0 +1,187 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: llm
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+    app.kubernetes.io/instance: llm
+    app.kubernetes.io/name: llm
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: llm
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+    app.kubernetes.io/instance: llm
+    app.kubernetes.io/name: llm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    resourceNames:
+      - llm-model-status
+    verbs:
+      - create
+      - get
+      - patch
+  - apiGroups:
+      - apps
+    resources:
+      - deployments
+    resourceNames:
+      - llm-vllm
+      - laguna
+      - deepseek-v4-flash
+      - laguna-operator-canary
+      - deepseek-v4-flash-operator-canary
+      - vllm-operator-canary
+      - llm-llama-cpp
+    verbs:
+      - get
+      - watch
+  - apiGroups:
+      - llm.cogito.dev
+    resources:
+      - llmmodels
+      - llmmodeloverlays
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - llm.cogito.dev
+    resources:
+      - llmactivemodels
+    resourceNames:
+      - default
+    verbs:
+      - get
+      - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: llm
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+    app.kubernetes.io/instance: llm
+    app.kubernetes.io/name: llm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: llm
+subjects:
+  - kind: ServiceAccount
+    name: llm
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-proxy
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+    app.kubernetes.io/instance: llm
+    app.kubernetes.io/name: llm
+    app.kubernetes.io/controller: proxy
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/controller: proxy
+      app.kubernetes.io/instance: llm
+      app.kubernetes.io/name: llm
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/controller: proxy
+        app.kubernetes.io/instance: llm
+        app.kubernetes.io/name: llm
+    spec:
+      automountServiceAccountToken: true
+      serviceAccountName: llm
+      enableServiceLinks: false
+      nodeSelector:
+        kubernetes.io/hostname: iggy
+      containers:
+        - name: proxy
+          image: ghcr.io/timblakely/vllm-proxy:m8-status-handoff-20260731.1
+          env:
+            - name: BACKEND_URL
+              value: http://vllm-operator-canary:8000
+            - name: LLAMA_BACKEND_URL
+              value: http://deepseek-v4-flash-operator-canary:8000
+            - name: LLAMA_DEPLOYMENT
+              value: deepseek-v4-flash-operator-canary
+            - name: LLAMA_CONTAINER
+              value: runtime
+            - name: DEFAULT_MODEL
+              value: google/gemma-4-31B-it-qat-w4a16-ct
+            - name: PUBLIC_BASE_URL
+              value: https://llm-switch.${DOMAIN_NAME}/v1
+            - name: VLLM_DEPLOYMENT
+              value: vllm-operator-canary
+            - name: VLLM_CONTAINER
+              value: runtime
+            - name: TRANSITION_TIMEOUT
+              value: 30m
+            - name: ENABLE_DEPLOYMENT_MUTATIONS
+              value: "false"
+            - name: CACHE_MANAGER_URL
+              value: http://cache-manager:8090
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 25m, memory: 64Mi}
+            limits: {memory: 256Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llm-proxy
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+    app.kubernetes.io/instance: llm
+    app.kubernetes.io/name: llm
+    app.kubernetes.io/service: llm-proxy
+spec:
+  selector:
+    app.kubernetes.io/controller: proxy
+    app.kubernetes.io/instance: llm
+    app.kubernetes.io/name: llm
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: llm
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+    app.kubernetes.io/instance: llm
+    app.kubernetes.io/name: llm
+spec:
+  hostnames: ["llm-switch.${DOMAIN_NAME}"]
+  parentRefs:
+    - name: envoy-internal
+      namespace: envoy-system
+      sectionName: https
+  rules:
+    - backendRefs:
+        - name: llm-proxy
+          port: 8080

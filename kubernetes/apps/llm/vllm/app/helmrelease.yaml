@@ -117,6 +117,11 @@ spec:
                 nvidia.com/gpu: 4
       proxy:
         replicas: 1
+        # The dedicated llm-proxy Kustomization adopts these resources before
+        # this HelmRelease stops rendering them. Keep prevents Helm's later
+        # release cleanup from deleting the still-serving objects.
+        annotations:
+          helm.sh/resource-policy: keep
         serviceAccount:
           identifier: proxy
         pod:
@@ -160,11 +165,15 @@ spec:
             port: 8000
       proxy:
         controller: proxy
+        annotations:
+          helm.sh/resource-policy: keep
         ports:
           http:
             port: 8080
     route:
       proxy:
+        annotations:
+          helm.sh/resource-policy: keep
         hostnames:
           - llm-switch.${DOMAIN_NAME}
         parentRefs:
@@ -229,6 +238,8 @@ spec:
       roles:
         proxy:
           type: Role
+          annotations:
+            helm.sh/resource-policy: keep
           rules:
             - apiGroups:
                 - ""
@@ -280,9 +291,13 @@ spec:
       bindings:
         proxy:
           type: RoleBinding
+          annotations:
+            helm.sh/resource-policy: keep
           roleRef:
             identifier: proxy
           subjects:
             - identifier: proxy
     serviceAccount:
-      proxy: {}
+      proxy:
+        annotations:
+          helm.sh/resource-policy: keep
