@@ -128,7 +128,7 @@ spec:
               repository: ghcr.io/timblakely/vllm-proxy
               tag: m8-status-handoff-20260731.1
             env:
-              BACKEND_URL: http://llm-vllm:8000
+              BACKEND_URL: http://vllm-operator-canary:8000
               # M5 routes the sole llama.cpp slot to the isolated CR-owned
               # DeepSeek canary. The proxy remains read-only for workloads.
               LLAMA_BACKEND_URL: http://deepseek-v4-flash-operator-canary:8000
@@ -136,8 +136,8 @@ spec:
               LLAMA_CONTAINER: runtime
               DEFAULT_MODEL: google/gemma-4-31B-it-qat-w4a16-ct
               PUBLIC_BASE_URL: https://llm-switch.${DOMAIN_NAME}/v1
-              VLLM_DEPLOYMENT: llm-vllm
-              VLLM_CONTAINER: vllm
+              VLLM_DEPLOYMENT: vllm-operator-canary
+              VLLM_CONTAINER: runtime
               TRANSITION_TIMEOUT: 30m
               # The operator owns deployment mutations during the M5 handoff.
               ENABLE_DEPLOYMENT_MUTATIONS: "false"
@@ -252,6 +252,7 @@ spec:
                 - deepseek-v4-flash
                 - laguna-operator-canary
                 - deepseek-v4-flash-operator-canary
+                - vllm-operator-canary
                 - llm-llama-cpp
               verbs:
                 - get
