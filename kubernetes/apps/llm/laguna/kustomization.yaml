@@ -7,3 +7,11 @@ configMapGenerator:
       - APP=laguna
 components:
   - ../../../components/ks/app
+patches:
+  - target:
+      kind: Kustomization
+      name: laguna
+    patch: |
+      - op: replace
+        path: /spec/path
+        value: ./kubernetes/empty
