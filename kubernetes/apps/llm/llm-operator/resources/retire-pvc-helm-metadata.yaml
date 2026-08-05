@@ -1,0 +1,78 @@
+---
+# Flux has already adopted these PVCs through persistent-volume-claims.yaml.
+# This narrowly scoped, idempotent Job removes only their obsolete Helm markers;
+# it never deletes, recreates, or changes a claim or PV binding.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: llm-pvc-helm-metadata-retire
+  namespace: llm
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: llm-pvc-helm-metadata-retire
+  namespace: llm
+rules:
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    resourceNames:
+      - llm-huggingface-cache
+      - llm-triton-cache
+      - llm-vllm-cache
+    verbs: [get, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: llm-pvc-helm-metadata-retire
+  namespace: llm
+subjects:
+  - kind: ServiceAccount
+    name: llm-pvc-helm-metadata-retire
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: llm-pvc-helm-metadata-retire
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: llm-pvc-helm-metadata-retire-v1
+  namespace: llm
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      automountServiceAccountToken: true
+      serviceAccountName: llm-pvc-helm-metadata-retire
+      restartPolicy: Never
+      containers:
+        - name: retire
+          image: registry.k8s.io/kubectl:v1.34.0
+          command: [sh, -ec]
+          args:
+            - >-
+              kubectl annotate persistentvolumeclaim
+              llm-huggingface-cache llm-triton-cache llm-vllm-cache
+              helm.sh/resource-policy-
+              kustomize.toolkit.fluxcd.io/prune-
+              meta.helm.sh/release-name-
+              meta.helm.sh/release-namespace-
+              && kubectl label persistentvolumeclaim
+              llm-huggingface-cache llm-triton-cache llm-vllm-cache
+              app.kubernetes.io/instance-
+              app.kubernetes.io/managed-by-
+              app.kubernetes.io/name-
+              helm.sh/chart-
+              helm.toolkit.fluxcd.io/name-
+              helm.toolkit.fluxcd.io/namespace-
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
