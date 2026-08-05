@@ -212,11 +212,6 @@ func main() {
 		logger.Error("parse LLAMA_BACKEND_URL", "error", err)
 		os.Exit(1)
 	}
-	llamaVanillaBackend, err := url.Parse(env("LLAMA_VANILLA_BACKEND_URL", "http://llm-llama-cpp:8000"))
-	if err != nil {
-		logger.Error("parse LLAMA_VANILLA_BACKEND_URL", "error", err)
-		os.Exit(1)
-	}
 	var cacheManager *url.URL
 	if raw := strings.TrimSpace(os.Getenv("CACHE_MANAGER_URL")); raw != "" {
 		cacheManager, err = url.Parse(raw)
@@ -236,9 +231,8 @@ func main() {
 		backend:     backend,
 		backendName: "vllm",
 		backends: map[string]backendConfig{
-			"vllm":              {Name: "vllm", Deployment: vllmDeployment, Container: vllmContainer, URL: backend},
-			"llama-cpp":         {Name: "llama-cpp", Deployment: env("LLAMA_DEPLOYMENT", "llm-laguna"), Container: env("LLAMA_CONTAINER", "laguna"), URL: llamaBackend},
-			"llama-cpp-vanilla": {Name: "llama-cpp-vanilla", Deployment: env("LLAMA_VANILLA_DEPLOYMENT", "llm-llama-cpp"), Container: env("LLAMA_VANILLA_CONTAINER", "llama-cpp"), URL: llamaVanillaBackend},
+			"vllm":      {Name: "vllm", Deployment: vllmDeployment, Container: vllmContainer, URL: backend},
+			"llama-cpp": {Name: "llama-cpp", Deployment: env("LLAMA_DEPLOYMENT", "llm-laguna"), Container: env("LLAMA_CONTAINER", "laguna"), URL: llamaBackend},
 		},
 		active:              env("DEFAULT_MODEL", ""),
 		publicBaseURL:       strings.TrimSuffix(env("PUBLIC_BASE_URL", "http://llm-proxy:8080/v1"), "/"),
@@ -1187,13 +1181,6 @@ func (p *proxy) syncActiveDeployment(ctx context.Context) error {
 	for _, backend := range backends {
 		deployment, err := p.client.AppsV1().Deployments(p.namespace).Get(ctx, backend.Deployment, metav1.GetOptions{})
 		if err != nil {
-			// The legacy vanilla llama.cpp backend has no CR-only catalog
-			// representation and is intentionally absent in Cogito. It cannot
-			// become active, so its missing Deployment must not prevent the
-			// active CR-backed backend from synchronizing or persisting status.
-			if backend.Name == "llama-cpp-vanilla" && apierrors.IsNotFound(err) {
-				continue
-			}
 			return fmt.Errorf("get %s backend Deployment: %w", backend.Name, err)
 		}
 		if deployment.Spec.Replicas != nil && *deployment.Spec.Replicas != 1 {

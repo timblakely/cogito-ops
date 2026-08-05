@@ -247,7 +247,7 @@ func (m *cacheManager) cacheResult(r cacheRequest) string {
 }
 
 func validCacheRequest(r cacheRequest) error {
-	if r.Model == "" || (r.Backend != "vllm" && r.Backend != "llama-cpp" && r.Backend != "llama-cpp-vanilla") {
+	if r.Model == "" || (r.Backend != "vllm" && r.Backend != "llama-cpp") {
 		return errors.New("model and supported backend are required")
 	}
 	if (r.Cache.Kind != "huggingface-hub" && r.Cache.Kind != "huggingface-files") || r.Cache.RepoID == "" || r.Cache.Revision == "" || r.Cache.Size < 0 {

@@ -45,8 +45,7 @@ the hot cache artifact were verified during activation; Laguna remains scaled
 to zero and unchanged.
 
 This describes the accepted M4 state; it was superseded by the M5 operator
-handoff below. The configured but absent `llm-llama-cpp` (llama-cpp-vanilla)
-Deployment still produces deferred proxy refresh warnings.
+handoff below.
 
 ## Accepted non-production comparison
 
@@ -62,10 +61,8 @@ diagnostics endpoint records the corresponding legacy ConfigMaps as skipped by
 CR precedence, which is expected during migration. Keep those ConfigMaps in
 place as a rollback path; this comparison does not authorize their retirement.
 
-Fable Fusion and its three overlays are explicitly deferred: the legacy model
-uses unsupported `llama-cpp-vanilla` arguments and its required
-`llm-llama-cpp` backend is absent. Their diagnostic entries are expected until
-that independent backend/catalog issue is resolved.
+Fable Fusion and its three overlays remain deferred pending a separately
+supported backend/catalog path.
 
 ## M5 non-production transition handoff
 
@@ -83,6 +80,4 @@ is a stable one-replica `llm-vllm`, a hot cache ensure, and
 
 TODO: add runtime/container integration coverage for both successful and
 failed transitions, including cache-manager interaction, rollout readiness,
-and the handoff/rollback behavior. The configured but absent
-`llm-llama-cpp` (llama-cpp-vanilla) backend still produces deferred proxy
-refresh warnings and must be resolved separately.
+and the handoff/rollback behavior.
