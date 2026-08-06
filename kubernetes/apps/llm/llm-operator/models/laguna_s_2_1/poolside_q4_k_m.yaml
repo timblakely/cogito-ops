@@ -1,0 +1,19 @@
+apiVersion: llm.cogito.dev/v1alpha1
+kind: LLMModel
+metadata: {name: laguna-s-2-1-q4, namespace: llm}
+spec:
+  backendRef: {name: laguna-operator-canary}
+  model:
+    name: poolside/Laguna-S-2.1
+    source: /models/laguna/laguna-s-2.1-Q4_K_M.gguf
+    revision: 92b968eeba0fbb790ef4216e2a70ef079ed19b07
+    artifactRepository: poolside/Laguna-S-2.1-GGUF
+  artifact:
+    expectedSize: 60Gi
+    materializationTarget: gguf/laguna
+    files: [laguna-s-2.1-Q4_K_M.gguf, laguna-s-2.1-DFlash-BF16.gguf]
+  serving:
+    backend: llama-cpp
+    displayName: Laguna S 2.1 Q4 (llama.cpp hybrid MoE)
+    maxModelLen: 102400
+    args: [--host, 0.0.0.0, --port, "8000", --jinja, --ctx-size, "102400", --parallel, "1", -t, "22", -ngl, "999", --split-mode, layer, --flash-attn, "on", --cache-type-k, q8_0, --cache-type-v, q8_0, --no-mmap, -md, /models/laguna/laguna-s-2.1-DFlash-BF16.gguf, --spec-type, draft-dflash, --spec-draft-n-max, "15", --override-tensor, 'blk\.(26|27|28|29|30|31|32|33|34|35|36)\.ffn_(down|gate|up)_exps\.weight=CUDA0,blk\.(37|38|39|40|41|42|43|44|45|46|47)\.ffn_(down|gate|up)_exps\.weight=CUDA1,ffn_(down|gate|up)_exps\.weight=CPU']

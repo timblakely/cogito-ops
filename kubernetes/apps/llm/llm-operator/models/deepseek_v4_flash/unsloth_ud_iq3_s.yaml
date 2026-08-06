@@ -1,0 +1,19 @@
+apiVersion: llm.cogito.dev/v1alpha1
+kind: LLMModel
+metadata: {name: deepseek-v4-flash-0731-ud-iq3-s, namespace: llm}
+spec:
+  backendRef: {name: deepseek-v4-flash-operator-canary}
+  model:
+    name: deepseek-ai/DeepSeek-V4-Flash-0731
+    source: /models/deepseek-v4-flash/UD-IQ3_S/DeepSeek-V4-Flash-UD-IQ3_S-00001-of-00004.gguf
+    revision: 525e9fec5480b7ca96539c8dc1e8f1ec54047605
+    artifactRepository: unsloth/DeepSeek-V4-Flash-GGUF
+  artifact:
+    expectedSize: 117Gi
+    materializationTarget: gguf/deepseek-v4-flash
+    files: [UD-IQ3_S/DeepSeek-V4-Flash-UD-IQ3_S-00001-of-00004.gguf, UD-IQ3_S/DeepSeek-V4-Flash-UD-IQ3_S-00002-of-00004.gguf, UD-IQ3_S/DeepSeek-V4-Flash-UD-IQ3_S-00003-of-00004.gguf, UD-IQ3_S/DeepSeek-V4-Flash-UD-IQ3_S-00004-of-00004.gguf]
+  serving:
+    backend: llama-cpp
+    displayName: DeepSeek V4 Flash 0731 UD-IQ3_S (llama.cpp hybrid MoE)
+    maxModelLen: 143360
+    args: [--host, 0.0.0.0, --port, "8000", --jinja, --ctx-size, "143360", --parallel, "1", --threads, "12", --threads-batch, "22", --fit, "on", --fit-ctx, "143360", --fit-target, "1024,1024", --split-mode, layer, --flash-attn, "on", --cache-type-k, q8_0, --cache-type-v, q8_0, --batch-size, "4096", --ubatch-size, "1024", --no-mmap]
