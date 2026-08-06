@@ -267,3 +267,52 @@ spec:
       - --ubatch-size
       - "1024"
       - --no-mmap
+---
+apiVersion: llm.cogito.dev/v1alpha1
+kind: LLMModel
+metadata:
+  name: qwen-3-6-27b-fable-fusion-711-q4-k-m
+  namespace: llm
+spec:
+  backendRef:
+    name: deepseek-v4-flash-operator-canary
+  model:
+    name: DavidAU/Qwen3.6-27B-Fable-Fusion-711-Uncensored-Heretic-NM-DAU-NEO-MAX-MTP-GGUF
+    source: /models/qwen-fable-fusion-711/Qwen3.6-27B-Fable-Fus-711-UnHeretic-NM-DAU-NEO-MAX-NEO-MTP-Q4_K_M.gguf
+    revision: 255dac194ec7880fc5b7afed5581a1b0a3f4b98d
+    artifactRepository: DavidAU/Qwen3.6-27B-Fable-Fusion-711-Uncensored-Heretic-NM-DAU-NEO-MAX-MTP-GGUF
+  artifact:
+    materializationTarget: gguf/qwen-fable-fusion-711
+    files:
+      - Qwen3.6-27B-Fable-Fus-711-UnHeretic-NM-DAU-NEO-MAX-NEO-MTP-Q4_K_M.gguf
+  serving:
+    backend: llama-cpp
+    displayName: Qwen 3.6 27B Fable Fusion 711 Q4_K_M MTP (llama.cpp)
+    maxModelLen: 65536
+    args:
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --jinja
+      - --ctx-size
+      - "65536"
+      - --parallel
+      - "1"
+      - --threads
+      - "12"
+      - --threads-batch
+      - "22"
+      - --split-mode
+      - layer
+      - --flash-attn
+      - "on"
+      - --cache-type-k
+      - q8_0
+      - --cache-type-v
+      - q8_0
+      - --batch-size
+      - "4096"
+      - --ubatch-size
+      - "1024"
+      - --no-mmap
