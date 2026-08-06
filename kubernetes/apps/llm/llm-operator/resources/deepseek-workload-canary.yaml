@@ -4,7 +4,7 @@
 apiVersion: llm.cogito.dev/v1alpha1
 kind: LLMBackend
 metadata:
-  name: deepseek-v4-flash-operator-canary
+  name: llama-cpp-server
   namespace: llm
 spec:
   type: llama-cpp
@@ -19,10 +19,10 @@ spec:
   workload:
     containerName: runtime
     service:
-      name: deepseek-v4-flash-operator-canary
+      name: llama-cpp-server
       port: 8000
     deployment:
-      name: deepseek-v4-flash-operator-canary
+      name: llama-cpp-server
       replicas: 0
       strategy:
         type: Recreate

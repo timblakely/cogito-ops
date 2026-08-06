@@ -4,7 +4,7 @@
 apiVersion: llm.cogito.dev/v1alpha1
 kind: LLMBackend
 metadata:
-  name: laguna-operator-canary
+  name: laguna-server
   namespace: llm
 spec:
   type: llama-cpp
@@ -19,10 +19,10 @@ spec:
   workload:
     containerName: runtime
     service:
-      name: laguna-operator-canary
+      name: laguna-server
       port: 8000
     deployment:
-      name: laguna-operator-canary
+      name: laguna-server
       replicas: 0
       strategy:
         type: Recreate

@@ -2,7 +2,7 @@
 apiVersion: llm.cogito.dev/v1alpha1
 kind: LLMBackend
 metadata:
-  name: vllm-operator-canary
+  name: vllm-server
   namespace: llm
 spec:
   type: vllm
@@ -11,9 +11,9 @@ spec:
   capacity: {gpus: 2, resourceName: nvidia.com/gpu}
   workload:
     containerName: runtime
-    service: {name: vllm-operator-canary, port: 8000}
+    service: {name: vllm-server, port: 8000}
     deployment:
-      name: vllm-operator-canary
+      name: vllm-server
       replicas: 0
       strategy: {type: Recreate}
       podTemplate:
