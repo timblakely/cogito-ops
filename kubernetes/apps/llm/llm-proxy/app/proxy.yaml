@@ -34,9 +34,9 @@ rules:
     resources:
       - deployments
     resourceNames:
-      - laguna-operator-canary
-      - deepseek-v4-flash-operator-canary
-      - vllm-operator-canary
+      - laguna-server
+      - llama-cpp-server
+      - vllm-server
     verbs:
       - get
       - watch
@@ -113,11 +113,11 @@ spec:
           image: ghcr.io/timblakely/vllm-proxy:m9-remove-vanilla-20260805.1@sha256:6bb39c5fa8498aa32b485488ca5ff7ef48b279e7aba962531083f53f4dd27896
           env:
             - name: BACKEND_URL
-              value: http://vllm-operator-canary:8000
+              value: http://vllm-server:8000
             - name: LLAMA_BACKEND_URL
-              value: http://deepseek-v4-flash-operator-canary:8000
+              value: http://llama-cpp-server:8000
             - name: LLAMA_DEPLOYMENT
-              value: deepseek-v4-flash-operator-canary
+              value: llama-cpp-server
             - name: LLAMA_CONTAINER
               value: runtime
             - name: DEFAULT_MODEL
@@ -125,7 +125,7 @@ spec:
             - name: PUBLIC_BASE_URL
               value: https://llm-switch.${DOMAIN_NAME}/v1
             - name: VLLM_DEPLOYMENT
-              value: vllm-operator-canary
+              value: vllm-server
             - name: VLLM_CONTAINER
               value: runtime
             - name: TRANSITION_TIMEOUT
