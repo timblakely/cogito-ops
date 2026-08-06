@@ -11,9 +11,6 @@ spec:
     name: google/gemma-4-31B-it-qat-w4a16-ct
     source: google/gemma-4-31B-it-qat-w4a16-ct
     revision: 52f3f65bc7a02d555763bc923bd1d9094898219d
-  # An explicit hub artifact lets the operator issue a cache-manager ensure;
-  # the manager discovers the immutable inventory when it is not already hot.
-  artifact: {}
   serving:
     backend: vllm
     displayName: Gemma 4 31B IT QAT W4A16 (Google, Compressed Tensors)
@@ -59,9 +56,6 @@ spec:
     name: cyankiwi/gemma-4-31B-it-qat-AWQ-INT4
     source: cyankiwi/gemma-4-31B-it-qat-AWQ-INT4
     revision: e0814036cbe43ee2315aafaede0c3454c74b71d3
-  # Request an immutable hub snapshot from cache-manager before vLLM starts
-  # with HF_HUB_OFFLINE=1.
-  artifact: {}
   serving:
     backend: vllm
     displayName: Gemma 4 31B IT QAT AWQ INT4
@@ -110,9 +104,6 @@ spec:
     name: Lorbus/Qwen3.6-27B-int4-AutoRound
     source: Lorbus/Qwen3.6-27B-int4-AutoRound
     revision: c3aea2d531678621989e5e2db034e32b22536e79
-  # The empty hub-artifact form makes the operator request an immutable
-  # snapshot from cache-manager before starting vLLM in offline mode.
-  artifact: {}
   serving:
     backend: vllm
     displayName: Qwen 3.6 27B INT4 AutoRound
