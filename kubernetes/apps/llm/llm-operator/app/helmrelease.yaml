@@ -25,7 +25,7 @@ spec:
       repository: ghcr.io/timblakely/llm-operator
       # Reviewed immutable image digest. Keep this promotion record in Git;
       # an image digest is deployment metadata, not a credential.
-      digest: sha256:97fb557157ae527ae5a8265f8793fd2017af648c64d09f6c87f66e8e5937606c
+      digest: sha256:a7b8f4c298fac61b075a2264bf49b3f8e8a71890acb61de6556d9143a88ff3f7
     replicaCount: 2
     leaderElection:
       enabled: true
@@ -36,8 +36,61 @@ spec:
     metrics:
       service:
         enabled: true
+      serviceMonitor:
+        # Cogito continues to own the manager monitor in this release.
+        enabled: false
     cacheManager:
       url: http://cache-manager:8090
+    # Adopt the retained raw proxy objects in-place. Compatibility object
+    # names, labels, and the public route are deliberate: clients retain both
+    # the llm-proxy service DNS name and llm-switch endpoint throughout this
+    # release.
+    proxy:
+      enabled: true
+      image:
+        repository: ghcr.io/timblakely/llm-proxy
+        digest: sha256:d841792b6a4b4b7e5a6c449270f5063be7c0d6ba4522ce271be7af08499a343b
+      replicas: 1
+      service:
+        name: llm-proxy
+        port: 8080
+      serviceAccount:
+        name: llm
+      nodeSelector:
+        kubernetes.io/hostname: iggy
+      defaultModel: google/gemma-4-31B-it-qat-w4a16-ct
+      publicBaseURL: https://llm-switch.${DOMAIN_NAME}/v1
+      activeModelRef: default
+      transitionTimeout: 30m
+      cacheManagerURL: http://cache-manager:8090
+      backends:
+        vllm:
+          url: http://vllm-server:8000
+          deployment: vllm-server
+          container: runtime
+        llamaCPP:
+          url: http://llama-cpp-server:8000
+          deployment: llama-cpp-server
+          container: runtime
+      exposure:
+        httpRoute:
+          enabled: true
+          name: llm
+          hostnames: ["llm-switch.${DOMAIN_NAME}"]
+          parentRefs:
+            - name: envoy-internal
+              namespace: envoy-system
+              sectionName: https
+      metrics:
+        # Keep the raw ServiceMonitor during adoption: it carries dashboard
+        # compatibility relabeling and avoids duplicate scrape objects.
+        serviceMonitor:
+          enabled: false
+    backendMetrics:
+      # Do not scrape backend endpoints directly until every runtime's metric
+      # flags and proxy passthrough duplication are accepted separately.
+      serviceMonitor:
+        enabled: false
     resources:
       requests:
         cpu: 100m

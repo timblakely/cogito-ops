@@ -5,7 +5,13 @@ metadata:
   name: llm
   annotations:
     helm.sh/resource-policy: keep
+    # Flux must retain the object when the raw Kustomize source is removed;
+    # the llm-operator Helm release owns its lifecycle after adoption.
+    kustomize.toolkit.fluxcd.io/prune: disabled
+    meta.helm.sh/release-name: llm-operator
+    meta.helm.sh/release-namespace: llm
   labels:
+    app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: llm
     app.kubernetes.io/name: llm
 ---
@@ -15,7 +21,11 @@ metadata:
   name: llm
   annotations:
     helm.sh/resource-policy: keep
+    kustomize.toolkit.fluxcd.io/prune: disabled
+    meta.helm.sh/release-name: llm-operator
+    meta.helm.sh/release-namespace: llm
   labels:
+    app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: llm
     app.kubernetes.io/name: llm
 rules:
@@ -65,7 +75,11 @@ metadata:
   name: llm
   annotations:
     helm.sh/resource-policy: keep
+    kustomize.toolkit.fluxcd.io/prune: disabled
+    meta.helm.sh/release-name: llm-operator
+    meta.helm.sh/release-namespace: llm
   labels:
+    app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: llm
     app.kubernetes.io/name: llm
 roleRef:
@@ -82,7 +96,11 @@ metadata:
   name: llm-proxy
   annotations:
     helm.sh/resource-policy: keep
+    kustomize.toolkit.fluxcd.io/prune: disabled
+    meta.helm.sh/release-name: llm-operator
+    meta.helm.sh/release-namespace: llm
   labels:
+    app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: llm
     app.kubernetes.io/name: llm
     app.kubernetes.io/controller: proxy
@@ -148,7 +166,11 @@ metadata:
   name: llm-proxy
   annotations:
     helm.sh/resource-policy: keep
+    kustomize.toolkit.fluxcd.io/prune: disabled
+    meta.helm.sh/release-name: llm-operator
+    meta.helm.sh/release-namespace: llm
   labels:
+    app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: llm
     app.kubernetes.io/name: llm
     app.kubernetes.io/service: llm-proxy
@@ -168,7 +190,11 @@ metadata:
   name: llm
   annotations:
     helm.sh/resource-policy: keep
+    kustomize.toolkit.fluxcd.io/prune: disabled
+    meta.helm.sh/release-name: llm-operator
+    meta.helm.sh/release-namespace: llm
   labels:
+    app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: llm
     app.kubernetes.io/name: llm
 spec:

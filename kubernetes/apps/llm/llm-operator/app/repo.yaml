@@ -10,6 +10,7 @@ spec:
     mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
     operation: copy
   ref:
-    # Chart 0.1.20 preserves the optional legacy port during workload reconciliation.
-    digest: sha256:a7304ee79a58fdf1baa9998ff8d9e7f2330abf51b11a15252ebdee1661596d14
+    # Chart 0.1.24 adds the optional CR-aware proxy component. This is an
+    # immutable promotion record; its resources are adopted in-place below.
+    digest: sha256:28a54fdbe5d58835cebed3734f940e5312a1b3a7dc87cdfd03022f2da1736387
   url: oci://ghcr.io/timblakely/charts/llm-operator

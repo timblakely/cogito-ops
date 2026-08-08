@@ -33,7 +33,9 @@ spec:
           bootstrap-llm-proxy:
             image:
               repository: ghcr.io/timblakely/vllm-proxy
-              tag: model-overlays-20260720
+              # The digest is the proxy promotion used by the chart. The tag
+              # remains only to satisfy app-template's image reference shape.
+              tag: latest@sha256:d841792b6a4b4b7e5a6c449270f5063be7c0d6ba4522ce271be7af08499a343b
             args:
               - bootstrap-hermes
               - --proxy-url
