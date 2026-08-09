@@ -98,6 +98,16 @@ spec:
                     port: &port 8080
                     path: /health
               readiness: *probes
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    port: *port
+                    path: /health
+                  periodSeconds: 5
+                  failureThreshold: 24
+                  timeoutSeconds: 1
             resources:
               requests:
                 cpu: 250m
