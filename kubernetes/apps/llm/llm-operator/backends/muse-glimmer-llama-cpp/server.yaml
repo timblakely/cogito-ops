@@ -1,0 +1,53 @@
+---
+# Dedicated single-RTX-3090 llama.cpp workload for Muse Glimmer. The
+# active-model controller starts exactly one serving backend at a time.
+apiVersion: llm.cogito.dev/v1alpha1
+kind: LLMBackend
+metadata:
+  name: muse-glimmer-server
+  namespace: llm
+spec:
+  type: llama-cpp
+  # Kept for the v1alpha1 CRD's legacy required field; workload.service.port
+  # remains the source for the generated Service.
+  port: 8000
+  capacity:
+    gpus: 1
+    resourceName: nvidia.com/gpu
+  workload:
+    containerName: runtime
+    service:
+      name: muse-glimmer-server
+      port: 8000
+    deployment:
+      name: muse-glimmer-server
+      replicas: 0
+      strategy:
+        type: Recreate
+      podTemplate:
+        spec:
+          automountServiceAccountToken: false
+          runtimeClassName: nvidia
+          nodeSelector:
+            kubernetes.io/hostname: iggy
+          containers:
+            - name: runtime
+              image: ghcr.io/ggml-org/llama.cpp:server-cuda13@sha256:2ac50c8a47cc06134b11774c33f91397e81ab832d4b7b22537fc64656261c709
+              imagePullPolicy: IfNotPresent
+              resources:
+                requests:
+                  cpu: "11"
+                  memory: 46Gi
+                  nvidia.com/gpu: "1"
+                limits:
+                  cpu: "12"
+                  memory: 48Gi
+                  nvidia.com/gpu: "1"
+              volumeMounts:
+                - name: model-cache
+                  mountPath: /models
+                  subPath: gguf
+          volumes:
+            - name: model-cache
+              persistentVolumeClaim:
+                claimName: llm-huggingface-cache

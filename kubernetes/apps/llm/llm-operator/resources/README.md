@@ -8,9 +8,9 @@ The passive rollout completed successfully on 2026-07-29. M5 subsequently
 completed a stable operator-owned Gemma activation, and M6 retired the legacy
 ConfigMap catalog. The active CR set is reconciled through Flux.
 
-The inventory supports three operator-owned backends (`vllm-server`,
-`laguna-server`, and the shared `llama-cpp-server`), five valid models, the Gemma overlay, and
-`LLMActiveModel/default`. M7 completed the
+The inventory supports four operator-owned backends (`vllm-server`,
+`laguna-server`, `muse-glimmer-server`, and the shared `llama-cpp-server`),
+the registered model catalog, the Gemma overlay, and `LLMActiveModel/default`. M7 completed the
 operator-owned transition to `poolside/Laguna-S-2.1`: Laguna served through
 the read-only proxy and cache-manager reported the GGUF artifacts hot. M8 then
 validated proxy-requested Qwen and Gemma transitions; Gemma/vLLM is currently
@@ -29,6 +29,12 @@ runtime requests 118 GiB RAM (with a 120 GiB cap) on `iggy`; do not activate
 it until the node has enough allocatable memory for the model and the 140k KV
 cache. It uses its own 140 GiB hostpath PVC because the pre-existing Laguna
 PVC is only 100 GiB and its StorageClass does not allow expansion.
+
+Muse Glimmer 30B uses a dedicated, zero-replica llama.cpp backend that requests
+one RTX 3090. Its official 17 GB K-quant, DFlash draft GGUF, and multimodal
+projector are materialized together and pinned to the Hugging Face revision in
+the model CR. It starts at a 200k context with an f16 KV cache; validate that
+single-GPU profile during its first live acceptance run.
 
 TODO: add runtime/container integration coverage for both successful and
 failed transitions, including cache-manager ensure behavior and rollback.
