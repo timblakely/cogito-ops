@@ -1,0 +1,28 @@
+---
+# The Helm-owned `llm` Role is intentionally limited to the built-in backend
+# set. CR-aware proxy routing must also discover dedicated backend Deployments
+# such as Muse; keep that read-only permission in a separately owned Role.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: llm-crd-backend-observer
+  namespace: llm
+rules:
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [vllm-server, llama-cpp-server, laguna-server, muse-glimmer-server]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: llm-crd-backend-observer
+  namespace: llm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: llm-crd-backend-observer
+subjects:
+  - kind: ServiceAccount
+    name: llm
+    namespace: llm
