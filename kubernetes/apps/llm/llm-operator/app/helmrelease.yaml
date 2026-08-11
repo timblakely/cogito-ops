@@ -48,10 +48,8 @@ spec:
     proxy:
       enabled: true
       image:
-        repository: ghcr.io/timblakely/llm-proxy
-        # Keep the known locally cached proxy image until the new CR-aware
-        # routing image is made pullable by the cluster.
-        digest: sha256:6bb39c5fa8498aa32b485488ca5ff7ef48b279e7aba962531083f53f4dd27896
+        repository: ghcr.io/timblakely/vllm-proxy
+        digest: sha256:28fdfb01799f3c001e2e989051e9c49a8750f1ca08562866e77f84cb46800ee8
       replicas: 1
       service:
         name: llm-proxy
