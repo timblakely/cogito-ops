@@ -32,10 +32,16 @@ spec:
             kubernetes.io/hostname: iggy
           containers:
             - name: runtime
-              # Muse Glimmer requires llama.cpp b10353+ for its architecture
-              # and multimodal projector support.
-              image: ghcr.io/ggml-org/llama.cpp:server-cuda13@sha256:e6117a9f04c6cac6afbeac37fca66fdb52039c2ed0c7928dd1ba342602d40a5c
+              # Built from llama.cpp commit 62bf73d, which adds Muse Glimmer
+              # architecture and multimodal-projector support.
+              image: ghcr.io/timblakely/llama-muse:muse-glimmer-62bf73d-cuda13@sha256:e09dfe0b46dffd07428784ec1e84d7b2ee01b595efe377445820ce81da1a5ef5
               imagePullPolicy: IfNotPresent
+              # The operator splits comma-delimited CR args while composing
+              # a Deployment. Pass these two metadata overrides via llama.cpp's
+              # native environment configuration so they remain one value.
+              env:
+                - name: LLAMA_ARG_OVERRIDE_KV
+                  value: muse-glimmer.context_length=int:200000,dflash.context_length=int:200000
               resources:
                 requests:
                   cpu: "11"
