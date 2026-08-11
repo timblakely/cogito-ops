@@ -15,4 +15,25 @@ spec:
     chatTemplate:
       configMapKeyRef: {name: qwen-fixed-chat-template, key: chat_template.jinja}
       sha256: a56322d9a2b8b3f893f80ce1acd6eab3f07379bbd4a1f98332d570abbfddfedd
-    args: [--disable-custom-all-reduce, --quantization, auto_round, --dtype, float16, --tensor-parallel-size, "2", --pipeline-parallel-size, "1", --max-model-len, "262144", --gpu-memory-utilization, "0.92", --max-num-seqs, "2", --max-num-batched-tokens, "8192", --kv-cache-dtype, fp8_e5m2, --trust-remote-code, --reasoning-parser, qwen3, --default-chat-template-kwargs, '{"enable_thinking": false}', --enable-auto-tool-choice, --enable-prefix-caching, --enable-chunked-prefill, --speculative-config, '{"method": "mtp", "num_speculative_tokens": 3}', --override-generation-config, '{"temperature": 0.6, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "repetition_penalty": 1.0}', --host, 0.0.0.0, --port, "8000"]
+    args: [
+      --disable-custom-all-reduce,
+      --quantization, auto_round,
+      --dtype, float16,
+      --tensor-parallel-size, "2",
+      --pipeline-parallel-size, "1",
+      --max-model-len, "262144",
+      --gpu-memory-utilization, "0.92",
+      --max-num-seqs, "2",
+      --max-num-batched-tokens, "8192",
+      --kv-cache-dtype, fp8_e5m2,
+      --trust-remote-code,
+      --reasoning-parser, qwen3,
+      --default-chat-template-kwargs, '{"enable_thinking": false}',
+      --enable-auto-tool-choice,
+      --enable-prefix-caching,
+      --enable-chunked-prefill,
+      --speculative-config, '{"method": "mtp", "num_speculative_tokens": 3}',
+      --override-generation-config, '{"temperature": 0.6, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "repetition_penalty": 1.0}',
+      --host, 0.0.0.0,
+      --port, "8000"
+    ]
