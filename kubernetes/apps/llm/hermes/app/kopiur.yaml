@@ -1,0 +1,83 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kopiur.home-operations.com/repository_v1alpha1.json
+apiVersion: kopiur.home-operations.com/v1alpha1
+kind: Repository
+metadata:
+  name: hermes
+spec:
+  # Same NFS export Volsync's ReplicationSource already mounts via
+  # moverVolumes - `migrate volsync` can only auto-detect a PVC-backed
+  # repository, so this volume block is hand-corrected to inline NFS.
+  backend:
+    filesystem:
+      path: /mnt/repository
+      volume:
+        nfs:
+          server: nuglab-storage.internal
+          path: /volume1/nuglab/VolsyncKopia
+  encryption:
+    passwordSecretRef:
+      name: hermes-volsync-secret
+      key: KOPIA_PASSWORD
+  # Adopt in place - never (re)initialize. The repository must already exist.
+  create:
+    enabled: false
+  # This shared repository has ~80k content-index blobs (KopiaMaintenance
+  # hasn't been compacting it), so a cold connect on first bootstrap exceeds
+  # the 120s default. Verified live: connect took several minutes.
+  bootstrap:
+    failurePolicy:
+      activeDeadlineSeconds: 900
+  # Volsync's KopiaMaintenance CR still owns maintenance on this shared
+  # repository during the pilot/parallel-run window - leave this off until
+  # hermes is fully cut over, to avoid two maintenance processes racing.
+  maintenance:
+    enabled: false
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kopiur.home-operations.com/snapshotpolicy_v1alpha1.json
+apiVersion: kopiur.home-operations.com/v1alpha1
+kind: SnapshotPolicy
+metadata:
+  name: hermes
+spec:
+  repository:
+    kind: Repository
+    name: hermes
+  sources:
+    - pvc:
+        name: hermes
+      sourcePathOverride: /data
+  # Pinned to the perfectra1n/volsync fork's existing snapshot identity so
+  # new snapshots continue (not fork) the existing history. Verified against
+  # the live ReplicationSource's mover logs: "Snapshotting hermes@llm:/data".
+  identity:
+    username: hermes
+    hostname: llm
+  copyMethod: Snapshot
+  volumeSnapshotClassName: csi-ceph-blockpool
+  compression:
+    compressor: zstd-fastest
+  upload:
+    maxParallelFileReads: 2
+  mover:
+    cache:
+      capacity: 2Gi
+      storageClassName: openebs-hostpath
+    podSecurityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+  retention:
+    keepHourly: 24
+    keepDaily: 7
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kopiur.home-operations.com/snapshotschedule_v1alpha1.json
+apiVersion: kopiur.home-operations.com/v1alpha1
+kind: SnapshotSchedule
+metadata:
+  name: hermes
+spec:
+  policyRef:
+    name: hermes
+  schedule:
+    cron: "0 * * * *"
