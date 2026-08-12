@@ -151,7 +151,7 @@ spec:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "1 + sum(rate(vllm:spec_decode_num_accepted_tokens_total{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval])) / clamp_min(sum(rate(vllm:spec_decode_num_drafts{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval])), 1)",
+              "expr": "1 + sum(rate(vllm:spec_decode_num_accepted_tokens_total{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval])) / clamp_min(sum(rate(vllm:spec_decode_num_draft_tokens_total{namespace=\"llm\",vllm_instance=~\"$instance\"}[$__rate_interval])), 1)",
               "legendFormat": "tokens / draft",
               "range": true,
               "refId": "A"
@@ -1705,7 +1705,7 @@ spec:
               "type": "prometheus",
               "uid": "prometheus"
             },
-            "definition": "label_values(vllm:kv_cache_usage_perc{namespace=\"llm\"}, vllm_instance) or label_values(vllm_proxy_last_startup_duration_seconds{namespace=\"llm\"}, vllm_instance)",
+            "definition": "label_values({namespace=\"llm\",__name__=~\"vllm:.*|vllm_proxy_.*\"}, vllm_instance)",
             "hide": 0,
             "includeAll": true,
             "label": "Instance",
@@ -1714,7 +1714,7 @@ spec:
             "options": [],
             "query": {
               "qryType": 0,
-              "query": "label_values(vllm:kv_cache_usage_perc{namespace=\"llm\"}, vllm_instance) or label_values(vllm_proxy_last_startup_duration_seconds{namespace=\"llm\"}, vllm_instance)",
+              "query": "label_values({namespace=\"llm\",__name__=~\"vllm:.*|vllm_proxy_.*\"}, vllm_instance)",
               "refId": "PrometheusVariableQueryEditor-VariableQuery"
             },
             "refresh": 1,
