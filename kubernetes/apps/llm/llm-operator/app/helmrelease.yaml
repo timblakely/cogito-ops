@@ -72,6 +72,9 @@ spec:
           url: http://llama-cpp-server:8000
           deployment: llama-cpp-server
           container: runtime
+      # Dedicated LLMBackend workloads referenced by the model catalog. Keep
+      # this allowlist synchronized with the reviewed backend inventory.
+      additionalBackendDeployments: [laguna-server, muse-glimmer-server]
       exposure:
         httpRoute:
           enabled: true
