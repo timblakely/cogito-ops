@@ -9,13 +9,13 @@ spec:
   backendRef: {name: muse-glimmer-server}
   model:
     name: meta-models/Muse-Glimmer-30B-GGUF
-    source: /models/muse-glimmer-30b/muse-glimmer-30B-kquant-17gb.gguf
-    revision: a0532f7263ee67f1e0a5f5c5fdcd50dd62fc9aa4
+    source: /models/muse-glimmer-30b/Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf
+    revision: 43c7eadd41352a299ea8e0a36b3157978dd63596
     artifactRepository: meta-models/Muse-Glimmer-30B-GGUF
   artifact:
     expectedSize: "19788215296"
     materializationTarget: gguf/muse-glimmer-30b
-    files: [muse-glimmer-30B-kquant-17gb.gguf, dflash-kquant.gguf, mmproj-kquant.gguf]
+    files: [Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf, dflash-Muse-Glimmer-30B-Q4_K_M.gguf, mmproj-Muse-Glimmer-30B-Q4_K_M.gguf]
   serving:
     backend: llama-cpp
     displayName: Muse Glimmer 30B K-Quant 17 GB with DFlash (llama.cpp, single RTX 3090)
@@ -35,8 +35,8 @@ spec:
       --cache-type-v, f16,
       --no-warmup,
       --no-mmap,
-      --mmproj, /models/muse-glimmer-30b/mmproj-kquant.gguf,
-      --spec-draft-model, /models/muse-glimmer-30b/dflash-kquant.gguf,
+      --mmproj, /models/muse-glimmer-30b/mmproj-Muse-Glimmer-30B-Q4_K_M.gguf,
+      --spec-draft-model, /models/muse-glimmer-30b/dflash-Muse-Glimmer-30B-Q4_K_M.gguf,
       --spec-draft-ngl, "999",
       --spec-draft-n-max, "15",
       --spec-type, draft-dflash,
