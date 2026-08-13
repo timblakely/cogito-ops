@@ -3,7 +3,7 @@
 apiVersion: kopiur.home-operations.com/v1alpha1
 kind: Repository
 metadata:
-  name: hermes
+  name: actual
 spec:
   # Same NFS export Volsync's ReplicationSource already mounts via
   # moverVolumes - `migrate volsync` can only auto-detect a PVC-backed
@@ -17,31 +17,19 @@ spec:
           path: /volume1/nuglab/VolsyncKopia
   encryption:
     passwordSecretRef:
-      name: hermes-volsync-secret
+      name: actual-volsync-secret
       key: KOPIA_PASSWORD
   # Adopt in place - never (re)initialize. The repository must already exist.
   create:
     enabled: false
-  # kopia epoch parameters are stored on the physical repository itself, not
-  # per-CR - setting this here is enough to cover the whole shared repo.
-  # Default minDuration (24h) meant an epoch couldn't close/compact until it
-  # was a full day old, and with 9 apps writing hourly, new epochs piled up
-  # faster than the 24h-old ones cleared - the index grew to ~80k blobs
-  # before the KopiaMaintenance wiring fix (see storage/volsync) let a
-  # backlogged batch finally compact in one pass. 6h keeps future backlog
-  # from re-accumulating that badly.
-  parameters:
-    epoch:
-      minDuration: 6h
-  # A cold connect against a backlogged index can exceed the 120s default -
-  # verified live (multiple minutes) before the repo was compacted. Kept as
-  # headroom against future backlog, though connects are now sub-minute.
+  # Cold connect against this shared, still-under-maintained repository can
+  # exceed the 120s default (verified on hermes: several minutes).
   bootstrap:
     failurePolicy:
       activeDeadlineSeconds: 900
   # Volsync's KopiaMaintenance CR still owns maintenance on this shared
   # repository during the pilot/parallel-run window - leave this off until
-  # hermes is fully cut over, to avoid two maintenance processes racing.
+  # every app is fully cut over, to avoid two maintenance processes racing.
   maintenance:
     enabled: false
 ---
@@ -49,21 +37,21 @@ spec:
 apiVersion: kopiur.home-operations.com/v1alpha1
 kind: SnapshotPolicy
 metadata:
-  name: hermes
+  name: actual
 spec:
   repository:
     kind: Repository
-    name: hermes
+    name: actual
   sources:
     - pvc:
-        name: hermes
+        name: actual
       sourcePathOverride: /data
   # Pinned to the perfectra1n/volsync fork's existing snapshot identity so
   # new snapshots continue (not fork) the existing history. Verified against
-  # the live ReplicationSource's mover logs: "Snapshotting hermes@llm:/data".
+  # the live ReplicationSource's mover logs pattern proven on hermes/camofox/mosquitto.
   identity:
-    username: hermes
-    hostname: llm
+    username: actual
+    hostname: home-infra
   copyMethod: Snapshot
   volumeSnapshotClassName: csi-ceph-blockpool
   compression:
@@ -73,7 +61,7 @@ spec:
   mover:
     cache:
       mode: Persistent
-      capacity: 2Gi
+      capacity: 5Gi
       storageClassName: openebs-hostpath
     podSecurityContext:
       runAsUser: 1000
@@ -87,9 +75,9 @@ spec:
 apiVersion: kopiur.home-operations.com/v1alpha1
 kind: SnapshotSchedule
 metadata:
-  name: hermes
+  name: actual
 spec:
   policyRef:
-    name: hermes
+    name: actual
   schedule:
     cron: "0 * * * *"

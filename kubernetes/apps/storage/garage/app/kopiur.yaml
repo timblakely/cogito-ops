@@ -1,0 +1,72 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kopiur.home-operations.com/repository_v1alpha1.json
+apiVersion: kopiur.home-operations.com/v1alpha1
+kind: Repository
+metadata:
+  name: garage
+spec:
+  backend:
+    filesystem:
+      path: /mnt/repository
+      volume:
+        nfs:
+          server: nuglab-storage.internal
+          path: /volume1/nuglab/VolsyncKopia
+  encryption:
+    passwordSecretRef:
+      name: garage-volsync-secret
+      key: KOPIA_PASSWORD
+  create:
+    enabled: false
+  bootstrap:
+    failurePolicy:
+      activeDeadlineSeconds: 900
+  maintenance:
+    enabled: false
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kopiur.home-operations.com/snapshotpolicy_v1alpha1.json
+apiVersion: kopiur.home-operations.com/v1alpha1
+kind: SnapshotPolicy
+metadata:
+  name: garage
+spec:
+  repository:
+    kind: Repository
+    name: garage
+  sources:
+    - pvc:
+        name: garage
+      sourcePathOverride: /data
+  # Verified against live: `Snapshotting garage@storage:/data ...`
+  identity:
+    username: garage
+    hostname: storage
+  copyMethod: Snapshot
+  volumeSnapshotClassName: csi-ceph-blockpool
+  compression:
+    compressor: zstd-fastest
+  upload:
+    maxParallelFileReads: 2
+  mover:
+    cache:
+      mode: Persistent
+      capacity: 4Gi
+      storageClassName: openebs-hostpath
+    podSecurityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+  retention:
+    keepHourly: 24
+    keepDaily: 7
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kopiur.home-operations.com/snapshotschedule_v1alpha1.json
+apiVersion: kopiur.home-operations.com/v1alpha1
+kind: SnapshotSchedule
+metadata:
+  name: garage
+spec:
+  policyRef:
+    name: garage
+  schedule:
+    cron: "0 * * * *"

@@ -1,0 +1,74 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kopiur.home-operations.com/repository_v1alpha1.json
+apiVersion: kopiur.home-operations.com/v1alpha1
+kind: Repository
+metadata:
+  name: camofox
+spec:
+  backend:
+    filesystem:
+      path: /mnt/repository
+      volume:
+        nfs:
+          server: nuglab-storage.internal
+          path: /volume1/nuglab/VolsyncKopia
+  encryption:
+    passwordSecretRef:
+      name: camofox-volsync-secret
+      key: KOPIA_PASSWORD
+  create:
+    enabled: false
+  bootstrap:
+    failurePolicy:
+      activeDeadlineSeconds: 900
+  maintenance:
+    enabled: false
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kopiur.home-operations.com/snapshotpolicy_v1alpha1.json
+apiVersion: kopiur.home-operations.com/v1alpha1
+kind: SnapshotPolicy
+metadata:
+  name: camofox
+spec:
+  repository:
+    kind: Repository
+    name: camofox
+  sources:
+    - pvc:
+        name: camofox
+      sourcePathOverride: /data
+  # Verified against live: `Snapshotting camofox@llm:/data ...`
+  identity:
+    username: camofox
+    hostname: llm
+  copyMethod: Snapshot
+  volumeSnapshotClassName: csi-ceph-blockpool
+  compression:
+    compressor: zstd-fastest
+  upload:
+    maxParallelFileReads: 2
+  mover:
+    cache:
+      mode: Persistent
+      capacity: 5Gi
+      storageClassName: openebs-hostpath
+    # camofox writes its browser profile as root (VOLSYNC_PUID/PGID=0 under
+    # Volsync) - carried over from the translated moverSecurityContext.
+    podSecurityContext:
+      runAsUser: 0
+      runAsGroup: 0
+      fsGroup: 0
+  retention:
+    keepHourly: 24
+    keepDaily: 7
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kopiur.home-operations.com/snapshotschedule_v1alpha1.json
+apiVersion: kopiur.home-operations.com/v1alpha1
+kind: SnapshotSchedule
+metadata:
+  name: camofox
+spec:
+  policyRef:
+    name: camofox
+  schedule:
+    cron: "0 * * * *"
