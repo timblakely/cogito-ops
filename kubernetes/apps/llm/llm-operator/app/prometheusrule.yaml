@@ -26,3 +26,30 @@ spec:
           annotations:
             summary: LLM operator metrics are absent
             description: Verify the llm-operator metrics ServiceMonitor and manager Pods.
+        - alert: LLMTimeToFirstTokenRegression
+          expr: |-
+            histogram_quantile(0.95, sum by (le) (rate(llm_time_to_first_token_seconds_bucket{namespace="llm"}[15m]))) > 5
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: LLM time to first token has regressed
+            description: p95 time to first token has exceeded 5s for 10m. Check the active backend's load and whether a model switch is in progress.
+        - alert: LLMKVCacheNearlyFull
+          expr: |-
+            max(llm_kv_cache_usage_ratio{namespace="llm"}) > 0.95
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: LLM KV cache is nearly full
+            description: The active backend's KV cache usage has exceeded 95% for 5m, risking request preemption or rejection.
+        - alert: LLMGPUMemoryNearlyFull
+          expr: |-
+            max(DCGM_FI_DEV_FB_USED) / clamp_min(max(DCGM_FI_DEV_FB_USED) + max(DCGM_FI_DEV_FB_FREE), 1) > 0.95
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: GPU memory is nearly full
+            description: GPU framebuffer usage has exceeded 95% for 5m. Check for backend memory leaks or an oversized model/context configuration.

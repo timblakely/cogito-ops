@@ -49,7 +49,9 @@ spec:
       enabled: true
       image:
         repository: ghcr.io/timblakely/vllm-proxy
-        digest: sha256:4f1f881c8a4ed0b37cfeda404cdfce8d5e826170df1d202818c360d25a01d91d
+        # Adds normalized llm_* metrics: per-request TTFT/duration/token
+        # instrumentation and a dual-backend (vLLM + llama.cpp) KV cache gauge.
+        digest: sha256:971ad8c5b7f5b3297fe7993e2c5fecd28eb2148a74d055cd1be8e768ac0488c6
       replicas: 1
       service:
         name: llm-proxy
