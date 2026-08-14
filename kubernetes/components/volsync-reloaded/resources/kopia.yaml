@@ -62,6 +62,13 @@ kind: ReplicationSource
 metadata:
   name: ${APP}
 spec:
+  # Paused during the Kopiur migration soak period: every app now has a
+  # parallel Kopiur SnapshotPolicy covering the same PVC on the same
+  # schedule, so this native path is redundant and was roughly doubling
+  # write load against the shared repo (the thing that kept overwhelming
+  # KopiaMaintenance). History/config stays intact - flip back to false to
+  # resume instantly if Kopiur coverage turns out to be insufficient.
+  paused: true
   sourcePVC: ${APP}
   trigger:
     schedule: 0 * * * *
