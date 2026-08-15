@@ -16,7 +16,7 @@ backend, and launch flags actually deployed.
 
 262,144 tokens native; extensible to ~1,010,000 via YaRN. Upstream
 specifically recommends keeping context at or above 128K when YaRN is
-enabled, to preserve thinking-mode quality.
+enabled.
 
 ## Modalities
 
@@ -35,22 +35,18 @@ GitOps owns the template bytes.
 
 ## Thinking / reasoning
 
-Enabled **by default** upstream, with a "Thinking Preservation" mechanism
-(`preserve_thinking`) that retains reasoning context from prior turns.
-Upstream notes the model "does not officially support the soft switch" for
-toggling thinking mid-conversation.
-
-**`lorbus_autoround.yaml` currently forces `enable_thinking: false`** via
-`--default-chat-template-kwargs`, the same pattern that was found and fixed
-for both Qwen 3.8 configs on 2026-08-15 (see `../qwen_3p8_27b/README.md`).
-This has **not** been revisited for Qwen 3.6 yet — flag this to a human
-before assuming thinking is available on this model through the proxy.
+Unlike Qwen 3.8, this model does **not** have thinking-mode controls —
+there is no `enable_thinking` switch to flip. `lorbus_autoround.yaml` sets
+`--default-chat-template-kwargs '{"enable_thinking": false}'` and
+`--reasoning-parser qwen3`; that's consistent with a non-thinking model and
+is not the same class of bug that was found and fixed on the Qwen 3.8
+configs (see `../qwen_3p8_27b/README.md`) — do not "fix" it to match that
+pattern.
 
 ## Recommended sampling (upstream)
 
-- General thinking tasks: temperature 1.0, top_p 0.95, top_k 20
+- General tasks: temperature 1.0, top_p 0.95, top_k 20
 - Precise coding: temperature 0.6, top_p 0.95, top_k 20
-- Non-thinking mode: temperature 0.7, top_p 0.80, top_k 20
 
 ## Deployed variants
 
