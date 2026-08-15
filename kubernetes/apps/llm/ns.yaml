@@ -3,3 +3,10 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: llm
+  annotations:
+    # camofox's mover runs as root (its container has no securityContext and
+    # writes /data as uid 0), so its SnapshotPolicy requires a privileged
+    # kopiur mover. Grants any workload in this namespace the ability to
+    # reuse the kopiur-mover ServiceAccount at that privilege; acceptable
+    # here since llm already runs GPU-privileged workloads.
+    kopiur.home-operations.com/privileged-movers: "true"
