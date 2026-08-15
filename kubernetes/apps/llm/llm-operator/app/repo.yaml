@@ -10,8 +10,10 @@ spec:
     mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
     operation: copy
   ref:
-    # Chart 0.1.26 adds the normalized llm_* proxy metrics (request/TTFT/token
-    # instrumentation, dual-backend KV cache gauge). This is an immutable
-    # promotion record; its resources are adopted in-place below.
-    digest: sha256:51219b9af32bf993f78048c52ba480958518f7c56dc8861598279bdb74b31688
+    # Chart 0.1.27 fixes the ActiveModel Transitioning/Failed flap and the
+    # proxy's dead Failed-transition detection (waitForOperatorTransition
+    # compared against status.modelName, which never matches during a
+    # failure). This is an immutable promotion record; its resources are
+    # adopted in-place below.
+    digest: sha256:f5ce0f756769b545d28363b19b578cd1bef63582ab6da32cb5083bf0f6cdbbc2
   url: oci://ghcr.io/timblakely/charts/llm-operator

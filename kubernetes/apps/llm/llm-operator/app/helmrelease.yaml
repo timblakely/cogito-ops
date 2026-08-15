@@ -25,7 +25,7 @@ spec:
       repository: ghcr.io/timblakely/llm-operator
       # Reviewed immutable image digest. Keep this promotion record in Git;
       # an image digest is deployment metadata, not a credential.
-      digest: sha256:a7b8f4c298fac61b075a2264bf49b3f8e8a71890acb61de6556d9143a88ff3f7
+      digest: sha256:a6e9e8943156029adfe3437ab13b05b75cb9ac5c95e0be2025685037bc8a7d69
     replicaCount: 2
     leaderElection:
       enabled: true
@@ -49,9 +49,10 @@ spec:
       enabled: true
       image:
         repository: ghcr.io/timblakely/vllm-proxy
-        # Adds normalized llm_* metrics: per-request TTFT/duration/token
-        # instrumentation and a dual-backend (vLLM + llama.cpp) KV cache gauge.
-        digest: sha256:971ad8c5b7f5b3297fe7993e2c5fecd28eb2148a74d055cd1be8e768ac0488c6
+        # Fixes waitForOperatorTransition's Failed-transition detection, which
+        # compared against status.modelName (only ever updated on success) and
+        # so could never observe a genuine transition failure.
+        digest: sha256:3ef064d74532439266e80b3265f696e980c38818855f6e1fa803df03593051d2
       replicas: 1
       service:
         name: llm-proxy
