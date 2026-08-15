@@ -9,17 +9,3 @@ configMapGenerator:
       - RESOURCES=resources
 components:
   - ../../../components/ks/app-resources
-patches:
-  # The raw proxy Kustomization must first apply the Helm ownership metadata
-  # above. Only then may this HelmRelease reconcile and adopt the stable
-  # Deployment/Service/HTTPRoute without a serving gap.
-  - target:
-      group: kustomize.toolkit.fluxcd.io
-      version: v1
-      kind: Kustomization
-      labelSelector: components.autoreiv/ks=app
-    patch: |-
-      - op: add
-        path: /spec/dependsOn/-
-        value:
-          name: llm-proxy
