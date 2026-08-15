@@ -46,14 +46,8 @@ machine:
   install:
     diskSelector:
       model: PNY 1TB SATA SSD
-    image: factory.talos.dev/installer/602973c1fc58199c1597bfbe12141b15bafc964f08543f0fa82cac535c6c1ff1:v1.12.5
+    image: factory.talos.dev/installer/f409fc1d24ce4f67254ccacd7e8057a02dc00273802cfa0f22486b105e8ac7b9:v1.12.5
     wipe: false
-    extraKernelArgs:
-      # The CT1000T500SSD8 NVMe drive backing the rook-ceph OSD/local-hostpath
-      # volumes on this host intermittently fails to wake from an autonomous
-      # power state transition, producing spurious "Buffer I/O error" reads
-      # at the start of its partitions. Disabling APST keeps it fully awake.
-      - nvme_core.default_ps_max_latency_us=0
   kernel:
     modules:
       - name: nbd
