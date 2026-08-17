@@ -44,34 +44,6 @@ spec:
   # hermes is fully cut over, to avoid two maintenance processes racing.
   maintenance:
     enabled: false
-  # Native kopia web UI, replacing the old standalone storage/kopia app
-  # (abandoned Volsync-compatible fork image, stopped reflecting reality
-  # once kopiur took over). One instance here covers the whole shared
-  # repository - matches aclerici38's pattern (kopiur.home-operations.com,
-  # ClusterRepository.spec.server), just on a namespaced Repository since
-  # we haven't consolidated to a ClusterRepository.
-  server:
-    auth:
-      generate:
-        username: kopia
-    readOnly: false
-    podSecurityContext:
-      runAsNonRoot: true
-      runAsUser: 65532
-      runAsGroup: 65532
-      fsGroup: 65532
-      fsGroupChangePolicy: OnRootMismatch
-      seccompProfile:
-        type: RuntimeDefault
-    service:
-      type: ClusterIP
-      port: 51515
-    resources:
-      requests:
-        cpu: 10m
-        memory: 128Mi
-      limits:
-        memory: 1Gi
 ---
 # yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kopiur.home-operations.com/snapshotpolicy_v1alpha1.json
 apiVersion: kopiur.home-operations.com/v1alpha1
