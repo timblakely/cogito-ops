@@ -10,9 +10,10 @@ spec:
     mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
     operation: copy
   ref:
-    # Chart 0.1.29 drops the now-dead ENABLE_DEPLOYMENT_MUTATIONS env var from
-    # the proxy Deployment template, matching timblakely/llm-operator@eef24a8a0189
-    # retiring the legacy direct-mutation code path entirely. This is an
-    # immutable promotion record; its resources are adopted in-place below.
-    digest: sha256:71569cffc4921c65d045bda7a3b993b51fd770d41c05267d784613c982de8ddb
+    # Chart 0.1.30 strips the admission-webhook TLS infrastructure (Issuer/
+    # Certificate/Service/ValidatingWebhookConfiguration) added in 0.1.28 -
+    # disproportionate for a single-author homelab CRD; see
+    # timblakely/llm-operator@021e1e27aba6. This is an immutable promotion
+    # record; its resources are adopted in-place below.
+    digest: sha256:33ab4733800c0d73af8cb821bb5ec892bcd094cf103cf617fbc6588eb1fa18b9
   url: oci://ghcr.io/timblakely/charts/llm-operator
