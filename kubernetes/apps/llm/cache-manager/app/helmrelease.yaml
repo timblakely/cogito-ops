@@ -38,7 +38,14 @@ spec:
           cache-manager:
             image:
               repository: ghcr.io/timblakely/llm-cache-manager
-              tag: shared-cache-hot-relink-20260803.4@sha256:ab7db8b20b35174471f67ac50bae8982fa76edbc8d7fb3382438377ba977c4e2
+              # Recovers panics in the two detached background archiveHot
+              # goroutines instead of letting them crash the whole process -
+              # the likely cause of the Exit Code 2 restarts seen here, which
+              # left no trace because net/http's own per-request recovery
+              # doesn't reach a fire-and-forget goroutine spawned outside a
+              # request's call stack. Built from vllm/vllm-proxy at this
+              # revision (mirrors timblakely/llm-operator@d3a4f97db80d).
+              tag: cache-panic-recovery-20260817.1@sha256:eb77423c9ae5a79fd22589572d587c611fb0b7898781df681b7ffcadb818ce02
             env:
               CACHE_HOT_ROOT: /cache/hot
               CACHE_COLD: /cold/llm-cache
