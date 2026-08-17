@@ -13,6 +13,15 @@ spec:
     # installScope defaults to "cluster" - required for the deploy-or-restore
     # populator (PV/StorageClass RBAC) and CSI-snapshot staging, both of which
     # Volsync already exercises today.
+    features:
+      credentialProjection:
+        enabled: true
+      # RBAC for Repository/ClusterRepository spec.server (the native kopia
+      # web UI) - replaces the old standalone storage/kopia app, which ran an
+      # abandoned Volsync-compatible kopia fork and stopped reflecting the
+      # repository's real state once kopiur took over writing to it.
+      kopiaUi:
+        enabled: true
     monitoring:
       serviceMonitor:
         enabled: true
