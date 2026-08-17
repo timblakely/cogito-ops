@@ -10,11 +10,9 @@ spec:
     mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
     operation: copy
   ref:
-    # Chart 0.1.28 adds the (still admission.enabled=false by default) cert-
-    # manager Issuer/Certificate, webhook Service, and
-    # ValidatingWebhookConfiguration templates needed to actually turn on
-    # admission.enabled - nothing in this bump changes behavior on its own.
-    # This is an immutable promotion record; its resources are adopted
-    # in-place below.
-    digest: sha256:21fcf2b2e48a8141cd5d000f4a60d165f64f67f1b1036ea5a191254777165d2b
+    # Chart 0.1.29 drops the now-dead ENABLE_DEPLOYMENT_MUTATIONS env var from
+    # the proxy Deployment template, matching timblakely/llm-operator@eef24a8a0189
+    # retiring the legacy direct-mutation code path entirely. This is an
+    # immutable promotion record; its resources are adopted in-place below.
+    digest: sha256:71569cffc4921c65d045bda7a3b993b51fd770d41c05267d784613c982de8ddb
   url: oci://ghcr.io/timblakely/charts/llm-operator

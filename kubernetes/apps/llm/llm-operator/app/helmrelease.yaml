@@ -68,7 +68,10 @@ spec:
         # LLMActiveModel no longer aborts the wait outright.
         # Also coalesces concurrent requests targeting the same model into
         # one shared LLMActiveModel patch+poll instead of one per request.
-        digest: sha256:85eba3b3a8409c7ddafa394fc8655d0bc785f34577fe91193ad5a62001dc34c8
+        # Retires the legacy direct-Deployment-mutation code path entirely -
+        # ensureActive is now unconditionally the operator-delegated path,
+        # which is all that ran in production anyway.
+        digest: sha256:9b0fc13f0110ff7ba7b5fbf97066ea6167bbe563ea0e77927e72521d97cc064a
       replicas: 1
       service:
         name: llm-proxy
