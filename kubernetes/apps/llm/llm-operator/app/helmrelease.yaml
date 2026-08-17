@@ -55,7 +55,12 @@ spec:
         # llm_generation_tokens_total / llm_kv_cache_usage_ratio bridged from
         # whichever backend is active) that the llm-serving Grafana dashboard
         # and PrometheusRule alerts already expected but nothing emitted.
-        digest: sha256:05441f85fa686c4837366c4b858ef9cf8f5148db745cb4de573fcebee5e14a3b
+        # Also stops respondTransitionError from mapping every unclassified
+        # wait error - including simply hitting TRANSITION_TIMEOUT, which is
+        # not proof the switch failed - to a hard 504; a proxy-side wait
+        # timeout is now a retryable 503, and a single transient read of
+        # LLMActiveModel no longer aborts the wait outright.
+        digest: sha256:7d6b281a0c4919974381d29f4f45eac9b1f8562de26e0a97b4aab0135fd412ca
       replicas: 1
       service:
         name: llm-proxy
