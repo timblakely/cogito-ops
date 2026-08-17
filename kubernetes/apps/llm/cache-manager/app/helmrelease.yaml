@@ -38,14 +38,14 @@ spec:
           cache-manager:
             image:
               repository: ghcr.io/timblakely/llm-cache-manager
-              # Recovers panics in the two detached background archiveHot
-              # goroutines instead of letting them crash the whole process -
-              # the likely cause of the Exit Code 2 restarts seen here, which
-              # left no trace because net/http's own per-request recovery
-              # doesn't reach a fire-and-forget goroutine spawned outside a
-              # request's call stack. Built from vllm/vllm-proxy at this
-              # revision (mirrors timblakely/llm-operator@d3a4f97db80d).
-              tag: cache-panic-recovery-20260817.1@sha256:eb77423c9ae5a79fd22589572d587c611fb0b7898781df681b7ffcadb818ce02
+              # Now built from timblakely/llm-operator (the consolidated
+              # source) rather than the legacy cogito/vllm/vllm-proxy copy -
+              # llm-operator's Dockerfile gained a matching cache-manager
+              # stage (python:3.12-slim + huggingface_hub/hf_xet) at
+              # llm-operator@942c0c1410bb. Same panic-recovery fix as the
+              # previous digest; this is a source-of-truth migration, not a
+              # behavior change.
+              tag: 942c0c1410bb@sha256:1f5b0ae27cf42dd9e98460ca9ac694b2f23f21fc498148ba24e780042a36d9a1
             env:
               CACHE_HOT_ROOT: /cache/hot
               CACHE_COLD: /cold/llm-cache
