@@ -10,10 +10,11 @@ spec:
     mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
     operation: copy
   ref:
-    # Chart 0.1.27 fixes the ActiveModel Transitioning/Failed flap and the
-    # proxy's dead Failed-transition detection (waitForOperatorTransition
-    # compared against status.modelName, which never matches during a
-    # failure). This is an immutable promotion record; its resources are
-    # adopted in-place below.
-    digest: sha256:f5ce0f756769b545d28363b19b578cd1bef63582ab6da32cb5083bf0f6cdbbc2
+    # Chart 0.1.28 adds the (still admission.enabled=false by default) cert-
+    # manager Issuer/Certificate, webhook Service, and
+    # ValidatingWebhookConfiguration templates needed to actually turn on
+    # admission.enabled - nothing in this bump changes behavior on its own.
+    # This is an immutable promotion record; its resources are adopted
+    # in-place below.
+    digest: sha256:21fcf2b2e48a8141cd5d000f4a60d165f64f67f1b1036ea5a191254777165d2b
   url: oci://ghcr.io/timblakely/charts/llm-operator
