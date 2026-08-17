@@ -5,11 +5,13 @@ This directory contains locally built images used by the LLM deployment.
 Build or push an immutable image tag from a workstation authenticated to GHCR:
 
 ```sh
-make -C vllm build-proxy TAG=<tag>
-make -C vllm push-proxy TAG=<tag>
 make -C vllm build-openai TAG=<tag>
 make -C vllm push-openai TAG=<tag>
 ```
+
+The proxy and cache-manager images moved to `timblakely/llm-operator`
+(`make proxy-build`/`proxy-push` and `make cache-manager-build`/
+`cache-manager-push` there); this directory no longer builds them.
 
 After pushing, pin the resulting tag in the relevant HelmRelease instead of using `latest`.
 
