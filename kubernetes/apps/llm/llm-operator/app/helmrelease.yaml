@@ -25,7 +25,11 @@ spec:
       repository: ghcr.io/timblakely/llm-operator
       # Reviewed immutable image digest. Keep this promotion record in Git;
       # an image digest is deployment metadata, not a credential.
-      digest: sha256:a6e9e8943156029adfe3437ab13b05b75cb9ac5c95e0be2025685037bc8a7d69
+      # Patches (not full Updates) the generated backend Deployment/Service
+      # in LLMBackendReconciler, fixing the recurring "the object has been
+      # modified" conflicts against LLMActiveModel's own concurrent patches
+      # during a transition.
+      digest: sha256:4e0f6199ce9fe4d5da0bb438a02fc236e53066c05e641439b4c9781dcdf24d44
     replicaCount: 2
     leaderElection:
       enabled: true
