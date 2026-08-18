@@ -99,7 +99,9 @@ spec:
         - model_name: google/gemma-4-31B-it-qat-w4a16-ct
           litellm_params: &router
             model: openai/gemma-4-31b-google-qat
-            api_base: http://cogito-llm-router.llmkube-system.svc.cluster.local:8080/v1
+            # Service name is <router>-router-proxy, not <router>; taken from
+            # ModelRouter.status.endpoint rather than assumed.
+            api_base: http://cogito-llm-router-router-proxy.llmkube-system.svc.cluster.local:8080/v1
             api_key: not-needed
         - model_name: cyankiwi/gemma-4-31B-it-qat-AWQ-INT4
           litellm_params:
