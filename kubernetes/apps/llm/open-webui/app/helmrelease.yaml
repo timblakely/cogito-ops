@@ -63,9 +63,17 @@ spec:
               WEBUI_SESSION_COOKIE_SECURE: "true"
               ENABLE_OPENAI_API: "true"
               OPENAI_API_BASE_URL: https://llm-switch.${DOMAIN_NAME}/v1
+              # Post-cutover this endpoint is LiteLLM, which enforces auth -
+              # the old llm-proxy ignored it, so the OpenAI service-account key
+              # previously here now gets a 401. This is a LiteLLM virtual key
+              # (alias open-webui, $25/30d budget), which is runtime state
+              # living in the CNPG database rather than in Git.
+              # TODO: move this value into the 1Password `open-webui` item and
+              # fold it back into that ExternalSecret; the Secret referenced
+              # here was created out-of-band and will not survive a rebuild.
               OPENAI_API_KEY:
                 secretKeyRef:
-                  name: open-webui
+                  name: open-webui-litellm
                   key: OPENAI_API_KEY
               WEBUI_SECRET_KEY:
                 secretKeyRef:

@@ -14,11 +14,17 @@ provider. Access is limited to the `hermes` PocketID user group, which currently
 contains `tim`. The former `HERMES_DASHBOARD_BASIC_AUTH_*` fields are explicitly
 masked so they cannot enable a second login method if they remain in 1Password.
 
-On a new PVC, Hermes bootstraps a `custom:llm-proxy` provider from the
-in-cluster `llm-proxy`, using the public
-`https://llm-switch.${DOMAIN_NAME}/v1` base URL and the proxy's current active
-model as the initial default. The bootstrap is non-destructive: later Dashboard
-and CLI model/provider changes remain Hermes-owned.
+Hermes no longer bootstraps its provider automatically. The
+`bootstrap-llm-proxy` initContainer was removed with the M7 decommission,
+because it seeded the provider by querying the retired `llm-proxy` and would
+block startup now that Service is gone.
+
+The existing PVC already carries a bootstrapped `config.yaml`, so running
+Hermes is unaffected. On a **new** PVC the provider must be configured by
+hand: point it at `https://llm-switch.${DOMAIN_NAME}/v1` (now served by
+LiteLLM rather than llm-proxy) with a LiteLLM virtual key as the credential.
+Model names are unchanged - LiteLLM advertises the same Hugging Face-style
+identifiers the old proxy did.
 
 The provider uses live model discovery, so `/model` and `hermes model --refresh`
 query the proxy's `/v1/models` catalog rather than copying a static model list

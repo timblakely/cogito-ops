@@ -29,31 +29,12 @@ spec:
             fsGroup: 1000
             fsGroupChangePolicy: OnRootMismatch
             seccompProfile: {type: RuntimeDefault}
-        initContainers:
-          bootstrap-llm-proxy:
-            image:
-              repository: ghcr.io/timblakely/vllm-proxy
-              # The digest is the proxy promotion used by the chart. The tag
-              # remains only to satisfy app-template's image reference shape.
-              tag: latest@sha256:d841792b6a4b4b7e5a6c449270f5063be7c0d6ba4522ce271be7af08499a343b
-            args:
-              - bootstrap-hermes
-              - --proxy-url
-              - http://llm-proxy.llm.svc.cluster.local:8080
-              - --config
-              - /opt/data/config.yaml
-            resources:
-              requests:
-                cpu: 10m
-                memory: 32Mi
-              limits:
-                memory: 128Mi
-            securityContext:
-              runAsUser: 1000
-              runAsGroup: 1000
-              allowPrivilegeEscalation: false
-              readOnlyRootFilesystem: true
-              capabilities: {drop: ["ALL"]}
+        # The bootstrap-llm-proxy initContainer was removed with the M7
+        # decommission. It shelled out to the retired llm-proxy to seed
+        # Hermes' provider config on a fresh PVC, so leaving it in place
+        # would block startup once that Service is gone. The existing PVC
+        # already carries a bootstrapped config.yaml; a rebuilt PVC now
+        # needs its provider pointed at LiteLLM by hand (see README).
         containers:
           main:
             image:
