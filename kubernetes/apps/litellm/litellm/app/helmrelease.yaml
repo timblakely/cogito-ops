@@ -163,12 +163,21 @@ spec:
         # purpose: sharing a model_name would turn LiteLLM's router into an
         # automatic load-balancer between free local compute and paid API
         # calls, which is exactly the failure the budgets exist to prevent.
-        # ---------------------------------------------------------------
-        - model_name: planner-claude
+        #
+        # Anthropic is intentionally absent: there is no ANTHROPIC_API_KEY in
+        # the vault yet. Add an entry here (model: anthropic/claude-opus-5,
+        # api_key: os.environ/ANTHROPIC_API_KEY) once the key exists, and add
+        # ANTHROPIC_API_KEY to the litellm 1Password item plus the
+        # ExternalSecret template alongside it.
+        # Model IDs verified against this key's own /v1/models listing rather
+        # than assumed. gpt-5.6-{luna,sol,terra} are newer still but their
+        # roles are undocumented here; gpt-5.5 is the current unambiguous
+        # general flagship.
+        - model_name: planner-gpt
           litellm_params:
-            model: anthropic/claude-opus-5
-            api_key: os.environ/ANTHROPIC_API_KEY
-        - model_name: planner-claude-fast
+            model: openai/gpt-5.5
+            api_key: os.environ/OPENAI_API_KEY
+        - model_name: planner-gpt-pro
           litellm_params:
-            model: anthropic/claude-sonnet-5
-            api_key: os.environ/ANTHROPIC_API_KEY
+            model: openai/gpt-5.5-pro
+            api_key: os.environ/OPENAI_API_KEY

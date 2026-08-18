@@ -13,6 +13,15 @@
 # hardware.accelerator MUST be set to cuda. It defaults to `cpu`, and a model
 # left on the default silently runs on CPU - which presents as "unexpectedly
 # slow", not as an error.
+#
+# NOTE ON pvc:// AND MULTI-FILE MODELS: Model.spec.files (multi-file staging)
+# is only implemented for hf:// and s3:// sources - against a pvc:// source the
+# Model goes Failed with "multi-file staging requires a HuggingFace repo or
+# s3:// source". So each GGUF source names its primary file directly instead.
+# That is fine for every multi-file model here: llama.cpp resolves DeepSeek's
+# remaining shards from the same directory on its own, and the Laguna/Muse
+# draft and projector files are passed by absolute path from the
+# InferenceService rather than staged through this list.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: Model
 metadata:
@@ -98,11 +107,9 @@ kind: Model
 metadata:
   name: gemma-4-31b-heretic
 spec:
-  source: pvc://llmkube-model-cache/gemma-4-31b-heretic
+  source: pvc://llmkube-model-cache/gemma-4-31b-heretic/gemma-4-31B-it-heretic.Q4_K_M.gguf
   format: gguf
   quantization: Q4_K_M
-  files:
-    - gemma-4-31B-it-heretic.Q4_K_M.gguf
   hardware:
     accelerator: cuda
     gpu:
@@ -116,11 +123,9 @@ kind: Model
 metadata:
   name: qwen-3-6-fable-fusion-711
 spec:
-  source: pvc://llmkube-model-cache/qwen-3-6-fable-fusion-711
+  source: pvc://llmkube-model-cache/qwen-3-6-fable-fusion-711/Qwen3.6-27B-Fable-Fus-711-UnHeretic-NM-DAU-NEO-MAX-NEO-MTP-Q4_K_M.gguf
   format: gguf
   quantization: Q4_K_M
-  files:
-    - Qwen3.6-27B-Fable-Fus-711-UnHeretic-NM-DAU-NEO-MAX-NEO-MTP-Q4_K_M.gguf
   hardware:
     accelerator: cuda
     gpu:
@@ -134,16 +139,9 @@ kind: Model
 metadata:
   name: deepseek-v4-flash-0731
 spec:
-  source: pvc://llmkube-model-cache/deepseek-v4-flash-0731
+  source: pvc://llmkube-model-cache/deepseek-v4-flash-0731/DeepSeek-V4-Flash-UD-IQ3_S-00001-of-00004.gguf
   format: gguf
   quantization: UD-IQ3_S
-  # Sharded GGUF: files[0] is the primary handed to the runtime, and llama.cpp
-  # resolves the remaining shards itself from the same directory.
-  files:
-    - DeepSeek-V4-Flash-UD-IQ3_S-00001-of-00004.gguf
-    - DeepSeek-V4-Flash-UD-IQ3_S-00002-of-00004.gguf
-    - DeepSeek-V4-Flash-UD-IQ3_S-00003-of-00004.gguf
-    - DeepSeek-V4-Flash-UD-IQ3_S-00004-of-00004.gguf
   hardware:
     accelerator: cuda
     gpu:
@@ -157,14 +155,9 @@ kind: Model
 metadata:
   name: laguna-s-2-1
 spec:
-  source: pvc://llmkube-model-cache/laguna-s-2-1
+  source: pvc://llmkube-model-cache/laguna-s-2-1/laguna-s-2.1-Q4_K_M.gguf
   format: gguf
   quantization: Q4_K_M
-  # files[1] is the DFlash draft model, wired up via the InferenceService's
-  # speculativeDecoding block rather than by position here.
-  files:
-    - laguna-s-2.1-Q4_K_M.gguf
-    - laguna-s-2.1-DFlash-BF16.gguf
   hardware:
     accelerator: cuda
     gpu:
@@ -178,15 +171,9 @@ kind: Model
 metadata:
   name: muse-glimmer-30b
 spec:
-  source: pvc://llmkube-model-cache/muse-glimmer-30b
+  source: pvc://llmkube-model-cache/muse-glimmer-30b/Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf
   format: gguf
   quantization: Q4_K_M
-  files:
-    - Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf
-    - dflash-Muse-Glimmer-30B-Q4_K_M.gguf
-  # Typed field for the multimodal projector; the old stack passed this as a
-  # raw --mmproj arg.
-  mmproj: mmproj-Muse-Glimmer-30B-Q4_K_M.gguf
   hardware:
     accelerator: cuda
     gpu:

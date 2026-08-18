@@ -702,6 +702,10 @@ spec:
     draftModel: /model-source/muse-glimmer-30b/dflash-Muse-Glimmer-30B-Q4_K_M.gguf
     nDraftMax: 15
   extraArgs:
+    # Model.spec.mmproj only stages from hf://ors3:// sources, so the projector
+    # is passed by absolute path instead - same as the outgoing backend did.
+    - --mmproj
+    - /model-source/muse-glimmer-30b/mmproj-Muse-Glimmer-30B-Q4_K_M.gguf
     - --metrics
     - --threads
     - "12"
