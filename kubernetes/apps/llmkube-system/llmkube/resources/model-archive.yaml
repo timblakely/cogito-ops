@@ -34,12 +34,11 @@ spec:
   # must never delete the data.
   persistentVolumeReclaimPolicy: Retain
   storageClassName: ""
-  mountOptions:
-    - nfsvers=4.2
-    # Matches the nfs-slow storage class. nconnect matters here: staging a
-    # 110GiB model (DeepSeek) cold->hot is bottlenecked on this mount.
-    - nconnect=16
-    - hard
+  # No mountOptions on purpose. Talos's in-tree NFS client rejects the
+  # nfsvers=4.2/nconnect options the nfs-slow StorageClass uses
+  # ("mount.nfs: Protocol not supported"), and the long-running cache-manager
+  # mounts this same export with plain defaults, so defaults are the
+  # known-good configuration on these nodes.
   nfs:
     server: nuglab-storage.internal
     path: /volume1/nuglab/Models

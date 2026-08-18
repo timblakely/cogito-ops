@@ -1,0 +1,198 @@
+---
+# The ten model catalogue, ported 1:1 from the LLMModel CRs the outgoing
+# llm-operator stack serves today.
+#
+# Every source is pvc://llmkube-model-cache/<slug> - the HOT tier (NVMe on
+# iggy). A pvc:// source is mounted directly by the serving pod rather than
+# staged through the operator's own download path, so whichever PVC is named
+# here is what the model is actually read from at load time. The cold tier
+# (llm-model-archive, NFS) holds the durable copy of all of these and is the
+# source the hot tier is populated from; point a `source` at it instead to
+# demote a model to NFS-speed loads without re-downloading anything.
+#
+# hardware.accelerator MUST be set to cuda. It defaults to `cpu`, and a model
+# left on the default silently runs on CPU - which presents as "unexpectedly
+# slow", not as an error.
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: gemma-4-31b-google-qat
+spec:
+  source: pvc://llmkube-model-cache/gemma-4-31b-google-qat
+  format: safetensors
+  quantization: w4a16
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: gemma-4-31b-cyankiwi
+spec:
+  source: pvc://llmkube-model-cache/gemma-4-31b-cyankiwi
+  format: safetensors
+  quantization: awq-int4
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: qwen-3-6-autoround
+spec:
+  source: pvc://llmkube-model-cache/qwen-3-6-autoround
+  format: safetensors
+  quantization: auto_round
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: qwen-3-8-int8-w8a16-mtp
+spec:
+  source: pvc://llmkube-model-cache/qwen-3-8-int8-w8a16-mtp
+  format: safetensors
+  quantization: int8-w8a16
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: qwen-3-8-w4a16-autoround
+spec:
+  source: pvc://llmkube-model-cache/qwen-3-8-w4a16-autoround
+  format: safetensors
+  quantization: w4a16-autoround
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: gemma-4-31b-heretic
+spec:
+  source: pvc://llmkube-model-cache/gemma-4-31b-heretic
+  format: gguf
+  quantization: Q4_K_M
+  files:
+    - gemma-4-31B-it-heretic.Q4_K_M.gguf
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: qwen-3-6-fable-fusion-711
+spec:
+  source: pvc://llmkube-model-cache/qwen-3-6-fable-fusion-711
+  format: gguf
+  quantization: Q4_K_M
+  files:
+    - Qwen3.6-27B-Fable-Fus-711-UnHeretic-NM-DAU-NEO-MAX-NEO-MTP-Q4_K_M.gguf
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: deepseek-v4-flash-0731
+spec:
+  source: pvc://llmkube-model-cache/deepseek-v4-flash-0731
+  format: gguf
+  quantization: UD-IQ3_S
+  # Sharded GGUF: files[0] is the primary handed to the runtime, and llama.cpp
+  # resolves the remaining shards itself from the same directory.
+  files:
+    - DeepSeek-V4-Flash-UD-IQ3_S-00001-of-00004.gguf
+    - DeepSeek-V4-Flash-UD-IQ3_S-00002-of-00004.gguf
+    - DeepSeek-V4-Flash-UD-IQ3_S-00003-of-00004.gguf
+    - DeepSeek-V4-Flash-UD-IQ3_S-00004-of-00004.gguf
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: laguna-s-2-1
+spec:
+  source: pvc://llmkube-model-cache/laguna-s-2-1
+  format: gguf
+  quantization: Q4_K_M
+  # files[1] is the DFlash draft model, wired up via the InferenceService's
+  # speculativeDecoding block rather than by position here.
+  files:
+    - laguna-s-2.1-Q4_K_M.gguf
+    - laguna-s-2.1-DFlash-BF16.gguf
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: muse-glimmer-30b
+spec:
+  source: pvc://llmkube-model-cache/muse-glimmer-30b
+  format: gguf
+  quantization: Q4_K_M
+  files:
+    - Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf
+    - dflash-Muse-Glimmer-30B-Q4_K_M.gguf
+  # Typed field for the multimodal projector; the old stack passed this as a
+  # raw --mmproj arg.
+  mmproj: mmproj-Muse-Glimmer-30B-Q4_K_M.gguf
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      # The only single-GPU model in the fleet, matching its dedicated
+      # muse-glimmer-server backend today.
+      count: 1
