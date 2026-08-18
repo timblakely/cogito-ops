@@ -54,10 +54,11 @@ spec:
     masterkeySecretName: litellm-secrets
     masterkeySecretKey: PROXY_MASTER_KEY
 
-    # Injects ANTHROPIC_API_KEY into the pod env, where the model_list below
-    # dereferences it as os.environ/ANTHROPIC_API_KEY.
+    # Injects the provider key into the pod env, where the model_list below
+    # dereferences it as os.environ/OPENAI_API_KEY. Same Secret as the master
+    # key, since both live in one 1Password item.
     environmentSecrets:
-      - litellm-providers
+      - litellm-secrets
 
     migrationJob:
       enabled: true

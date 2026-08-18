@@ -58,6 +58,19 @@ spec:
     kubernetes.io/hostname: iggy
   resources:
     gpu: 2
+  # Tensor-parallel vLLM workers exchange tensors through POSIX shared memory,
+  # and the container default for /dev/shm is 64MiB. NCCL fails to bootstrap
+  # against that with the un-actionable "unhandled system error", which reads
+  # like a driver or fabric fault rather than a sizing problem. The outgoing
+  # backend mounted 16Gi here; LLMKube provisions no shm volume of its own.
+  extraVolumes:
+    - name: shm
+      emptyDir:
+        medium: Memory
+        sizeLimit: 16Gi
+  extraVolumeMounts:
+    - name: shm
+      mountPath: /dev/shm
   vllmConfig:
     maxModelLen: 229376
     tensorParallelSize: 2
@@ -124,6 +137,19 @@ spec:
     kubernetes.io/hostname: iggy
   resources:
     gpu: 2
+  # Tensor-parallel vLLM workers exchange tensors through POSIX shared memory,
+  # and the container default for /dev/shm is 64MiB. NCCL fails to bootstrap
+  # against that with the un-actionable "unhandled system error", which reads
+  # like a driver or fabric fault rather than a sizing problem. The outgoing
+  # backend mounted 16Gi here; LLMKube provisions no shm volume of its own.
+  extraVolumes:
+    - name: shm
+      emptyDir:
+        medium: Memory
+        sizeLimit: 16Gi
+  extraVolumeMounts:
+    - name: shm
+      mountPath: /dev/shm
   vllmConfig:
     maxModelLen: 229376
     tensorParallelSize: 2
@@ -194,6 +220,19 @@ spec:
     kubernetes.io/hostname: iggy
   resources:
     gpu: 2
+  # Tensor-parallel vLLM workers exchange tensors through POSIX shared memory,
+  # and the container default for /dev/shm is 64MiB. NCCL fails to bootstrap
+  # against that with the un-actionable "unhandled system error", which reads
+  # like a driver or fabric fault rather than a sizing problem. The outgoing
+  # backend mounted 16Gi here; LLMKube provisions no shm volume of its own.
+  extraVolumes:
+    - name: shm
+      emptyDir:
+        medium: Memory
+        sizeLimit: 16Gi
+  extraVolumeMounts:
+    - name: shm
+      mountPath: /dev/shm
   vllmConfig:
     maxModelLen: 262144
     tensorParallelSize: 2
@@ -271,6 +310,19 @@ spec:
     kubernetes.io/hostname: iggy
   resources:
     gpu: 2
+  # Tensor-parallel vLLM workers exchange tensors through POSIX shared memory,
+  # and the container default for /dev/shm is 64MiB. NCCL fails to bootstrap
+  # against that with the un-actionable "unhandled system error", which reads
+  # like a driver or fabric fault rather than a sizing problem. The outgoing
+  # backend mounted 16Gi here; LLMKube provisions no shm volume of its own.
+  extraVolumes:
+    - name: shm
+      emptyDir:
+        medium: Memory
+        sizeLimit: 16Gi
+  extraVolumeMounts:
+    - name: shm
+      mountPath: /dev/shm
   vllmConfig:
     maxModelLen: 262144
     tensorParallelSize: 2
@@ -338,6 +390,19 @@ spec:
     kubernetes.io/hostname: iggy
   resources:
     gpu: 2
+  # Tensor-parallel vLLM workers exchange tensors through POSIX shared memory,
+  # and the container default for /dev/shm is 64MiB. NCCL fails to bootstrap
+  # against that with the un-actionable "unhandled system error", which reads
+  # like a driver or fabric fault rather than a sizing problem. The outgoing
+  # backend mounted 16Gi here; LLMKube provisions no shm volume of its own.
+  extraVolumes:
+    - name: shm
+      emptyDir:
+        medium: Memory
+        sizeLimit: 16Gi
+  extraVolumeMounts:
+    - name: shm
+      mountPath: /dev/shm
   vllmConfig:
     maxModelLen: 262144
     tensorParallelSize: 2
