@@ -73,6 +73,12 @@ spec:
       # Required - LiteLLM builds the OIDC redirect_uri from this, and it must
       # match the callback registered on the Pocket ID client.
       PROXY_BASE_URL: https://llm-switch.${DOMAIN_NAME}
+      # Skip the username/password form and go straight to Pocket ID. Read as
+      # a string and compared lowercased against "true"
+      # (ui_discovery_endpoints.py), so it must be quoted rather than a YAML
+      # boolean. Note this removes the in-UI path to the master-key login: if
+      # Pocket ID is unreachable, recovery is to unset this and roll the pod.
+      AUTO_REDIRECT_UI_LOGIN_TO_SSO: "true"
       GENERIC_SCOPE: openid email profile groups
       GENERIC_USER_ID_ATTRIBUTE: sub
       GENERIC_USER_EMAIL_ATTRIBUTE: email
