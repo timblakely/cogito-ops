@@ -86,6 +86,12 @@ spec:
     maxNumBatchedTokens: 4096
     kvCacheDtype: auto
   extraArgs:
+    # vLLM derives served_model_name from the model path, so without this it
+    # only answers to "/model-source/<slug>" and rejects the backend name
+    # ModelRouter forwards with a 404 "model does not exist" - after the
+    # request has already been routed successfully.
+    - --served-model-name
+    - gemma-4-31b-google-qat
     - --pipeline-parallel-size
     - "1"
     - --max-num-seqs
@@ -174,6 +180,12 @@ spec:
     kvCacheDtype: auto
     enablePrefixCaching: true
   extraArgs:
+    # vLLM derives served_model_name from the model path, so without this it
+    # only answers to "/model-source/<slug>" and rejects the backend name
+    # ModelRouter forwards with a 404 "model does not exist" - after the
+    # request has already been routed successfully.
+    - --served-model-name
+    - gemma-4-31b-cyankiwi
     - --pipeline-parallel-size
     - "1"
     - --max-num-seqs
@@ -267,6 +279,12 @@ spec:
     enablePrefixCaching: true
     enableChunkedPrefill: true
   extraArgs:
+    # vLLM derives served_model_name from the model path, so without this it
+    # only answers to "/model-source/<slug>" and rejects the backend name
+    # ModelRouter forwards with a 404 "model does not exist" - after the
+    # request has already been routed successfully.
+    - --served-model-name
+    - qwen-3-6-autoround
     - --pipeline-parallel-size
     - "1"
     - --max-num-seqs
@@ -363,6 +381,12 @@ spec:
     enablePrefixCaching: true
     enableChunkedPrefill: true
   extraArgs:
+    # vLLM derives served_model_name from the model path, so without this it
+    # only answers to "/model-source/<slug>" and rejects the backend name
+    # ModelRouter forwards with a 404 "model does not exist" - after the
+    # request has already been routed successfully.
+    - --served-model-name
+    - qwen-3-8-int8-w8a16-mtp
     - --max-num-seqs
     - "1"
     - --disable-custom-all-reduce
@@ -454,6 +478,12 @@ spec:
     enablePrefixCaching: true
     enableChunkedPrefill: true
   extraArgs:
+    # vLLM derives served_model_name from the model path, so without this it
+    # only answers to "/model-source/<slug>" and rejects the backend name
+    # ModelRouter forwards with a 404 "model does not exist" - after the
+    # request has already been routed successfully.
+    - --served-model-name
+    - qwen-3-8-w4a16-autoround
     - --pipeline-parallel-size
     - "1"
     - --max-num-seqs
