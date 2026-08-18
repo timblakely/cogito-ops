@@ -7,11 +7,15 @@ configMapGenerator:
     literals:
       - APP=litellm
       - RESOURCES=resources
-      # LiteLLM's schema is small - virtual keys, teams, and the spend ledger.
-      # A single replica is right for a homelab; the cluster default of 3 would
-      # be three Postgres pods for a few megabytes of rows.
+      # LiteLLM's schema is small - virtual keys, teams, and the spend ledger -
+      # so the cluster default of 3 replicas is overkill. It cannot go to 1,
+      # though: the shared CNPG base template now hardcodes synchronous
+      # replication with number: 1, and CNPG rejects a Cluster whose
+      # synchronous replica count is not strictly less than its instance count.
+      # (knowledge-db runs at 1 only because it predates that block.) 2 is the
+      # minimum the template allows, and gives the spend ledger a standby.
       - CNPG_CAPACITY=10Gi
-      - CNPG_REPLICAS=1
+      - CNPG_REPLICAS=2
 components:
   - ../../../components/ks/app-resources
   # Provisions the per-app CNPG Cluster (litellm-db) from the shared component
