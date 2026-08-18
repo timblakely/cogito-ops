@@ -58,6 +58,14 @@ spec:
     kubernetes.io/hostname: iggy
   resources:
     gpu: 2
+  # LLMKube launches vLLM with --port 8000 (vLLM's own default) but defaults
+  # the Service to 8080, which is llama.cpp's default. Left unaligned, the
+  # Service and the router dial 8080 while the runtime listens on 8000, and
+  # every request fails as "all backends failed: connection refused" while the
+  # pod stays healthy and Ready. The llama.cpp services are correct on the
+  # 8080 default and are deliberately left alone.
+  endpoint:
+    port: 8000
   # Tensor-parallel vLLM workers exchange tensors through POSIX shared memory,
   # and the container default for /dev/shm is 64MiB. NCCL fails to bootstrap
   # against that with the un-actionable "unhandled system error", which reads
@@ -137,6 +145,14 @@ spec:
     kubernetes.io/hostname: iggy
   resources:
     gpu: 2
+  # LLMKube launches vLLM with --port 8000 (vLLM's own default) but defaults
+  # the Service to 8080, which is llama.cpp's default. Left unaligned, the
+  # Service and the router dial 8080 while the runtime listens on 8000, and
+  # every request fails as "all backends failed: connection refused" while the
+  # pod stays healthy and Ready. The llama.cpp services are correct on the
+  # 8080 default and are deliberately left alone.
+  endpoint:
+    port: 8000
   # Tensor-parallel vLLM workers exchange tensors through POSIX shared memory,
   # and the container default for /dev/shm is 64MiB. NCCL fails to bootstrap
   # against that with the un-actionable "unhandled system error", which reads
@@ -220,6 +236,14 @@ spec:
     kubernetes.io/hostname: iggy
   resources:
     gpu: 2
+  # LLMKube launches vLLM with --port 8000 (vLLM's own default) but defaults
+  # the Service to 8080, which is llama.cpp's default. Left unaligned, the
+  # Service and the router dial 8080 while the runtime listens on 8000, and
+  # every request fails as "all backends failed: connection refused" while the
+  # pod stays healthy and Ready. The llama.cpp services are correct on the
+  # 8080 default and are deliberately left alone.
+  endpoint:
+    port: 8000
   # Tensor-parallel vLLM workers exchange tensors through POSIX shared memory,
   # and the container default for /dev/shm is 64MiB. NCCL fails to bootstrap
   # against that with the un-actionable "unhandled system error", which reads
@@ -310,6 +334,14 @@ spec:
     kubernetes.io/hostname: iggy
   resources:
     gpu: 2
+  # LLMKube launches vLLM with --port 8000 (vLLM's own default) but defaults
+  # the Service to 8080, which is llama.cpp's default. Left unaligned, the
+  # Service and the router dial 8080 while the runtime listens on 8000, and
+  # every request fails as "all backends failed: connection refused" while the
+  # pod stays healthy and Ready. The llama.cpp services are correct on the
+  # 8080 default and are deliberately left alone.
+  endpoint:
+    port: 8000
   # Tensor-parallel vLLM workers exchange tensors through POSIX shared memory,
   # and the container default for /dev/shm is 64MiB. NCCL fails to bootstrap
   # against that with the un-actionable "unhandled system error", which reads
@@ -390,6 +422,14 @@ spec:
     kubernetes.io/hostname: iggy
   resources:
     gpu: 2
+  # LLMKube launches vLLM with --port 8000 (vLLM's own default) but defaults
+  # the Service to 8080, which is llama.cpp's default. Left unaligned, the
+  # Service and the router dial 8080 while the runtime listens on 8000, and
+  # every request fails as "all backends failed: connection refused" while the
+  # pod stays healthy and Ready. The llama.cpp services are correct on the
+  # 8080 default and are deliberately left alone.
+  endpoint:
+    port: 8000
   # Tensor-parallel vLLM workers exchange tensors through POSIX shared memory,
   # and the container default for /dev/shm is 64MiB. NCCL fails to bootstrap
   # against that with the un-actionable "unhandled system error", which reads
