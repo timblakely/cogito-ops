@@ -97,7 +97,12 @@ spec:
       additionalBackendDeployments: [laguna-server, muse-glimmer-server]
       exposure:
         httpRoute:
-          enabled: true
+          # Cutover: the public llm-switch route now lives as a standalone
+          # manifest in the litellm app, pointing at LiteLLM instead of
+          # llm-proxy. Disabled here rather than repointed because Helm owns
+          # the generated object - the two changes must land together, or the
+          # hostname is either claimed twice or not at all.
+          enabled: false
           name: llm
           hostnames: ["llm-switch.${DOMAIN_NAME}"]
           parentRefs:
