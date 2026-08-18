@@ -199,7 +199,11 @@ spec:
         # request kwarg. That is general passthrough behaviour rather than a
         # documented guarantee for this field, so verify with a real request
         # before trusting it.
-        - model_name: gemma-4-agentic
+        # Name matches the retired LLMModelOverlay exactly (gemma4-agentic,
+        # no hyphen before "agentic"). Renaming it would silently break every
+        # client that already requests the overlay by name - the pi.dev
+        # harness did exactly that.
+        - model_name: gemma4-agentic
           litellm_params:
             <<: *router
             model: openai/gemma-4-31b-google-qat
