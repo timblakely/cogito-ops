@@ -21,6 +21,13 @@ spec:
   modelRef: gemma-4-31b-google-qat
   runtime: vllm
   replicas: 0
+  # Required on these nodes. Without it the pod is allocated its
+  # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
+  # so no driver or CUDA libraries appear in the container and vLLM fails at
+  # startup with "Failed to infer device type" - the GPU looks assigned from
+  # Kubernetes' side while being invisible to the process. The outgoing
+  # backends set this too; LLMKube does not default it.
+  runtimeClassName: nvidia
   nodeSelector:
     kubernetes.io/hostname: iggy
   resources:
@@ -54,6 +61,13 @@ spec:
   modelRef: gemma-4-31b-cyankiwi
   runtime: vllm
   replicas: 0
+  # Required on these nodes. Without it the pod is allocated its
+  # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
+  # so no driver or CUDA libraries appear in the container and vLLM fails at
+  # startup with "Failed to infer device type" - the GPU looks assigned from
+  # Kubernetes' side while being invisible to the process. The outgoing
+  # backends set this too; LLMKube does not default it.
+  runtimeClassName: nvidia
   nodeSelector:
     kubernetes.io/hostname: iggy
   resources:
@@ -91,6 +105,13 @@ spec:
   modelRef: qwen-3-6-autoround
   runtime: vllm
   replicas: 0
+  # Required on these nodes. Without it the pod is allocated its
+  # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
+  # so no driver or CUDA libraries appear in the container and vLLM fails at
+  # startup with "Failed to infer device type" - the GPU looks assigned from
+  # Kubernetes' side while being invisible to the process. The outgoing
+  # backends set this too; LLMKube does not default it.
+  runtimeClassName: nvidia
   nodeSelector:
     kubernetes.io/hostname: iggy
   resources:
@@ -135,6 +156,13 @@ spec:
   modelRef: qwen-3-8-int8-w8a16-mtp
   runtime: vllm
   replicas: 0
+  # Required on these nodes. Without it the pod is allocated its
+  # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
+  # so no driver or CUDA libraries appear in the container and vLLM fails at
+  # startup with "Failed to infer device type" - the GPU looks assigned from
+  # Kubernetes' side while being invisible to the process. The outgoing
+  # backends set this too; LLMKube does not default it.
+  runtimeClassName: nvidia
   nodeSelector:
     kubernetes.io/hostname: iggy
   resources:
@@ -169,6 +197,13 @@ spec:
   modelRef: qwen-3-8-w4a16-autoround
   runtime: vllm
   replicas: 0
+  # Required on these nodes. Without it the pod is allocated its
+  # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
+  # so no driver or CUDA libraries appear in the container and vLLM fails at
+  # startup with "Failed to infer device type" - the GPU looks assigned from
+  # Kubernetes' side while being invisible to the process. The outgoing
+  # backends set this too; LLMKube does not default it.
+  runtimeClassName: nvidia
   nodeSelector:
     kubernetes.io/hostname: iggy
   resources:
@@ -215,6 +250,13 @@ spec:
   modelRef: gemma-4-31b-heretic
   runtime: llamacpp
   replicas: 0
+  # Required on these nodes. Without it the pod is allocated its
+  # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
+  # so no driver or CUDA libraries appear in the container and vLLM fails at
+  # startup with "Failed to infer device type" - the GPU looks assigned from
+  # Kubernetes' side while being invisible to the process. The outgoing
+  # backends set this too; LLMKube does not default it.
+  runtimeClassName: nvidia
   nodeSelector:
     kubernetes.io/hostname: iggy
   resources:
@@ -245,6 +287,13 @@ spec:
   modelRef: qwen-3-6-fable-fusion-711
   runtime: llamacpp
   replicas: 0
+  # Required on these nodes. Without it the pod is allocated its
+  # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
+  # so no driver or CUDA libraries appear in the container and vLLM fails at
+  # startup with "Failed to infer device type" - the GPU looks assigned from
+  # Kubernetes' side while being invisible to the process. The outgoing
+  # backends set this too; LLMKube does not default it.
+  runtimeClassName: nvidia
   nodeSelector:
     kubernetes.io/hostname: iggy
   resources:
@@ -275,6 +324,13 @@ spec:
   modelRef: deepseek-v4-flash-0731
   runtime: llamacpp
   replicas: 0
+  # Required on these nodes. Without it the pod is allocated its
+  # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
+  # so no driver or CUDA libraries appear in the container and vLLM fails at
+  # startup with "Failed to infer device type" - the GPU looks assigned from
+  # Kubernetes' side while being invisible to the process. The outgoing
+  # backends set this too; LLMKube does not default it.
+  runtimeClassName: nvidia
   nodeSelector:
     kubernetes.io/hostname: iggy
   resources:
@@ -313,6 +369,13 @@ spec:
   modelRef: laguna-s-2-1
   runtime: llamacpp
   replicas: 0
+  # Required on these nodes. Without it the pod is allocated its
+  # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
+  # so no driver or CUDA libraries appear in the container and vLLM fails at
+  # startup with "Failed to infer device type" - the GPU looks assigned from
+  # Kubernetes' side while being invisible to the process. The outgoing
+  # backends set this too; LLMKube does not default it.
+  runtimeClassName: nvidia
   nodeSelector:
     kubernetes.io/hostname: iggy
   resources:
@@ -351,6 +414,13 @@ spec:
   modelRef: muse-glimmer-30b
   runtime: llamacpp
   replicas: 0
+  # Required on these nodes. Without it the pod is allocated its
+  # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
+  # so no driver or CUDA libraries appear in the container and vLLM fails at
+  # startup with "Failed to infer device type" - the GPU looks assigned from
+  # Kubernetes' side while being invisible to the process. The outgoing
+  # backends set this too; LLMKube does not default it.
+  runtimeClassName: nvidia
   nodeSelector:
     kubernetes.io/hostname: iggy
   resources:
