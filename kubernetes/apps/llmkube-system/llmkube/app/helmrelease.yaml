@@ -52,6 +52,15 @@ spec:
       # nodeSelector for iggy, or the cache could bind on the wrong node.
       storageClass: openebs-hostpath
       accessMode: ReadWriteOnce
+      annotations:
+        # Pins the hot cache to iggy. Despite openebs-hostpath being
+        # WaitForFirstConsumer, this PVC binds eagerly (no GPU pod exists yet
+        # to pull it onto the right node) and landed on nuc-1 - a Ceph node
+        # with neither the GPUs nor the 932GiB NVMe. Because the claim is RWO
+        # and every InferenceService is pinned to iggy, that combination makes
+        # all of them permanently unschedulable. The OpenEBS LocalPV
+        # provisioner honours this annotation to choose the node.
+        volume.kubernetes.io/selected-node: iggy
 
     prometheus:
       # LOAD-BEARING, NOT OPTIONAL. vLLM/TGI/SGLang idle-detection for pool
