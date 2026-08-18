@@ -20,6 +20,32 @@ metadata:
 spec:
   modelRef: gemma-4-31b-google-qat
   runtime: vllm
+  # Ported from the outgoing vllm-server backend. These are not optional on
+  # this hardware: the two 3090s have no NVLink, so tensor-parallel workers
+  # must not attempt CUDA peer-to-peer, and several models are served at a
+  # context length beyond the checkpoint's declared maximum.
+  env:
+    - name: NCCL_P2P_DISABLE
+      value: "1"
+    - name: NCCL_CUMEM_ENABLE
+      value: "0"
+    - name: OMP_NUM_THREADS
+      value: "1"
+    - name: PYTORCH_CUDA_ALLOC_CONF
+      value: expandable_segments:True,max_split_size_mb:512
+    - name: VLLM_WORKER_MULTIPROC_METHOD
+      value: spawn
+    # gemma is served at 229376 and the Qwens at 262144, both beyond the
+    # checkpoints' declared max_position_embeddings; vLLM refuses to start
+    # without this.
+    - name: VLLM_ALLOW_LONG_MAX_MODEL_LEN
+      value: "1"
+    - name: VLLM_NO_USAGE_STATS
+      value: "1"
+    # The old backend gave Triton a dedicated PVC; an emptyDir-backed path is
+    # enough here, but it must be writable or JIT compilation fails.
+    - name: TRITON_CACHE_DIR
+      value: /tmp/triton-cache
   replicas: 0
   # Required on these nodes. Without it the pod is allocated its
   # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
@@ -60,6 +86,32 @@ metadata:
 spec:
   modelRef: gemma-4-31b-cyankiwi
   runtime: vllm
+  # Ported from the outgoing vllm-server backend. These are not optional on
+  # this hardware: the two 3090s have no NVLink, so tensor-parallel workers
+  # must not attempt CUDA peer-to-peer, and several models are served at a
+  # context length beyond the checkpoint's declared maximum.
+  env:
+    - name: NCCL_P2P_DISABLE
+      value: "1"
+    - name: NCCL_CUMEM_ENABLE
+      value: "0"
+    - name: OMP_NUM_THREADS
+      value: "1"
+    - name: PYTORCH_CUDA_ALLOC_CONF
+      value: expandable_segments:True,max_split_size_mb:512
+    - name: VLLM_WORKER_MULTIPROC_METHOD
+      value: spawn
+    # gemma is served at 229376 and the Qwens at 262144, both beyond the
+    # checkpoints' declared max_position_embeddings; vLLM refuses to start
+    # without this.
+    - name: VLLM_ALLOW_LONG_MAX_MODEL_LEN
+      value: "1"
+    - name: VLLM_NO_USAGE_STATS
+      value: "1"
+    # The old backend gave Triton a dedicated PVC; an emptyDir-backed path is
+    # enough here, but it must be writable or JIT compilation fails.
+    - name: TRITON_CACHE_DIR
+      value: /tmp/triton-cache
   replicas: 0
   # Required on these nodes. Without it the pod is allocated its
   # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
@@ -104,6 +156,32 @@ metadata:
 spec:
   modelRef: qwen-3-6-autoround
   runtime: vllm
+  # Ported from the outgoing vllm-server backend. These are not optional on
+  # this hardware: the two 3090s have no NVLink, so tensor-parallel workers
+  # must not attempt CUDA peer-to-peer, and several models are served at a
+  # context length beyond the checkpoint's declared maximum.
+  env:
+    - name: NCCL_P2P_DISABLE
+      value: "1"
+    - name: NCCL_CUMEM_ENABLE
+      value: "0"
+    - name: OMP_NUM_THREADS
+      value: "1"
+    - name: PYTORCH_CUDA_ALLOC_CONF
+      value: expandable_segments:True,max_split_size_mb:512
+    - name: VLLM_WORKER_MULTIPROC_METHOD
+      value: spawn
+    # gemma is served at 229376 and the Qwens at 262144, both beyond the
+    # checkpoints' declared max_position_embeddings; vLLM refuses to start
+    # without this.
+    - name: VLLM_ALLOW_LONG_MAX_MODEL_LEN
+      value: "1"
+    - name: VLLM_NO_USAGE_STATS
+      value: "1"
+    # The old backend gave Triton a dedicated PVC; an emptyDir-backed path is
+    # enough here, but it must be writable or JIT compilation fails.
+    - name: TRITON_CACHE_DIR
+      value: /tmp/triton-cache
   replicas: 0
   # Required on these nodes. Without it the pod is allocated its
   # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
@@ -155,6 +233,32 @@ metadata:
 spec:
   modelRef: qwen-3-8-int8-w8a16-mtp
   runtime: vllm
+  # Ported from the outgoing vllm-server backend. These are not optional on
+  # this hardware: the two 3090s have no NVLink, so tensor-parallel workers
+  # must not attempt CUDA peer-to-peer, and several models are served at a
+  # context length beyond the checkpoint's declared maximum.
+  env:
+    - name: NCCL_P2P_DISABLE
+      value: "1"
+    - name: NCCL_CUMEM_ENABLE
+      value: "0"
+    - name: OMP_NUM_THREADS
+      value: "1"
+    - name: PYTORCH_CUDA_ALLOC_CONF
+      value: expandable_segments:True,max_split_size_mb:512
+    - name: VLLM_WORKER_MULTIPROC_METHOD
+      value: spawn
+    # gemma is served at 229376 and the Qwens at 262144, both beyond the
+    # checkpoints' declared max_position_embeddings; vLLM refuses to start
+    # without this.
+    - name: VLLM_ALLOW_LONG_MAX_MODEL_LEN
+      value: "1"
+    - name: VLLM_NO_USAGE_STATS
+      value: "1"
+    # The old backend gave Triton a dedicated PVC; an emptyDir-backed path is
+    # enough here, but it must be writable or JIT compilation fails.
+    - name: TRITON_CACHE_DIR
+      value: /tmp/triton-cache
   replicas: 0
   # Required on these nodes. Without it the pod is allocated its
   # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
@@ -196,6 +300,32 @@ metadata:
 spec:
   modelRef: qwen-3-8-w4a16-autoround
   runtime: vllm
+  # Ported from the outgoing vllm-server backend. These are not optional on
+  # this hardware: the two 3090s have no NVLink, so tensor-parallel workers
+  # must not attempt CUDA peer-to-peer, and several models are served at a
+  # context length beyond the checkpoint's declared maximum.
+  env:
+    - name: NCCL_P2P_DISABLE
+      value: "1"
+    - name: NCCL_CUMEM_ENABLE
+      value: "0"
+    - name: OMP_NUM_THREADS
+      value: "1"
+    - name: PYTORCH_CUDA_ALLOC_CONF
+      value: expandable_segments:True,max_split_size_mb:512
+    - name: VLLM_WORKER_MULTIPROC_METHOD
+      value: spawn
+    # gemma is served at 229376 and the Qwens at 262144, both beyond the
+    # checkpoints' declared max_position_embeddings; vLLM refuses to start
+    # without this.
+    - name: VLLM_ALLOW_LONG_MAX_MODEL_LEN
+      value: "1"
+    - name: VLLM_NO_USAGE_STATS
+      value: "1"
+    # The old backend gave Triton a dedicated PVC; an emptyDir-backed path is
+    # enough here, but it must be writable or JIT compilation fails.
+    - name: TRITON_CACHE_DIR
+      value: /tmp/triton-cache
   replicas: 0
   # Required on these nodes. Without it the pod is allocated its
   # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
