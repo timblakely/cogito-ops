@@ -1,0 +1,21 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: APP-app-vars
+    literals:
+      - APP=litellm
+      - RESOURCES=resources
+      # LiteLLM's schema is small - virtual keys, teams, and the spend ledger.
+      # A single replica is right for a homelab; the cluster default of 3 would
+      # be three Postgres pods for a few megabytes of rows.
+      - CNPG_CAPACITY=10Gi
+      - CNPG_REPLICAS=1
+components:
+  - ../../../components/ks/app-resources
+  # Provisions the per-app CNPG Cluster (litellm-db) from the shared component
+  # and injects dependsOn: [cloudnative-pg, plugin-barman-cloud]. Note this is
+  # NOT clustergenerator.yaml, which is an unrelated password generator.
+  - ../../../components/kustomize/cnpg/init
+  - ../../../components/kustomize/external-secret
