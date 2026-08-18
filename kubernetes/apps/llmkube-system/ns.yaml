@@ -1,0 +1,12 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: llmkube-system
+  annotations:
+    # LLMKube's own upstream convention is a dedicated llmkube-system
+    # namespace, kept separate from the `llm` namespace that the outgoing
+    # llm-operator/llm-proxy/cache-manager stack owns. Keeping them apart is
+    # what makes the migration reversible: the old stack can be scaled to
+    # zero and back without touching anything in here.
+    kustomize.toolkit.fluxcd.io/prune: disabled
