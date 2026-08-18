@@ -60,6 +60,50 @@ spec:
     environmentSecrets:
       - litellm-secrets
 
+    # --- Admin UI SSO via Pocket ID (generic OIDC) --------------------------
+    # Without this the UI authenticates with PROXY_MASTER_KEY, i.e. the same
+    # credential that grants unrestricted API access. Master-key auth still
+    # works on the API afterwards; this only adds a login path for the UI.
+    #
+    # LiteLLM gates SSO above five users: _raise_if_sso_exceeds_free_user_limit
+    # 403s when the billable-user count exceeds 5 without a LITELLM_LICENSE.
+    # That check runs per login against the users table, so SSO would start
+    # failing at runtime rather than at deploy time if that count ever grows.
+    envVars:
+      # Required - LiteLLM builds the OIDC redirect_uri from this, and it must
+      # match the callback registered on the Pocket ID client.
+      PROXY_BASE_URL: https://llm-switch.${DOMAIN_NAME}
+      GENERIC_SCOPE: openid email profile groups
+      GENERIC_USER_ID_ATTRIBUTE: sub
+      GENERIC_USER_EMAIL_ATTRIBUTE: email
+      GENERIC_USER_DISPLAY_NAME_ATTRIBUTE: name
+      # Parsed with ast.literal_eval into {role: [group, ...]}, so this must be
+      # a Python literal, not JSON.
+      GENERIC_ROLE_MAPPINGS_GROUP_CLAIM: groups
+      GENERIC_ROLE_MAPPINGS_ROLES: "{'proxy_admin': ['litellm-admins']}"
+      # Anyone who authenticates but is outside litellm-admins lands here.
+      GENERIC_ROLE_MAPPINGS_DEFAULT_ROLE: internal_user
+
+    # Client credentials and provider endpoints both come from the Secret the
+    # pocket-id operator publishes for the OIDCClient, so no Pocket ID URL is
+    # duplicated into this file.
+    extraEnvVars:
+      - name: GENERIC_CLIENT_ID
+        valueFrom:
+          secretKeyRef: {name: litellm-oidc-credentials, key: client_id}
+      - name: GENERIC_CLIENT_SECRET
+        valueFrom:
+          secretKeyRef: {name: litellm-oidc-credentials, key: client_secret}
+      - name: GENERIC_AUTHORIZATION_ENDPOINT
+        valueFrom:
+          secretKeyRef: {name: litellm-oidc-credentials, key: authorization_url}
+      - name: GENERIC_TOKEN_ENDPOINT
+        valueFrom:
+          secretKeyRef: {name: litellm-oidc-credentials, key: token_url}
+      - name: GENERIC_USERINFO_ENDPOINT
+        valueFrom:
+          secretKeyRef: {name: litellm-oidc-credentials, key: userinfo_url}
+
     migrationJob:
       enabled: true
 
