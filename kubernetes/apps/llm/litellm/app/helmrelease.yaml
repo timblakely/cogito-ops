@@ -146,6 +146,16 @@ spec:
         # restricted to a DNS-label pattern), so this layer is what keeps
         # Hermes and Open WebUI working unchanged across the cutover.
         # ---------------------------------------------------------------
+        # max_input_tokens/max_output_tokens are declared for the same reason as
+        # the supports_* flags, and matter more than they look. Clients that
+        # read capabilities from the proxy fall back to a generic 128000 when
+        # the field is null, which silently understates every model here - the
+        # gemmas serve 229376 and the Qwens 262144. The values mirror the
+        # backends exactly: vLLM's maxModelLen for the six vLLM models and
+        # llama.cpp's contextSize for the five GGUF ones. Any change to a
+        # backend's context length has to be mirrored here or clients will
+        # quietly plan against the wrong budget.
+        #
         # supports_function_calling is declared per model for the same reason
         # supports_reasoning is: LiteLLM has no metadata for a custom
         # openai/<slug> backend, so it reports null, and a client that checks
@@ -169,38 +179,59 @@ spec:
             api_key: not-needed
           model_info:
             supports_function_calling: true
+            max_input_tokens: 229376
+            max_output_tokens: 16384
         - model_name: cyankiwi/gemma-4-31B-it-qat-AWQ-INT4
           litellm_params:
             <<: *router
             model: openai/gemma-4-31b-cyankiwi
           model_info:
             supports_function_calling: true
+            max_input_tokens: 229376
+            max_output_tokens: 16384
         - model_name: mradermacher/gemma-4-31B-it-heretic-GGUF
           litellm_params:
             <<: *router
             model: openai/gemma-4-31b-heretic
+          model_info:
+            max_input_tokens: 131072
+            max_output_tokens: 16384
         - model_name: poolside/Laguna-S-2.1
           litellm_params:
             <<: *router
             model: openai/laguna-s-2-1
+          model_info:
+            max_input_tokens: 102400
+            max_output_tokens: 16384
         - model_name: meta-models/Muse-Glimmer-30B-GGUF
           litellm_params:
             <<: *router
             model: openai/muse-glimmer-30b
+          model_info:
+            max_input_tokens: 200000
+            max_output_tokens: 16384
         - model_name: deepseek-ai/DeepSeek-V4-Flash-0731
           litellm_params:
             <<: *router
             model: openai/deepseek-v4-flash-0731
+          model_info:
+            max_input_tokens: 143360
+            max_output_tokens: 16384
         - model_name: DavidAU/Qwen3.6-27B-Fable-Fusion-711-Uncensored-Heretic-NM-DAU-NEO-MAX-MTP-GGUF
           litellm_params:
             <<: *router
             model: openai/qwen-3-6-fable-fusion-711
+          model_info:
+            max_input_tokens: 131072
+            max_output_tokens: 16384
         - model_name: Lorbus/Qwen3.6-27B-int4-AutoRound
           litellm_params:
             <<: *router
             model: openai/qwen-3-6-autoround
           model_info:
             supports_function_calling: true
+            max_input_tokens: 262144
+            max_output_tokens: 16384
         # The three Qwen 3.8 builds are the only models here with graded
         # thinking. Their chat template reads a `reasoning_effort` variable
         # (xhigh = default, medium, low; anything else raises out of the
@@ -236,6 +267,8 @@ spec:
           model_info:
             supports_reasoning: true
             supports_function_calling: true
+            max_input_tokens: 262144
+            max_output_tokens: 16384
         - model_name: Vishva007/Qwen3.8-27B-W4A16-AutoRound
           litellm_params:
             <<: *router
@@ -244,6 +277,8 @@ spec:
           model_info:
             supports_reasoning: true
             supports_function_calling: true
+            max_input_tokens: 262144
+            max_output_tokens: 16384
         - model_name: Qwen/Qwen3.8-27B-FP8
           litellm_params:
             <<: *router
@@ -252,6 +287,8 @@ spec:
           model_info:
             supports_reasoning: true
             supports_function_calling: true
+            max_input_tokens: 262144
+            max_output_tokens: 16384
 
         # Replacement for the retired LLMModelOverlay `gemma4-agentic`. LLMKube
         # has no request-body mutation anywhere (confirmed across ModelRouter's
@@ -274,6 +311,8 @@ spec:
               preserve_thinking: true
           model_info:
             supports_function_calling: true
+            max_input_tokens: 229376
+            max_output_tokens: 16384
 
         # ---------------------------------------------------------------
         # FRONTIER PLANNER TIER - real spend, chosen explicitly by the calling
