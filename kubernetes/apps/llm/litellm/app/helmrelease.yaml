@@ -200,21 +200,35 @@ spec:
         # low, medium, high, xhigh and max, while this template only accepts
         # xhigh, medium and low. `high` in particular is a common client
         # default and will 400 out of the template rather than being clamped.
+        # allowed_openai_params only stops LiteLLM from rejecting the param.
+        # Clients that ask whether thinking is available before offering it -
+        # the pi.dev harness does exactly this - read model_info instead, and
+        # LiteLLM has no built-in metadata for a custom openai/<slug> model, so
+        # every capability flag came back null and pi reported "Current model
+        # does not support thinking" even while reasoning content was flowing
+        # back in the responses. Declaring it here is the only way LiteLLM can
+        # know.
         - model_name: lued/Qwen3.8-27B-INT8-W8A16-MTP
           litellm_params:
             <<: *router
             model: openai/qwen-3-8-int8-w8a16-mtp
             allowed_openai_params: ["reasoning_effort"]
+          model_info:
+            supports_reasoning: true
         - model_name: Vishva007/Qwen3.8-27B-W4A16-AutoRound
           litellm_params:
             <<: *router
             model: openai/qwen-3-8-w4a16-autoround
             allowed_openai_params: ["reasoning_effort"]
+          model_info:
+            supports_reasoning: true
         - model_name: Qwen/Qwen3.8-27B-FP8
           litellm_params:
             <<: *router
             model: openai/qwen-3-8-fp8
             allowed_openai_params: ["reasoning_effort"]
+          model_info:
+            supports_reasoning: true
 
         # Replacement for the retired LLMModelOverlay `gemma4-agentic`. LLMKube
         # has no request-body mutation anywhere (confirmed across ModelRouter's
