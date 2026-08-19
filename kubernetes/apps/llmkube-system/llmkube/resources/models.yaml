@@ -184,26 +184,31 @@ spec:
       # muse-glimmer-server backend today.
       count: 1
 ---
-# The one model not sourced from the cold archive: it postdates the migration,
-# so there is no pre-staged copy on NFS. hf:// + prefetch has the operator pull
-# it straight into the hot cache PVC via an owner-ref'd Job, rather than
-# waiting for the first serving pod to fetch it at swap time.
+# Staged into both tiers by hand, then served from the hot tier like the other
+# ten.
 #
-# ModelSpec has no revision field, so the source is a mutable ref. refreshPolicy
-# is left at its IfNotPresent default so an upstream retag cannot trigger a
-# silent ~30GiB re-pull; bump it deliberately instead.
+# LLMKube 0.9.18 cannot fetch a multi-file Hugging Face repo, despite the CRD
+# documenting hf:// as a supported scheme and stating that multi-file staging
+# REQUIRES an hf:// or s3:// source. The download init container shells out to
+# curl, so:
+#   source: hf://Qwen/Qwen3.8-27B-FP8  -> curl: (1) Protocol "hf" not supported
+#   source: Qwen/Qwen3.8-27B-FP8       -> curl: (6) Could not resolve host: Qwen
+# The bare form additionally makes the Model report Ready "without a
+# controller-side download", so the failure only surfaces later, when the
+# serving pod's init container dies.
 #
-# Worth archiving to the NFS cold tier once staged, so it has the same durable
-# second copy as the other ten.
+# Files were therefore pulled from the resolve endpoint at a pinned revision
+# (017b9c7af6b5689d5dd426a76e0bc077eb5ca20a) into the NFS archive and copied to
+# the hot tier, which also gives this model the same durable second copy as the
+# rest.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: Model
 metadata:
   name: qwen-3-8-fp8
 spec:
-  source: hf://Qwen/Qwen3.8-27B-FP8
+  source: pvc://llmkube-model-cache/qwen-3-8-fp8
   format: safetensors
   quantization: fp8
-  prefetch: true
   hardware:
     accelerator: cuda
     gpu:

@@ -786,9 +786,7 @@ spec:
     - "2"
     - --disable-custom-all-reduce
     - --trust-remote-code
-    # Same parser pair as the other Qwen 3.8 builds. No --speculative-config:
-    # the official FP8 release carries no MTP head, unlike the lued INT8-MTP
-    # and Vishva007 AutoRound variants.
+    # Same parser pair as the other Qwen 3.8 builds.
     - --tool-call-parser
     - qwen3_xml
     - --reasoning-parser
@@ -796,3 +794,8 @@ spec:
     - --enable-auto-tool-choice
     - --default-chat-template-kwargs
     - '{"enable_thinking": true}'
+    # The repo ships mtp.safetensors, so this build does carry an MTP head
+    # after all - same speculative config as the INT8-MTP and AutoRound
+    # siblings.
+    - --speculative-config
+    - '{"method":"mtp","num_speculative_tokens":3}'
