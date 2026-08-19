@@ -269,6 +269,12 @@ spec:
             supports_function_calling: true
             max_input_tokens: 262144
             max_output_tokens: 16384
+            # Non-standard key, consumed by the pi llm-proxy-refresh extension.
+            # The exact set the chat template accepts - it raises out of Jinja
+            # on anything else, and `high` is a common client default, so the
+            # levels a client offers have to come from here rather than from
+            # the generic OpenAI vocabulary.
+            thinking_levels: ["low", "medium", "xhigh"]
         - model_name: Vishva007/Qwen3.8-27B-W4A16-AutoRound
           litellm_params:
             <<: *router
@@ -279,6 +285,12 @@ spec:
             supports_function_calling: true
             max_input_tokens: 262144
             max_output_tokens: 16384
+            # Non-standard key, consumed by the pi llm-proxy-refresh extension.
+            # The exact set the chat template accepts - it raises out of Jinja
+            # on anything else, and `high` is a common client default, so the
+            # levels a client offers have to come from here rather than from
+            # the generic OpenAI vocabulary.
+            thinking_levels: ["low", "medium", "xhigh"]
         - model_name: Qwen/Qwen3.8-27B-FP8
           litellm_params:
             <<: *router
@@ -289,6 +301,12 @@ spec:
             supports_function_calling: true
             max_input_tokens: 262144
             max_output_tokens: 16384
+            # Non-standard key, consumed by the pi llm-proxy-refresh extension.
+            # The exact set the chat template accepts - it raises out of Jinja
+            # on anything else, and `high` is a common client default, so the
+            # levels a client offers have to come from here rather than from
+            # the generic OpenAI vocabulary.
+            thinking_levels: ["low", "medium", "xhigh"]
 
         # Replacement for the retired LLMModelOverlay `gemma4-agentic`. LLMKube
         # has no request-body mutation anywhere (confirmed across ModelRouter's
