@@ -183,3 +183,31 @@ spec:
       # The only single-GPU model in the fleet, matching its dedicated
       # muse-glimmer-server backend today.
       count: 1
+---
+# The one model not sourced from the cold archive: it postdates the migration,
+# so there is no pre-staged copy on NFS. hf:// + prefetch has the operator pull
+# it straight into the hot cache PVC via an owner-ref'd Job, rather than
+# waiting for the first serving pod to fetch it at swap time.
+#
+# ModelSpec has no revision field, so the source is a mutable ref. refreshPolicy
+# is left at its IfNotPresent default so an upstream retag cannot trigger a
+# silent ~30GiB re-pull; bump it deliberately instead.
+#
+# Worth archiving to the NFS cold tier once staged, so it has the same durable
+# second copy as the other ten.
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: qwen-3-8-fp8
+spec:
+  source: hf://Qwen/Qwen3.8-27B-FP8
+  format: safetensors
+  quantization: fp8
+  prefetch: true
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2

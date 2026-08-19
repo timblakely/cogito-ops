@@ -725,3 +725,74 @@ spec:
     - --top-k
     - "64"
     - --reasoning-preserve
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: InferenceService
+metadata:
+  name: qwen-3-8-fp8
+spec:
+  modelRef: qwen-3-8-fp8
+  runtime: vllm
+  env:
+    - name: NCCL_P2P_DISABLE
+      value: "1"
+    - name: NCCL_CUMEM_ENABLE
+      value: "0"
+    - name: OMP_NUM_THREADS
+      value: "1"
+    - name: PYTORCH_CUDA_ALLOC_CONF
+      value: expandable_segments:True,max_split_size_mb:512
+    - name: VLLM_WORKER_MULTIPROC_METHOD
+      value: spawn
+    - name: VLLM_ALLOW_LONG_MAX_MODEL_LEN
+      value: "1"
+    - name: VLLM_NO_USAGE_STATS
+      value: "1"
+    - name: TRITON_CACHE_DIR
+      value: /tmp/triton-cache
+  replicas: 0
+  runtimeClassName: nvidia
+  nodeSelector:
+    kubernetes.io/hostname: iggy
+  resources:
+    gpu: 2
+  endpoint:
+    port: 8000
+  extraVolumes:
+    - name: shm
+      emptyDir:
+        medium: Memory
+        sizeLimit: 16Gi
+  extraVolumeMounts:
+    - name: shm
+      mountPath: /dev/shm
+  vllmConfig:
+    maxModelLen: 262144
+    tensorParallelSize: 2
+    gpuMemoryUtilization: 0.90
+    maxNumBatchedTokens: 8192
+    # fp8 is in VLLMConfig.quantization's enum, unlike the auto_round/inc
+    # quantizations the sibling Qwens need passed as raw args.
+    quantization: fp8
+    kvCacheDtype: fp8_e4m3
+    enablePrefixCaching: true
+    enableChunkedPrefill: true
+  extraArgs:
+    - --served-model-name
+    - qwen-3-8-fp8
+    - --pipeline-parallel-size
+    - "1"
+    - --max-num-seqs
+    - "2"
+    - --disable-custom-all-reduce
+    - --trust-remote-code
+    # Same parser pair as the other Qwen 3.8 builds. No --speculative-config:
+    # the official FP8 release carries no MTP head, unlike the lued INT8-MTP
+    # and Vishva007 AutoRound variants.
+    - --tool-call-parser
+    - qwen3_xml
+    - --reasoning-parser
+    - qwen3
+    - --enable-auto-tool-choice
+    - --default-chat-template-kwargs
+    - '{"enable_thinking": true}'
