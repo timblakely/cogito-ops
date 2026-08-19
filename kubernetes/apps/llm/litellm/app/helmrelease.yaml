@@ -181,18 +181,40 @@ spec:
           litellm_params:
             <<: *router
             model: openai/qwen-3-6-autoround
+        # The three Qwen 3.8 builds are the only models here with graded
+        # thinking. Their chat template reads a `reasoning_effort` variable
+        # (xhigh = default, medium, low; anything else raises out of the
+        # template), and vLLM 0.25.1 maps the top-level OpenAI
+        # `reasoning_effort` field straight into it - verified against the
+        # router with reasoning_effort=minimal, which vLLM accepts but the
+        # template rejects by name.
+        #
+        # LiteLLM is the only layer that drops it: its openai provider does not
+        # list reasoning_effort as supported for these models, so a client
+        # sending it got `UnsupportedParamsError` and the request never reached
+        # vLLM at all. allowed_openai_params is LiteLLM's own remedy for that,
+        # and is per-model on purpose - drop_params: true would have hidden the
+        # same class of mistake everywhere, silently.
+        #
+        # Note the ranges do not line up: LiteLLM/vLLM accept none, minimal,
+        # low, medium, high, xhigh and max, while this template only accepts
+        # xhigh, medium and low. `high` in particular is a common client
+        # default and will 400 out of the template rather than being clamped.
         - model_name: lued/Qwen3.8-27B-INT8-W8A16-MTP
           litellm_params:
             <<: *router
             model: openai/qwen-3-8-int8-w8a16-mtp
+            allowed_openai_params: ["reasoning_effort"]
         - model_name: Vishva007/Qwen3.8-27B-W4A16-AutoRound
           litellm_params:
             <<: *router
             model: openai/qwen-3-8-w4a16-autoround
+            allowed_openai_params: ["reasoning_effort"]
         - model_name: Qwen/Qwen3.8-27B-FP8
           litellm_params:
             <<: *router
             model: openai/qwen-3-8-fp8
+            allowed_openai_params: ["reasoning_effort"]
 
         # Replacement for the retired LLMModelOverlay `gemma4-agentic`. LLMKube
         # has no request-body mutation anywhere (confirmed across ModelRouter's
