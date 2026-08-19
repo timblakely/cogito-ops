@@ -146,6 +146,20 @@ spec:
         # restricted to a DNS-label pattern), so this layer is what keeps
         # Hermes and Open WebUI working unchanged across the cutover.
         # ---------------------------------------------------------------
+        # supports_function_calling is declared per model for the same reason
+        # supports_reasoning is: LiteLLM has no metadata for a custom
+        # openai/<slug> backend, so it reports null, and a client that checks
+        # before offering tools will not offer them. Tool calling itself works
+        # regardless - verified against qwen-3-8-fp8, which returns a proper
+        # tool_calls array - so this only affects clients that ask first.
+        #
+        # Declared on exactly the vLLM-backed aliases (including gemma4-agentic,
+        # which shares a backend with the one below), because those are the ones
+        # started with --tool-call-parser and --enable-auto-tool-choice. The five
+        # llama.cpp models are deliberately left unset: they run without --jinja,
+        # so llama-server ignores a tools array rather than dispatching it. Left
+        # null rather than declared false, since an explicit false can make
+        # LiteLLM reject a tools request outright instead of degrading quietly.
         - model_name: google/gemma-4-31B-it-qat-w4a16-ct
           litellm_params: &router
             model: openai/gemma-4-31b-google-qat
@@ -153,10 +167,14 @@ spec:
             # ModelRouter.status.endpoint rather than assumed.
             api_base: http://cogito-llm-router-router-proxy.llm.svc.cluster.local:8080/v1
             api_key: not-needed
+          model_info:
+            supports_function_calling: true
         - model_name: cyankiwi/gemma-4-31B-it-qat-AWQ-INT4
           litellm_params:
             <<: *router
             model: openai/gemma-4-31b-cyankiwi
+          model_info:
+            supports_function_calling: true
         - model_name: mradermacher/gemma-4-31B-it-heretic-GGUF
           litellm_params:
             <<: *router
@@ -181,6 +199,8 @@ spec:
           litellm_params:
             <<: *router
             model: openai/qwen-3-6-autoround
+          model_info:
+            supports_function_calling: true
         # The three Qwen 3.8 builds are the only models here with graded
         # thinking. Their chat template reads a `reasoning_effort` variable
         # (xhigh = default, medium, low; anything else raises out of the
@@ -215,6 +235,7 @@ spec:
             allowed_openai_params: ["reasoning_effort"]
           model_info:
             supports_reasoning: true
+            supports_function_calling: true
         - model_name: Vishva007/Qwen3.8-27B-W4A16-AutoRound
           litellm_params:
             <<: *router
@@ -222,6 +243,7 @@ spec:
             allowed_openai_params: ["reasoning_effort"]
           model_info:
             supports_reasoning: true
+            supports_function_calling: true
         - model_name: Qwen/Qwen3.8-27B-FP8
           litellm_params:
             <<: *router
@@ -229,6 +251,7 @@ spec:
             allowed_openai_params: ["reasoning_effort"]
           model_info:
             supports_reasoning: true
+            supports_function_calling: true
 
         # Replacement for the retired LLMModelOverlay `gemma4-agentic`. LLMKube
         # has no request-body mutation anywhere (confirmed across ModelRouter's
@@ -249,6 +272,8 @@ spec:
             chat_template_kwargs:
               enable_thinking: true
               preserve_thinking: true
+          model_info:
+            supports_function_calling: true
 
         # ---------------------------------------------------------------
         # FRONTIER PLANNER TIER - real spend, chosen explicitly by the calling
