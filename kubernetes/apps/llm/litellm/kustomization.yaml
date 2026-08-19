@@ -1,0 +1,45 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: APP-app-vars
+    literals:
+      - APP=litellm
+      # LiteLLM's schema is small - virtual keys, teams, and the spend ledger -
+      # so the cluster default of 3 replicas is overkill. It cannot go to 1,
+      # though: the shared CNPG base template now hardcodes synchronous
+      # replication with number: 1, and CNPG rejects a Cluster whose
+      # synchronous replica count is not strictly less than its instance count.
+      # (knowledge-db runs at 1 only because it predates that block.) 2 is the
+      # minimum the template allows, and gives the spend ledger a standby.
+      - CNPG_CAPACITY=10Gi
+      - CNPG_REPLICAS=2
+components:
+  # ks/app, not ks/app-resources: the app-resources component makes the
+  # resources Kustomization depend on the app one, but LiteLLM's ExternalSecrets
+  # must exist before its HelmRelease can start a pod. Keeping them in the same
+  # Kustomization removes the ordering inversion entirely.
+  - ../../../components/ks/app
+  # Provisions the per-app CNPG Cluster (litellm-db) from the shared component
+  # and injects dependsOn: [cloudnative-pg, plugin-barman-cloud]. Note this is
+  # NOT clustergenerator.yaml, which is an unrelated password generator.
+  #
+  # restore, not init, because this app moved namespaces (litellm -> llm) and a
+  # CNPG Cluster does not move with it - the old namespace's Cluster and its
+  # PVCs are pruned, so an `init` overlay would hand LiteLLM an empty database
+  # and lose every virtual key, team and spend row.
+  #
+  # `init` would also simply fail to bootstrap here. The barman destinationPath
+  # (s3://cnpg) and serverName (litellm-db) are both namespace-independent, so
+  # the archive the old Cluster wrote is still sitting at s3://cnpg/litellm-db
+  # and CNPG refuses to initdb a WAL-archiving cluster over a non-empty
+  # archive. The restore overlay both recovers from that archive and carries
+  # the cnpg.io/skipEmptyWalArchiveCheck annotation that lets the recovered
+  # cluster keep writing to the same serverName on a new timeline.
+  #
+  # This also matches what every other CNPG app here does (open-webui, immich,
+  # pocket-id, atuin all sit on restore permanently), so it is the steady state
+  # rather than a one-off migration overlay to be reverted later.
+  - ../../../components/kustomize/cnpg/restore
+  - ../../../components/kustomize/external-secret

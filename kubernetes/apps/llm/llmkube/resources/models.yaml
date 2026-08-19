@@ -1,0 +1,218 @@
+---
+# The ten model catalogue, ported 1:1 from the LLMModel CRs the outgoing
+# llm-operator stack serves today.
+#
+# Every source is pvc://llmkube-model-cache/<slug> - the HOT tier (NVMe on
+# iggy). A pvc:// source is mounted directly by the serving pod rather than
+# staged through the operator's own download path, so whichever PVC is named
+# here is what the model is actually read from at load time. The cold tier
+# (llm-model-archive, NFS) holds the durable copy of all of these and is the
+# source the hot tier is populated from; point a `source` at it instead to
+# demote a model to NFS-speed loads without re-downloading anything.
+#
+# hardware.accelerator MUST be set to cuda. It defaults to `cpu`, and a model
+# left on the default silently runs on CPU - which presents as "unexpectedly
+# slow", not as an error.
+#
+# NOTE ON pvc:// AND MULTI-FILE MODELS: Model.spec.files (multi-file staging)
+# is only implemented for hf:// and s3:// sources - against a pvc:// source the
+# Model goes Failed with "multi-file staging requires a HuggingFace repo or
+# s3:// source". So each GGUF source names its primary file directly instead.
+# That is fine for every multi-file model here: llama.cpp resolves DeepSeek's
+# remaining shards from the same directory on its own, and the Laguna/Muse
+# draft and projector files are passed by absolute path from the
+# InferenceService rather than staged through this list.
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: gemma-4-31b-google-qat
+spec:
+  source: pvc://llmkube-model-cache/gemma-4-31b-google-qat
+  format: safetensors
+  quantization: w4a16
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: gemma-4-31b-cyankiwi
+spec:
+  source: pvc://llmkube-model-cache/gemma-4-31b-cyankiwi
+  format: safetensors
+  quantization: awq-int4
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: qwen-3-6-autoround
+spec:
+  source: pvc://llmkube-model-cache/qwen-3-6-autoround
+  format: safetensors
+  quantization: auto_round
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: qwen-3-8-int8-w8a16-mtp
+spec:
+  source: pvc://llmkube-model-cache/qwen-3-8-int8-w8a16-mtp
+  format: safetensors
+  quantization: int8-w8a16
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: qwen-3-8-w4a16-autoround
+spec:
+  source: pvc://llmkube-model-cache/qwen-3-8-w4a16-autoround
+  format: safetensors
+  quantization: w4a16-autoround
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: gemma-4-31b-heretic
+spec:
+  source: pvc://llmkube-model-cache/gemma-4-31b-heretic/gemma-4-31B-it-heretic.Q4_K_M.gguf
+  format: gguf
+  quantization: Q4_K_M
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: qwen-3-6-fable-fusion-711
+spec:
+  source: pvc://llmkube-model-cache/qwen-3-6-fable-fusion-711/Qwen3.6-27B-Fable-Fus-711-UnHeretic-NM-DAU-NEO-MAX-NEO-MTP-Q4_K_M.gguf
+  format: gguf
+  quantization: Q4_K_M
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: deepseek-v4-flash-0731
+spec:
+  source: pvc://llmkube-model-cache/deepseek-v4-flash-0731/DeepSeek-V4-Flash-UD-IQ3_S-00001-of-00004.gguf
+  format: gguf
+  quantization: UD-IQ3_S
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: laguna-s-2-1
+spec:
+  source: pvc://llmkube-model-cache/laguna-s-2-1/laguna-s-2.1-Q4_K_M.gguf
+  format: gguf
+  quantization: Q4_K_M
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: muse-glimmer-30b
+spec:
+  source: pvc://llmkube-model-cache/muse-glimmer-30b/Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf
+  format: gguf
+  quantization: Q4_K_M
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      # The only single-GPU model in the fleet, matching its dedicated
+      # muse-glimmer-server backend today.
+      count: 1
+---
+# Staged into both tiers by hand, then served from the hot tier like the other
+# ten.
+#
+# LLMKube 0.9.18 cannot fetch a multi-file Hugging Face repo, despite the CRD
+# documenting hf:// as a supported scheme and stating that multi-file staging
+# REQUIRES an hf:// or s3:// source. The download init container shells out to
+# curl, so:
+#   source: hf://Qwen/Qwen3.8-27B-FP8  -> curl: (1) Protocol "hf" not supported
+#   source: Qwen/Qwen3.8-27B-FP8       -> curl: (6) Could not resolve host: Qwen
+# The bare form additionally makes the Model report Ready "without a
+# controller-side download", so the failure only surfaces later, when the
+# serving pod's init container dies.
+#
+# Files were therefore pulled from the resolve endpoint at a pinned revision
+# (017b9c7af6b5689d5dd426a76e0bc077eb5ca20a) into the NFS archive and copied to
+# the hot tier, which also gives this model the same durable second copy as the
+# rest.
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: qwen-3-8-fp8
+spec:
+  source: pvc://llmkube-model-cache/qwen-3-8-fp8
+  format: safetensors
+  quantization: fp8
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2
