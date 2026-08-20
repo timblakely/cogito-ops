@@ -15,3 +15,16 @@ components:
   - ../../../components/kustomize/external-secret
   - ../../../components/kustomize/pocket-id
   - ../../../components/kustomize/volsync
+patches:
+  # The proxy issues this app's API key, so the Secret it reads does not exist
+  # until the litellm Kustomization has reconciled and the operator has called
+  # the admin API. Without this the pod starts, fails to find the Secret, and
+  # sits in CreateContainerConfigError until a later retry happens to win.
+  - patch: |-
+      - op: add
+        path: /spec/dependsOn/-
+        value:
+          name: litellm
+    target:
+      group: kustomize.toolkit.fluxcd.io
+      kind: Kustomization

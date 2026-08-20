@@ -1,0 +1,61 @@
+---
+# Replaces the out-of-band `open-webui-litellm` Secret, which was created by
+# hand against the admin UI and carried an in-file TODO saying it would not
+# survive a rebuild. The operator now asks the proxy's admin API for the key,
+# writes it to litellm-key-open-webui, and the PushSecret below files it back
+# into 1Password so a rebuild recovers rather than re-issues it.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: open-webui
+spec:
+  proxyRef: litellm
+  keyAlias: open-webui
+  secretName: litellm-key-open-webui
+  secretKey: api-key
+  # Carried over from the hand-made key this replaces.
+  maxBudget: "25"
+  budgetDuration: 30d
+  models:
+    # Local tier only. These are the client-facing modelNames exactly as
+    # ./models declares them - a scope naming a model that does not exist blocks
+    # the key SILENTLY rather than erroring, so this list and the modelName
+    # fields have to move in the same commit if an alias is ever renamed.
+    - google/gemma-4-31B-it-qat-w4a16-ct
+    - cyankiwi/gemma-4-31B-it-qat-AWQ-INT4
+    - mradermacher/gemma-4-31B-it-heretic-GGUF
+    - poolside/Laguna-S-2.1
+    - meta-models/Muse-Glimmer-30B-GGUF
+    - deepseek-ai/DeepSeek-V4-Flash-0731
+    - DavidAU/Qwen3.6-27B-Fable-Fusion-711-Uncensored-Heretic-NM-DAU-NEO-MAX-MTP-GGUF
+    - Lorbus/Qwen3.6-27B-int4-AutoRound
+    - lued/Qwen3.8-27B-INT8-W8A16-MTP
+    - Vishva007/Qwen3.8-27B-W4A16-AutoRound
+    - Qwen/Qwen3.8-27B-FP8
+    - gemma4-agentic
+---
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: litellm-key-open-webui
+spec:
+  refreshInterval: 1h
+  secretStoreRefs:
+    - kind: ClusterSecretStore
+      name: onepassword
+  selector:
+    secret:
+      name: litellm-key-open-webui
+  # The proxy's database is the authority on whether a key is valid, so a stale
+  # copy in 1Password is worthless - Replace keeps the vault tracking the key
+  # the operator actually issued.
+  updatePolicy: Replace
+  # Deleting the PushSecret must not delete the vault entry; recovering the key
+  # after a cluster rebuild is the entire point of pushing it there.
+  deletionPolicy: None
+  data:
+    - match:
+        secretKey: api-key
+        remoteRef:
+          remoteKey: litellm
+          property: LITELLM_OPEN_WEBUI_API_KEY

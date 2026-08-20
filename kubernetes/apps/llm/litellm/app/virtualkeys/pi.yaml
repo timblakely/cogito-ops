@@ -1,0 +1,42 @@
+---
+# For the workstation harnesses - the pi llm-proxy-refresh extension and Claude
+# Code - which reach llm-switch from outside the cluster. Nothing in the cluster
+# consumes this Secret; it exists so those clients stop sharing PROXY_MASTER_KEY,
+# whose compromise would grant unrestricted admin access rather than a bounded,
+# revocable, individually attributable budget.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: pi
+spec:
+  proxyRef: litellm
+  keyAlias: pi
+  secretName: litellm-key-pi
+  secretKey: api-key
+  # No models scope, deliberately: this consumer chooses the frontier tier
+  # explicitly and needs it. The budget is what bounds the damage instead - an
+  # unscoped key can reach planner-gpt-pro, which is the most expensive thing
+  # this proxy fronts.
+  maxBudget: "50"
+  budgetDuration: 30d
+---
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: litellm-key-pi
+spec:
+  refreshInterval: 1h
+  secretStoreRefs:
+    - kind: ClusterSecretStore
+      name: onepassword
+  selector:
+    secret:
+      name: litellm-key-pi
+  updatePolicy: Replace
+  deletionPolicy: None
+  data:
+    - match:
+        secretKey: api-key
+        remoteRef:
+          remoteKey: litellm
+          property: LITELLM_PI_API_KEY

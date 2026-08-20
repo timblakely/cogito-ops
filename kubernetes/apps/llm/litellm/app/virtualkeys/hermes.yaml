@@ -1,0 +1,42 @@
+---
+# Hermes reaches the proxy over llm-switch with a virtual key as its provider
+# credential. Note this resource only ISSUES the key and files it in 1Password -
+# Hermes stores its provider config on its own PVC, not in env, so pointing it
+# at this key is a one-off change inside Hermes rather than something Flux can
+# do. Until that happens this key exists and is simply unused.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: hermes
+spec:
+  proxyRef: litellm
+  keyAlias: Hermes
+  secretName: litellm-key-hermes
+  secretKey: api-key
+  # No models scope, deliberately: this consumer chooses the frontier tier
+  # explicitly and needs it. The budget is what bounds the damage instead - an
+  # unscoped key can reach planner-gpt-pro, which is the most expensive thing
+  # this proxy fronts.
+  maxBudget: "50"
+  budgetDuration: 30d
+---
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: litellm-key-hermes
+spec:
+  refreshInterval: 1h
+  secretStoreRefs:
+    - kind: ClusterSecretStore
+      name: onepassword
+  selector:
+    secret:
+      name: litellm-key-hermes
+  updatePolicy: Replace
+  deletionPolicy: None
+  data:
+    - match:
+        secretKey: api-key
+        remoteRef:
+          remoteKey: litellm
+          property: LITELLM_HERMES_API_KEY
