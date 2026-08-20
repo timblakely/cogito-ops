@@ -1,23 +1,23 @@
 ---
 # Replaces the out-of-band `open-webui-litellm` Secret, which was created by
-# hand against the admin UI and carried an in-file TODO saying it would not
-# survive a rebuild. The operator now asks the proxy's admin API for the key,
-# writes it to litellm-key-open-webui, and the PushSecret below files it back
-# into 1Password so a rebuild recovers rather than re-issues it.
+# hand against the admin UI, carried an in-file TODO saying it would not survive
+# a rebuild, and has since been deleted along with the two keys behind it.
+#
+# The operator now asks the proxy's admin API for the key, writes it to
+# litellm-key-open-webui, and the PushSecret below files it back into 1Password
+# so a rebuild recovers the key rather than re-issuing it.
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMVirtualKey
 metadata:
   name: open-webui
 spec:
   proxyRef: litellm
-  # LiteLLM requires key aliases to be globally unique, and two hand-made keys
-  # from before this migration still hold `open-webui` and `open-webui-v2` in
-  # the database - the first superseded by the second, both with zero spend.
-  # Reusing the plain name makes /key/generate 400 and the resource never
-  # reconciles, so this takes a display-name alias instead, matching the style
-  # of the Hermes key beside it. The two orphans are UI cleanup; nothing reads
-  # them once open-webui is pointed at this key.
-  keyAlias: OpenWebUI
+  # Aliases are globally unique in LiteLLM, and reusing one that already exists
+  # makes /key/generate return 400 - the resource then never reconciles, which
+  # takes this whole Kustomization unready with it. Two hand-made keys held
+  # `open-webui` and `open-webui-v2` through the migration and were revoked
+  # once this key was serving, so the plain name is free and used here.
+  keyAlias: open-webui
   secretName: litellm-key-open-webui
   secretKey: api-key
   # Carried over from the hand-made key this replaces.
