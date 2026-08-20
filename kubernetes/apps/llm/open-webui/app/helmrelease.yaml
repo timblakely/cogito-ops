@@ -23,6 +23,16 @@ spec:
   values:
     controllers:
       open-webui:
+        annotations:
+          # This app's LiteLLM credential is now a virtual key the operator
+          # issues, and rotating it - or recreating the LiteLLMVirtualKey, which
+          # is what reclaiming a key alias requires - writes a new value into
+          # litellm-key-open-webui. A secretKeyRef is resolved once at pod
+          # start, so without Reloader the running pod keeps presenting the
+          # revoked key and every request 401s until someone restarts it by
+          # hand. Reloader watches the referenced Secret and rolls the
+          # Deployment instead.
+          reloader.stakater.com/auto: "true"
         pod:
           hostUsers: false
           securityContext:

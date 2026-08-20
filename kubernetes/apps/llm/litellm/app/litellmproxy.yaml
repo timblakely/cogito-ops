@@ -56,6 +56,14 @@ spec:
       name: litellm-secrets
       key: PROXY_MASTER_KEY
 
+  podAnnotations:
+    # LiteLLM reads the provider keys below out of the environment once, at
+    # startup. ExternalSecrets picks up a rotated 1Password value on its own,
+    # but the running proxy never sees it - the standing caveat on this app's
+    # ExternalSecret was that a rotation needs the pod rolled by hand. Reloader
+    # watches the Secrets this pod references and does that automatically.
+    reloader.stakater.com/auto: "true"
+
   # PROXY_MASTER_KEY and OPENAI_API_KEY, from the single 1Password `litellm`
   # item. Both are dereferenced from the rendered config as os.environ/NAME, so
   # neither value is ever written into the ConfigMap.
