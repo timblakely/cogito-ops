@@ -128,6 +128,35 @@ spec:
       valueFrom:
         secretKeyRef: {name: litellm-oidc-credentials, key: userinfo_url}
 
+  # The default probes cannot survive this image's boot. Because migrations now
+  # run in the proxy rather than a separate Job, startup is `prisma migrate
+  # deploy` over 146 migrations before the HTTP server binds - about 60-70s
+  # here. The operator defaults liveness to initialDelay 10 + 3x10s, so it kills
+  # the container at 40s, every time, and the restart begins the same migration
+  # run again: a permanent crash loop that briefly reports 1/1 in between.
+  #
+  # LiteLLMProxy has no startupProbe field, so the grace has to come from
+  # liveness itself. 30s + 24x15s is ~6.5 minutes before a genuinely hung proxy
+  # is restarted, which is the right trade when the alternative is never
+  # starting at all. Upstream solves it the same way, with failureThreshold 30.
+  livenessProbe:
+    httpGet:
+      path: /health/liveliness
+      port: 4000
+    initialDelaySeconds: 30
+    periodSeconds: 15
+    failureThreshold: 24
+  # Readiness never kills the container, it only withholds traffic, so a long
+  # threshold here just means the Service waits for migrations instead of
+  # publishing an endpoint that refuses connections.
+  readinessProbe:
+    httpGet:
+      path: /health/readiness
+      port: 4000
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    failureThreshold: 30
+
   generalSettings:
     master_key: os.environ/PROXY_MASTER_KEY
     # The catalogue is config.yaml, not database rows. Keeping this off is what
