@@ -1,0 +1,161 @@
+---
+# The CR-managed proxy, standing up beside the chart's Deployment rather than
+# replacing it in place. `litellm-next` is a deliberately temporary name: a
+# LiteLLMProxy named `litellm` would collide with the Deployment and Service
+# Helm still owns. It is renamed to `litellm` in the cutover commit, once this
+# one has been proven to render a valid config and serve real requests.
+#
+# It shares the CNPG database with the incumbent on purpose. LiteLLM's schema is
+# the same at the same image version, applyMode: file keeps the catalogue out of
+# the database entirely (store_model_in_db stays off), and virtual keys and the
+# spend ledger are exactly the state that must survive the cutover.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMProxy
+metadata:
+  name: litellm-next
+spec:
+  # Renders the whole catalogue into config.yaml and rolls the Deployment when
+  # its hash changes. The alternative, `api`, pushes the model_list to the admin
+  # API without a restart, but then the live catalogue is database state that
+  # Git only mostly describes. `file` keeps Git authoritative, which is the
+  # reason for moving off a hand-written model_list in the first place.
+  applyMode: file
+
+  # Same digest the chart resolves today, so this is not also an upgrade. The
+  # -database variant is REQUIRED rather than cosmetic: it runs `prisma migrate
+  # deploy` at boot, and LiteLLMProxy has no migrationJob equivalent - there is
+  # no database or migration field on the CRD at all. The chart's separate
+  # migration Job disappears with the HelmRelease, so migrations have to come
+  # from the image or they stop happening. DISABLE_SCHEMA_UPDATE, which the
+  # chart sets to hand that job to the Job, is deliberately not carried over.
+  image: ghcr.io/berriai/litellm-database:1.97.0@sha256:4b3226f4ccd7793d7dca6862d3681604d7ab640d8d6285be6061fd48514e6e71
+
+  # Unchanged from the chart. One replica is the deliberate position: every
+  # local model lives on iggy's two GPUs, so that node is the availability
+  # ceiling and a second proxy replica cannot raise it. If this ever does scale,
+  # the coordination story is the cluster's existing Dragonfly with an unused DB
+  # index (immich=2, searxng=4, firecrawl=5), not a new Redis.
+  replicas: 1
+
+  service:
+    type: ClusterIP
+    port: 4000
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      memory: 2Gi
+
+  apiAccess:
+    # Needed even under applyMode: file. The virtual-key controller authenticates
+    # to the proxy's own admin API with this to create and delete keys, which is
+    # what the LiteLLMVirtualKey resources depend on.
+    masterKeyRef:
+      name: litellm-secrets
+      key: PROXY_MASTER_KEY
+
+  # PROXY_MASTER_KEY and OPENAI_API_KEY, from the single 1Password `litellm`
+  # item. Both are dereferenced from the rendered config as os.environ/NAME, so
+  # neither value is ever written into the ConfigMap.
+  envFrom:
+    - secretRef:
+        name: litellm-secrets
+
+  env:
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          # CNPG publishes a ready-made connection string on this key, already
+          # pointing at litellm-pooler-rw rather than a bare instance, so a
+          # failover repoints it without a config change. The chart assembled
+          # the same URL from host/username/password; this is one field instead
+          # of three.
+          name: litellm-db-app
+          key: uri
+    - name: LITELLM_LOG
+      value: INFO
+    # --- Admin UI SSO via Pocket ID (generic OIDC) --------------------------
+    # Ported verbatim from the chart's envVars/extraEnvVars. Without this the UI
+    # authenticates with PROXY_MASTER_KEY, the same credential that grants
+    # unrestricted API access.
+    #
+    # LiteLLM gates SSO above five users: _raise_if_sso_exceeds_free_user_limit
+    # 403s when the billable-user count exceeds 5 without a LITELLM_LICENSE, and
+    # that check runs per login against the users table. Virtual keys are not
+    # users, so the key work in the next stage does not move that number.
+    - name: PROXY_BASE_URL
+      value: https://llm-switch.${DOMAIN_NAME}
+    # Read as a string and compared lowercased against "true", so it must be
+    # quoted rather than a YAML boolean. Note this removes the in-UI path to the
+    # master-key login: if Pocket ID is unreachable, recovery is to unset this
+    # and roll the pod.
+    - name: AUTO_REDIRECT_UI_LOGIN_TO_SSO
+      value: "true"
+    - name: GENERIC_SCOPE
+      value: openid email profile groups
+    - name: GENERIC_USER_ID_ATTRIBUTE
+      value: sub
+    - name: GENERIC_USER_EMAIL_ATTRIBUTE
+      value: email
+    - name: GENERIC_USER_DISPLAY_NAME_ATTRIBUTE
+      value: name
+    - name: GENERIC_ROLE_MAPPINGS_GROUP_CLAIM
+      value: groups
+    # Parsed with ast.literal_eval into {role: [group, ...]}, so this must be a
+    # Python literal, not JSON.
+    - name: GENERIC_ROLE_MAPPINGS_ROLES
+      value: "{'proxy_admin': ['litellm-admins']}"
+    - name: GENERIC_ROLE_MAPPINGS_DEFAULT_ROLE
+      value: internal_user
+    # Client credentials and endpoints come from the Secret the pocket-id
+    # operator publishes for the OIDCClient, so no Pocket ID URL is duplicated
+    # into this file.
+    - name: GENERIC_CLIENT_ID
+      valueFrom:
+        secretKeyRef: {name: litellm-oidc-credentials, key: client_id}
+    - name: GENERIC_CLIENT_SECRET
+      valueFrom:
+        secretKeyRef: {name: litellm-oidc-credentials, key: client_secret}
+    - name: GENERIC_AUTHORIZATION_ENDPOINT
+      valueFrom:
+        secretKeyRef: {name: litellm-oidc-credentials, key: authorization_url}
+    - name: GENERIC_TOKEN_ENDPOINT
+      valueFrom:
+        secretKeyRef: {name: litellm-oidc-credentials, key: token_url}
+    - name: GENERIC_USERINFO_ENDPOINT
+      valueFrom:
+        secretKeyRef: {name: litellm-oidc-credentials, key: userinfo_url}
+
+  generalSettings:
+    master_key: os.environ/PROXY_MASTER_KEY
+    # The catalogue is config.yaml, not database rows. Keeping this off is what
+    # makes applyMode: file honest - with it on, models added through the UI
+    # would survive in the database and Git would stop being the whole picture.
+    store_model_in_db: false
+
+  litellmSettings:
+    # Emits the litellm_* families the ServiceMonitor scrapes. Both hooks are
+    # needed: failures are what the alert rules key on, and they do not appear
+    # on the success path.
+    success_callback:
+      - prometheus
+    failure_callback:
+      - prometheus
+    require_auth_for_metrics_endpoint: false
+
+  routerSettings:
+    # NOT retry_policy. That field only pattern-matches Authentication/Timeout/
+    # RateLimit/ContentPolicy/BadRequest errors and has no
+    # ServiceUnavailableErrorRetries at all, so it is dead config for the 503 +
+    # Retry-After that ModelRouter returns when a swap exceeds the pool's
+    # swapBudget. A 503 is retried through the generic path instead, which
+    # retries any status >= 500 using this plain count with exponential backoff.
+    # LiteLLM does not honour Retry-After, so this approximates the real swap
+    # wait rather than bounding it.
+    num_retries: 2
+    # Must exceed the ModelPool's 1800s swapBudget, or LiteLLM gives up while
+    # ModelRouter is still legitimately holding the request open waiting for a
+    # large model to load.
+    timeout: 1900

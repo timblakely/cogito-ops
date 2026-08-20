@@ -1,0 +1,22 @@
+---
+# Frontier tier - real spend, chosen explicitly by the calling agent. Kept under
+# a distinct modelName from the local tier on purpose: sharing one would turn
+# LiteLLM's router into an automatic load-balancer between free local compute
+# and paid API calls, which is the failure the budgets exist to prevent.
+#
+# No cost metadata and no capability flags, deliberately. LiteLLM already ships
+# real prices, context windows and capability flags for both gpt-5.5 models, so
+# anything declared here would be a second, staler copy of them.
+#
+# Anthropic is still absent: there is no ANTHROPIC_API_KEY in the vault. Adding
+# one is what unlocks an ordered fallback chain for this tier.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: planner-gpt-pro
+spec:
+  modelName: planner-gpt-pro
+  proxyRef: litellm-next
+  params:
+    model: openai/gpt-5.5-pro
+    apiKey: os.environ/OPENAI_API_KEY

@@ -1,0 +1,46 @@
+---
+# One of the three Qwen 3.8 builds - the only models here with graded thinking.
+#
+# allowed_openai_params is not optional. LiteLLM's openai provider does not list
+# reasoning_effort as supported for a custom openai/<slug>, so without this a
+# client sending it gets UnsupportedParamsError and the request never reaches
+# vLLM. It is per-model rather than a global drop_params on purpose: dropping
+# params everywhere would have hidden exactly this class of mistake silently.
+#
+# thinking_levels is non-standard, consumed by the pi llm-proxy-refresh
+# extension, and lives under info.extra because the CRD has no typed field for
+# it. The set is what the chat template actually accepts - it raises out of
+# Jinja on anything else, and `high` is a common client default - so the levels
+# a client offers have to come from here rather than the generic OpenAI
+# vocabulary.
+#
+# supports_reasoning is also under info.extra: the CRD types
+# supportsFunctionCalling, supportsVision and supportsPromptCaching, but not
+# this one. Clients that ask before offering thinking (the pi harness does)
+# read it, and LiteLLM has no built-in metadata for a custom backend.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: qwen-3-8-fp8
+spec:
+  modelName: Qwen/Qwen3.8-27B-FP8
+  proxyRef: litellm-next
+  params:
+    model: openai/qwen-3-8-fp8
+    apiBase: http://cogito-llm-router-router-proxy.llm.svc.cluster.local:8080/v1
+    apiKey: not-needed
+    additional:
+      allowed_openai_params:
+      - reasoning_effort
+  info:
+    supportsFunctionCalling: true
+    maxInputTokens: 262144
+    maxOutputTokens: 16384
+    extra:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+      supports_reasoning: true
+      thinking_levels:
+      - low
+      - medium
+      - xhigh

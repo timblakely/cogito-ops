@@ -1,0 +1,43 @@
+---
+# Replacement for the retired LLMModelOverlay of the same name. LLMKube has no
+# request-body mutation anywhere, so the injection lives here instead: a
+# non-OpenAI key under params.additional passes through as a request kwarg.
+#
+# The name must not change. It is what the pi harness requests by, and it
+# shares the Gemma QAT backend rather than being a model of its own - clients
+# can still override these defaults per request.
+#
+# Local tier. api_base is the ModelRouter, never the InferenceService: the pool
+# scales non-resident members to zero, so a direct service address would point
+# at a backend that can disappear mid-request.
+#
+# The string after `openai/` must stay byte-identical to the RouterBackend name -
+# BackendNameMatch dispatches on exactly that, and a mismatch fails as an
+# unmatched route rather than an error. modelName above is independent, and is
+# the Hugging Face-style identifier clients already send.
+#
+# Zero token cost is asserted rather than omitted: LiteLLM raises "This model
+# isn't mapped yet" inside spend calculation for any openai/<slug> it has no
+# cost map entry for.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: gemma4-agentic
+spec:
+  modelName: gemma4-agentic
+  proxyRef: litellm-next
+  params:
+    model: openai/gemma-4-31b-google-qat
+    apiBase: http://cogito-llm-router-router-proxy.llm.svc.cluster.local:8080/v1
+    apiKey: not-needed
+    additional:
+      chat_template_kwargs:
+        enable_thinking: true
+        preserve_thinking: true
+  info:
+    supportsFunctionCalling: true
+    maxInputTokens: 229376
+    maxOutputTokens: 16384
+    extra:
+      input_cost_per_token: 0
+      output_cost_per_token: 0

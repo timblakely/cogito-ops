@@ -1,0 +1,33 @@
+---
+# GGUF/llama.cpp. Qwen 3.6 has no thinking-mode controls; only 3.8 does,
+# so there is deliberately no reasoning configuration here.
+#
+# Local tier. api_base is the ModelRouter, never the InferenceService: the pool
+# scales non-resident members to zero, so a direct service address would point
+# at a backend that can disappear mid-request.
+#
+# The string after `openai/` must stay byte-identical to the RouterBackend name -
+# BackendNameMatch dispatches on exactly that, and a mismatch fails as an
+# unmatched route rather than an error. modelName above is independent, and is
+# the Hugging Face-style identifier clients already send.
+#
+# Zero token cost is asserted rather than omitted: LiteLLM raises "This model
+# isn't mapped yet" inside spend calculation for any openai/<slug> it has no
+# cost map entry for.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: qwen-3-6-fable-fusion-711
+spec:
+  modelName: DavidAU/Qwen3.6-27B-Fable-Fusion-711-Uncensored-Heretic-NM-DAU-NEO-MAX-MTP-GGUF
+  proxyRef: litellm-next
+  params:
+    model: openai/qwen-3-6-fable-fusion-711
+    apiBase: http://cogito-llm-router-router-proxy.llm.svc.cluster.local:8080/v1
+    apiKey: not-needed
+  info:
+    maxInputTokens: 131072
+    maxOutputTokens: 16384
+    extra:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
