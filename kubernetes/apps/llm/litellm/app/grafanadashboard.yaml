@@ -1,0 +1,32 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/grafana.integreatly.org/grafanadashboard_v1beta1.json
+#
+# Adapted from joryirving/home-ops, which is where this dashboard comes from.
+# 32 of its 33 panels are provider-agnostic - they read the litellm_* families
+# the proxy exports once the prometheus callbacks are on - and only the
+# tier-breakdown pie chart encoded a model taxonomy. That panel was retargeted
+# to cogito's, which is two-way and much simpler than his: everything except
+# `planner-*` is free local compute behind the ModelRouter, and `planner-*` is
+# the only tier that spends money.
+#
+# His companion `litellm-economics` dashboard was deliberately NOT ported. It
+# amortises five flat-rate subscriptions into a CAD-denominated cost per token,
+# with dashboard variables for each plan's monthly price and an exchange rate.
+# cogito has no subscriptions - just a metered OpenAI key whose real prices
+# LiteLLM already knows - so that dashboard would be someone else's cost model
+# wearing our labels.
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: litellm
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  datasources:
+    - datasourceName: prometheus
+      inputName: DS_PROMETHEUS
+  configMapRef:
+    name: litellm-dashboard
+    key: litellm.json

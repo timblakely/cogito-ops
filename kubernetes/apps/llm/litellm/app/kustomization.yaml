@@ -10,3 +10,21 @@ resources:
   - ./httproute.yaml
   - ./oidc-client.yaml
   - ./usergroup.yaml
+  - ./grafanadashboard.yaml
+  - ./prometheusrule.yaml
+configMapGenerator:
+  - name: litellm-dashboard
+    files:
+      - dashboard/litellm.json
+generatorOptions:
+  # The GrafanaDashboard above references this ConfigMap by name, so the
+  # content hash kustomize would otherwise append has to go - a rolling name
+  # would break that reference on every dashboard edit.
+  disableNameSuffixHash: true
+  annotations:
+    # Load-bearing. Grafana dashboards are full of ${datasource}, ${__range}
+    # and $__rate_interval tokens, and this app's Flux Kustomization runs
+    # postBuild envsubst over everything it renders. Without this annotation
+    # Flux would try to resolve those as cluster variables and substitute them
+    # away, producing a dashboard whose every query is malformed.
+    kustomize.toolkit.fluxcd.io/substitute: disabled

@@ -1,0 +1,99 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/prometheusrule_v1.json
+#
+# Every rule here depends on the prometheus success/failure callbacks enabled in
+# the HelmRelease - without them the litellm_* series do not exist and these
+# alerts are silently vacuous rather than failing loudly.
+#
+# Two of Jory's four rules are deliberately absent. LiteLLMFallbackChainExhausted
+# and LiteLLMModelFailover both read litellm_deployment_{failed,successful}_
+# fallbacks_total, which only increment when router_settings declares fallbacks.
+# cogito declares none today, so those counters can never move and the alerts
+# would be permanently dormant. They belong in the same commit that adds the
+# first fallback chain, not before it.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: litellm
+spec:
+  groups:
+    - name: litellm.rules
+      rules:
+        # The whole local fleet and the paid tier are behind this one pod, and
+        # it runs at replicaCount 1, so "the proxy is gone" is the outage that
+        # matters most and the one nothing else would report.
+        - alert: LiteLLMProxyDown
+          expr: |-
+            up{job="litellm", namespace="llm"} == 0
+          for: 5m
+          annotations:
+            summary: >-
+              LiteLLM proxy is down - every model, local and frontier, is unreachable
+          labels:
+            severity: critical
+
+        # Distinct from the above: the scrape target vanishing entirely, which
+        # `up == 0` cannot see because the series stops existing rather than
+        # going to zero.
+        - alert: LiteLLMProxyAbsent
+          expr: |-
+            absent(up{job="litellm", namespace="llm"})
+          for: 15m
+          annotations:
+            summary: >-
+              LiteLLM scrape target has disappeared - ServiceMonitor or Service may be misconfigured
+          labels:
+            severity: warning
+
+        # From Jory's rules, including his comment: deployment_state latches at
+        # 2 via the cooldown callback's pool label and never resets, because
+        # success callbacks label by requested model instead. The `and on` join
+        # against ongoing failures is what stops a recovered deployment from
+        # alerting forever.
+        - alert: LiteLLMDeploymentOutage
+          expr: |-
+            max by (litellm_model_name) (litellm_deployment_state) >= 2
+            and on (litellm_model_name)
+            sum by (litellm_model_name) (rate(litellm_deployment_failure_responses_total[15m])) > 0
+          for: 10m
+          annotations:
+            summary: >-
+              LiteLLM {{ $labels.litellm_model_name }} out of rotation and still failing
+              (deployment_state >= 2)
+          labels:
+            severity: warning
+
+        # 403/429 from an upstream is the shape a spent quota or a rotated key
+        # takes. For cogito this watches the OpenAI key behind planner-gpt; the
+        # local tier cannot produce it, since the ModelRouter does not
+        # authenticate.
+        - alert: LiteLLMAuthOrQuotaFailures
+          expr: |-
+            sum by (litellm_model_name, exception_status) (
+              increase(litellm_deployment_failure_responses_total{exception_status=~"403|429"}[15m])
+            ) > 5
+          for: 5m
+          annotations:
+            summary: >-
+              LiteLLM {{ $labels.litellm_model_name }} returning {{ $labels.exception_status }}
+              (auth/quota - check the upstream key or plan cap)
+          labels:
+            severity: warning
+
+        # cogito-specific, with no counterpart in Jory's repo because he has no
+        # swap machinery. The ModelRouter answers 503 + Retry-After when a swap
+        # exceeds the pool's 1800s swapBudget. A few of these are normal during
+        # a cold load of DeepSeek or Laguna; a sustained rate means swaps are
+        # failing rather than merely being slow.
+        - alert: LiteLLMLocalTierUnavailable
+          expr: |-
+            sum by (litellm_model_name) (
+              increase(litellm_deployment_failure_responses_total{exception_status="503"}[30m])
+            ) > 10
+          for: 15m
+          annotations:
+            summary: >-
+              LiteLLM {{ $labels.litellm_model_name }} sustained 503s - ModelPool swaps
+              may be exceeding swapBudget rather than just running slow
+          labels:
+            severity: warning

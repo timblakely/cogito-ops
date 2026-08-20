@@ -112,9 +112,49 @@ spec:
     migrationJob:
       enabled: true
 
+    # The proxy fronts paid frontier APIs and eleven local models, and until now
+    # nothing scraped it - spend, failures and fallbacks were invisible outside
+    # the admin UI. The chart ships a ServiceMonitor; it just defaults to off.
+    serviceMonitor:
+      enabled: true
+      # NOT optional, and not a no-op default. The chart's template writes
+      # `matchNames: ["default"]` when this is unset - the comment in its own
+      # values file claims it falls back to the release namespace, and it does
+      # not. Left unset, the ServiceMonitor would look for the proxy Service in
+      # `default` and silently scrape nothing.
+      namespaceSelector:
+        matchNames:
+          - llm
+      # Chart default is 15s. LiteLLM's metrics are counters and gauges over
+      # request outcomes rather than anything fast-moving, and the alert rules
+      # below evaluate over 10-15m windows, so 30s halves the series churn for
+      # no loss of fidelity.
+      interval: 30s
+      scrapeTimeout: 10s
+
     proxy_config:
       general_settings:
         master_key: os.environ/PROXY_MASTER_KEY
+
+      litellm_settings:
+        # Emits the litellm_* metric families the ServiceMonitor above scrapes -
+        # spend, per-deployment success/failure counters, fallback counters and
+        # deployment_state. Both hooks are needed: failures are what the alert
+        # rules key on, and they do not appear on the success path.
+        #
+        # Not a licensed feature despite the enterprise-sounding name. Verified
+        # against the running image: litellm.integrations.prometheus imports
+        # without litellm_enterprise, and the only premium gate inside it is
+        # metric label filtering, not the metrics themselves.
+        success_callback:
+          - prometheus
+        failure_callback:
+          - prometheus
+        # Lets Prometheus scrape /metrics/ without presenting a virtual key.
+        # The endpoint exposes model names, spend and request counts - no
+        # prompt content - and the Service is ClusterIP-only, so this is not
+        # reachable off-cluster.
+        require_auth_for_metrics_endpoint: false
 
       router_settings:
         # NOT retry_policy. Verified against LiteLLM's retry source: that field
@@ -178,6 +218,15 @@ spec:
             api_base: http://cogito-llm-router-router-proxy.llm.svc.cluster.local:8080/v1
             api_key: not-needed
           model_info:
+            # Local compute has no marginal token cost, but LiteLLM will not
+            # infer that: an openai/<slug> model absent from its cost map raises
+            # "This model isn't mapped yet" inside the spend calculation on every
+            # request. Declaring zero turns local traffic into an asserted $0 on
+            # the spend ledger instead of a gap, and silences that per-request
+            # error. The frontier tier below deliberately declares nothing -
+            # LiteLLM already ships real prices for the gpt-5.5 models.
+            input_cost_per_token: 0
+            output_cost_per_token: 0
             supports_function_calling: true
             max_input_tokens: 229376
             max_output_tokens: 16384
@@ -186,6 +235,8 @@ spec:
             <<: *router
             model: openai/gemma-4-31b-cyankiwi
           model_info:
+            input_cost_per_token: 0
+            output_cost_per_token: 0
             supports_function_calling: true
             max_input_tokens: 229376
             max_output_tokens: 16384
@@ -194,6 +245,8 @@ spec:
             <<: *router
             model: openai/gemma-4-31b-heretic
           model_info:
+            input_cost_per_token: 0
+            output_cost_per_token: 0
             max_input_tokens: 131072
             max_output_tokens: 16384
         - model_name: poolside/Laguna-S-2.1
@@ -201,6 +254,8 @@ spec:
             <<: *router
             model: openai/laguna-s-2-1
           model_info:
+            input_cost_per_token: 0
+            output_cost_per_token: 0
             max_input_tokens: 102400
             max_output_tokens: 16384
         - model_name: meta-models/Muse-Glimmer-30B-GGUF
@@ -208,6 +263,8 @@ spec:
             <<: *router
             model: openai/muse-glimmer-30b
           model_info:
+            input_cost_per_token: 0
+            output_cost_per_token: 0
             max_input_tokens: 200000
             max_output_tokens: 16384
         - model_name: deepseek-ai/DeepSeek-V4-Flash-0731
@@ -215,6 +272,8 @@ spec:
             <<: *router
             model: openai/deepseek-v4-flash-0731
           model_info:
+            input_cost_per_token: 0
+            output_cost_per_token: 0
             max_input_tokens: 143360
             max_output_tokens: 16384
         - model_name: DavidAU/Qwen3.6-27B-Fable-Fusion-711-Uncensored-Heretic-NM-DAU-NEO-MAX-MTP-GGUF
@@ -222,6 +281,8 @@ spec:
             <<: *router
             model: openai/qwen-3-6-fable-fusion-711
           model_info:
+            input_cost_per_token: 0
+            output_cost_per_token: 0
             max_input_tokens: 131072
             max_output_tokens: 16384
         - model_name: Lorbus/Qwen3.6-27B-int4-AutoRound
@@ -229,6 +290,8 @@ spec:
             <<: *router
             model: openai/qwen-3-6-autoround
           model_info:
+            input_cost_per_token: 0
+            output_cost_per_token: 0
             supports_function_calling: true
             max_input_tokens: 262144
             max_output_tokens: 16384
@@ -265,6 +328,8 @@ spec:
             model: openai/qwen-3-8-int8-w8a16-mtp
             allowed_openai_params: ["reasoning_effort"]
           model_info:
+            input_cost_per_token: 0
+            output_cost_per_token: 0
             supports_reasoning: true
             supports_function_calling: true
             max_input_tokens: 262144
@@ -281,6 +346,8 @@ spec:
             model: openai/qwen-3-8-w4a16-autoround
             allowed_openai_params: ["reasoning_effort"]
           model_info:
+            input_cost_per_token: 0
+            output_cost_per_token: 0
             supports_reasoning: true
             supports_function_calling: true
             max_input_tokens: 262144
@@ -297,6 +364,8 @@ spec:
             model: openai/qwen-3-8-fp8
             allowed_openai_params: ["reasoning_effort"]
           model_info:
+            input_cost_per_token: 0
+            output_cost_per_token: 0
             supports_reasoning: true
             supports_function_calling: true
             max_input_tokens: 262144
@@ -328,6 +397,8 @@ spec:
               enable_thinking: true
               preserve_thinking: true
           model_info:
+            input_cost_per_token: 0
+            output_cost_per_token: 0
             supports_function_calling: true
             max_input_tokens: 229376
             max_output_tokens: 16384
