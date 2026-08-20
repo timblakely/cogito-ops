@@ -2,7 +2,7 @@
 # Pocket ID client for the LiteLLM admin UI.
 #
 # The UI lives on the same hostname as the API (the HTTPRoute matches
-# PathPrefix "/"), so the callback is on llm-switch rather than a dedicated
+# PathPrefix "/"), so the callback is on litellm rather than a dedicated
 # subdomain - hence the URLs here are written out rather than using ${APP_URL},
 # which would resolve to litellm.${DOMAIN_NAME}.
 #
@@ -14,11 +14,11 @@ kind: PocketIDOIDCClient
 metadata:
   name: litellm
 spec:
-  launchUrl: https://llm-switch.${DOMAIN_NAME}/ui/
+  launchUrl: https://litellm.${DOMAIN_NAME}/ui/
   callbackUrls:
     # LiteLLM's SSO callback route, confirmed against the running image
     # (@router.get("/sso/callback") in ui_sso.py).
-    - https://llm-switch.${DOMAIN_NAME}/sso/callback
+    - https://litellm.${DOMAIN_NAME}/sso/callback
   allowedUserGroups:
     - name: litellm-admins
       namespace: ${NS}

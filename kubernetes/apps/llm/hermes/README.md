@@ -21,7 +21,7 @@ block startup now that Service is gone.
 
 The existing PVC already carries a bootstrapped `config.yaml`, so running
 Hermes is unaffected. On a **new** PVC the provider must be configured by
-hand: point it at `https://llm-switch.${DOMAIN_NAME}/v1` (now served by
+hand: point it at `https://litellm.${DOMAIN_NAME}/v1` (now served by
 LiteLLM rather than llm-proxy) with a LiteLLM virtual key as the credential.
 Model names are unchanged - LiteLLM advertises the same Hugging Face-style
 identifiers the old proxy did.
