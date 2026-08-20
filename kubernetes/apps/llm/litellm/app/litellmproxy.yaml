@@ -1,18 +1,18 @@
 ---
-# The CR-managed proxy, standing up beside the chart's Deployment rather than
-# replacing it in place. `litellm-next` is a deliberately temporary name: a
-# LiteLLMProxy named `litellm` would collide with the Deployment and Service
-# Helm still owns. It is renamed to `litellm` in the cutover commit, once this
-# one has been proven to render a valid config and serve real requests.
+# The proxy. Replaces the berriai HelmRelease that used to own this Deployment,
+# Service and ConfigMap, and with it the 330-line inline model_list - the
+# catalogue now lives as one LiteLLMModel per alias under ./models.
 #
-# It shares the CNPG database with the incumbent on purpose. LiteLLM's schema is
-# the same at the same image version, applyMode: file keeps the catalogue out of
-# the database entirely (store_model_in_db stays off), and virtual keys and the
-# spend ledger are exactly the state that must survive the cutover.
+# It ran as `litellm-next` beside the chart release first, on the same CNPG
+# database, and was renamed here once it had been shown to render a config
+# identical to the chart's (14/14 models, byte-for-byte, the only difference
+# being store_model_in_db below) and to serve real traffic: tool calls
+# dispatching, reasoning_effort reaching vLLM at both low and xhigh, and
+# model_info round-tripping unchanged for every model.
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMProxy
 metadata:
-  name: litellm-next
+  name: litellm
 spec:
   # Renders the whole catalogue into config.yaml and rolls the Deployment when
   # its hash changes. The alternative, `api`, pushes the model_list to the admin

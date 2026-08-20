@@ -1,0 +1,33 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/servicemonitor_v1.json
+#
+# Replaces the one the berriai chart generated, which left with the HelmRelease.
+# Written out rather than dropped: without it the prometheus callbacks on the
+# proxy would still be emitting metrics that nothing collects, and the alert
+# rules next to this file would go quietly vacuous rather than failing.
+#
+# The selector is unchanged from the chart's, and matches by luck rather than
+# design: litellm-operator labels its Service with name=litellm and
+# instance=<proxy name>, and the proxy is named litellm, so both labels land on
+# the same values Helm used. That also keeps Prometheus' derived `job` label at
+# "litellm", which is what ./prometheusrule.yaml matches on.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: litellm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: litellm
+      app.kubernetes.io/instance: litellm
+  namespaceSelector:
+    matchNames:
+      - llm
+  endpoints:
+    # Trailing slash is required - LiteLLM serves the Prometheus exposition at
+    # /metrics/ and 307s /metrics, which the scraper does not follow.
+    - port: http
+      path: /metrics/
+      scheme: http
+      interval: 30s
+      scrapeTimeout: 10s

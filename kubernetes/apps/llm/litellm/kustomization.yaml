@@ -43,3 +43,18 @@ components:
   # rather than a one-off migration overlay to be reverted later.
   - ../../../components/kustomize/cnpg/restore
   - ../../../components/kustomize/external-secret
+patches:
+  # The catalogue is now custom resources, so this Kustomization cannot be
+  # applied at all until litellm.home-operations.com exists. The HelmRelease
+  # this replaced carried its own dependsOn: [llmkube]; that is gone with it,
+  # and the router the models point at is only a URL to LiteLLM, so llmkube is
+  # no longer an apply-time dependency of the proxy - a model whose backend is
+  # down is a failed request, not a failed reconcile.
+  - patch: |-
+      - op: add
+        path: /spec/dependsOn/-
+        value:
+          name: litellm-operator
+    target:
+      group: kustomize.toolkit.fluxcd.io
+      kind: Kustomization
