@@ -10,7 +10,14 @@ metadata:
   name: open-webui
 spec:
   proxyRef: litellm
-  keyAlias: open-webui
+  # LiteLLM requires key aliases to be globally unique, and two hand-made keys
+  # from before this migration still hold `open-webui` and `open-webui-v2` in
+  # the database - the first superseded by the second, both with zero spend.
+  # Reusing the plain name makes /key/generate 400 and the resource never
+  # reconciles, so this takes a display-name alias instead, matching the style
+  # of the Hermes key beside it. The two orphans are UI cleanup; nothing reads
+  # them once open-webui is pointed at this key.
+  keyAlias: OpenWebUI
   secretName: litellm-key-open-webui
   secretKey: api-key
   # Carried over from the hand-made key this replaces.
