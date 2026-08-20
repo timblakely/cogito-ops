@@ -1,0 +1,19 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/source.toolkit.fluxcd.io/ocirepository_v1.json
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: litellm-operator
+spec:
+  interval: 1h
+  layerSelector:
+    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+    operation: copy
+  ref:
+    # litellm-operator 0.0.13. Pinned by digest rather than tag - the version
+    # number says how young this is (v1alpha1 API, first release six weeks
+    # ago), so a floating tag would let an API-breaking chart land during an
+    # unattended reconcile. The chart also digest-pins the controller image
+    # itself in its default values, so the whole thing is immutable.
+    digest: sha256:1970480671292cd92c47e627fef8fd8404d0597384d9ec43bac5e6d8593eb3b3
+  url: oci://ghcr.io/home-operations/charts/litellm-operator

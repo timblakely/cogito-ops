@@ -1,0 +1,13 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: APP-app-vars
+    literals:
+      - APP=litellm-operator
+components:
+  # ks/app only. The operator is the CRDs plus one controller Deployment; the
+  # LiteLLM custom resources it reconciles live in the litellm app alongside
+  # the proxy they configure, not here, so there is no resources/ half.
+  - ../../../components/ks/app

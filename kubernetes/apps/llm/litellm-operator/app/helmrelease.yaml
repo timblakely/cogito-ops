@@ -1,0 +1,91 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+#
+# Renders LiteLLM's config.yaml from custom resources instead of hand-written
+# HelmRelease values: a LiteLLMProxy owns the Deployment/Service/ConfigMap, and
+# one LiteLLMModel per model is validated by the API server and diffed by Flux
+# on its own. LiteLLMVirtualKey is the other half of why it is here - it is the
+# only declarative way to get per-consumer keys, which is the whole reason this
+# app runs Postgres.
+#
+# On adopting another single-author operator eight commits after retiring one:
+# the distinction is that this one is not in the request path. Under
+# applyMode: file it writes a ConfigMap and stamps a hash on the pod template,
+# so if the controller stops, the proxy keeps serving its last good config.
+# The retired llm-proxy was the data plane itself.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: litellm-operator
+spec:
+  interval: 1h
+  maxHistory: 1
+  chartRef:
+    kind: OCIRepository
+    name: litellm-operator
+  install:
+    # The chart ships its six CRDs under crds/, which plain Helm installs once
+    # and then never touches again. On a v1alpha1 API that churns, that would
+    # silently strand the cluster on the first version's schema while the
+    # controller expects a newer one. CreateReplace makes Flux reapply them on
+    # every release, matching what llmkube does for the same reason.
+    crds: CreateReplace
+    timeout: 5m
+    remediation:
+      retries: 1
+  upgrade:
+    crds: CreateReplace
+    timeout: 5m
+    remediation:
+      retries: 1
+  values:
+    controller:
+      logLevel: info
+      leaderElection:
+        # Pointless at one replica, but it costs one Lease object and means a
+        # scale-up cannot produce two controllers writing the same ConfigMap.
+        enabled: true
+
+    webhook:
+      # Kept on, for the same reason LLMKube's are and the homegrown ones were
+      # not: it ships pre-built and self-certifying. The operator issues its own
+      # serving certificate and patches the CA bundle into the
+      # ValidatingWebhookConfiguration, so there is no PKI to operate.
+      #
+      # failurePolicy is hardcoded Fail in the chart with no values knob, which
+      # for a single-replica controller means writes are rejected while it
+      # restarts. Acceptable here where it was not for LLMKube: these rules
+      # match only litellm.home-operations.com resources, so the blast radius
+      # is a Flux reconcile of this one app failing and retrying, not
+      # cluster-wide admission.
+      enabled: true
+
+    llmkube:
+      # MUST STAY FALSE. Auto-registration mirrors every InferenceService that
+      # reaches Ready into a LiteLLMModel pointed at that service's own
+      # endpoint, and deletes it again on a terminal phase - which includes
+      # Stopped.
+      #
+      # Stopped is exactly where ten of cogito's eleven InferenceServices sit at
+      # any moment, because ModelPool owns residency and scales non-resident
+      # members to zero. Enabled here it would rewrite the catalogue on every
+      # swap, advertise only whichever model happens to be resident, and route
+      # clients straight past ModelRouter to a backend the pool can scale away
+      # mid-request.
+      #
+      # It would also destroy the client-facing names. Projection names models
+      # after the InferenceService, so the Hugging Face-style aliases Hermes,
+      # Open WebUI and pi are configured against would all change. Jory adopted
+      # projection upstream and recorded the cost in the same commit: "model
+      # names are now deployment names, so swapping what backs a lane renames
+      # the model and moves every caller with it."
+      #
+      # cogito writes its LiteLLMModels by hand instead, pointed at the router.
+      autoRegister: false
+
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
