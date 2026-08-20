@@ -5,8 +5,29 @@
 # argument-patching machinery. Steady state is still exactly one pod running,
 # enforced by the ModelPool.
 #
-# All start at replicas: 0. The ModelPool commits a swap by scaling a member's
-# replicas to 1, so residency is the pool's decision, not this file's.
+# NONE of these declare `replicas`, and that omission is load-bearing.
+#
+# The ModelPool commits a swap by writing replicas on its members - 1 for the
+# resident one, 0 for everyone else - so the field is controller-owned state,
+# not desired state this file gets an opinion about. Declaring `replicas: 0`
+# here, as this file used to, made Flux and the pool fight over it on every
+# single reconcile:
+#
+#   gen=128  replicas=1   steady state
+#   gen=129  replicas=0   kustomize-controller applies what Git said
+#   gen=130  replicas=1   the pool puts it straight back
+#
+# The whole flip takes under a second, which is why it never showed up as drift
+# - but it is long enough for the ReplicaSet to delete the running pod, and the
+# resident model then cold-loads from scratch. That fired on every 30m
+# reconcile of this Kustomization and on every commit touching it, killing
+# in-flight requests each time.
+#
+# With the field absent from the applied config, Flux relinquishes its share of
+# ownership and the pool's value stands. Note the CRD defaults replicas to 1,
+# so this is NOT the same as writing 0: on a cluster where the pool has not yet
+# reconciled, each service briefly wants one pod and the GPU gate leaves all but
+# one Pending until the pool sorts residency out.
 #
 # CAPABILITY REGRESSION, deliberate: LLMKube's VLLMConfig has no
 # toolCallParser/reasoningParser fields (unlike SGLangConfig), so the five vLLM
@@ -46,7 +67,6 @@ spec:
     # enough here, but it must be writable or JIT compilation fails.
     - name: TRITON_CACHE_DIR
       value: /tmp/triton-cache
-  replicas: 0
   # Required on these nodes. Without it the pod is allocated its
   # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
   # so no driver or CUDA libraries appear in the container and vLLM fails at
@@ -139,7 +159,6 @@ spec:
     # enough here, but it must be writable or JIT compilation fails.
     - name: TRITON_CACHE_DIR
       value: /tmp/triton-cache
-  replicas: 0
   # Required on these nodes. Without it the pod is allocated its
   # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
   # so no driver or CUDA libraries appear in the container and vLLM fails at
@@ -236,7 +255,6 @@ spec:
     # enough here, but it must be writable or JIT compilation fails.
     - name: TRITON_CACHE_DIR
       value: /tmp/triton-cache
-  replicas: 0
   # Required on these nodes. Without it the pod is allocated its
   # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
   # so no driver or CUDA libraries appear in the container and vLLM fails at
@@ -340,7 +358,6 @@ spec:
     # enough here, but it must be writable or JIT compilation fails.
     - name: TRITON_CACHE_DIR
       value: /tmp/triton-cache
-  replicas: 0
   # Required on these nodes. Without it the pod is allocated its
   # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
   # so no driver or CUDA libraries appear in the container and vLLM fails at
@@ -434,7 +451,6 @@ spec:
     # enough here, but it must be writable or JIT compilation fails.
     - name: TRITON_CACHE_DIR
       value: /tmp/triton-cache
-  replicas: 0
   # Required on these nodes. Without it the pod is allocated its
   # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
   # so no driver or CUDA libraries appear in the container and vLLM fails at
@@ -514,7 +530,6 @@ metadata:
 spec:
   modelRef: gemma-4-31b-heretic
   runtime: llamacpp
-  replicas: 0
   # Required on these nodes. Without it the pod is allocated its
   # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
   # so no driver or CUDA libraries appear in the container and vLLM fails at
@@ -551,7 +566,6 @@ metadata:
 spec:
   modelRef: qwen-3-6-fable-fusion-711
   runtime: llamacpp
-  replicas: 0
   # Required on these nodes. Without it the pod is allocated its
   # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
   # so no driver or CUDA libraries appear in the container and vLLM fails at
@@ -588,7 +602,6 @@ metadata:
 spec:
   modelRef: deepseek-v4-flash-0731
   runtime: llamacpp
-  replicas: 0
   # Required on these nodes. Without it the pod is allocated its
   # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
   # so no driver or CUDA libraries appear in the container and vLLM fails at
@@ -633,7 +646,6 @@ metadata:
 spec:
   modelRef: laguna-s-2-1
   runtime: llamacpp
-  replicas: 0
   # Required on these nodes. Without it the pod is allocated its
   # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
   # so no driver or CUDA libraries appear in the container and vLLM fails at
@@ -678,7 +690,6 @@ metadata:
 spec:
   modelRef: muse-glimmer-30b
   runtime: llamacpp
-  replicas: 0
   # Required on these nodes. Without it the pod is allocated its
   # nvidia.com/gpu units but the NVIDIA container runtime is never injected,
   # so no driver or CUDA libraries appear in the container and vLLM fails at
@@ -750,7 +761,6 @@ spec:
       value: "1"
     - name: TRITON_CACHE_DIR
       value: /tmp/triton-cache
-  replicas: 0
   runtimeClassName: nvidia
   nodeSelector:
     kubernetes.io/hostname: iggy
