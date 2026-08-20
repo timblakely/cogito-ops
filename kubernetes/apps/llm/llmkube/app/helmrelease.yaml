@@ -7,16 +7,13 @@ metadata:
 spec:
   interval: 1h
   maxHistory: 1
-  chart:
-    spec:
-      chart: llmkube
-      # Pinned deliberately. LLMKube ships a release every 2-3 days and
-      # ModelPool (the CRD this migration depends on) is weeks old, so read the
-      # release notes before every bump and never track a floating version.
-      version: "0.9.18"
-      sourceRef:
-        kind: HelmRepository
-        name: llmkube
+  # Pinned deliberately, by digest on the OCIRepository. LLMKube ships a release
+  # every 2-3 days and ModelPool (the CRD this migration depends on) is weeks
+  # old, so read the release notes before every bump and never track a floating
+  # version.
+  chartRef:
+    kind: OCIRepository
+    name: llmkube
   install:
     crds: CreateReplace
     timeout: 5m

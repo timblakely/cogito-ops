@@ -1,14 +1,27 @@
 ---
-# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/source.toolkit.fluxcd.io/helmrepository_v1.json
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/source.toolkit.fluxcd.io/ocirepository_v1.json
 apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
+kind: OCIRepository
 metadata:
   name: llmkube
 spec:
-  # LLMKube publishes to a classic GitHub Pages Helm repo (index.yaml), not an
-  # OCI registry, so this is a HelmRepository rather than the OCIRepository
-  # used for llm-operator. Flux supports both natively; the only practical
-  # difference is that chart digests are not pinnable here, so the chart
-  # version below carries the promotion record instead.
   interval: 1h
-  url: https://defilantech.github.io/LLMKube
+  layerSelector:
+    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+    operation: copy
+  ref:
+    # LLMKube 0.9.18. This was a HelmRepository against the project's GitHub
+    # Pages index for as long as that was the only published source; it is not
+    # any more. ghcr.io/defilantech/charts/llmkube carries every tag from
+    # 0.8.11 onward, so the chart is now digest-pinnable exactly like LiteLLM's.
+    #
+    # Verified equivalent before switching: `helm template` from both sources
+    # at 0.9.18 with this app's own values renders byte-identical manifests,
+    # apart from the self-signed webhook certificate the chart regenerates on
+    # every invocation. So this is a change of source, not of content.
+    #
+    # The digest is the immutable promotion record; the version-only pin the
+    # HelmRepository forced is gone. Still read LLMKube's release notes before
+    # bumping - it ships every 2-3 days and ModelPool is young.
+    digest: sha256:4f43a44bbf1d7cdef180d9f075637a8ac2aa29630d620682328e72d628be8d53
+  url: oci://ghcr.io/defilantech/charts/llmkube
