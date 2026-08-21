@@ -34,7 +34,9 @@ spec:
       - reasoning_effort
   info:
     supportsFunctionCalling: true
-    maxInputTokens: 262144
+    # Mirrors vllmConfig.maxModelLen on the backend (seats-over-ceiling
+    # retune); the validator asserts this pair stays in lockstep.
+    maxInputTokens: 131072
     maxOutputTokens: 16384
     extra:
       input_cost_per_token: 0
