@@ -1,0 +1,635 @@
+<title>Foreman and ToolHive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@500;600;700&family=Newsreader:opsz,wght@6..72,380;6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root {
+  --ground:      #F4F6F4;
+  --surface:     #FFFFFF;
+  --surface-alt: #EDF1EE;
+  --ink:         #141916;
+  --ink-soft:    #56635C;
+  --ink-faint:   #7E8A84;
+  --rule:        #D8E0DA;
+  --rule-strong: #B9C5BE;
+  --live:        #2E6B54;
+  --live-bg:     #E3EFE8;
+  --paid:        #86671A;
+  --paid-bg:     #F3ECDA;
+  --broken:      #A83C24;
+  --broken-bg:   #F6E5E0;
+  --idle:        #6F7C76;
+  --idle-bg:     #E6EAE7;
+  --shadow:      0 1px 2px rgba(20, 25, 22, .06), 0 8px 24px -16px rgba(20, 25, 22, .30);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:#0E1311; --surface:#151C18; --surface-alt:#1B241F;
+    --ink:#E2E9E4; --ink-soft:#97A49C; --ink-faint:#74827A;
+    --rule:#26302A; --rule-strong:#3A473F;
+    --live:#5FBB96; --live-bg:#16281F;
+    --paid:#D2A648; --paid-bg:#2A2312;
+    --broken:#E07C61; --broken-bg:#2E1B15;
+    --idle:#8B978F; --idle-bg:#1E2622;
+    --shadow: 0 1px 2px rgba(0,0,0,.40), 0 8px 24px -16px rgba(0,0,0,.70);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#0E1311; --surface:#151C18; --surface-alt:#1B241F;
+  --ink:#E2E9E4; --ink-soft:#97A49C; --ink-faint:#74827A;
+  --rule:#26302A; --rule-strong:#3A473F;
+  --live:#5FBB96; --live-bg:#16281F;
+  --paid:#D2A648; --paid-bg:#2A2312;
+  --broken:#E07C61; --broken-bg:#2E1B15;
+  --idle:#8B978F; --idle-bg:#1E2622;
+  --shadow: 0 1px 2px rgba(0,0,0,.40), 0 8px 24px -16px rgba(0,0,0,.70);
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--ground); color: var(--ink);
+  font-family: "Newsreader", Georgia, "Times New Roman", serif;
+  font-size: 17.5px; line-height: 1.62; margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+.frame { max-width: 1240px; margin: 0 auto; padding: 0 28px 96px; display: grid; grid-template-columns: 1fr; gap: 0 56px; }
+@media (min-width: 1120px) { .frame { grid-template-columns: 214px minmax(0, 1fr); } }
+
+.masthead { grid-column: 1 / -1; border-bottom: 2px solid var(--ink); padding: 64px 0 26px; margin-bottom: 44px; }
+.eyebrow { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.5px; font-weight: 500; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-faint); }
+.masthead h1 { font-family: "Chivo", "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: clamp(2.5rem, 6vw, 4.1rem); line-height: 1.02; letter-spacing: -.025em; text-wrap: balance; margin: 14px 0 0; }
+.deck { font-size: 1.24rem; color: var(--ink-soft); max-width: 62ch; margin: 18px 0 0; }
+.provenance { display: flex; flex-wrap: wrap; gap: 6px 26px; margin-top: 30px; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; color: var(--ink-faint); }
+.provenance b { color: var(--ink-soft); font-weight: 500; }
+
+.rail { display: none; }
+@media (min-width: 1120px) { .rail { display: block; grid-column: 1; align-self: start; position: sticky; top: 32px; padding-top: 4px; } }
+.rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.rail a { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; line-height: 1.4; color: var(--ink-faint); text-decoration: none; display: block; border-left: 2px solid var(--rule); padding: 2px 0 2px 12px; }
+.rail a:hover, .rail a:focus-visible { color: var(--live); border-left-color: var(--live); }
+.rail .sib { margin-top: 20px; border-top: 1px solid var(--rule); padding-top: 14px; }
+.rail .sib a { border-left-color: var(--live); color: var(--live); }
+
+main { grid-column: 1; min-width: 0; }
+@media (min-width: 1120px) { main { grid-column: 2; } }
+
+section { margin-bottom: 68px; scroll-margin-top: 24px; }
+h2 { font-family: "Chivo", "Helvetica Neue", Arial, sans-serif; font-weight: 600; font-size: 1.86rem; letter-spacing: -.018em; line-height: 1.16; text-wrap: balance; margin: 0 0 4px; padding-top: 10px; border-top: 1px solid var(--rule-strong); }
+h2 .num { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .62em; font-weight: 500; color: var(--ink-faint); margin-right: .6em; }
+h3 { font-family: "Chivo", "Helvetica Neue", Arial, sans-serif; font-weight: 600; font-size: 1.14rem; letter-spacing: -.005em; margin: 38px 0 0; text-wrap: balance; }
+h4 { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-soft); margin: 30px 0 0; }
+p { margin: 14px 0 0; max-width: 68ch; }
+ul, ol.body { max-width: 68ch; margin: 14px 0 0; padding-left: 1.15em; }
+li { margin-top: 7px; }
+li::marker { color: var(--ink-faint); }
+strong { font-weight: 600; }
+a { color: var(--live); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--live); outline-offset: 2px; border-radius: 2px; }
+
+code { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .845em; background: var(--surface-alt); border: 1px solid var(--rule); border-radius: 3px; padding: .08em .32em; word-break: break-word; }
+pre { margin: 18px 0 0; background: var(--surface); border: 1px solid var(--rule); border-left: 3px solid var(--rule-strong); border-radius: 3px; padding: 14px 16px; overflow-x: auto; }
+pre code { background: none; border: 0; padding: 0; font-size: 12.6px; line-height: 1.62; color: var(--ink-soft); white-space: pre; }
+pre code b { color: var(--ink); font-weight: 600; }
+pre code i { color: var(--ink-faint); font-style: normal; }
+
+.chip { display: inline-block; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; padding: 2px 7px; border-radius: 2px; white-space: nowrap; vertical-align: 1px; }
+.chip.live { color: var(--live); background: var(--live-bg); }
+.chip.paid { color: var(--paid); background: var(--paid-bg); }
+.chip.broken { color: var(--broken); background: var(--broken-bg); }
+.chip.idle { color: var(--idle); background: var(--idle-bg); }
+
+.tablewrap { margin: 22px 0 0; overflow-x: auto; border: 1px solid var(--rule); border-radius: 3px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+thead th { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-faint); text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule-strong); white-space: nowrap; }
+tbody td { padding: 10px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; font-variant-numeric: tabular-nums; }
+tbody tr:last-child td { border-bottom: 0; }
+td.mono, th.mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12.4px; }
+td.note { color: var(--ink-soft); font-size: 13.4px; }
+
+figure { margin: 30px 0 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 3px; padding: 22px 22px 16px; overflow-x: auto; }
+figure svg { display: block; max-width: 100%; height: auto; margin: 0 auto; color: var(--ink-soft); }
+figcaption { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--rule); font-size: 13.4px; color: var(--ink-soft); max-width: 76ch; }
+figcaption b { color: var(--ink); font-weight: 600; }
+
+svg .box { fill: var(--surface-alt); stroke: var(--rule-strong); stroke-width: 1; }
+svg .boxlive { fill: var(--live-bg); stroke: var(--live); stroke-width: 1.25; }
+svg .boxbroken { fill: var(--broken-bg); stroke: var(--broken); stroke-width: 1.25; }
+svg .boxpaid { fill: var(--paid-bg); stroke: var(--paid); stroke-width: 1.25; }
+svg .boxghost { fill: none; stroke: var(--rule-strong); stroke-width: 1; stroke-dasharray: 3 3; }
+svg text { font-family: "IBM Plex Mono", ui-monospace, monospace; fill: var(--ink); }
+svg .t { font-size: 12px; }
+svg .ts { font-size: 10.5px; fill: var(--ink-soft); }
+svg .tl { font-size: 11px; fill: var(--ink-faint); }
+svg .th { font-size: 11px; font-weight: 600; letter-spacing: .07em; fill: var(--ink-faint); }
+svg .accent { fill: var(--live); }
+svg .warn { fill: var(--broken); }
+svg line, svg polyline, svg path.edge { fill: none; stroke: currentColor; stroke-width: 1.3; }
+svg marker path.mk { fill: currentColor; stroke: none; }
+svg marker path.mk-a { fill: var(--live); stroke: none; }
+svg marker path.mk-w { fill: var(--broken); stroke: none; }
+svg .eaccent { stroke: var(--live); }
+svg .ewarn { stroke: var(--broken); }
+svg .edash { stroke-dasharray: 5 4; }
+
+.callout { margin: 24px 0 0; border: 1px solid var(--rule); border-left: 3px solid var(--ink-faint); border-radius: 3px; background: var(--surface); padding: 16px 18px; max-width: 72ch; }
+.callout.bad { border-left-color: var(--broken); }
+.callout.good { border-left-color: var(--live); }
+.callout p:first-child { margin-top: 0; }
+.callout h4 { margin-top: 0; }
+
+.lede { font-size: 1.06rem; color: var(--ink-soft); max-width: 68ch; margin: 14px 0 0; }
+
+.xref {
+  grid-column: 1 / -1;
+  margin: 0 0 44px;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--live);
+  border-radius: 3px;
+  background: var(--surface);
+  padding: 16px 20px;
+}
+.xref .eyebrow { margin-bottom: 6px; }
+.xref p { margin: 0; max-width: 78ch; font-size: 15.6px; color: var(--ink-soft); }
+
+footer { grid-column: 1 / -1; border-top: 1px solid var(--rule-strong); padding-top: 18px; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.5px; color: var(--ink-faint); line-height: 1.7; }
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="frame">
+
+  <header class="masthead">
+    <div class="eyebrow">Infrastructure teardown · llm namespace · part two</div>
+    <h1>Foreman and ToolHive</h1>
+    <p class="deck">The agentic half of <b>joryirving/home-ops</b>: GitHub issues in, reviewed pull requests out, on self-hosted models — plus the MCP gateway that keeps a hundred tools from drowning the context window.</p>
+    <div class="provenance">
+      <span><b>Source</b> joryirving/home-ops @ eed15dc</span>
+      <span><b>Operators</b> foreman 0.9.19 · toolhive</span>
+      <span><b>Companion</b> LiteLLM Routing Teardown</span>
+    </div>
+  </header>
+
+  <div class="xref">
+    <div class="eyebrow">Read alongside</div>
+    <p>This is part two. <a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96"><b>LiteLLM Routing Teardown</b></a> covers the serving layer these agents call — which models are running on which card, how the <code>auto</code> router decides, and where the fallback graph dead-ends. Every model name below resolves through that catalogue. <a href="https://claude.ai/code/artifact/68ddd1e2-92ee-49fd-bc97-abad5fff7b9c"><b>The Contested GPU</b></a> covers the hardware those local models run on.</p>
+  </div>
+
+  <nav class="rail" aria-label="Contents">
+    <ol>
+      <li><a href="#three">1 · Three systems</a></li>
+      <li><a href="#loop">2 · Issue to merged PR</a></li>
+      <li><a href="#agents">3 · The agents</a></li>
+      <li><a href="#fleet">4 · Fleet capacity</a></li>
+      <li><a href="#rails">5 · Grounding the reviewer</a></li>
+      <li><a href="#gates">6 · Gates</a></li>
+      <li><a href="#prfix">7 · The pr-fix loop</a></li>
+      <li><a href="#toolhive">8 · ToolHive</a></li>
+      <li><a href="#optimizer">9 · The tool optimizer</a></li>
+      <li><a href="#coordinator">10 · Coordinator shape</a></li>
+      <li><a href="#takeaways">11 · Takeaways</a></li>
+      <li class="sib"><a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96">← Routing teardown</a></li>
+      <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/68ddd1e2-92ee-49fd-bc97-abad5fff7b9c">The Contested GPU →</a></li>
+      <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac">The Idle Bench →</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <!-- ================= 1 -->
+    <section id="three">
+      <h2><span class="num">01</span>Three systems, one connector</h2>
+      <p class="lede">Nothing in this loop is hand-run. Issues are the input, merged PRs are the output, and a human appears exactly once — at merge.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>System</th><th>Job</th><th>Lives in Git as</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">Dispatch</td><td class="note">Assignment layer and system of record. Pull-only: it syncs tracked repos, grooms issues into lanes, and watches PRs.</td><td class="note"><code>llm/dispatch/</code> — HelmRelease + ExternalSecret</td></tr>
+            <tr><td class="mono">Foreman</td><td class="note">Execution layer. An LLMKube add-on control plane shipping the <code>Workload</code>, <code>AgenticTask</code>, <code>Agent</code> and <code>FleetNode</code> CRDs.</td><td class="note"><code>llm/foreman/</code> — operator + 7 <code>Agent</code> CRs</td></tr>
+            <tr><td class="mono">foreman-dispatch-bridge</td><td class="note">The only thing joining them. A CronJob on <code>*/15</code> that retries failed Workloads, then claims one ready issue per lane and materialises a <code>Workload</code>.</td><td class="note"><code>llm/dispatch/foreman-dispatch-bridge/</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>The split matters for what is committed. <code>Workload</code>s, <code>AgenticTask</code>s and <code>FleetNode</code>s are ephemeral runtime state and never land in Git; the durable configuration is the bridge's env block and the <code>Agent</code> CRs. So the repo describes the <i>machine</i>, not the work in flight.</p>
+    </section>
+
+    <!-- ================= 2 -->
+    <section id="loop">
+      <h2><span class="num">02</span>Issue to merged PR</h2>
+
+      <figure>
+        <svg viewBox="0 0 950 430" role="img" aria-label="A GitHub issue is synced by Dispatch, groomed into the local or backlog lane, claimed by the bridge CronJob into a Workload, decomposed into a coder task and a reviewer task, and on a GO verdict Foreman opens a pull request that repo CI and a human review before merge">
+          <defs>
+            <marker id="fa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M 0 0 L 10 5 L 0 10 z"/></marker>
+            <marker id="fa-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-w" d="M 0 0 L 10 5 L 0 10 z"/></marker>
+            <marker id="fa-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-a" d="M 0 0 L 10 5 L 0 10 z"/></marker>
+          </defs>
+
+          <text class="th" x="16" y="24">DISPATCH · PULL ONLY</text>
+          <rect class="box" x="16" y="38" width="150" height="54" rx="3"/>
+          <text class="t" x="28" y="60">GitHub issue</text>
+          <text class="ts" x="28" y="78">sync every 15m</text>
+
+          <rect class="box" x="16" y="118" width="150" height="62" rx="3"/>
+          <text class="t" x="28" y="140">Groomer</text>
+          <text class="ts" x="28" y="158">json_schema-</text>
+          <text class="ts" x="28" y="172">constrained</text>
+          <line x1="91" y1="92" x2="91" y2="110" marker-end="url(#fa)"/>
+
+          <rect class="boxghost" x="16" y="206" width="70" height="34" rx="3"/>
+          <text class="ts" x="26" y="228">backlog</text>
+          <rect class="boxlive" x="96" y="206" width="70" height="34" rx="3"/>
+          <text class="ts" x="108" y="228">local</text>
+          <line x1="51" y1="180" x2="51" y2="198" marker-end="url(#fa)"/>
+          <line x1="131" y1="180" x2="131" y2="198" marker-end="url(#fa)"/>
+
+          <text class="th" x="212" y="24">BRIDGE CRONJOB · */15</text>
+          <rect class="box" x="212" y="118" width="160" height="122" rx="3"/>
+          <text class="t" x="224" y="142">1 · retry failed</text>
+          <text class="t" x="224" y="164">2 · claim 1/lane</text>
+          <text class="t" x="224" y="186">3 · build Workload</text>
+          <text class="ts" x="224" y="212">carries agent, repo</text>
+          <text class="ts" x="224" y="228">gateProfile, issue no.</text>
+          <line x1="166" y1="223" x2="204" y2="223" marker-end="url(#fa)"/>
+
+          <text class="th" x="418" y="24">FOREMAN · AGENTIC TASKS</text>
+          <rect class="boxlive" x="418" y="60" width="196" height="72" rx="3"/>
+          <text class="t" x="430" y="84">code · coder Agent</text>
+          <text class="ts" x="430" y="103">Job · polyglot image</text>
+          <text class="ts" x="430" y="119">self-gate, push branch</text>
+
+          <rect class="boxlive" x="418" y="160" width="196" height="72" rx="3"/>
+          <text class="t" x="430" y="184">review · reviewer</text>
+          <text class="ts" x="430" y="203">in-process · read-only</text>
+          <text class="ts" x="430" y="219">verdict GO / NO-GO</text>
+
+          <polyline points="372,160 396,160 396,96 410,96" marker-end="url(#fa)"/>
+          <polyline points="372,196 410,196" marker-end="url(#fa)"/>
+          <line x1="516" y1="132" x2="516" y2="152" marker-end="url(#fa)"/>
+          <text class="ts" x="524" y="147">then</text>
+
+          <polyline class="ewarn" points="418,208 396,208 396,268 614,268" marker-end="url(#fa-w)"/>
+          <text class="ts warn" x="430" y="262">NO-GO → coder-revision reworks the branch</text>
+
+          <text class="th" x="660" y="24">OUT</text>
+          <rect class="boxlive" x="660" y="60" width="270" height="52" rx="3"/>
+          <text class="t" x="672" y="82">Foreman opens the PR</text>
+          <text class="ts" x="672" y="100">body grounded against the diff</text>
+          <line x1="614" y1="86" x2="652" y2="86" marker-end="url(#fa-a)"/>
+          <text class="ts accent" x="618" y="52">GO</text>
+
+          <rect class="box" x="660" y="128" width="270" height="46" rx="3"/>
+          <text class="ts" x="672" y="148">repo CI + AI PR-review action</text>
+          <text class="ts" x="672" y="165">then a human merges</text>
+          <line x1="795" y1="112" x2="795" y2="120" marker-end="url(#fa)"/>
+
+          <rect class="box" x="660" y="190" width="270" height="46" rx="3"/>
+          <text class="ts" x="672" y="210">next dispatch sync marks</text>
+          <text class="ts" x="672" y="227">the issue done</text>
+          <line x1="795" y1="174" x2="795" y2="182" marker-end="url(#fa)"/>
+
+          <text class="th warn" x="16" y="316">FAILURE PATHS</text>
+          <rect class="boxpaid" x="16" y="330" width="270" height="52" rx="3"/>
+          <text class="ts" x="28" y="352">3 failed attempts in local →</text>
+          <text class="ts" x="28" y="370">re-lane to frontier · MiniMax-M3-chat</text>
+
+          <rect class="boxpaid" x="330" y="330" width="284" height="52" rx="3"/>
+          <text class="ts" x="342" y="352">red CI or CHANGES_REQUESTED →</text>
+          <text class="ts" x="342" y="370">pr-fix loop, escalate, then BLOCKED</text>
+
+          <rect class="boxbroken" x="660" y="330" width="270" height="52" rx="3"/>
+          <text class="ts" x="672" y="352">exhausted in frontier →</text>
+          <text class="ts" x="672" y="370">Failed Workload kept as a tombstone</text>
+
+          <text class="ts" x="16" y="410">Tiering is decided by failure, never predicted: the groomer only answers ready or not-ready.</text>
+        </svg>
+        <figcaption><b>The loop, and the three ways out of it.</b> Grooming is binary — ready to <code>local</code>, otherwise <code>backlog</code> — and never routes to <code>frontier</code>. A request only reaches a paid model after local attempts have actually failed, which is a cost policy expressed as control flow rather than as a budget.</figcaption>
+      </figure>
+
+      <p>Two details in the Workload are load-bearing. The coder agent is picked from the lane's list by <code>issue % len(list)</code>, which is deterministic — so a retry lands on the same backend and reuses its warm prompt cache. And the issue number is carried on the Workload itself; a bridge version that dropped it on retry collided every third attempt onto a shared <code>wl-&lt;repo&gt;-0</code> branch that retries then force-pushed over.</p>
+    </section>
+
+    <!-- ================= 3 -->
+    <section id="agents">
+      <h2><span class="num">03</span>The agents, and what they run on</h2>
+
+      <p>Seven <code>Agent</code> CRs are committed. Every one authenticates to LiteLLM at <code>http://litellm.llm:4000/v1</code> with the <code>foreman</code> virtual key, whose scope is exactly three model groups — <code>llama-nvidia</code>, <code>MiniMax-M3-chat</code>, <code>llama-strix-nemotron</code>. The key is the enforcement boundary: an agent pointed at any other model would be refused by the proxy, not by the operator.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Agent</th><th>Role</th><th>Model</th><th>Execution</th><th>Turns</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">coder</td><td class="note">coder</td><td class="mono">llama-nvidia <span class="chip live">local</span></td><td class="note">Job · polyglot image</td><td class="note">160</td></tr>
+            <tr><td class="mono">coder-revision</td><td class="note">coder</td><td class="mono">MiniMax-M3-chat <span class="chip paid">paid</span></td><td class="note">Job · polyglot image</td><td class="note">160</td></tr>
+            <tr><td class="mono">coder-frontier</td><td class="note">coder</td><td class="mono">MiniMax-M3-chat <span class="chip paid">paid</span></td><td class="note">Job · polyglot image</td><td class="note">160</td></tr>
+            <tr><td class="mono">reviewer</td><td class="note">reviewer</td><td class="mono">llama-strix-nemotron <span class="chip live">local</span></td><td class="note">in-process</td><td class="note">80</td></tr>
+            <tr><td class="mono">reviewer-fork</td><td class="note">reviewer-fork</td><td class="mono">llama-strix-nemotron <span class="chip live">local</span></td><td class="note">in-process</td><td class="note">80</td></tr>
+            <tr><td class="mono">gate</td><td class="note">verifier</td><td class="note">none — deterministic</td><td class="note">in-process</td><td class="note">—</td></tr>
+            <tr><td class="mono">gate-fork</td><td class="note">verifier-fork</td><td class="note">none — deterministic</td><td class="note">in-process</td><td class="note">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Coders differ <b>only by model</b>. Same image, same tools, same prompt skeleton: <code>ghcr.io/misospace/llmkube-coder</code>, one polyglot image carrying Python, Node, Go, Godot headless and Elixir plus every linter. Rootless coders cannot install anything at runtime, so every runtime is baked in. Four per-language images and four per-language agents were collapsed into this in 2026-08, on the reasoning that they differed only by a prompt paragraph restating the gate commands — and the genuinely load-bearing part, repo-specific traps, is repo knowledge that moved into each repo's <code>AGENTS.md</code>.</p>
+
+      <h3>Two fleets, one of them pointed at its own operator</h3>
+      <p>The HelmRelease defines two <code>foreman-agent</code> fleets:</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Fleet</th><th>Replicas</th><th>Roles</th><th>Identity</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">default</td><td class="note">7</td><td class="note">worker · coder · verifier</td><td class="note">commits as <b>Saffron</b>, a bot account</td></tr>
+            <tr><td class="mono">llmkube</td><td class="note">1</td><td class="note">coder-fork · verifier-fork · reviewer-fork</td><td class="note">clones and pushes <code>joryirving/LLMKube</code>, commits as Jory with DCO sign-off</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>The second fleet exists to run the whole pipeline against a <b>fork of LLMKube itself</b> and open cross-repo PRs upstream into <code>defilantech/LLMKube</code>. Roles are scheduling-only, so the separation is what keeps ordinary work off the fork-pinned agent and vice versa — and the author identity differs because upstream requires a real signed-off contributor rather than a bot. An agent fleet whose job is submitting patches to the operator that schedules it is a nice loop to have closed.</p>
+
+      <div class="callout">
+        <h4>Documentation drift</h4>
+        <p>The repo's own <code>docs/src/notes/coding-loop.md</code> describes a <code>coder-strix</code> agent on a <code>self-hosted</code> pool, a Mellum2-based reviewer, and <code>replicaCount: 12</code>. None of those match the manifests at this commit: there is no <code>coder-strix</code>, no <code>self-hosted</code> model group, the reviewer runs Nemotron, and <code>replicaCount</code> is 7. The prose is still the best explanation of <i>why</i> the machine is shaped this way; treat its specifics as a previous generation.</p>
+      </div>
+    </section>
+
+    <!-- ================= 4 -->
+    <section id="fleet">
+      <h2><span class="num">04</span>Fleet capacity is agent replicas, not models</h2>
+
+      <p>This is the least obvious constraint in the whole system, and the one that produced the worst outage. Foreman enforces <b>one task per FleetNode</b>, and one FleetNode is one <code>foreman-agent</code> replica. A Job-mode task still reserves its node for the Job's entire lifetime even though the work happens in a separate pod.</p>
+
+      <figure>
+        <svg viewBox="0 0 920 300" role="img" aria-label="With three agent replicas, three long coder Jobs reserve every FleetNode and in-process reviews cannot be scheduled; with more replicas the coders still hold their nodes but spare nodes remain for reviews and gates">
+          <defs>
+            <marker id="ga" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M 0 0 L 10 5 L 0 10 z"/></marker>
+            <marker id="ga-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-w" d="M 0 0 L 10 5 L 0 10 z"/></marker>
+          </defs>
+
+          <text class="th warn" x="16" y="24">replicaCount: 3 — THE OUTAGE</text>
+          <rect class="boxpaid" x="16" y="40" width="128" height="40" rx="3"/>
+          <text class="ts" x="26" y="65">FleetNode 1 · coder Job</text>
+          <rect class="boxpaid" x="16" y="88" width="128" height="40" rx="3"/>
+          <text class="ts" x="26" y="113">FleetNode 2 · coder Job</text>
+          <rect class="boxpaid" x="16" y="136" width="128" height="40" rx="3"/>
+          <text class="ts" x="26" y="161">FleetNode 3 · coder Job</text>
+
+          <rect class="boxbroken" x="188" y="88" width="150" height="40" rx="3"/>
+          <text class="ts" x="198" y="106">review task</text>
+          <text class="ts warn" x="198" y="122">Pending for hours</text>
+          <line class="ewarn" x1="180" y1="108" x2="144" y2="108" marker-end="url(#ga-w)"/>
+          <text class="ts warn" x="188" y="152">no free FleetNode matches</text>
+          <text class="ts warn" x="188" y="168">— and its Workload keeps</text>
+          <text class="ts warn" x="188" y="184">holding a claim slot</text>
+
+          <line x1="380" y1="110" x2="424" y2="110" marker-end="url(#ga)"/>
+
+          <text class="th" x="452" y="24">replicaCount: 7 — TODAY</text>
+          <rect class="boxpaid" x="452" y="40" width="128" height="34" rx="3"/>
+          <text class="ts" x="462" y="61">coder Job</text>
+          <rect class="boxpaid" x="452" y="80" width="128" height="34" rx="3"/>
+          <text class="ts" x="462" y="101">coder Job</text>
+          <rect class="boxpaid" x="452" y="120" width="128" height="34" rx="3"/>
+          <text class="ts" x="462" y="141">pr-fix coder Job</text>
+          <rect class="boxlive" x="452" y="160" width="128" height="34" rx="3"/>
+          <text class="ts" x="462" y="181">review · in-process</text>
+          <rect class="boxlive" x="452" y="200" width="128" height="34" rx="3"/>
+          <text class="ts" x="462" y="221">gate · in-process</text>
+          <rect class="boxghost" x="452" y="240" width="128" height="34" rx="3"/>
+          <text class="tl" x="462" y="261">headroom ×2</text>
+
+          <text class="ts" x="620" y="62">Replicas are coordinators:</text>
+          <text class="ts" x="620" y="80">~2m CPU, ~20Mi RSS each.</text>
+          <text class="ts" x="620" y="106">Sizing them is cheap; the</text>
+          <text class="ts" x="620" y="124">ceiling they impose is not.</text>
+          <text class="ts warn" x="620" y="164">Symptom to check first when</text>
+          <text class="ts warn" x="620" y="182">reviews stop happening —</text>
+          <text class="ts warn" x="620" y="200">FleetNode occupancy, not</text>
+          <text class="ts warn" x="620" y="218">the model.</text>
+        </svg>
+        <figcaption><b>Replicas cap concurrent coders plus everything else combined.</b> Because a Job-mode coder holds its FleetNode for the Job's whole lifetime, three long coder tasks made in-process reviews unschedulable — the operator looping <code>no free FleetNode matches</code> while reviews sat Pending and their Workloads held claim slots. Upstream tracks both halves: LLMKube#1496 (Job-mode tasks should not reserve a node) and #1497 (no per-Agent concurrency cap exists at all).</figcaption>
+      </figure>
+    </section>
+
+    <!-- ================= 5 -->
+    <section id="rails">
+      <h2><span class="num">05</span>The reviewer is not trusted — it is grounded</h2>
+
+      <p class="lede">The most transferable idea in this repo: a local 30B model's verdict is checked by deterministic rails before it counts, so the model's job is to produce evidence rather than a judgement.</p>
+
+      <p>The reviewer agent is read-only by construction — its tool whitelist is <code>read_file</code>, <code>grep</code>, <code>bash</code>, <code>fetch_issue</code>, <code>fetch_pull_request</code>, <code>submit_result</code>. No <code>write_file</code>, no <code>str_replace</code>. It describes needed changes in its verdict; it cannot edit the branch.</p>
+
+      <p>Then the harness checks its work. <code>submit_result</code> must carry:</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Field</th><th>What it must contain</th><th>Rail</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">extra.issueAsk</td><td class="note">One exact contiguous quote (≤200 chars) from the issue body, stating the requested change — not the background</td><td class="note">Grounded against the issue body the harness saw fetched. A quote it cannot find is replaced and marked unverified, and <b>an unverified GO is demoted to NO-GO</b></td></tr>
+            <tr><td class="mono">extra.filesTouched</td><td class="note">The exact path list from <code>git diff --name-only main...HEAD</code></td><td class="note">Feeds the scope-overlap vouch that can waive a demotion</td></tr>
+            <tr><td class="mono">extra.findings</td><td class="note">Array; every blocker or major finding must name a file <b>and</b> a line changed by the diff</td><td class="note">A GO may carry no blocker or major finding</td></tr>
+            <tr><td class="mono">extra.prBody</td><td class="note">Full Markdown PR description, GO only</td><td class="note">Since 0.9.15 the summary is itself grounded against the diff</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>The consequence runs backwards into how issues must be written: an issue that cannot be quoted gets <b>correct work rejected</b>. So every filed issue carries one imperative sentence stating the ask, plus the concrete paths the fix should touch — and the trap is that naming paths the diff does <i>not</i> touch reads as scope drift and rejects the change too, so the guidance is to name none rather than guess. Each repo carries that contract in its <code>AGENTS.md</code> and as an issue form.</p>
+
+      <p>The rails are imperfect in a documented way: LLMKube#1447 records the reviewer false-NO-GOing test-coverage issues, where the diff touches <code>X.test.ts</code> and the issue names <code>X.ts</code>, and #1454 records a reviewer that says “cannot verify” still returning GO. The prompt itself carries the scar tissue — it tells the reviewer, at length, not to rely on the vouch and to re-read the body before submitting.</p>
+    </section>
+
+    <!-- ================= 6 -->
+    <section id="gates">
+      <h2><span class="num">06</span>Gates: the coder verifies its own work</h2>
+
+      <p>Clean-room verify Jobs are off (<code>VERIFY_ENABLED=false</code>); the repo's own CI is the verifier. In between, the coder runs the repo's gate profile <b>on itself</b> before submitting — format, lint, build, test — from a per-repo <code>GATEPROFILE_MAP</code> carried as one large JSON env on the bridge, with container image digests inside it managed by a custom Renovate regex manager.</p>
+
+<pre><code>"misospace/pinchflat": {
+  "testLayout": {"testRoot": "test", "sourceRoot": "lib"},
+  "language": "generic",
+  "image": "ghcr.io/misospace/elixir-gate:1.20.3@sha256:1c9837c6…",
+  "commands": {
+    "format": "true", "lint": "true", "build": "true",
+    "test": "mix deps.get &amp;&amp; … &amp;&amp; mix check --no-fix --no-retry"
+  }
+}</code></pre>
+
+      <p>The rule Jory states, both halves earned: <b>a gate profile must mirror what CI actually runs — no more, no less.</b> A check CI runs but the gate does not is a blind failure the coder discovers only after pushing, costing a pr-fix cycle. A check the gate runs but CI does not is worse, because it fails work that would have passed — a <code>mix deps.audit</code> added before the repo carried <code>mix_audit</code> broke every task on that repo until reverted.</p>
+
+      <div class="callout bad">
+        <h4>The failure that motivated the polyglot image</h4>
+        <p>The self-gate <b>silently no-ops when its runtime is missing</b>, logging <code>self-gate-deferred</code> and deferring to a backstop that is disabled. With no Godot in the coder image and no gate Job, a test file that did not parse shipped — and the reviewer GO'd it anyway. One image containing every runtime is what makes the gate profiles actually execute.</p>
+      </div>
+    </section>
+
+    <!-- ================= 7 -->
+    <section id="prfix">
+      <h2><span class="num">07</span>The pr-fix loop and its guard rails</h2>
+
+      <p>Dispatch watches PRs authored by the bot identities and enqueues a fix item on <b>real signals only</b>: a <code>CHANGES_REQUESTED</code> review (it trusts the verdict, not keyword-matching the prose), failing check runs, or comments carrying actionable signal or an @-mention. Chatter, CI tables and status posts are ignored regardless of author.</p>
+
+      <p>The bridge drains queued items into <code>prfix-&lt;repo&gt;-&lt;pr&gt;</code> Workloads; the coder checks out the existing <code>foreman/*</code> branch and amends it. Lane <code>NORMAL</code> → <code>coder</code>; after three attempts → <code>ESCALATED</code> → <code>coder-frontier</code>; exhausted there → <code>BLOCKED</code>, which means a human.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Guard</th><th>What it stops</th></tr></thead>
+          <tbody>
+            <tr><td class="note">No check runs ≠ passing CI</td><td class="note">A GitHub Actions outage marking unverified fixes as FIXED, then force-push loops</td></tr>
+            <tr><td class="note">Merged or closed PR → resolve, never retry</td><td class="note">Three attempts plus a frontier escalation burned on an already-merged PR</td></tr>
+            <tr><td class="note">Duplicate evidence keeps item status</td><td class="note">An undismissed review resurrecting resolved items on every sweep</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Each of those is dated to the release that added it, which is the tell that they were paid for in outages rather than designed up front. The same discipline shows in the failure taxonomy: a coder can declare <code>DESIGN-DECISION</code> or <code>NO-TECHNICAL-FIX</code> and be parked for a human <b>without burning an attempt</b>, and a <code>Failed</code> Workload is explicitly not treated as proof the model failed — one night's four failures audited out as two merged-PR retries, one closed-issue tombstone, and a single real one.</p>
+    </section>
+
+    <!-- ================= 8 -->
+    <section id="toolhive">
+      <h2><span class="num">08</span>ToolHive: MCP servers as cluster workloads</h2>
+
+      <p>ToolHive (<code>toolhive.stacklok.dev</code>) turns each MCP server into a Kubernetes object. Nine tool sources are registered into a single <code>MCPGroup</code> named <code>mcp-tools</code>, in two kinds:</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Kind</th><th>Servers</th><th>What it means</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">MCPServer</td><td class="note">flux · kubectl · talos · github · ha · arr · seerr · unifi-network</td><td class="note">ToolHive runs the container itself — image, transport, proxy port, resources, ServiceAccount</td></tr>
+            <tr><td class="mono">MCPServerEntry</td><td class="note">grafana</td><td class="note">Registration only, pointing at an existing service elsewhere in the cluster (<code>mcp-grafana.observability:8000/sse</code>)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Because they are pods, the cluster's ordinary controls apply to them. The infrastructure servers carry real RBAC rather than a shared admin credential — <code>kubectl-mcp</code> binds a read-only ClusterRole enumerating <code>nonResourceURLs</code> explicitly, <code>talos-mcp</code> gets a Talos ServiceAccount, <code>flux-mcp</code> runs in-cluster mode off its pod ServiceAccount with no kubeconfig at all. Credentialed SaaS servers get an ExternalSecret each. A single <code>MCPTelemetryConfig</code> turns on Prometheus for all of them.</p>
+    </section>
+
+    <!-- ================= 9 -->
+    <section id="optimizer">
+      <h2><span class="num">09</span>The tool optimizer, and the loop back to the LLM stack</h2>
+
+      <p class="lede">Nine MCP servers is well past the point where dumping every tool definition into an agent's context is affordable. The <code>VirtualMCPServer</code> is the answer, and it is the most interesting object in either repo.</p>
+
+      <figure>
+        <svg viewBox="0 0 930 360" role="img" aria-label="Nine MCP servers are aggregated by one VirtualMCPServer which prefixes conflicting tool names, stores sessions in Dragonfly, and uses an embedding model served by llmkube through LiteLLM so that agents call find_tool and call_tool instead of loading every tool definition">
+          <defs>
+            <marker id="ta" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M 0 0 L 10 5 L 0 10 z"/></marker>
+            <marker id="ta-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-a" d="M 0 0 L 10 5 L 0 10 z"/></marker>
+          </defs>
+
+          <text class="th" x="16" y="24">MCPGroup: mcp-tools</text>
+          <rect class="box" x="16" y="38" width="146" height="26" rx="2"/><text class="ts" x="26" y="56">flux · kubectl · talos</text>
+          <rect class="box" x="16" y="70" width="146" height="26" rx="2"/><text class="ts" x="26" y="88">github</text>
+          <rect class="box" x="16" y="102" width="146" height="26" rx="2"/><text class="ts" x="26" y="120">ha · unifi-network</text>
+          <rect class="box" x="16" y="134" width="146" height="26" rx="2"/><text class="ts" x="26" y="152">arr · seerr</text>
+          <rect class="boxghost" x="16" y="166" width="146" height="26" rx="2"/><text class="tl" x="26" y="184">grafana — remote entry</text>
+
+          <line x1="162" y1="115" x2="222" y2="115" marker-end="url(#ta)"/>
+          <text class="ts" x="166" y="108">discovered</text>
+
+          <rect class="boxlive" x="230" y="60" width="230" height="140" rx="3"/>
+          <text class="t" x="244" y="86">VirtualMCPServer</text>
+          <text class="ts" x="244" y="110">prefix conflicts {workload}_</text>
+          <text class="ts" x="244" y="132">optimizer: embeddings</text>
+          <text class="ts" x="244" y="154">sessions → Dragonfly</text>
+          <text class="ts" x="244" y="176">incoming auth: anonymous</text>
+
+          <polyline class="eaccent" points="345,200 345,238 540,238 540,206" marker-end="url(#ta-a)"/>
+          <text class="ts accent" x="358" y="256">embeddingService → litellm.llm:4000/v1</text>
+
+          <rect class="boxlive" x="470" y="150" width="200" height="56" rx="3"/>
+          <text class="t" x="484" y="172">toolhive-embed</text>
+          <text class="ts" x="484" y="190">llmkube InferenceService</text>
+          <line x1="580" y1="150" x2="580" y2="128" marker-end="url(#ta)"/>
+          <text class="ts" x="592" y="140">on skirk</text>
+
+          <text class="th" x="700" y="24">CONSUMERS</text>
+          <rect class="box" x="700" y="38" width="216" height="74" rx="3"/>
+          <text class="t" x="712" y="60">openclaw agents</text>
+          <text class="ts" x="712" y="80">toolhive__find_tool</text>
+          <text class="ts" x="712" y="98">toolhive__call_tool</text>
+          <polyline points="460,100 620,100 620,75 692,75" marker-end="url(#ta)"/>
+          <text class="ts" x="470" y="92">:4483/mcp internal</text>
+
+          <rect class="box" x="700" y="132" width="216" height="74" rx="3"/>
+          <text class="t" x="712" y="154">mcp.jory.dev</text>
+          <text class="ts" x="712" y="174">Envoy SecurityPolicy</text>
+          <text class="ts" x="712" y="192">x-api-key, sanitized</text>
+          <polyline points="460,170 620,170 620,169 692,169" marker-end="url(#ta)"/>
+
+          <text class="ts" x="16" y="300">Two tools reach the model instead of every tool definition from nine servers; the embedding search that</text>
+          <text class="ts" x="16" y="318">replaces them is served by the same GPU box the coding agents run on.</text>
+          <text class="ts warn" x="16" y="344">So a LiteLLM outage degrades tool discovery, not just inference.</text>
+        </svg>
+        <figcaption><b>One gateway, two tools, one embedding model.</b> The optimizer indexes every aggregated tool with <code>toolhive-embed</code> — an llmkube <code>InferenceService</code> on the Strix box, reached through LiteLLM's OpenAI-compatible endpoint — so an agent searches for a tool semantically and then calls it, rather than carrying nine servers' worth of schemas in its context. Name collisions across servers are resolved by prefixing <code>{workload}_</code>, and session state lives in Dragonfly rather than the gateway pod.</figcaption>
+      </figure>
+
+      <p>Two exposures, deliberately different. Internally the gateway is <code>vmcp-mcp-gateway-internal.llm:4483</code> with <code>incomingAuth: anonymous</code> — in-cluster callers are already inside the trust boundary. Externally the same service is published at <code>mcp.jory.dev</code> behind an Envoy <code>SecurityPolicy</code> enforcing <code>x-api-key</code> with <code>sanitize: true</code>, so the credential is stripped before the request reaches the gateway. Outgoing auth to each backing server is <code>discovered</code> rather than configured centrally.</p>
+
+      <div class="callout">
+        <h4>The cross-stack dependency worth knowing</h4>
+        <p><code>toolhive-embed</code> is an llmkube <code>InferenceService</code> claiming the shared <code>llama-strix-gpu</code> template on skirk, and it is reached through LiteLLM. So the tool gateway, the coding agents and the chat models all terminate on the same two pieces of infrastructure. That is efficient, and it means a skirk outage takes out inference <i>and</i> tool discovery together — the failure modes are correlated in a way the component diagram does not show.</p>
+      </div>
+    </section>
+
+
+    <!-- ================= 10 -->
+    <section id="coordinator">
+      <h2><span class="num">10</span>Foreman is a coordinator — with the reasoning taken out</h2>
+
+      <p class="lede">Read structurally, this is already a coordinator-and-subagent system. What sits in the coordinator slot is a CronJob, an operator and a lane table rather than a model that thinks.</p>
+
+      <p>The division of labour is the same one a reasoning coordinator would impose. Something decides what work exists, decomposes it into tasks, binds each task to a model chosen for that role, reads the outcome and decides what happens next. Here that something is deterministic: Dispatch grooms, the bridge claims and builds a Workload, the operator decomposes into <code>code → review</code>, and escalation is an attempt counter. The models only ever do leaf work.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th></th><th>Deterministic coordinator — Foreman today</th><th>Reasoning coordinator</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">Decomposition</td><td class="note">Fixed pipeline: code then review, identical for every issue</td><td class="note">Adapts to the task; can split one request across two models</td></tr>
+            <tr><td class="mono">Escalation</td><td class="note">Attempt counter — 3 failures re-lanes to frontier</td><td class="note">Judgement after reading the output, not after counting</td></tr>
+            <tr><td class="mono">Observability</td><td class="note">CRs, lanes and audit ConfigMaps — inspectable with kubectl</td><td class="note">A conversation; legible to a person, harder to query</td></tr>
+            <tr><td class="mono">Failure mode</td><td class="note">Wrong lane, stuck Workload — visible and bounded</td><td class="note">A confused coordinator retrying at cloud rates — bounded only by caps you impose</td></tr>
+            <tr><td class="mono">Guardrails needed</td><td class="note">Rails on leaf output, because nothing above the model is judging</td><td class="note">Rails on leaf output <b>and</b> turn plus spend caps on the coordinator</td></tr>
+            <tr><td class="mono">Cost profile</td><td class="note">Coordination is free; all spend is leaf work</td><td class="note">Coordination is the expensive per-token component, but low volume</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>The trade is legibility for adaptability. A fixed pipeline cannot notice that an issue needs a design conversation before any code is written — which is why Foreman has a <code>DESIGN-DECISION</code> escape hatch that parks the task for a human instead. A reasoning coordinator would handle that case, and in exchange its own reliability becomes the system's reliability.</p>
+
+      <h3>What carries over either way</h3>
+      <p>Four mechanisms in this repo are properties of the <i>shape</i>, not of the deterministic coordinator, and they transfer unchanged to a reasoning one:</p>
+      <ul>
+        <li><b>Bind a model per role in configuration, not in prompts.</b> <code>Agent.providerConfig.model</code> is one field per role; swapping which backend does review is a one-line change that touches no prompt text.</li>
+        <li><b>Let the virtual key be the enforcement boundary.</b> The <code>foreman</code> key permits exactly <code>llama-nvidia</code>, <code>MiniMax-M3-chat</code> and <code>llama-strix-nemotron</code>. A mis-set model fails at the proxy rather than quietly billing a frontier provider — a property worth more, not less, when a reasoning coordinator is choosing delegates dynamically.</li>
+        <li><b>Ground leaf output deterministically.</b> The verbatim issue quote, the path list from the real diff, the file-and-line anchor on every finding. A coordinator that trusts a subagent's self-report inherits exactly the failure the demotion rule exists to catch.</li>
+        <li><b>Bound the leaf.</b> <code>maxTurns</code> of 160 for coders and 80 for reviewers, plus context soft and hard caps and stuck-loop detection. Delegation without a turn cap is an open-ended bill.</li>
+      </ul>
+
+      <p>And the chat stack in the same cluster has already taken the other branch: <code>openclaw</code> runs a high-thinking coordinator with spawn rights, a restricted low-thinking worker, cloud subagents at <code>maxConcurrent: 3</code>, and an hourly heartbeat pinned to a local model in an isolated session. That topology, and what it implies for a cluster whose local capacity is dedicated rather than shared, is in <a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96">part one, section thirteen</a>.</p>
+    </section>
+
+    <!-- ================= 11 -->
+    <section id="takeaways">
+      <h2><span class="num">11</span>What transfers</h2>
+
+      <p>Setting aside whether one wants an autonomous coding loop at all, four ideas here are worth stealing independently of Foreman:</p>
+
+      <ul>
+        <li><b>Ground the model's verdict, don't trust it.</b> Requiring a verbatim quote from the issue, a path list from the real diff, and file-and-line anchors for every finding turns “did the model review this properly?” into an assertion the harness can check. The demotion rule — unverified quote turns GO into NO-GO — is what gives the requirement teeth.</li>
+        <li><b>Decide tiering by failure, not prediction.</b> The groomer answers only ready/not-ready; nothing reaches a paid model until local attempts have actually failed. Compare the complexity router in <a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96">part one</a>, which predicts difficulty per request and is currently mis-wired — this loop reaches the same cost goal with no classifier at all. Across a cloud-and-local boundary that argument gets stronger, which is why part one now proposes a coordinator rather than a router.</li>
+        <li><b>Make the silent no-op loud.</b> A self-gate that skips when its runtime is missing shipped a test file that did not parse. Any check that can quietly do nothing will eventually do nothing at the worst moment.</li>
+        <li><b>Scope credentials at the proxy.</b> The <code>foreman</code> virtual key allows exactly the three model groups its agents use, so a mis-set <code>Agent.providerConfig.model</code> fails at the proxy instead of quietly billing a frontier provider. The same mechanism is what the missing-model validator in part one would harden.</li>
+      </ul>
+
+      <p>And one caution that applies to both halves of this cluster: the durable configuration is spread across an <code>Agent</code> CR, a HelmRelease values block, a large JSON env on a CronJob, a virtual key's scope, and a prose note in <code>docs/</code> that has already drifted from the manifests. Every one of those is a place a name can be wrong without anything erroring.</p>
+    </section>
+
+  </main>
+
+  <footer>
+    Read from joryirving/home-ops at eed15dcc0a05cdfefb365af7b7d3c99404865f70 — kubernetes/apps/base/llm/{foreman,dispatch,toolhive} and docs/src/notes/coding-loop.md. Where the committed manifests and that note disagree, the manifests are reported here. Companion: LiteLLM Routing Teardown.
+  </footer>
+
+</div>

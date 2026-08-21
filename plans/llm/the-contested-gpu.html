@@ -1,0 +1,582 @@
+<title>The Contested GPU</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@500;600;700&family=Newsreader:opsz,wght@6..72,380;6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root {
+  --ground:      #F4F6F4;
+  --surface:     #FFFFFF;
+  --surface-alt: #EDF1EE;
+  --ink:         #141916;
+  --ink-soft:    #56635C;
+  --ink-faint:   #7E8A84;
+  --rule:        #D8E0DA;
+  --rule-strong: #B9C5BE;
+  --live:        #2E6B54;
+  --live-bg:     #E3EFE8;
+  --paid:        #86671A;
+  --paid-bg:     #F3ECDA;
+  --broken:      #A83C24;
+  --broken-bg:   #F6E5E0;
+  --idle:        #6F7C76;
+  --idle-bg:     #E6EAE7;
+  --shadow:      0 1px 2px rgba(20, 25, 22, .06), 0 8px 24px -16px rgba(20, 25, 22, .30);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:#0E1311; --surface:#151C18; --surface-alt:#1B241F;
+    --ink:#E2E9E4; --ink-soft:#97A49C; --ink-faint:#74827A;
+    --rule:#26302A; --rule-strong:#3A473F;
+    --live:#5FBB96; --live-bg:#16281F;
+    --paid:#D2A648; --paid-bg:#2A2312;
+    --broken:#E07C61; --broken-bg:#2E1B15;
+    --idle:#8B978F; --idle-bg:#1E2622;
+    --shadow: 0 1px 2px rgba(0,0,0,.40), 0 8px 24px -16px rgba(0,0,0,.70);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#0E1311; --surface:#151C18; --surface-alt:#1B241F;
+  --ink:#E2E9E4; --ink-soft:#97A49C; --ink-faint:#74827A;
+  --rule:#26302A; --rule-strong:#3A473F;
+  --live:#5FBB96; --live-bg:#16281F;
+  --paid:#D2A648; --paid-bg:#2A2312;
+  --broken:#E07C61; --broken-bg:#2E1B15;
+  --idle:#8B978F; --idle-bg:#1E2622;
+  --shadow: 0 1px 2px rgba(0,0,0,.40), 0 8px 24px -16px rgba(0,0,0,.70);
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--ground); color: var(--ink);
+  font-family: "Newsreader", Georgia, "Times New Roman", serif;
+  font-size: 17.5px; line-height: 1.62; margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+.frame { max-width: 1240px; margin: 0 auto; padding: 0 28px 96px; display: grid; grid-template-columns: 1fr; gap: 0 56px; }
+@media (min-width: 1120px) { .frame { grid-template-columns: 214px minmax(0, 1fr); } }
+
+.masthead { grid-column: 1 / -1; border-bottom: 2px solid var(--ink); padding: 64px 0 26px; margin-bottom: 44px; }
+.eyebrow { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.5px; font-weight: 500; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-faint); }
+.masthead h1 { font-family: "Chivo", "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: clamp(2.5rem, 6vw, 4.1rem); line-height: 1.02; letter-spacing: -.025em; text-wrap: balance; margin: 14px 0 0; }
+.deck { font-size: 1.24rem; color: var(--ink-soft); max-width: 62ch; margin: 18px 0 0; }
+.provenance { display: flex; flex-wrap: wrap; gap: 6px 26px; margin-top: 30px; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; color: var(--ink-faint); }
+.provenance b { color: var(--ink-soft); font-weight: 500; }
+
+.rail { display: none; }
+@media (min-width: 1120px) { .rail { display: block; grid-column: 1; align-self: start; position: sticky; top: 32px; padding-top: 4px; } }
+.rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.rail a { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; line-height: 1.4; color: var(--ink-faint); text-decoration: none; display: block; border-left: 2px solid var(--rule); padding: 2px 0 2px 12px; }
+.rail a:hover, .rail a:focus-visible { color: var(--live); border-left-color: var(--live); }
+.rail .sib { margin-top: 20px; border-top: 1px solid var(--rule); padding-top: 14px; }
+.rail .sib a { border-left-color: var(--live); color: var(--live); }
+
+main { grid-column: 1; min-width: 0; }
+@media (min-width: 1120px) { main { grid-column: 2; } }
+
+section { margin-bottom: 68px; scroll-margin-top: 24px; }
+h2 { font-family: "Chivo", "Helvetica Neue", Arial, sans-serif; font-weight: 600; font-size: 1.86rem; letter-spacing: -.018em; line-height: 1.16; text-wrap: balance; margin: 0 0 4px; padding-top: 10px; border-top: 1px solid var(--rule-strong); }
+h2 .num { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .62em; font-weight: 500; color: var(--ink-faint); margin-right: .6em; }
+h3 { font-family: "Chivo", "Helvetica Neue", Arial, sans-serif; font-weight: 600; font-size: 1.14rem; letter-spacing: -.005em; margin: 38px 0 0; text-wrap: balance; }
+h4 { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-soft); margin: 30px 0 0; }
+p { margin: 14px 0 0; max-width: 68ch; }
+ul, ol.body { max-width: 68ch; margin: 14px 0 0; padding-left: 1.15em; }
+li { margin-top: 7px; }
+li::marker { color: var(--ink-faint); }
+strong { font-weight: 600; }
+a { color: var(--live); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--live); outline-offset: 2px; border-radius: 2px; }
+
+code { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .845em; background: var(--surface-alt); border: 1px solid var(--rule); border-radius: 3px; padding: .08em .32em; word-break: break-word; }
+pre { margin: 18px 0 0; background: var(--surface); border: 1px solid var(--rule); border-left: 3px solid var(--rule-strong); border-radius: 3px; padding: 14px 16px; overflow-x: auto; }
+pre code { background: none; border: 0; padding: 0; font-size: 12.6px; line-height: 1.62; color: var(--ink-soft); white-space: pre; }
+pre code b { color: var(--ink); font-weight: 600; }
+pre code i { color: var(--ink-faint); font-style: normal; }
+
+.chip { display: inline-block; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; padding: 2px 7px; border-radius: 2px; white-space: nowrap; vertical-align: 1px; }
+.chip.live { color: var(--live); background: var(--live-bg); }
+.chip.paid { color: var(--paid); background: var(--paid-bg); }
+.chip.broken { color: var(--broken); background: var(--broken-bg); }
+.chip.idle { color: var(--idle); background: var(--idle-bg); }
+
+.tablewrap { margin: 22px 0 0; overflow-x: auto; border: 1px solid var(--rule); border-radius: 3px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+thead th { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-faint); text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule-strong); white-space: nowrap; }
+tbody td { padding: 10px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; font-variant-numeric: tabular-nums; }
+tbody tr:last-child td { border-bottom: 0; }
+td.mono, th.mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12.4px; }
+td.note { color: var(--ink-soft); font-size: 13.4px; }
+
+figure { margin: 30px 0 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 3px; padding: 22px 22px 16px; overflow-x: auto; }
+figure svg { display: block; max-width: 100%; height: auto; margin: 0 auto; color: var(--ink-soft); }
+figcaption { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--rule); font-size: 13.4px; color: var(--ink-soft); max-width: 76ch; }
+figcaption b { color: var(--ink); font-weight: 600; }
+
+svg .box { fill: var(--surface-alt); stroke: var(--rule-strong); stroke-width: 1; }
+svg .boxlive { fill: var(--live-bg); stroke: var(--live); stroke-width: 1.25; }
+svg .boxbroken { fill: var(--broken-bg); stroke: var(--broken); stroke-width: 1.25; }
+svg .boxpaid { fill: var(--paid-bg); stroke: var(--paid); stroke-width: 1.25; }
+svg .boxghost { fill: none; stroke: var(--rule-strong); stroke-width: 1; stroke-dasharray: 3 3; }
+svg text { font-family: "IBM Plex Mono", ui-monospace, monospace; fill: var(--ink); }
+svg .t { font-size: 12px; }
+svg .ts { font-size: 10.5px; fill: var(--ink-soft); }
+svg .tl { font-size: 11px; fill: var(--ink-faint); }
+svg .th { font-size: 11px; font-weight: 600; letter-spacing: .07em; fill: var(--ink-faint); }
+svg .accent { fill: var(--live); }
+svg .warn { fill: var(--broken); }
+svg line, svg polyline, svg path.edge { fill: none; stroke: currentColor; stroke-width: 1.3; }
+svg marker path.mk { fill: currentColor; stroke: none; }
+svg marker path.mk-a { fill: var(--live); stroke: none; }
+svg marker path.mk-w { fill: var(--broken); stroke: none; }
+svg .eaccent { stroke: var(--live); }
+svg .ewarn { stroke: var(--broken); }
+svg .edash { stroke-dasharray: 5 4; }
+
+.callout { margin: 24px 0 0; border: 1px solid var(--rule); border-left: 3px solid var(--ink-faint); border-radius: 3px; background: var(--surface); padding: 16px 18px; max-width: 72ch; }
+.callout.bad { border-left-color: var(--broken); }
+.callout.good { border-left-color: var(--live); }
+.callout p:first-child { margin-top: 0; }
+.callout h4 { margin-top: 0; }
+
+.lede { font-size: 1.06rem; color: var(--ink-soft); max-width: 68ch; margin: 14px 0 0; }
+
+.xref {
+  grid-column: 1 / -1;
+  margin: 0 0 44px;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--live);
+  border-radius: 3px;
+  background: var(--surface);
+  padding: 16px 20px;
+}
+.xref .eyebrow { margin-bottom: 6px; }
+.xref p { margin: 0; max-width: 78ch; font-size: 15.6px; color: var(--ink-soft); }
+
+footer { grid-column: 1 / -1; border-top: 1px solid var(--rule-strong); padding-top: 18px; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.5px; color: var(--ink-faint); line-height: 1.7; }
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="frame">
+
+  <header class="masthead">
+    <div class="eyebrow">Infrastructure teardown · one card, two claimants</div>
+    <h1>The Contested GPU</h1>
+    <p class="deck">How a game session takes an RTX 3090 back from an inference server in <b>joryirving/home-ops</b> — why the video half does not work yet, what a cluster where it does work had to get right, and how to plan a second card that yields to games.</p>
+    <div class="provenance">
+      <span><b>Source</b> joryirving/home-ops @ eed15dc</span>
+      <span><b>Reference</b> shrinedogg/biggs.dog · games-on-whales/fenrir</span>
+      <span><b>Companion</b> LiteLLM Routing Teardown</span>
+    </div>
+  </header>
+
+  <div class="xref">
+    <div class="eyebrow">Read alongside</div>
+    <p>This document covers GPU arbitration and game streaming only. The inference stack that loses the card — which models run where, how requests are routed, and what cogito should change — is in <a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96"><b>LiteLLM Routing Teardown</b></a>. The two intersect in exactly one place: the model evicted here is <code>llama-nvidia</code>, and section one explains what that costs the routing layer.</p>
+  </div>
+
+  <nav class="rail" aria-label="Contents">
+    <ol>
+      <li><a href="#preempt">1 · Taking the GPU back</a></li>
+      <li><a href="#misdiagnosed">2 · The video blocker</a></li>
+      <li><a href="#streaming">3 · Getting video out</a></li>
+      <li><a href="#arbiter">4 · Gate, don't just preempt</a></li>
+      <li><a href="#node">5 · A second card for cogito</a></li>
+      <li class="sib"><a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96">Routing teardown →</a></li>
+      <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/3bbe6e0b-d8af-4a5f-a596-7e266605951e">Foreman &amp; ToolHive →</a></li>
+      <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac">The Idle Bench →</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <section id="preempt">
+      <h2><span class="num">01</span>How a game session takes the GPU back</h2>
+
+
+      <p class="lede">The whole mechanism is one negative number. Nothing on the gaming side knows the LLM exists — no high-priority class on the game, no cordon, no custom controller, no admission webhook.</p>
+
+      <p>The gaming stack is Games-on-Whales — Wolf plus the <code>direwolf-operator</code>, driven by <code>User</code> and <code>App</code> CRs, streaming to Moonlight clients. It shares <b>ganyu</b>'s RTX 3090 with <code>llama-nvidia</code>. Four pieces make the handover work:</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Piece</th><th>Configuration</th><th>Effect</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="mono">nvidia-device-plugin</td>
+              <td class="note"><code>sharing.timeSlicing.resources: [{name: nvidia.com/gpu, replicas: 2}]</code>, node-affine to <code>topology.kubernetes.io: egpu</code></td>
+              <td class="note">The one physical 3090 advertises <b>2</b> schedulable units</td>
+            </tr>
+            <tr>
+              <td class="mono">gpu-preemptible</td>
+              <td class="note">PriorityClass, <code>value: -100</code>, <code>globalDefault: false</code></td>
+              <td class="note">Anything at default priority (0) outranks it — no annotation needed on the winner</td>
+            </tr>
+            <tr>
+              <td class="mono">llama-nvidia</td>
+              <td class="note"><code>resources.gpu: 1</code> · <code>priorityClassName: gpu-preemptible</code> · <code>rolloutPolicy.waitForIdle: false</code></td>
+              <td class="note">Holds one unit, and is the only evictable pod on the node</td>
+            </tr>
+            <tr>
+              <td class="mono">Wolf session</td>
+              <td class="note">wolf sidecar requests <code>nvidia.com/gpu: 1</code>, app container requests <code>nvidia.com/gpu: 1</code>, no priority class</td>
+              <td class="note">One session needs <b>2 of 2</b> units — the node's entire budget</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>That last row is the part that is easy to miss and easy to get wrong when copying this. A session claims the GPU twice — once for the compositor that encodes video, once for the application being streamed. Because that equals the whole advertised budget, there is no arrangement in which the session and the LLM coexist, so the scheduler <i>must</i> preempt. Advertise four units instead of two and the session would simply take two of them, leave the LLM running, and both would fight over the same silicon.</p>
+
+      <figure>
+        <svg viewBox="0 0 930 300" role="img" aria-label="The 3090 advertises two GPU units; llama-nvidia holds one at priority minus one hundred; a Wolf session needs both units at default priority so the scheduler evicts the inference pod; when the session ends the pending inference pod schedules again and reloads its weights from the shared cache">
+          <defs>
+            <marker id="pa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M 0 0 L 10 5 L 0 10 z"/></marker>
+            <marker id="pa-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-w" d="M 0 0 L 10 5 L 0 10 z"/></marker>
+            <marker id="pa-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-a" d="M 0 0 L 10 5 L 0 10 z"/></marker>
+          </defs>
+
+          <text class="th" x="16" y="24">IDLE</text>
+          <rect class="box" x="16" y="38" width="250" height="122" rx="3"/>
+          <text class="ts" x="28" y="58">ganyu · nvidia.com/gpu: 2</text>
+          <rect class="boxlive" x="30" y="70" width="222" height="34" rx="2"/>
+          <text class="ts" x="40" y="91">llama-nvidia · 1 unit · prio -100</text>
+          <rect class="boxghost" x="30" y="112" width="222" height="34" rx="2"/>
+          <text class="tl" x="40" y="133">1 unit free</text>
+
+          <line x1="278" y1="99" x2="316" y2="99" marker-end="url(#pa)"/>
+          <text class="ts" x="272" y="88">launch</text>
+
+          <text class="th warn" x="330" y="24">SESSION STARTS</text>
+          <rect class="box" x="330" y="38" width="250" height="122" rx="3"/>
+          <text class="ts" x="342" y="58">Wolf session · needs 2 units · prio 0</text>
+          <rect class="boxbroken" x="344" y="70" width="222" height="34" rx="2"/>
+          <text class="ts warn" x="354" y="91">llama-nvidia evicted — SIGTERM</text>
+          <rect class="boxpaid" x="344" y="112" width="222" height="34" rx="2"/>
+          <text class="ts" x="354" y="133">wolf 1 + app 1 = 2 units held</text>
+
+          <line x1="592" y1="99" x2="630" y2="99" marker-end="url(#pa-a)"/>
+          <text class="ts" x="586" y="88">quit</text>
+
+          <text class="th" x="644" y="24">SESSION ENDS</text>
+          <rect class="box" x="644" y="38" width="270" height="122" rx="3"/>
+          <text class="ts" x="656" y="58">session Deployment removed</text>
+          <rect class="boxlive" x="658" y="70" width="242" height="34" rx="2"/>
+          <text class="ts" x="668" y="91">pending pod schedules again</text>
+          <rect class="boxghost" x="658" y="112" width="242" height="34" rx="2"/>
+          <text class="tl" x="668" y="133">weights reload from shared cache</text>
+
+          <text class="ts" x="16" y="196">Validated live in the repo README: a Steam session evicted llama-nvidia.</text>
+          <text class="ts warn" x="16" y="228">Consequence for routing: while the session runs, an `auto` request classified SIMPLE has no local backstop —</text>
+          <text class="ts warn" x="16" y="246">the llama-nvidia → llama-strix fallback keys on the group name `llama-nvidia`, which an `auto` request never carries.</text>
+          <text class="ts warn" x="16" y="264">It goes to opencode zen instead, while the Strix box sits idle next to it. Playing a game silently moves traffic onto a paid provider.</text>
+        </svg>
+        <figcaption><b>Preemption, not co-tenancy.</b> The 3090 deliberately runs a single always-on tenant — the earlier burst-swap arrangement was retired because loading a second model meant tearing the first one down. So GPU sharing on this node is entirely a scheduling decision, resolved by giving inference a negative priority rather than by giving games a high one.</figcaption>
+      </figure>
+
+
+
+      <h3>What it costs, and what does not work yet</h3>
+      <ul>
+        <li><b>Eviction is abrupt.</b> The pod gets SIGTERM and in-flight requests die; there is no drain. <code>rolloutPolicy.waitForIdle: false</code> is the acknowledgement that this pod is not gracefully drained in general.</li>
+        <li><b>Restart is a disk read, not a download.</b> Weights come back from the shared <code>llmkube-model-cache</code> PVC on CephFS, which is why the README treats a swap as cheap.</li>
+        <li><b>Video streaming does not work yet</b> — sessions start and preempt the LLM, but produce no video. The README attributes this to the NVIDIA DRA driver injecting compute but not graphics userspace, and treats it as blocked on upstream. The comparison above suggests a closer and much cheaper explanation.</li>
+      </ul>
+
+      <p>Worth separating those two facts when borrowing this: <b>the preemption half is complete and proven; the streaming half is one testable configuration change away from a known-good reference, not blocked on someone else's code.</b></p>
+    </section>
+
+    <section id="misdiagnosed">
+      <h2><span class="num">02</span>The video blocker looks misdiagnosed</h2>
+      <h3>The blocker looks misdiagnosed</h3>
+      <p>There is working prior art for this exact stack — Talos, Kubernetes, NVIDIA, Wolf — in <a href="https://github.com/shrinedogg/biggs.dog">shrinedogg/biggs.dog</a>, whose images Jory is already running. Comparing the two clusters against <a href="https://github.com/games-on-whales/fenrir">games-on-whales/fenrir</a> upstream turns up a much smaller candidate cause than an unfixable upstream gap.</p>
+
+      <p>The README attributes the failure to the NVIDIA DRA driver's CDI spec omitting the graphics userspace. But <b>there is no NVIDIA DRA driver in this repo.</b> The only DRA driver deployed declares <code>gpu.amd.com</code> and <code>gpu.intel.com</code>; every NVIDIA <code>DeviceClass</code> is absent. NVIDIA access on ganyu comes from somewhere else entirely:</p>
+
+<pre><code><i># talos/main/controlplane/eGPU-schematic.yaml</i>
+- siderolabs/<b>nvidia-container-toolkit-production</b>     <i># CDI / container runtime</i>
+- siderolabs/nvidia-open-gpu-kernel-modules-production
+
+<i># kube-system/nvidia-device-plugin — nvidia.com/gpu, timeSliced ×2</i></code></pre>
+
+      <p>That is the container-toolkit path, not DRA. And it only engages for pods that ask for it. Upstream's NVIDIA example sets one field that Jory's adapted copy does not:</p>
+
+<pre><code><i># fenrir/examples/nvidia_devices/firefox.yaml</i>
+  template:
+    spec:
+      <b>runtimeClassName: nvidia</b>          <i># ← absent from all three of Jory's Apps</i>
+      containers: [...]</code></pre>
+
+      <p>Corroboration sits on the same node: <code>llama-nvidia</code> sets <code>runtimeClassName: nvidia</code> explicitly. If the NVIDIA runtime were the node's default, the inference pod would not need to. Without it the session pod runs under the default runtime, the <code>nvidia-container-runtime</code> hook never fires, and <code>NVIDIA_DRIVER_CAPABILITIES=all</code> on the wolf sidecar has nothing to act on — <b>no</b> driver userspace is injected, graphics or compute. That is precisely the reported symptom: Mesa fallback, <code>failed to create dri2 screen</code>, <code>ZINK: failed to choose pdev</code>, <code>Failed to create EGLDisplay</code>. It also explains the second finding, that <code>/dev/dri</code> never appears.</p>
+
+      <div class="callout">
+        <h4>The honest caveat</h4>
+        <p>biggs.dog's own App manifests <i>also</i> omit <code>runtimeClassName</code>, and its node-level Talos configuration lives in Omni <code>ConfigPatch</code>es deliberately kept outside the repo — so that cluster may make the NVIDIA runtime containerd's default instead. Either way the fix is the same shape and one line to test: get the session pod onto the NVIDIA runtime, by RuntimeClass on the App template or by node default. This is a hypothesis with three pieces of supporting evidence, not a confirmed diagnosis — but it is testable in a minute, which is a very different proposition from waiting on <code>kubernetes-sigs/dra-driver-nvidia-gpu</code>.</p>
+      </div>
+
+      <h3>What else the working cluster needed</h3>
+      <p>biggs.dog's notes read as a list of things that each independently produce a black screen. Checked against Jory's manifests:</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Requirement</th><th>Why it matters</th><th>Jory's state</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">runtimeClassName: nvidia</td><td class="note">Without the NVIDIA runtime hook, no driver userspace is injected at all</td><td><span class="chip broken">Missing</span></td></tr>
+            <tr><td class="mono">nvidia.com/gpu on the app container</td><td class="note">CDI driver and device injection is <b>per allocated container</b>; without its own request the app has no render node and streams black</td><td><span class="chip live">Has it</span></td></tr>
+            <tr><td class="mono">renderNode pinned to host numbering</td><td class="note">The toolkit injects the dGPU keeping host numbering, so <code>renderD128</code> does not exist in-container; the wrong node makes Wolf fail vendor detection and silently fall back to software x264</td><td><span class="chip live">renderD129, matches</span></td></tr>
+            <tr><td class="mono">GBM_BACKENDS_PATH</td><td class="note">The CDI hook drops the NVIDIA GBM backend in <code>/usr/local/lib/gbm</code>; Mesa only searches <code>/usr/lib/x86_64-linux-gnu/gbm</code>. biggs sets it on the wolf sidecar <b>and</b> the app container</td><td><span class="chip idle">Wolf sidecar only</span></td></tr>
+            <tr><td class="mono">Patched Wolf image (wl_drm fix)</td><td class="note">Wolf advertised both legacy <code>wl_drm</code> and dmabuf v4 feedback; nested wlroots binds both and aborts</td><td><span class="chip live">shrinedogg/wolf v0.2.0</span></td></tr>
+            <tr><td class="mono">Aligned LB sharing key</td><td class="note">Mismatched keys split the IP and the RTSP handshake times out</td><td><span class="chip live">direwolf, both sides</span></td></tr>
+            <tr><td class="mono">Root wolf entrypoint</td><td class="note">Upstream gosu/supervisord privilege-drop crash loop</td><td><span class="chip live">Same ConfigMap shim</span></td></tr>
+            <tr><td class="mono">Vulkan device pinning</td><td class="note">On a host with an iGPU beside the dGPU, Gamescope enumerates Vulkan devices, picks the iGPU, and aborts on missing dmabuf modifiers — fixed with <code>--prefer-vk-device &lt;pci-id&gt;</code></td><td><span class="chip idle">Will hit it — ganyu has an Intel iGPU alongside the 3090</span></td></tr>
+            <tr><td class="mono">uinput device + privileged app</td><td class="note">Wolf hotplugs uinput mid-session; Kubernetes has no <code>device_cgroup_rules</code> equivalent</td><td><span class="chip idle">Deliberately skipped — needed for controllers, not video</span></td></tr>
+            <tr><td class="mono">user.max_user_namespaces &gt; 0</td><td class="note">Steam's pressure-vessel runtime requires it; Talos defaults to 0</td><td class="note">Node-level, only needed once Steam is the target</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>The Vulkan row deserves attention because it is the same hardware shape, not a coincidence: biggs hit it with an AMD iGPU beside an RTX 5090, and Jory's own README records that ganyu's <code>renderD128</code> is an Intel iGPU with the 3090 at <code>renderD129</code>. That failure appears <i>after</i> the injection problem is fixed, which is exactly when it is most confusing.</p>
+
+    </section>
+
+    <section id="streaming">
+      <h2><span class="num">03</span>Getting video out of Wolf: lessons from a cluster where it works</h2>
+
+
+      <p class="lede">biggs.dog's engineering notes read as a list of independent causes of a black screen, each found the hard way. Most are invisible until the one before it is fixed, which is what makes the order they are attacked in matter more than any single item.</p>
+
+      <h3>Start with Test Ball, not Firefox</h3>
+      <p>Both clusters ship the same three Apps, and one of them is a diagnostic instrument rather than a workload. <b>Test Ball</b> sets <code>startVirtualCompositor: false</code> and <code>startAudioServer: false</code> and supplies a raw GStreamer source:</p>
+
+<pre><code>video:
+  source: |
+    <b>videotestsrc</b> pattern=ball flip=true is-live=true !
+    video/x-raw, framerate={fps}/1</code></pre>
+
+      <p>It never touches EGL, wlroots, or an application's renderer — a synthetic pattern goes straight into the encoder. That bisects the failure cleanly. If Test Ball streams and Firefox does not, the fault is in the compositor and EGL path, which is exactly where the reported panic lives. If Test Ball also fails, the fault is upstream of it: device injection, the encoder, or the RTSP and UDP transport.</p>
+
+      <div class="callout bad">
+        <p>Before drawing any conclusion from a Test Ball run, fix an inconsistency in the manifest: Jory's Test Ball pins <code>renderNode: /dev/dri/renderD128</code> while his Firefox pins <code>renderD129</code>. biggs pins <code>renderD129</code> for both, commented “the dGPU's DRM node is renderD129”. A wrong render node does not error — Wolf fails GPU vendor detection and <b>silently falls back to software x264</b>, which still produces a picture. So a Test Ball that streams could be telling you the GPU works, or telling you the CPU does.</p>
+      </div>
+
+      <figure>
+        <svg viewBox="0 0 920 280" role="img" aria-label="Test Ball engages only the encoder and transport, Firefox adds the compositor and EGL and GBM, and Steam adds Vulkan device selection, uinput, user namespaces and shared memory sizing, so running them in that order isolates which subsystem fails">
+          <defs>
+            <marker id="sa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M 0 0 L 10 5 L 0 10 z"/></marker>
+          </defs>
+
+          <text class="th" x="16" y="24">SUBSYSTEMS ENGAGED, BY APP</text>
+
+          <text class="ts" x="16" y="66">Test Ball</text>
+          <rect class="boxlive" x="120" y="48" width="150" height="26" rx="2"/><text class="ts" x="130" y="66">encoder / NVENC</text>
+          <rect class="boxlive" x="278" y="48" width="150" height="26" rx="2"/><text class="ts" x="288" y="66">RTSP + UDP</text>
+          <rect class="boxghost" x="436" y="48" width="468" height="26" rx="2"/><text class="tl" x="446" y="66">— no compositor, no EGL, no app renderer</text>
+
+          <text class="ts" x="16" y="118">Firefox</text>
+          <rect class="boxlive" x="120" y="100" width="150" height="26" rx="2"/><text class="ts" x="130" y="118">encoder / NVENC</text>
+          <rect class="boxlive" x="278" y="100" width="150" height="26" rx="2"/><text class="ts" x="288" y="118">RTSP + UDP</text>
+          <rect class="boxpaid" x="436" y="100" width="230" height="26" rx="2"/><text class="ts" x="446" y="118">compositor · EGL · GBM</text>
+          <rect class="boxghost" x="674" y="100" width="230" height="26" rx="2"/><text class="tl" x="684" y="118">— no game runtime</text>
+
+          <text class="ts" x="16" y="170">Steam</text>
+          <rect class="boxlive" x="120" y="152" width="150" height="26" rx="2"/><text class="ts" x="130" y="170">encoder / NVENC</text>
+          <rect class="boxlive" x="278" y="152" width="150" height="26" rx="2"/><text class="ts" x="288" y="170">RTSP + UDP</text>
+          <rect class="boxpaid" x="436" y="152" width="230" height="26" rx="2"/><text class="ts" x="446" y="170">compositor · EGL · GBM</text>
+          <rect class="boxbroken" x="674" y="152" width="230" height="26" rx="2"/><text class="ts" x="684" y="170">Vulkan · uinput · userns · shm</text>
+
+          <line x1="60" y1="196" x2="60" y2="228" marker-end="url(#sa)"/>
+          <text class="ts" x="16" y="222">run</text>
+          <text class="ts" x="16" y="244">in</text>
+          <text class="ts" x="16" y="266">order</text>
+          <text class="ts" x="120" y="222">Each stage adds exactly one layer of failure surface. Skipping to Steam means debugging</text>
+          <text class="ts" x="120" y="244">four subsystems at once — and Steam's failures (a Vulkan device picked wrong, a 64Mi /dev/shm,</text>
+          <text class="ts" x="120" y="266">a missing user namespace) all present identically, as a black screen.</text>
+        </svg>
+        <figcaption><b>The three Apps are a bisection ladder, not a menu.</b> Test Ball isolates the encode and transport path; Firefox adds the compositor; Steam adds the game runtime and everything that comes with two GPUs and hotplugged input devices.</figcaption>
+      </figure>
+
+      <h3>Four forked images, and what each one actually fixes</h3>
+      <p>Jory already runs all four at equal or newer tags, so he inherits the fixes — but knowing what they fix is what makes a regression recognisable rather than mysterious.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Image</th><th>What upstream does</th><th>Why it breaks in Kubernetes</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">moonlight-proxy</td><td class="note">Waits 25s on <code>/launch</code> for the session to come up</td><td class="note">A cold start is image pull + Wolf boot + agent readiness, well past 25s — upstream returns 500 just before the pod is ready and the client cancels. Fork raises it to 120s</td></tr>
+            <tr><td class="mono">direwolf-operator</td><td class="note">Reconciles the stream once</td><td class="note">If <code>wolf-agent</code> is not up on the first try the session stalls until the 1-minute reaper kills it. Fork retries, and prunes stale <code>trackedSessions</code></td></tr>
+            <tr><td class="mono">wolf-agent</td><td class="note">—</td><td class="note">Implements Wolf's <code>fake-udev</code> in Go: writes <code>/run/udev/data</code> entries and broadcasts synthetic libudev netlink events <b>inside the pod netns</b>, so SDL and Steam see hotplugged controllers</td></tr>
+            <tr><td class="mono">wolf</td><td class="note">Advertises both legacy <code>wl_drm</code> and dmabuf v4 feedback</td><td class="note">Nested wlroots binds both and aborts on the duplicate device announcement. Fork skips <code>wl_drm</code> when dmabuf v4 feedback is active</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Two of the four are timeout fixes, and that is the generalisable lesson: porting a stack designed for one Docker host to Kubernetes breaks latency assumptions first. Image pull, scheduling and readiness gates insert seconds where the original design assumed milliseconds, and the resulting failures present as protocol errors rather than as slowness.</p>
+
+      <h3>The GPU is injected per container, and only where asked</h3>
+      <ul>
+        <li><b>CDI injection is per allocated container.</b> The app container needs <i>its own</i> <code>nvidia.com/gpu</code> request; without one it has no render node and streams black even though the wolf sidecar is fine. Both clusters do this correctly.</li>
+        <li><b>That is why the slice count is what it is.</b> biggs time-slices into four: one for the tuning DaemonSet, one for vLLM, and two for the session's wolf sidecar plus app container. Jory slices into two — wolf plus app — which is precisely why a session consumes his entire budget and the LLM must be evicted. The slice arithmetic is a direct consequence of per-container injection.</li>
+        <li><b>Render nodes keep host numbering inside the container.</b> The toolkit injects the dGPU as the host numbered it, so on a host where the dGPU is <code>renderD129</code> there is no <code>renderD128</code> in-container at all.</li>
+      </ul>
+
+      <h3>When the host has two GPUs, everything picks the wrong one</h3>
+      <p>This is the cluster of problems that will bite next, and it is the same hardware shape: biggs has an AMD iGPU beside an RTX 5090, ganyu has an Intel iGPU beside the 3090.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Setting</th><th>What goes wrong without it</th><th>Jory's state</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="mono">GBM_BACKENDS_PATH</td>
+              <td class="note">The CDI hook drops the NVIDIA GBM backend in <code>/usr/local/lib/gbm</code>; Mesa's libgbm only searches <code>/usr/lib/x86_64-linux-gnu/gbm</code>. The compositor falls back to dumb buffers, which NVIDIA render nodes reject, so no output is created and the stream is black</td>
+              <td><span class="chip idle">Wolf sidecar only — biggs sets it on the app container too</span></td>
+            </tr>
+            <tr>
+              <td class="mono">VK_DRIVER_FILES</td>
+              <td class="note">A privileged container sees both ICDs and Mesa's sorts first, so the Vulkan loader enumerates the iGPU as device 0. Games often still choose the dGPU, but Steam's Hardware page reports the wrong one and every app wastes effort skipping a phantom adapter. Pinning to <code>nvidia_icd.json</code> exposes only the dGPU everywhere</td>
+              <td><span class="chip broken">Not set</span></td>
+            </tr>
+            <tr>
+              <td class="mono">--prefer-vk-device</td>
+              <td class="note">Gamescope enumerates Vulkan devices, selects the iGPU, and aborts at <code>CVulkanTexture::BInit</code> because the iGPU cannot supply the dmabuf modifiers it needs. Redundant once the ICD is pinned; kept as a safety net</td>
+              <td><span class="chip idle">Only matters under Gamescope</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>The networking lesson nobody expects</h3>
+      <p class="lede">Of everything here, this is the one I would flag hardest, because Jory's setup matches the broken configuration exactly and nothing in his repo addresses it.</p>
+
+      <p>Sharing one LoadBalancer IP between the moonlight proxy and every per-session RTP Service via <code>lbipam.cilium.io/sharing-key</code> <b>forces <code>externalTrafficPolicy: Cluster</code></b> — Cilium will not share an IP across Local-policy Services with different pod selectors (cilium/cilium#38766). Cluster policy advertises the VIP from every node, so Moonlight's high-bitrate UDP video can land on a node with no GPU and be SNAT-hairpinned to the streaming node.</p>
+
+      <p><b>That presents as packet loss, not as a routing error.</b> It looks like an encoder or bitrate problem, which is the wrong place to spend an evening.</p>
+
+      <p>The fix keeps the shared IP and the Cluster policy and opts those Services into direct server return, so the video path egresses straight from the backend node with no extra hop or SNAT:</p>
+
+<pre><code>annotations:
+  <b>service.cilium.io/forwarding-mode: dsr</b>      <i># needs bpf.lbModeAnnotation=true</i>
+                                              <i># + loadBalancer.dsrDispatch on Cilium</i></code></pre>
+
+      <p>The annotation must be present when the Service is <i>created</i>, so biggs injects it with a <code>MutatingAdmissionPolicy</code> matching LoadBalancer Services in the namespace that carry the <code>direwolf</code> sharing key — the same admission technique used for the VRAM gate. Per-session RTP Services are created fresh each time and are covered automatically; the long-lived proxy Service has to be recreated once after the policy lands.</p>
+
+      <p>Two related details Jory already has right: the operator's <code>--lb-sharing-key</code> defaults to the pod namespace while the chart annotates <code>direwolf</code>, and a mismatch hands the session's RTP Service a different external IP than the proxy so the RTSP handshake to the paired address times out (macOS <code>errno 60</code>) — his is aligned. And the shared VIP itself is pinned, so the group does not drift across the pool on recreation.</p>
+
+      <h3>Things that only matter once Steam is the target</h3>
+      <ul>
+        <li><b>Privileged app container.</b> Wolf hotplugs uinput devices mid-session, and Kubernetes has no equivalent of Docker's <code>device_cgroup_rules</code>, so nothing else can open the late-appearing <code>/dev/input/event*</code> nodes.</li>
+        <li><b>A real <code>systemd-udevd</code> inside the container.</b> Beyond the agent's fake-udev, Steam Input emulates a <i>second</i> uinput pad for the game; without an in-container udevd nothing writes its udev database entry, so SDL and Proton see no controller in-game.</li>
+        <li><b><code>user.max_user_namespaces</code> &gt; 0.</b> Steam's pressure-vessel runtime requires it and Talos defaults it to zero — node-level configuration, not a manifest change.</li>
+        <li><b>4Gi <code>/dev/shm</code>.</b> The 64Mi runtime default is exhausted instantly by Steam's CEF UI, giving a black screen with only a cursor.</li>
+        <li><b>DLSS needs two things.</b> The <code>nonfree-kmod-nvidia</code> extension strips the NVIDIA wine NGX bridge DLLs, so an initContainer extracts them from the matching driver <code>.run</code> and caches them on a PVC; and DLSS is gated behind NVAPI, so <code>PROTON_ENABLE_NVAPI</code> and <code>DXVK_ENABLE_NVAPI</code> must both be set or the in-game toggle stays greyed out.</li>
+      </ul>
+
+      <div class="callout">
+        <h4>Two failures that share one root cause</h4>
+        <p>Do <b>not</b> set <code>NVIDIA_DRIVER_CAPABILITIES</code> on the app container, and do not re-declare <code>PUID</code>/<code>PGID</code>/<code>UNAME</code> on the wolf sidecar. The operator already appends the former, and env is a <code>listType=map</code> keyed by name, so a duplicate key makes the server-side-apply patch invalid — the session Deployment is never created and the reaper kills the session 60 seconds later. The symptom is a session that simply never starts, with nothing obviously wrong in any container log, because there is no container. Jory hit the second half of this and solved it with an entrypoint ConfigMap shim rather than env.</p>
+      </div>
+
+      <h3>A negative result, recorded properly</h3>
+      <p>The <code>nvidia-gpu-tuning</code> DaemonSet carries an unusually honest comment. Recurring Xid 109 (CTX SWITCH TIMEOUT) under UE5 and DX12 load was chased with clock caps at 2850, 2800 and 2600 MHz and a 450W power cap, and reproduced at all of them — including at roughly 6% GPU utilisation and 82W, which rules out power, voltage and thermal transients. The recorded conclusion is that no <code>nvidia-smi</code> lever fixes it and the Blackwell plus open-RM-module fault needs a driver or vBIOS update.</p>
+      <p>Two things follow. That failure is 5090-specific, so neither Jory's 3090 nor a 5070 Ti inherits it. And the practice is worth copying independently of the finding: the record of what did <i>not</i> work, with the numbers that ruled it out, lives in the manifest that holds the tunable, where the next person to reach for that lever will actually read it.</p>
+
+      <h3>The order I would attack it in</h3>
+      <ol class="body">
+        <li>Get the session pod onto the NVIDIA runtime — <code>runtimeClassName</code> or node default, per section two. Nothing below can be evaluated until driver userspace is injected.</li>
+        <li>Make Test Ball and Firefox agree on <code>renderD129</code>, so a software-x264 fallback cannot be mistaken for success.</li>
+        <li>Run <b>Test Ball</b>. Video means the encode and transport path is sound and the problem is compositor and EGL; no video means injection or transport.</li>
+        <li>Run <b>Firefox</b>, adding <code>GBM_BACKENDS_PATH</code> to the app container as well as the sidecar.</li>
+        <li>Apply the <b>DSR</b> policy before judging stream quality. Hairpinned UDP looks exactly like an encoder problem and will send you back to step three for no reason.</li>
+        <li><b>Steam</b> last, with <code>VK_DRIVER_FILES</code>, the privileged container, the shm bump and the node-level user-namespace setting.</li>
+      </ol>
+        </section>
+
+    <section id="arbiter">
+      <h2><span class="num">04</span>Gate the session, do not merely preempt the model</h2>
+      <h3>Gate the session, do not merely preempt the model</h3>
+      <p>The second thing biggs.dog has that this cluster does not is a purpose-built arbiter — <a href="https://github.com/shrinedogg/gpu-arbiter-operator">shrinedogg/gpu-arbiter-operator</a>, a cluster-scoped <code>GPUArbiter</code> CRD. It exists because a PriorityClass solves the wrong half of the problem.</p>
+
+      <figure>
+        <svg viewBox="0 0 930 330" role="img" aria-label="With priority preemption the game pod schedules the moment the inference pod is deleted, while VRAM is still being released, so allocation can fail; with a scheduling gate the pod waits until the inference deployment reports zero replicas or DCGM reports enough free framebuffer or a timeout elapses">
+          <defs>
+            <marker id="ga2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M 0 0 L 10 5 L 0 10 z"/></marker>
+            <marker id="ga2-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-w" d="M 0 0 L 10 5 L 0 10 z"/></marker>
+            <marker id="ga2-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-a" d="M 0 0 L 10 5 L 0 10 z"/></marker>
+          </defs>
+
+          <text class="th warn" x="16" y="24">PRIORITY PREEMPTION ALONE — TODAY</text>
+          <line x1="16" y1="96" x2="900" y2="96" marker-end="url(#ga2)"/>
+          <line x1="120" y1="88" x2="120" y2="104"/>
+          <text class="ts" x="86" y="120">t0 evict</text>
+          <line x1="300" y1="88" x2="300" y2="104"/>
+          <text class="ts" x="248" y="120">pod gone</text>
+          <line x1="560" y1="88" x2="560" y2="104"/>
+          <text class="ts" x="486" y="120">VRAM actually free</text>
+
+          <rect class="boxbroken" x="300" y="44" width="260" height="34" rx="2"/>
+          <text class="ts warn" x="312" y="66">session schedules into held VRAM</text>
+          <text class="ts warn" x="596" y="66">→ allocation failure, or silent</text>
+          <text class="ts warn" x="596" y="82">software-encode fallback</text>
+          <text class="tl" x="120" y="150">deletion is synchronous; CUDA context teardown and driver memory release are not</text>
+
+          <text class="th" x="16" y="204">SCHEDULING GATE — THE ARBITER</text>
+          <line x1="16" y1="276" x2="900" y2="276" marker-end="url(#ga2-a)"/>
+          <line x1="120" y1="268" x2="120" y2="284"/>
+          <text class="ts" x="60" y="300">pod CREATE</text>
+          <line x1="560" y1="268" x2="560" y2="284"/>
+          <text class="ts" x="524" y="300">ungate</text>
+
+          <rect class="box" x="120" y="224" width="440" height="34" rx="2"/>
+          <text class="ts" x="132" y="246">SchedulingGated — wolf never starts</text>
+          <rect class="boxlive" x="568" y="224" width="332" height="34" rx="2"/>
+          <text class="ts" x="580" y="246">session schedules with VRAM confirmed free</text>
+
+          <text class="ts accent" x="120" y="322">ungate when: replicas == 0 (~1–2s) · or DCGM free ≥ 8000 MiB (~30s lag) · or 45s timeout</text>
+        </svg>
+        <figcaption><b>Preemption frees the pod; it does not free the memory.</b> The gate is injected at pod CREATE by a native <code>MutatingAdmissionPolicy</code> — necessary because the direwolf operator strips pod-level <code>template.spec</code> fields, so it cannot be set on the App CR — and removed by the arbiter on the first of three signals. The timeout is deliberate: a stalled DCGM scrape degrades to starting anyway rather than hanging the session, and the policy runs <code>failurePolicy: Ignore</code> so a broken policy never blocks a launch.</figcaption>
+      </figure>
+
+      <p>The arbiter also runs the other half — while any gaming pod exists it holds the inference Deployment at zero, and restores it when the session ends. That is a graceful scale-down rather than a SIGTERM eviction, and it is what makes the handover symmetric.</p>
+
+      <div class="callout bad">
+        <h4>Adapting it here has one real obstacle</h4>
+        <p>The arbiter scales a <b>Deployment</b>. <code>llama-nvidia</code> is an llmkube <code>InferenceService</code> that declares <code>replicas: 1</code>, and an external controller writing replicas on a resource an operator owns is a known way to produce a fight — cogito has already had to fix exactly that class of bug between Flux and <code>ModelPool</code>. The clean adaptation keeps both mechanisms in their lane: <b>leave the PriorityClass to free the pod, and use the gate only to hold the session until the VRAM is demonstrably back.</b> That needs the <code>MutatingAdmissionPolicy</code> and the DCGM half of the arbiter, and none of the scaling half — and the DCGM exporter is already deployed on the eGPU node.</p>
+      </div>
+
+    </section>
+
+    <section id="node">
+      <h2><span class="num">05</span>Planning a second card that yields to games</h2>
+
+      <p class="lede">Cogito's plan adds a node with a 5070 Ti and 16GB that defers to playing and streaming, exactly as ganyu's 3090 does. The mechanism transfers verbatim. What has changed is that the node no longer has a <i>mandatory</i> tenant: vLLM's continuous batching lets one Qwen endpoint on the two 3090s serve several agents concurrently, so a second local model is no longer needed to get a second lane. Muse Glimmer belongs here only if it is wanted for what it writes — and if it is, two things about its current configuration have to change first.</p>
+
+      <div class="callout bad">
+        <h4>If Muse does come here, two things block it today</h4>
+        <p><b>The weights are too large.</b> The staged build is <code>Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf</code> — 17GB, on a 16GB card, before a single byte of KV cache or the speculative-decoding draft model. A smaller quant has to be sourced or built.</p>
+        <p><b>The KV configuration is not satisfiable at any size.</b> The current <code>InferenceService</code> asks for <code>contextSize: 200000</code> with <code>cacheTypeK</code> and <code>cacheTypeV</code> at <code>f16</code>. KV cost is <code>2 × layers × kv_heads × head_dim × bytes</code> per token, so at f16 and 200k tokens that is tens of gigabytes for a 30B-class model — more than the whole card, and more than it has today on a 24GB 3090. Switch both to <code>q8_0</code> to halve it, then size the context to what is actually left after weights. <code>llama-server</code> prints the KV allocation at startup; that is the number to read rather than estimate.</p>
+      </div>
+
+      <p>Section one transfers verbatim — a <code>PriorityClass</code> at <code>value: -100</code> on the inference pod, and nothing at all on the gaming side. Four rules come with it:</p>
+      <ul>
+        <li><b>Advertise no more GPU units than a session consumes.</b> This is the trap. Jory's session takes 2 of 2 because Wolf claims the GPU twice — compositor and app. If the plugin on that node advertises four units and a session takes two, preemption never fires: the game and the model share the card and both suffer, which is the exact outcome the setup is meant to prevent.</li>
+        <li><b>Size the model to 16GB and to the interruption.</b> Muse is a good fit for the second half of that requirement and a bad fit for the first: it is the creative and uncensored model, so an eviction mid-session costs a retry rather than a broken pipeline, but it needs a quant that leaves room for KV on a 16GB card. Nothing on the critical path belongs on a node that disappears when someone starts a game — and after this change the critical path is Qwen on the two 3090s, which stays put.</li>
+        <li><b>Never make it a bare fallback or tier target.</b> A target that can vanish mid-request needs a target of its own behind it.</li>
+        <li><b>Keep its weights in the hot tier.</b> Cogito's two-tier cache means a cold miss costs a LAN copy from the NFS archive; on a node that is preempted several times an evening, that is the difference between a warm restart and a visible outage each time.</li>
+        <li><b>Gate the game on free VRAM, not just on the pod being gone.</b> Section four's arbiter applies directly here, and cogito already runs a DCGM exporter. Preemption deletes the inference pod synchronously but the driver releases its framebuffer asynchronously, so a session that schedules immediately can find the memory still held. A <code>MutatingAdmissionPolicy</code> that gates game pods at CREATE plus a small controller that ungates on a DCGM free-VRAM threshold — with a bounded timeout so a stale metric degrades to starting anyway — closes that window. Take the gating half only: the upstream arbiter also scales the inference Deployment, and writing replicas on a resource llmkube owns is the same fight already fixed between Flux and <code>ModelPool</code>.</li>
+      </ul>
+
+      <div class="callout bad">
+        <h4>The prerequisite nobody will notice is missing</h4>
+        <p>Cogito's <code>routerSettings</code> declares <b>no fallbacks at all</b>. On a swap pool that was defensible — there was nowhere to fall back to. With a preemptible node in the mix, an evicted model means a failed request with no escape path, and the eviction is silent and routine. If anything at all is placed on the 5070 Ti, the narrow local → <code>planner-gpt</code> fallback proposed in the <a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96">routing teardown</a> stops being an optimisation and becomes the thing that makes the node usable.</p>
+      </div>
+
+      <p>The routing half of this — role aliases, per-role virtual keys, and why the coordinator must not carry a cross-provider fallback — is in the <a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96">routing teardown</a>. Two things matter here. A node that disappears mid-request needs something behind it, and cogito currently declares no fallbacks at all. And whatever lands here has only one tenant, so a game session does not degrade it to a slower model — it makes that model simply unavailable until the session ends. That is an acceptable answer for a creative model or an embedder, and never one for a worker, which is why the two 3090s keep the critical path.</p>
+    </section>
+
+  </main>
+
+  <footer>
+    Read from joryirving/home-ops at eed15dcc0a05cdfefb365af7b7d3c99404865f70 (kubernetes/apps/base/games/games-on-whales, kubernetes/apps/base/kube-system/nvidia-device-plugin, talos/main/controlplane) against shrinedogg/biggs.dog and games-on-whales/fenrir at their default branches, and cogito's kubernetes/apps/llm at 674d1e0d. The runtime-class diagnosis in section two is a supported hypothesis, not a confirmed fix — it is one line to test.
+  </footer>
+
+</div>

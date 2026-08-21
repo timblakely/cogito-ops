@@ -1,0 +1,1378 @@
+<title>LiteLLM Routing Teardown</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@500;600;700&family=Newsreader:opsz,wght@6..72,380;6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root {
+  --ground:      #F4F6F4;
+  --surface:     #FFFFFF;
+  --surface-alt: #EDF1EE;
+  --ink:         #141916;
+  --ink-soft:    #56635C;
+  --ink-faint:   #7E8A84;
+  --rule:        #D8E0DA;
+  --rule-strong: #B9C5BE;
+  --live:        #2E6B54;
+  --live-bg:     #E3EFE8;
+  --paid:        #86671A;
+  --paid-bg:     #F3ECDA;
+  --broken:      #A83C24;
+  --broken-bg:   #F6E5E0;
+  --idle:        #6F7C76;
+  --idle-bg:     #E6EAE7;
+  --shadow:      0 1px 2px rgba(20, 25, 22, .06), 0 8px 24px -16px rgba(20, 25, 22, .30);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #0E1311;
+    --surface:     #151C18;
+    --surface-alt: #1B241F;
+    --ink:         #E2E9E4;
+    --ink-soft:    #97A49C;
+    --ink-faint:   #74827A;
+    --rule:        #26302A;
+    --rule-strong: #3A473F;
+    --live:        #5FBB96;
+    --live-bg:     #16281F;
+    --paid:        #D2A648;
+    --paid-bg:     #2A2312;
+    --broken:      #E07C61;
+    --broken-bg:   #2E1B15;
+    --idle:        #8B978F;
+    --idle-bg:     #1E2622;
+    --shadow:      0 1px 2px rgba(0, 0, 0, .40), 0 8px 24px -16px rgba(0, 0, 0, .70);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:      #0E1311;
+  --surface:     #151C18;
+  --surface-alt: #1B241F;
+  --ink:         #E2E9E4;
+  --ink-soft:    #97A49C;
+  --ink-faint:   #74827A;
+  --rule:        #26302A;
+  --rule-strong: #3A473F;
+  --live:        #5FBB96;
+  --live-bg:     #16281F;
+  --paid:        #D2A648;
+  --paid-bg:     #2A2312;
+  --broken:      #E07C61;
+  --broken-bg:   #2E1B15;
+  --idle:        #8B978F;
+  --idle-bg:     #1E2622;
+  --shadow:      0 1px 2px rgba(0, 0, 0, .40), 0 8px 24px -16px rgba(0, 0, 0, .70);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "Newsreader", Georgia, "Times New Roman", serif;
+  font-size: 17.5px;
+  line-height: 1.62;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.frame {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 28px 96px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0 56px;
+}
+@media (min-width: 1120px) {
+  .frame { grid-template-columns: 214px minmax(0, 1fr); }
+}
+
+/* ---------- masthead ---------- */
+.masthead {
+  grid-column: 1 / -1;
+  border-bottom: 2px solid var(--ink);
+  padding: 64px 0 26px;
+  margin-bottom: 44px;
+}
+.eyebrow {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.masthead h1 {
+  font-family: "Chivo", "Helvetica Neue", Arial, sans-serif;
+  font-weight: 700;
+  font-size: clamp(2.5rem, 6vw, 4.1rem);
+  line-height: 1.02;
+  letter-spacing: -.025em;
+  text-wrap: balance;
+  margin: 14px 0 0;
+}
+.deck {
+  font-size: 1.24rem;
+  color: var(--ink-soft);
+  max-width: 62ch;
+  margin: 18px 0 0;
+}
+.provenance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 26px;
+  margin-top: 30px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+.provenance b { color: var(--ink-soft); font-weight: 500; }
+
+/* ---------- rail ---------- */
+.rail { display: none; }
+@media (min-width: 1120px) {
+  .rail {
+    display: block;
+    grid-column: 1;
+    align-self: start;
+    position: sticky;
+    top: 32px;
+    padding-top: 4px;
+  }
+}
+.rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.rail a {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-faint);
+  text-decoration: none;
+  display: block;
+  border-left: 2px solid var(--rule);
+  padding: 2px 0 2px 12px;
+}
+.rail a:hover, .rail a:focus-visible { color: var(--live); border-left-color: var(--live); }
+
+/* ---------- prose column ---------- */
+main { grid-column: 1; min-width: 0; }
+@media (min-width: 1120px) { main { grid-column: 2; } }
+
+section { margin-bottom: 68px; scroll-margin-top: 24px; }
+
+h2 {
+  font-family: "Chivo", "Helvetica Neue", Arial, sans-serif;
+  font-weight: 600;
+  font-size: 1.86rem;
+  letter-spacing: -.018em;
+  line-height: 1.16;
+  text-wrap: balance;
+  margin: 0 0 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule-strong);
+}
+h2 .num {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .62em;
+  font-weight: 500;
+  color: var(--ink-faint);
+  margin-right: .6em;
+}
+h3 {
+  font-family: "Chivo", "Helvetica Neue", Arial, sans-serif;
+  font-weight: 600;
+  font-size: 1.14rem;
+  letter-spacing: -.005em;
+  margin: 38px 0 0;
+  text-wrap: balance;
+}
+h4 {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 30px 0 0;
+}
+p { margin: 14px 0 0; max-width: 68ch; }
+ul, ol.body { max-width: 68ch; margin: 14px 0 0; padding-left: 1.15em; }
+li { margin-top: 7px; }
+li::marker { color: var(--ink-faint); }
+strong { font-weight: 600; }
+a { color: var(--live); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--live); outline-offset: 2px; border-radius: 2px; }
+
+code {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .845em;
+  background: var(--surface-alt);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: .08em .32em;
+  word-break: break-word;
+}
+pre {
+  margin: 18px 0 0;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--rule-strong);
+  border-radius: 3px;
+  padding: 14px 16px;
+  overflow-x: auto;
+}
+pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 12.6px;
+  line-height: 1.62;
+  color: var(--ink-soft);
+  white-space: pre;
+}
+pre code b { color: var(--ink); font-weight: 600; }
+pre code i { color: var(--ink-faint); font-style: normal; }
+
+/* ---------- chips ---------- */
+.chip {
+  display: inline-block;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 2px;
+  white-space: nowrap;
+  vertical-align: 1px;
+}
+.chip.live    { color: var(--live);   background: var(--live-bg);   }
+.chip.paid    { color: var(--paid);   background: var(--paid-bg);   }
+.chip.broken  { color: var(--broken); background: var(--broken-bg); }
+.chip.idle    { color: var(--idle);   background: var(--idle-bg);   }
+
+/* ---------- tables ---------- */
+.tablewrap {
+  margin: 22px 0 0;
+  overflow-x: auto;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--surface);
+}
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+thead th {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  text-align: left;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--rule-strong);
+  white-space: nowrap;
+}
+tbody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  font-variant-numeric: tabular-nums;
+}
+tbody tr:last-child td { border-bottom: 0; }
+td.mono, th.mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12.4px; }
+td.note { color: var(--ink-soft); font-size: 13.4px; }
+
+/* ---------- figures ---------- */
+figure {
+  margin: 30px 0 0;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 22px 22px 16px;
+  overflow-x: auto;
+}
+figure svg { display: block; max-width: 100%; height: auto; margin: 0 auto; color: var(--ink-soft); }
+figcaption {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+  font-size: 13.4px;
+  color: var(--ink-soft);
+  max-width: 76ch;
+}
+figcaption b { color: var(--ink); font-weight: 600; }
+
+svg .box   { fill: var(--surface-alt); stroke: var(--rule-strong); stroke-width: 1; }
+svg .boxlive   { fill: var(--live-bg);   stroke: var(--live);   stroke-width: 1.25; }
+svg .boxbroken { fill: var(--broken-bg); stroke: var(--broken); stroke-width: 1.25; }
+svg .boxpaid   { fill: var(--paid-bg);   stroke: var(--paid);   stroke-width: 1.25; }
+svg .boxghost  { fill: none; stroke: var(--rule-strong); stroke-width: 1; stroke-dasharray: 3 3; }
+svg text { font-family: "IBM Plex Mono", ui-monospace, monospace; fill: var(--ink); }
+svg .t   { font-size: 12px; }
+svg .ts  { font-size: 10.5px; fill: var(--ink-soft); }
+svg .tl  { font-size: 11px; fill: var(--ink-faint); }
+svg .th  { font-size: 11px; font-weight: 600; letter-spacing: .07em; fill: var(--ink-faint); }
+svg .accent { fill: var(--live); }
+svg .warn   { fill: var(--broken); }
+svg line, svg polyline, svg path.edge { fill: none; stroke: currentColor; stroke-width: 1.3; }
+svg marker path.mk   { fill: currentColor; stroke: none; }
+svg marker path.mk-a { fill: var(--live);  stroke: none; }
+svg marker path.mk-w { fill: var(--broken); stroke: none; }
+svg .eaccent { stroke: var(--live); }
+svg .ewarn   { stroke: var(--broken); }
+svg .edash   { stroke-dasharray: 5 4; }
+
+/* ---------- callouts ---------- */
+.callout {
+  margin: 24px 0 0;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--ink-faint);
+  border-radius: 3px;
+  background: var(--surface);
+  padding: 16px 18px;
+  max-width: 72ch;
+}
+.callout.bad  { border-left-color: var(--broken); }
+.callout.good { border-left-color: var(--live); }
+.callout p:first-child { margin-top: 0; }
+.callout h4 { margin-top: 0; }
+
+/* ---------- findings ---------- */
+.finding {
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--surface);
+  padding: 18px 20px;
+  margin-top: 18px;
+  box-shadow: var(--shadow);
+}
+.finding-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+.finding-head h3 { margin: 0; font-size: 1.05rem; }
+.finding p { font-size: 15.6px; }
+.finding .where {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  margin-top: 10px;
+  word-break: break-all;
+}
+
+.xref {
+  grid-column: 1 / -1;
+  margin: 0 0 44px;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--live);
+  border-radius: 3px;
+  background: var(--surface);
+  padding: 16px 20px;
+}
+.xref .eyebrow { margin-bottom: 6px; }
+.xref p { margin: 0; max-width: 78ch; font-size: 15.6px; color: var(--ink-soft); }
+.rail .sib { margin-top: 20px; border-top: 1px solid var(--rule); padding-top: 14px; }
+.rail .sib a { border-left-color: var(--live); color: var(--live); }
+
+.lede {
+  font-size: 1.06rem;
+  color: var(--ink-soft);
+  max-width: 68ch;
+  margin: 14px 0 0;
+}
+
+footer {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--rule-strong);
+  padding-top: 18px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  line-height: 1.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="frame">
+
+  <header class="masthead">
+    <div class="eyebrow">Infrastructure teardown · llm namespace</div>
+    <h1>LiteLLM Routing Teardown</h1>
+    <p class="deck">How <code>llmkube</code>, <code>litellm-operator</code> and LiteLLM actually compose in <b>joryirving/home-ops</b> — what is serving, how <code>auto</code> decides, where the graph dead-ends, and which of it belongs in cogito.</p>
+    <div class="provenance">
+      <span><b>Source</b> joryirving/home-ops @ eed15dc</span>
+      <span><b>Runtime read</b> litellm 1.97.0 wheel</span>
+      <span><b>Compared against</b> cogito @ 674d1e0</span>
+      <span><b>Companion</b> Foreman and ToolHive</span>
+    </div>
+  </header>
+
+  <div class="xref">
+    <div class="eyebrow">Read alongside</div>
+    <p>Three companion documents. <a href="https://claude.ai/code/artifact/3bbe6e0b-d8af-4a5f-a596-7e266605951e"><b>Foreman and ToolHive</b></a> covers the agentic half — how GitHub issues become reviewed PRs on these same models, and how the MCP gateway keeps nine tool servers out of the context window. <a href="https://claude.ai/code/artifact/68ddd1e2-92ee-49fd-bc97-abad5fff7b9c"><b>The Contested GPU</b></a> covers the hardware the local models sit on: how a game session preempts the 3090, why Wolf produces no video yet, and how to plan a second card that yields to games. <a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac"><b>The Idle Bench</b></a> carries the capacity plan that sections ten and eleven now assume — the seat retune on the 3090s, the always-on retrieval floor, the utility roster on the preemptible node, and which cloud provider sits in each role.</p>
+  </div>
+
+  <nav class="rail" aria-label="Contents">
+    <ol>
+      <li><a href="#layers">1 · Three layers</a></li>
+      <li><a href="#dirs">2 · Directory map</a></li>
+      <li><a href="#hardware">3 · Hardware &amp; residency</a></li>
+      <li><a href="#serving">4 · What is serving</a></li>
+      <li><a href="#consumers">5 · Who calls what</a></li>
+      <li><a href="#auto">6 · The auto router</a></li>
+      <li><a href="#fallback">7 · Fallback graph</a></li>
+      <li><a href="#findings">8 · Findings</a></li>
+      <li><a href="#cogito">9 · Cogito today</a></li>
+      <li><a href="#future">10 · The target state</a></li>
+      <li><a href="#coordinator">11 · The coordinator</a></li>
+      <li class="sib"><a href="https://claude.ai/code/artifact/3bbe6e0b-d8af-4a5f-a596-7e266605951e">Foreman &amp; ToolHive →</a></li>
+      <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/68ddd1e2-92ee-49fd-bc97-abad5fff7b9c">The Contested GPU →</a></li>
+      <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac">The Idle Bench →</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <!-- ============================================ 1 -->
+    <section id="layers">
+      <h2><span class="num">01</span>Three layers, two operators, one confusing noun</h2>
+      <p class="lede">The apparent CRD redundancy is three separate systems whose vocabularies collide on the word “model”. Nothing is duplicated; one deploys weights, one publishes routes, one is the gateway.</p>
+
+      <p><b>llmkube</b> (<code>defilantech/LLMKube</code>, group <code>inference.llmkube.dev</code>) owns two kinds. A <code>Model</code> is where the GGUF comes from plus a hardware target; an <code>InferenceService</code> is the llama.cpp server pod — args, GPU claim, probes, Service. It knows nothing about LiteLLM.</p>
+
+      <p><b>litellm-operator</b> (<code>home-operations/litellm-operator</code>, group <code>litellm.home-operations.com</code>) owns <code>LiteLLMProxy</code>, <code>LiteLLMModel</code>, <code>LiteLLMVirtualKey</code>, plus guardrail and MCP kinds. It exists to replace one hand-edited <code>config.yaml</code> ConfigMap: the proxy renders config from whichever <code>LiteLLMModel</code>s bind to it and stamps a config-hash annotation so the Deployment rolls only when the rendered output actually changes.</p>
+
+      <p><b>litellm</b> itself is not an app folder in the usual sense. There is no HelmRelease — the workload <i>is</i> <code>litellmproxy.yaml</code>, which carries image, replicas, env and probes directly. The rest of the directory is CRs, dashboards, an ExternalSecret, an HTTPRoute and alert rules.</p>
+
+      <figure>
+        <svg viewBox="0 0 960 400" role="img" aria-label="llmkube reconciles Model and InferenceService into llama.cpp pods; litellm-operator renders LiteLLMProxy and LiteLLMModel into config.yaml; autoRegister bridges a Ready InferenceService into a synthesised LiteLLMModel">
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path class="mk" d="M 0 0 L 10 5 L 0 10 z"/>
+            </marker>
+            <marker id="ar-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path class="mk-a" d="M 0 0 L 10 5 L 0 10 z"/>
+            </marker>
+          </defs>
+
+          <text class="th" x="20" y="26">GIT · KUSTOMIZE</text>
+          <text class="th" x="310" y="26">CONTROLLERS</text>
+          <text class="th" x="620" y="26">CLUSTER STATE</text>
+
+          <rect class="box" x="20" y="46" width="200" height="86" rx="3"/>
+          <text class="t" x="34" y="72">Model</text>
+          <text class="t" x="34" y="92">InferenceService</text>
+          <text class="tl" x="34" y="114">inference.llmkube.dev</text>
+
+          <rect class="box" x="310" y="56" width="190" height="60" rx="3"/>
+          <text class="t" x="324" y="82">llmkube</text>
+          <text class="tl" x="324" y="101">operator</text>
+
+          <rect class="boxlive" x="620" y="46" width="250" height="86" rx="3"/>
+          <text class="t" x="634" y="72">llama.cpp pod</text>
+          <text class="t" x="634" y="92">+ ClusterIP Service</text>
+          <text class="tl" x="634" y="114">llama-strix.llm:8080</text>
+
+          <rect class="box" x="20" y="228" width="200" height="112" rx="3"/>
+          <text class="t" x="34" y="254">LiteLLMProxy</text>
+          <text class="t" x="34" y="274">LiteLLMModel</text>
+          <text class="t" x="34" y="294">LiteLLMVirtualKey</text>
+          <text class="tl" x="34" y="322">litellm.home-operations.com</text>
+
+          <rect class="box" x="310" y="240" width="190" height="60" rx="3"/>
+          <text class="t" x="324" y="266">litellm-operator</text>
+          <text class="tl" x="324" y="285">renders + rolls</text>
+
+          <rect class="boxlive" x="620" y="228" width="250" height="86" rx="3"/>
+          <text class="t" x="634" y="254">litellm Deployment</text>
+          <text class="t" x="634" y="274">config.yaml ConfigMap</text>
+          <text class="tl" x="634" y="296">applyMode: file</text>
+
+          <line x1="220" y1="89" x2="302" y2="89" marker-end="url(#ar)"/>
+          <text class="ts" x="228" y="82">reconciles</text>
+          <line x1="500" y1="89" x2="612" y2="89" marker-end="url(#ar)"/>
+          <text class="ts" x="516" y="82">creates pod</text>
+
+          <line x1="220" y1="270" x2="302" y2="270" marker-end="url(#ar)"/>
+          <text class="ts" x="228" y="263">reconciles</text>
+          <line x1="500" y1="270" x2="612" y2="270" marker-end="url(#ar)"/>
+          <text class="ts" x="522" y="263">renders</text>
+
+          <line x1="700" y1="228" x2="700" y2="140" marker-end="url(#ar)"/>
+          <text class="ts" x="712" y="188">apiBase → Service</text>
+
+          <polyline class="eaccent" points="870,89 910,89 910,372 405,372 405,308" marker-end="url(#ar-a)"/>
+          <text class="ts accent" x="470" y="364">autoRegister — Ready InferenceService synthesises a LiteLLMModel</text>
+        </svg>
+        <figcaption><b>One arrow joins the two operators.</b> With <code>llmkube.autoRegister: true</code>, a Ready <code>InferenceService</code> causes litellm-operator to create a <code>LiteLLMModel</code> named after it, in the same namespace, owner-referenced to the service so Kubernetes garbage-collects it. Everything else is two independent reconcile loops that happen to share a namespace.</figcaption>
+      </figure>
+
+      <h3>What auto-registration will and will not assert</h3>
+      <p>The projection is deliberately conservative. It sets <code>params.model</code> to <code>openai/&lt;modelRef&gt;</code>, trims the endpoint to its <code>/v1</code> root, uses a placeholder API key, and pulls <code>maxInputTokens</code> from the parsed GGUF context length. Capability flags LiteLLM cannot infer — function calling, vision, prompt caching — are left unset rather than guessed, and pricing is never invented. That single design decision is why hand-written models still exist alongside it.</p>
+    </section>
+
+    <!-- ============================================ 2 -->
+    <section id="dirs">
+      <h2><span class="num">02</span>Why GPU manifests live in the litellm folder</h2>
+
+      <p>llmkube's CRDs are cluster-scoped and there is no <code>llmkube-models</code> Flux Kustomization. Each model's two CRs therefore live <b>in the folder of the app that consumes it</b>, so that app's existing Kustomization reconciles them. <code>llmkube/</code> holds only the operator, a PriorityClass and shared ResourceClaimTemplates.</p>
+
+<pre><code>kubernetes/apps/base/llm/
+├── <b>llmkube/</b>                    <i># operator + shared cluster infra only</i>
+│   ├── helmrelease.yaml         <i># chart 0.9.19, modelCache 200Gi CephFS RWX</i>
+│   ├── priorityclass.yaml       <i># gpu-preemptible</i>
+│   └── resourceclaim.yaml       <i># llama-strix-gpu · llama-intel-gpu</i>
+├── <b>litellm-operator/</b>           <i># chart 0.0.13, llmkube.autoRegister: true</i>
+├── <b>litellm/</b>
+│   ├── litellmproxy.yaml        <i># the workload itself — no HelmRelease</i>
+│   ├── llama-nvidia.yaml        <i>┐</i>
+│   ├── llama-strix.yaml         <i>│ inference.llmkube.dev CRs —</i>
+│   ├── llama-strix-nemotron.yaml<i>│ the GPU tenancy switchboard,</i>
+│   ├── llama-vision.yaml        <i>│ toggled by commenting lines</i>
+│   ├── llama-strix-fp8.yaml     <i>│ in kustomization.yaml</i>
+│   ├── llama-strix-dsv4f.yaml   <i>│</i>
+│   ├── llama-nvidia-muse.yaml   <i>┘</i>
+│   ├── <b>models/</b>                 <i># 34 LiteLLMModel — the published catalogue</i>
+│   ├── <b>virtualkeys/</b>            <i># 12 LiteLLMVirtualKey + PushSecret to 1Password</i>
+│   └── <b>dashboard/</b>              <i># 5 Grafana dashboards</i>
+├── memini/         memini-{embed,rerank,summary}.yaml   <i># same convention</i>
+└── toolhive/config/toolhive-embed.yaml                  <i># same convention</i></code></pre>
+
+      <p>The split between the two groups of files is not cosmetic. The flat <code>llama-*.yaml</code> files are a <b>hardware switchboard</b>: <code>llama-nvidia.yaml</code> and <code>llama-nvidia-muse.yaml</code> declare CRs with the same name, and four Strix files share one <code>ResourceClaimTemplate</code>. Which lines are commented in <code>kustomization.yaml</code> <i>is</i> the statement of what is loaded on which card. Burying that behind a second kustomization would hide the one decision an operator changes most often.</p>
+
+      <p><code>models/</code> is the opposite: roughly 30 of its 34 entries are external SaaS endpoints that deploy nothing at all, and <code>auto.yaml</code> has no backend whatsoever. They earn their own directory because they are catalogue, not placement.</p>
+    </section>
+
+    <!-- ============================================ 3 -->
+    <section id="hardware">
+      <h2><span class="num">03</span>Hardware and residency</h2>
+
+      <p>Exactly one node in the <code>main</code> cluster carries <code>topology.kubernetes.io/gpus: amd</code> — <b>skirk</b>. (<code>celestia</code> shares the label but belongs to the separate <code>utility</code> cluster.) So there is one Strix Halo box, and the two Strix models run <b>side by side on it</b>, not on separate machines.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Node</th><th>Accelerator</th><th>Sharing mechanism</th><th>Resident workloads</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="mono">skirk</td>
+              <td class="note">Strix Halo APU, unified memory</td>
+              <td class="note"><code>adminAccess: true</code> on the shared <code>llama-strix-gpu</code> claim — admin-access claims are not exclusive</td>
+              <td class="note"><code>llama-strix</code>, <code>llama-strix-nemotron</code>, <code>memini-rerank</code>, <code>toolhive-embed</code>, <code>comfyui</code></td>
+            </tr>
+            <tr>
+              <td class="mono">ganyu / eGPU</td>
+              <td class="note">RTX 3090</td>
+              <td class="note">Device plugin, <code>gpu: 1</code>, <code>gpu-preemptible</code> priority class — a game session evicts it, see <a href="https://claude.ai/code/artifact/68ddd1e2-92ee-49fd-bc97-abad5fff7b9c">The Contested GPU</a></td>
+              <td class="note">One always-on tenant: <code>llama-nvidia</code></td>
+            </tr>
+            <tr>
+              <td class="mono">intel node</td>
+              <td class="note">Intel iGPU</td>
+              <td class="note"><code>llama-intel-gpu</code> claim</td>
+              <td class="note"><code>llama-vision</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Co-residency on skirk is deliberate and tight. Both llama.cpp services cap at <code>memory: 28Gi</code>, and Jory's own Talos <code>OOMConfig</code> on that node spells out the failure mode:</p>
+
+      <div class="callout">
+        <p>“On this UMA node the amdgpu GTT pins system RAM the kernel OOM-killer can't reclaim, so review+self-hosted+comfyui together deadlock the node (Talos stays up, so the 5m hardware watchdog never fires)… all three GPU pods here have memory limits and would otherwise score 0.0 (no victim).”</p>
+      </div>
+
+      <p>That is also why the three alternate Strix models are commented out rather than added: there is headroom for these tenants, not for six.</p>
+    </section>
+
+    <!-- ============================================ 4 -->
+    <section id="serving">
+      <h2><span class="num">04</span>What is serving, and what only looks like it is</h2>
+
+      <h4>llmkube InferenceServices</h4>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Service</th><th>Weights</th><th>Target</th><th>State</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">llama-nvidia</td><td class="note">Qwen3.8-27B UD-Q4_K_XL + mmproj</td><td class="note">3090</td><td><span class="chip live">Serving</span></td></tr>
+            <tr><td class="mono">llama-strix</td><td class="note">Qwen3.6-35B-A3B uncensored, vision</td><td class="note">skirk</td><td><span class="chip live">Serving</span></td></tr>
+            <tr><td class="mono">llama-strix-nemotron</td><td class="note">Nemotron-3.5-Lightning-30B-A3B</td><td class="note">skirk</td><td><span class="chip live">Serving</span></td></tr>
+            <tr><td class="mono">llama-vision</td><td class="note">Huihui-Qwen3.5-9B abliterated</td><td class="note">Intel iGPU</td><td><span class="chip live">Serving</span></td></tr>
+            <tr><td class="mono">llama-nvidia <span class="chip idle">alt</span></td><td class="note">Muse-Glimmer-30B</td><td class="note">3090</td><td><span class="chip idle">Commented</span></td></tr>
+            <tr><td class="mono">llama-strix-fp8</td><td class="note">Qwen-3.8-27B ROCmFP4</td><td class="note">skirk</td><td><span class="chip idle">Commented</span></td></tr>
+            <tr><td class="mono">llama-strix-dsv4f</td><td class="note">DeepSeek-V4-Flash</td><td class="note">skirk</td><td><span class="chip idle">Commented</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>LiteLLMModels pointing at in-cluster backends</h4>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Alias</th><th>apiBase</th><th>Backing service</th><th>State</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">llama-nvidia · llama-strix · llama-strix-nemotron · llama-vision</td><td class="note">auto-registered</td><td class="note">owner-referenced to the InferenceService</td><td><span class="chip live">Live</span></td></tr>
+            <tr><td class="mono">rerank</td><td class="mono">memini-rerank.llm:8080</td><td class="note">memini</td><td><span class="chip live">Live</span></td></tr>
+            <tr><td class="mono">muse</td><td class="mono">llama-strix-muse.llm:8080</td><td class="note">no such service anywhere in the repo</td><td><span class="chip broken">Dangling</span></td></tr>
+            <tr><td class="mono">strix-fp8</td><td class="mono">llama-strix-fp8.llm:8080</td><td class="note">InferenceService commented out</td><td><span class="chip broken">Dangling</span></td></tr>
+            <tr><td class="mono">dsv4f-local</td><td class="mono">llama-strix-dsv4f.llm:8080</td><td class="note">InferenceService commented out</td><td><span class="chip broken">Dangling</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>The three dangling entries are exactly the ones that exist to <b>override</b> auto-registration — they add a different public name, per-token costs, <code>max_parallel_requests</code>, or <code>additional_drop_params</code>. Auto-registered models cannot drift this way: they are owner-referenced, so commenting out <code>llama-strix.yaml</code> takes its catalogue entry with it. Hand-written overrides have no such link.</p>
+
+      <h4>Model groups that are really failover chains</h4>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Group</th><th>Members in order</th><th>Naming</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">kimi-k3</td><td class="note">k3 @ kimi.com → kimi-k3 @ moonshot</td><td class="note">same model, two vendors — honest alias</td></tr>
+            <tr><td class="mono">kimi-k2.7</td><td class="note">kimi-for-coding @ kimi.com → kimi-k2.7-code @ moonshot</td><td class="note">same model, two vendors — honest alias</td></tr>
+            <tr><td class="mono">reasoning-pool</td><td class="note">gpt-5.6-luna (effort max) → deepseek-v4-flash → kimi-for-coding → MiniMax-M3</td><td class="note">role name for a mixed chain</td></tr>
+            <tr><td class="mono">frontier-pool</td><td class="note">gpt-5.6-sol → k3 → kimi-k3 → glm-5.3 → glm-5.2</td><td class="note">role name for a mixed chain</td></tr>
+            <tr><td class="mono">dsv4f</td><td class="note">deepseek-v4-flash → gpt-5.6-luna → mimo-v2.5 <span class="chip paid">all opencode zen</span></td><td class="note"><b>breaks the rule</b> — three different models under member #1's name</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>The convention is otherwise consistent, which is what makes <code>dsv4f</code> stand out. It is structurally a <code>*-pool</code>, and its members disagree on context: <b>1,000,000 / 272,000 / 262,144</b> input tokens for order 1 / 2 / 3. Both opencode and openclaw hardcode the group's limit from the order-1 member, so after failover a client still believes it holds a 1M window against a 262k model.</p>
+    </section>
+
+    <!-- ============================================ 5 -->
+    <section id="consumers">
+      <h2><span class="num">05</span>Which app calls which model</h2>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Consumer</th><th>Primary model</th><th>Also reachable</th><th>Tier</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">opencode</td><td class="mono">auto</td><td class="note">full picker: llama-strix, llama-nvidia, llama-strix-nemotron, llama-vision, kimi-k2.7, kimi-k3, dsv4f, dsv4p, MiniMax-M3-chat, mimo-v2.5(-pro), glm-5.3, reasoning-pool, frontier-pool, chatgpt/*</td><td><span class="chip paid">mostly paid</span></td></tr>
+            <tr><td class="mono">openclaw</td><td class="mono">litellm/dsv4f</td><td class="note">aliases <code>frontier-pool → frontier</code>, <code>reasoning-pool → reasoning</code>; separate anthropic-messages provider for MiniMax</td><td><span class="chip paid">paid</span></td></tr>
+            <tr><td class="mono">foreman · coder</td><td class="mono">llama-nvidia</td><td class="note">key scope: llama-nvidia, MiniMax-M3-chat, llama-strix-nemotron</td><td><span class="chip live">local</span></td></tr>
+            <tr><td class="mono">foreman · coder-revision, coder-frontier</td><td class="mono">MiniMax-M3-chat</td><td class="note">same key scope</td><td><span class="chip paid">paid</span></td></tr>
+            <tr><td class="mono">foreman · reviewer, reviewer-fork</td><td class="mono">llama-strix-nemotron</td><td class="note">same key scope</td><td><span class="chip live">local</span></td></tr>
+            <tr><td class="mono">repo-wiki</td><td class="mono">llama-strix</td><td class="note"><code>WIKI_MODEL</code>, key scoped to llama-strix</td><td><span class="chip live">local</span></td></tr>
+            <tr><td class="mono">hermes</td><td class="mono">dsv4f</td><td class="note">—</td><td><span class="chip paid">paid</span></td></tr>
+            <tr><td class="mono">alert-triage</td><td class="mono">dsv4f</td><td class="note">key also allows reasoning-pool</td><td><span class="chip paid">paid</span></td></tr>
+            <tr><td class="mono">pr-review</td><td class="note">key scope only</td><td class="note">llama-strix, dsv4f</td><td><span class="chip idle">mixed</span></td></tr>
+            <tr><td class="mono">dispatch</td><td class="note">key scope only</td><td class="note">llama-strix</td><td><span class="chip live">local</span></td></tr>
+            <tr><td class="mono">memini · toolhive</td><td class="note">own embedders</td><td class="note">memini-embed / rerank / summary, toolhive-embed</td><td><span class="chip live">local</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Two things fall out of this table. First, <code>llama-strix</code> — the Qwen3.6-35B box — is reached only by direct name: repo-wiki, dispatch, pr-review, the two GUI pickers, and as <code>llama-nvidia</code>'s partner in a mutual fallback pair. It is not a tier target of <code>auto</code>. Second, opencode — the heaviest agentic consumer — defaults to <code>auto</code>, which makes everything in the next section its hot path.</p>
+    </section>
+
+    <!-- ============================================ 6 -->
+    <section id="auto">
+      <h2><span class="num">06</span>The auto router: rubric, tiers, and the broken hop</h2>
+
+      <p><code>model: auto_router/complexity_router</code> selects litellm's rule-based complexity router, not the embedding-based semantic <code>auto_router</code>. It runs as a <b>pre-routing hook</b> inside deployment selection: classify the prompt into one of four canonical tiers, then swap in that tier's model.</p>
+
+      <p>By default classification is local and free — seven weighted dimensions summed into a score, cut at 0.15 / 0.35 / 0.60. Jory sets <code>classifier_type: llm</code>, which replaces the scorer with a real LLM call constrained to <code>{"tier": …}</code> by response format.</p>
+
+      <h3>What the classifier is actually told</h3>
+      <div class="callout">
+        <p><i>Judge the intellectual difficulty of answering correctly, not how short the request is.</i></p>
+        <p><b>SIMPLE</b> — greetings, chitchat, or factual lookups with a short known answer. Do not use this tier for unsolved problems, proofs, deep theory, multi-step analysis, or non-trivial code, even if the request is only one sentence.</p>
+        <p><b>MEDIUM</b> — everyday requests that need some explanation, light reasoning, or minor code/technical content.</p>
+        <p><b>COMPLEX</b> — non-trivial code, architecture, multi-step technical work, or specialized domain depth.</p>
+        <p><b>REASONING</b> — open-ended analysis, proofs, famous hard problems, step-by-step reasoning, tradeoffs, or anything where a correct answer requires careful thought.</p>
+      </div>
+
+      <p>It also receives a trust-boundary paragraph declaring the caller's quoted system prompt and prior turns to be material to judge and never instructions. Its input is the current ask, the caller's system prompt, and by default the last three user turns truncated to 200 characters each.</p>
+
+      <figure>
+        <svg viewBox="0 0 940 430" role="img" aria-label="A request to auto reaches the complexity router, which calls the classifier model named reviewer; that model group does not exist, so classification fails and classifier_fallback routes every request to MiniMax-M3 instead of the four configured tiers">
+          <defs>
+            <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path class="mk" d="M 0 0 L 10 5 L 0 10 z"/>
+            </marker>
+            <marker id="ar2-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path class="mk-w" d="M 0 0 L 10 5 L 0 10 z"/>
+            </marker>
+          </defs>
+
+          <rect class="box" x="16" y="176" width="176" height="66" rx="3"/>
+          <text class="t" x="30" y="202">POST /v1/chat</text>
+          <text class="ts" x="30" y="222">model: auto</text>
+
+          <rect class="box" x="234" y="176" width="176" height="66" rx="3"/>
+          <text class="t" x="248" y="200">complexity_router</text>
+          <text class="ts" x="248" y="220">pre-routing hook</text>
+
+          <rect class="boxbroken" x="452" y="176" width="186" height="66" rx="3"/>
+          <text class="t" x="466" y="200">classifier call</text>
+          <text class="ts" x="466" y="220">model: reviewer</text>
+
+          <text class="ts warn" x="452" y="266">reviewer is a foreman Agent,</text>
+          <text class="ts warn" x="452" y="282">not a LiteLLM model group</text>
+          <text class="ts warn" x="452" y="298">→ router raises on lookup</text>
+
+          <line x1="192" y1="209" x2="226" y2="209" marker-end="url(#ar2)"/>
+          <line x1="410" y1="209" x2="444" y2="209" marker-end="url(#ar2)"/>
+
+          <text class="th" x="700" y="30">INTENDED</text>
+          <polyline class="edash" points="545,176 545,54 692,54" marker-end="url(#ar2)"/>
+
+          <rect class="boxghost" x="700" y="38" width="224" height="32" rx="3"/>
+          <text class="ts" x="712" y="59">SIMPLE → llama-nvidia</text>
+          <rect class="boxghost" x="700" y="78" width="224" height="32" rx="3"/>
+          <text class="ts" x="712" y="99">MEDIUM → MiniMax-M3</text>
+          <rect class="boxghost" x="700" y="118" width="224" height="32" rx="3"/>
+          <text class="ts" x="712" y="139">COMPLEX → reasoning-pool</text>
+          <rect class="boxghost" x="700" y="158" width="224" height="32" rx="3"/>
+          <text class="ts" x="712" y="179">REASONING → reasoning-pool</text>
+
+          <text class="th warn" x="700" y="322">ACTUAL · EVERY REQUEST</text>
+          <polyline class="ewarn" points="545,242 545,352 692,352" marker-end="url(#ar2-w)"/>
+          <text class="ts warn" x="556" y="336">classifier_fallback: default_model</text>
+
+          <rect class="boxpaid" x="700" y="330" width="224" height="46" rx="3"/>
+          <text class="t" x="714" y="352">MiniMax-M3</text>
+          <text class="ts" x="714" y="369">single deployment · paid</text>
+
+          <text class="ts" x="700" y="404">session affinity never pins a</text>
+          <text class="ts" x="700" y="420">default_model_fallback turn</text>
+        </svg>
+        <figcaption><b>The tier map is dead config.</b> <code>classifier_llm_config.model: reviewer</code> names no entry in <code>model_list</code> — <code>reviewer</code> is a foreman <code>Agent</code>, whose own <code>providerConfig.model</code> is <code>llama-strix-nemotron</code>. The classifier call raises, a broad <code>except</code> catches it, and <code>classifier_fallback: default_model</code> sends every request to MiniMax-M3. Because <code>applyMode: file</code> and <code>store_model_in_db: false</code>, the model list is exactly what is in Git, so this is checkable rather than speculative.</figcaption>
+      </figure>
+
+      <h3>If the classifier worked</h3>
+      <p>SIMPLE would be the 3090's Qwen 3.8 and nothing else — and the rubric works hard to keep code off that tier. Since opencode's default model is <code>auto</code>, a working classifier would push essentially all of its coding traffic to MiniMax and the pools while leaving the local card handling greetings. Whether that is the intent is a question for Jory; it is not what the hardware layout suggests.</p>
+
+      <h3>Prompt-cache economics — the latent cost bomb</h3>
+      <p>The paid entries declare their cache spread explicitly: MiniMax-M3 reads cache at <code>6.0e-08</code> against <code>3.0e-07</code> input (5×), and <code>reasoning-pool-1</code> at <code>2.0e-08</code> against <code>2.0e-07</code> (10×). A tier switch invalidates the provider-side prefix and re-pays creation rates on the new provider. Classification judges the <b>current message</b>, so ordinary agent sessions oscillate: “yes, continue” reads SIMPLE, the next ask reads COMPLEX.</p>
+
+      <p>Litellm's mitigation is exactly the one configured — <code>session_affinity: true</code>, TTL 3600, carrying a deployment pin because “a session frozen onto one model group but load-balanced across its deployments would still go cache-cold”. But the pin needs a resolvable session id, read only from <code>metadata.session_id</code> / <code>litellm_metadata.session_id</code>. Jory plumbs that in exactly one place:</p>
+
+<pre><code><i># litellm/httproute.yaml — the EXTERNAL Envoy route only</i>
+requestHeaderModifier:
+  set:
+    - name: <b>x-litellm-session-id</b>
+      value: '%REQ(x-session-id)%'</code></pre>
+
+      <p>Every in-cluster consumer bypasses that route and posts straight to <code>http://litellm.llm:4000/v1</code> with no such header — opencode, openclaw, hermes, foreman. No session id means the flag is inert, documented upstream as exactly that.</p>
+
+      <div class="callout bad">
+        <h4>The coupling worth flagging</h4>
+        <p>The broken classifier is currently what keeps costs flat: every request lands on one MiniMax-M3 deployment, so the prefix cache stays warm. <b>Fixing the classifier without also plumbing session ids is what would trigger the blow-up</b> — per-turn tier flapping across paid providers on a growing context. The two changes are coupled, and the coupling is invisible from either file.</p>
+      </div>
+
+      <p>Two smaller notes. <code>litellmSettings.cache: true</code> with Redis and <code>ttl: 300</code> is a <b>response</b> cache keyed on the request — it looks like it addresses this and does not, since agentic traffic essentially never repeats verbatim. And one thing is defended: opencode declares <code>"auto": { "limit": { "context": 140000 } }</code>, the smallest tier member's window, so a client cannot push a 500k context into a router that might land on the local model.</p>
+    </section>
+
+    <!-- ============================================ 7 -->
+    <section id="fallback">
+      <h2><span class="num">07</span>The fallback graph, and where it dead-ends</h2>
+
+      <p>Three distinct things in this config look like “a model referring to a model”, and only one of them is:</p>
+
+      <ol class="body">
+        <li><b>Shared <code>modelName</code></b> — not a reference. Several entries answering to one name form a <i>model group</i>. The other field, <code>params.model</code>, is the provider-side name and is never resolved against litellm's own list.</li>
+        <li><b><code>order</code></b> — priority <i>inside</i> one group. Selection filters to the lowest order value present.</li>
+        <li><b><code>routerSettings.fallbacks</code></b> — group to group, on error. The only genuine name-to-name reference, alongside the auto router's tier map.</li>
+      </ol>
+
+      <h3>Order levels are compiled into the fallback list</h3>
+      <p>They are not separate mechanisms. When a group exhausts retries, litellm reads <code>original_model_group = kwargs["model"]</code>, collects the group's order values, and synthesises entries for the untried levels, <i>prepending</i> them to the declared fallbacks:</p>
+
+<pre><code>order_fallback_entries = [{"model": original_model_group, "_target_order": o}
+                          for o in order_values if o &gt; skip_up_to]
+combined_fallbacks = order_fallback_entries + external_fallback_group</code></pre>
+
+      <p>Each target is then dispatched through <code>run_async_fallback</code>, which sets <code>kwargs["model"]</code> and calls <code>async_function_with_fallbacks</code> <b>recursively</b> — so the next group's own retries, order levels and fallbacks all apply. Depth is bounded by <code>max_fallbacks</code> (default 5, not overridden), and an <code>attempted_targets</code> set threaded through the whole walk skips anything already tried, which is what stops the deliberately circular <code>llama-strix ⇄ llama-nvidia</code> pair from ping-ponging.</p>
+
+      <figure>
+        <svg viewBox="0 0 950 340" role="img" aria-label="A request to dsv4f retries twice on order 1, then walks order 2 and order 3, then falls back to llama-nvidia and llama-strix, with dedupe stopping the loop; a context window error instead takes a separate branch that raises to the client because dsv4f is not in the context_window_fallbacks map">
+          <defs>
+            <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path class="mk" d="M 0 0 L 10 5 L 0 10 z"/>
+            </marker>
+            <marker id="ar3-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path class="mk-w" d="M 0 0 L 10 5 L 0 10 z"/>
+            </marker>
+          </defs>
+
+          <text class="th" x="16" y="26">SAME GROUP · ORDER LEVELS</text>
+          <text class="th" x="586" y="26">DECLARED FALLBACKS</text>
+
+          <rect class="boxpaid" x="16" y="44" width="164" height="62" rx="3"/>
+          <text class="t" x="28" y="68">dsv4f @1</text>
+          <text class="ts" x="28" y="88">deepseek-v4-flash</text>
+
+          <rect class="boxpaid" x="212" y="44" width="164" height="62" rx="3"/>
+          <text class="t" x="224" y="68">dsv4f @2</text>
+          <text class="ts" x="224" y="88">gpt-5.6-luna · 272k</text>
+
+          <rect class="boxpaid" x="408" y="44" width="164" height="62" rx="3"/>
+          <text class="t" x="420" y="68">dsv4f @3</text>
+          <text class="ts" x="420" y="88">mimo-v2.5 · 262k</text>
+
+          <rect class="boxlive" x="604" y="44" width="150" height="62" rx="3"/>
+          <text class="t" x="616" y="68">llama-nvidia</text>
+          <text class="ts" x="616" y="88">3090 · local</text>
+
+          <rect class="boxlive" x="786" y="44" width="150" height="62" rx="3"/>
+          <text class="t" x="798" y="68">llama-strix</text>
+          <text class="ts" x="798" y="88">skirk · local</text>
+
+          <line x1="180" y1="75" x2="204" y2="75" marker-end="url(#ar3)"/>
+          <line x1="376" y1="75" x2="400" y2="75" marker-end="url(#ar3)"/>
+          <line x1="572" y1="75" x2="596" y2="75" marker-end="url(#ar3)"/>
+          <line x1="754" y1="75" x2="778" y2="75" marker-end="url(#ar3)"/>
+
+          <text class="ts" x="16" y="132">2 retries in-group,</text>
+          <text class="ts" x="16" y="148">cooldown_time 30s</text>
+          <line x1="98" y1="106" x2="98" y2="122" marker-end="url(#ar3)"/>
+
+          <polyline points="861,106 861,150 640,150" marker-end="url(#ar3)"/>
+          <text class="ts" x="652" y="168">llama-strix declares [llama-nvidia] — skipped,</text>
+          <text class="ts" x="652" y="184">attempted_targets already holds it</text>
+
+          <text class="th warn" x="16" y="232">CONTEXT WINDOW BRANCH</text>
+          <polyline class="ewarn" points="98,196 98,252 208,252" marker-end="url(#ar3-w)"/>
+          <text class="ts warn" x="16" y="212">ContextWindowExceededError</text>
+
+          <rect class="box" x="216" y="228" width="240" height="52" rx="3"/>
+          <text class="ts" x="228" y="250">context_window_fallbacks map</text>
+          <text class="ts" x="228" y="268">lists llama-nvidia, llama-strix only</text>
+
+          <line class="ewarn" x1="456" y1="254" x2="516" y2="254" marker-end="url(#ar3-w)"/>
+
+          <rect class="boxbroken" x="524" y="228" width="240" height="52" rx="3"/>
+          <text class="t warn" x="536" y="250">raise original_exception</text>
+          <text class="ts" x="536" y="268">no fallback runs at all</text>
+
+          <text class="ts" x="16" y="308">Order levels are prepended to the declared fallbacks; each hop re-enters the router recursively, bounded by max_fallbacks = 5.</text>
+        </svg>
+        <figcaption><b>Two graphs, not one.</b> The top row is the ordinary error path — order levels first, then declared fallbacks, each hop recursing into the next group's own chain. The bottom row is the trap: once a <code>context_window_fallbacks</code> map exists, a group <i>missing</i> from it raises straight to the client rather than falling through to the generic <code>fallbacks</code>. Only <code>llama-nvidia</code> and <code>llama-strix</code> are listed, so <code>dsv4f</code>, <code>auto</code> and every pool have no context-overrun escape.</figcaption>
+      </figure>
+
+      <h3>Why <code>auto</code> never reaches skirk</h3>
+      <p>The fallback machinery keys on <code>kwargs.get("model")</code>, and the complexity router's rewrite happens inside <code>async_get_available_deployment</code> via a <code>PreRoutingHookResponse</code> — it never writes back to <code>kwargs["model"]</code>. A request to <code>auto</code> therefore keeps the group name <code>auto</code> for fallback purposes and uses <code>auto: [dsv4f, MiniMax-M3-chat]</code>. The <code>llama-nvidia → llama-strix</code> entries fire only for clients that ask for <code>llama-nvidia</code> by name. The SIMPLE tier consequently has no local backstop: if the 3090 is preempted by a game session, an <code>auto</code> request classified SIMPLE goes to opencode zen, not to the Strix box sitting idle next to it.</p>
+    </section>
+
+    <!-- ============================================ 8 -->
+    <section id="findings">
+      <h2><span class="num">08</span>Findings, most consequential first</h2>
+
+      <div class="finding">
+        <div class="finding-head"><span class="chip broken">Broken</span><h3>The auto router's classifier names a model that does not exist</h3></div>
+        <p><code>classifier_llm_config.model: reviewer</code> resolves to nothing in <code>model_list</code>. <code>reviewer</code> is a foreman <code>Agent</code>; its own <code>providerConfig.model</code> is <code>llama-strix-nemotron</code>, which is almost certainly what was meant. Every classification attempt raises, is swallowed, and falls to <code>default_model</code>. The four-tier map has never routed anything, and because <code>_is_pinnable()</code> excludes a <code>default_model_fallback</code> cause, the failure repeats on every turn instead of pinning.</p>
+        <p class="where">kubernetes/apps/base/llm/litellm/models/auto.yaml:21</p>
+      </div>
+
+      <div class="finding">
+        <div class="finding-head"><span class="chip broken">Trap</span><h3>A partial <code>context_window_fallbacks</code> map removes fallback rather than adding it</h3></div>
+        <p>Once the map is non-empty, litellm looks the failing group up in it and calls <code>raise original_exception</code> when absent — it does not fall through to the generic <code>fallbacks</code>. With only <code>llama-nvidia</code> and <code>llama-strix</code> listed, a context overrun on <code>dsv4f</code>, <code>auto</code>, <code>reasoning-pool</code> or <code>frontier-pool</code> fails the request outright. This compounds finding four, where the advertised window is 4× the real one after failover.</p>
+        <p class="where">kubernetes/apps/base/llm/litellm/litellmproxy.yaml — routerSettings.context_window_fallbacks</p>
+      </div>
+
+      <div class="finding">
+        <div class="finding-head"><span class="chip broken">Dangling</span><h3>Three catalogue entries advertise backends that are not deployed</h3></div>
+        <p><code>muse</code>, <code>strix-fp8</code> and <code>dsv4f-local</code> point at <code>llama-strix-muse</code>, <code>llama-strix-fp8</code> and <code>llama-strix-dsv4f</code>. The latter two are commented out of <code>litellm/kustomization.yaml</code>; the first has no InferenceService anywhere in the repo. They are advertised to clients and will fail on call.</p>
+        <p class="where">litellm/models/{muse,strix-fp8,dsv4f-local}.yaml vs litellm/kustomization.yaml:14-17</p>
+      </div>
+
+      <div class="finding">
+        <div class="finding-head"><span class="chip paid">Leak</span><h3><code>dsv4f</code> is a role pool wearing one member's name</h3></div>
+        <p>Three different models from one provider, ordered for quota failover — structurally identical to <code>reasoning-pool</code>, but named after order 1. Because the members disagree on context (1M / 272k / 262k) and both GUI clients hardcode the group's limit from the order-1 member, failover silently misstates the window by ~4×. The economics dashboard also has to enumerate member names — <code>dsv4f|dsv4p|mimo-v2.5|go-gpt-5.6-luna|…</code> — to reconstruct which subscription paid, work a provider-shaped group name would make trivial. <code>zen-pool</code> fits the existing convention; <code>reviewer</code> would not, being already overloaded.</p>
+        <p class="where">litellm/models/dsv4f-{1,2,3}.yaml · opencode/configmap.yaml:48 · openclaw/app/configmap.yaml:171</p>
+      </div>
+
+      <div class="finding">
+        <div class="finding-head"><span class="chip idle">Latent</span><h3>Session affinity cannot engage for in-cluster callers</h3></div>
+        <p>The pin resolves only from <code>metadata.session_id</code>. The header mapping that supplies it exists solely on the external Envoy route, and every in-cluster consumer talks to the Service directly. Harmless while the classifier is broken and every request lands on one deployment; a per-turn cost multiplier the moment it is fixed.</p>
+        <p class="where">litellm/httproute.yaml:22 vs opencode/configmap.yaml:36 and openclaw/app/configmap.yaml:162</p>
+      </div>
+
+      <div class="finding">
+        <div class="finding-head"><span class="chip idle">Drift</span><h3>Documentation has fallen behind the manifests</h3></div>
+        <p><code>llmkube/README.md</code> describes <code>llama-nvidia</code> as Qwen3.6-27B (the manifest says Qwen3.8-27B), lists a <code>llama-reviewer.yaml</code> that does not exist, describes memini as Intel-iGPU-backed while <code>memini-rerank</code> claims <code>llama-strix-gpu</code>, and documents a <code>servicemonitor.yaml</code> under <code>llmkube/</code> that is not there. Worth noting because the missing <code>llama-reviewer</code> is plausibly the origin of finding one.</p>
+        <p class="where">kubernetes/apps/base/llm/llmkube/README.md</p>
+      </div>
+    </section>
+
+    <!-- ============================================ 9 -->
+    <section id="cogito">
+      <h2><span class="num">09</span>What this means for cogito, as things stand</h2>
+
+      <p class="lede">Cogito's LLM stack uses the same two operators and reaches deliberately opposite conclusions, for reasons its own README already documents. The useful transfer is not architecture — it is one class of bug.</p>
+
+      <h3>The structural difference that governs everything else</h3>
+
+      <figure>
+        <svg viewBox="0 0 940 300" role="img" aria-label="In home-ops, models are always-on processes sharing a GPU or holding one exclusively, so choosing a model is a network hop; in cogito a ModelPool keeps one of eleven members resident on a single node and choosing a different model triggers a swap of up to 1800 seconds">
+          <defs>
+            <marker id="ar4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path class="mk" d="M 0 0 L 10 5 L 0 10 z"/>
+            </marker>
+            <marker id="ar4-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path class="mk-w" d="M 0 0 L 10 5 L 0 10 z"/>
+            </marker>
+          </defs>
+
+          <text class="th" x="16" y="24">HOME-OPS · CHOOSING A MODEL IS A NETWORK HOP</text>
+
+          <rect class="box" x="16" y="40" width="270" height="150" rx="3"/>
+          <text class="ts" x="28" y="60">skirk · shared claim, adminAccess</text>
+          <rect class="boxlive" x="30" y="72" width="242" height="26" rx="2"/>
+          <text class="ts" x="40" y="90">llama-strix</text>
+          <rect class="boxlive" x="30" y="104" width="242" height="26" rx="2"/>
+          <text class="ts" x="40" y="122">llama-strix-nemotron</text>
+          <rect class="boxlive" x="30" y="136" width="242" height="26" rx="2"/>
+          <text class="ts" x="40" y="154">memini-rerank · toolhive-embed</text>
+          <text class="tl" x="30" y="180">all resident, all reachable at once</text>
+
+          <rect class="box" x="306" y="40" width="180" height="150" rx="3"/>
+          <text class="ts" x="318" y="60">eGPU · 3090</text>
+          <rect class="boxlive" x="320" y="72" width="152" height="26" rx="2"/>
+          <text class="ts" x="330" y="90">llama-nvidia</text>
+          <text class="tl" x="320" y="122">one always-on tenant;</text>
+          <text class="tl" x="320" y="138">no burst-swap by design</text>
+
+          <line x1="176" y1="212" x2="176" y2="236" marker-end="url(#ar4)"/>
+          <text class="ts accent" x="60" y="256">tier switch = one HTTP hop, ~0ms</text>
+
+          <text class="th" x="560" y="24">COGITO · CHOOSING A MODEL IS A LOAD</text>
+
+          <rect class="box" x="560" y="40" width="364" height="150" rx="3"/>
+          <text class="ts" x="572" y="60">iggy · 2×3090 · ModelPool cogito-llm-pool</text>
+          <rect class="boxlive" x="574" y="72" width="336" height="26" rx="2"/>
+          <text class="ts" x="584" y="90">gemma-4-31b-google-qat — resident, replicas: 1</text>
+          <rect class="boxghost" x="574" y="104" width="336" height="22" rx="2"/>
+          <text class="tl" x="584" y="119">deepseek-v4-flash-0731 · 110GiB · replicas: 0</text>
+          <rect class="boxghost" x="574" y="130" width="336" height="22" rx="2"/>
+          <text class="tl" x="584" y="145">laguna-s-2-1 · 66GiB · replicas: 0</text>
+          <rect class="boxghost" x="574" y="156" width="336" height="22" rx="2"/>
+          <text class="tl" x="584" y="171">+ 8 more members · replicas: 0</text>
+
+          <line class="ewarn" x1="742" y1="212" x2="742" y2="236" marker-end="url(#ar4-w)"/>
+          <text class="ts warn" x="576" y="256">tier switch = drain + cold load, swapBudget 1800s,</text>
+          <text class="ts warn" x="576" y="272">then 503 + Retry-After if it overruns</text>
+        </svg>
+        <figcaption><b>The same router config means opposite things on the two clusters.</b> In home-ops every tier target is an always-on endpoint or a remote API, so a per-request classifier costs a hop. In cogito ten of eleven pool members sit at <code>replicas: 0</code> and residency is owned by <code>ModelPool</code>, so a per-request model choice is a request to move up to 110GiB from NVMe into VRAM.</figcaption>
+      </figure>
+
+      <h4>Do not adopt</h4>
+      <ul>
+        <li><b>The complexity router.</b> On a swap pool it is pathological: a SIMPLE/COMPLEX oscillation across two pool members is a swap storm, and each swap fails held requests with 503 + Retry-After once <code>swapBudget: 1800s</code> is exceeded. If it were ever wanted, the only safe tier map is one whose members are all simultaneously reachable — that is, the resident local model plus the frontier tier, never two pool members.</li>
+        <li><b>Auto-registration.</b> Already off, and the models README gives two correct reasons: projection deletes on <code>Stopped</code>, which is the normal state of ten of eleven services, and it points <code>apiBase</code> at each InferenceService directly, bypassing <code>ModelRouter</code> and handing clients a backend the pool can scale away mid-request. Jory's cluster hit the third cost the README predicts — projected names become client-facing names.</li>
+      </ul>
+
+      <h4>Worth considering</h4>
+      <ul>
+        <li><b>A narrow fallback to the frontier tier.</b> <code>routerSettings</code> currently declares only <code>num_retries: 2</code> and <code>timeout: 1900</code>, so a swap-budget 503 surfaces to the client after two retries. A <code>fallbacks</code> entry mapping local aliases to <code>planner-gpt</code> would give a real escape hatch, since the frontier models are remote and always available. Two caveats, both from this teardown: an accidental fallback bills OpenAI, so scope it to the aliases where that is acceptable; and <b>do not add a <code>context_window_fallbacks</code> map unless every group is in it</b>, because a partial map removes the generic fallback rather than supplementing it.</li>
+        <li><b>Extend the role-alias precedent.</b> <code>gemma4-agentic</code> already points at <code>openai/gemma-4-31b-google-qat</code> under a stable role name — the pattern that would have spared Jory the <code>dsv4f</code> leak. Client-facing HF identifiers like <code>Vishva007/Qwen3.8-27B-W4A16-AutoRound</code> are honest but couple every consumer and virtual-key scope to one exact quant; a role alias beside them lets the quant change without touching clients.</li>
+      </ul>
+
+      <h4>The one refactor both repos need</h4>
+      <div class="callout good">
+        <p><b>A CI check that every model name reference resolves.</b> Finding one and the trap cogito's own <code>open-webui.yaml</code> already documents — “a scope naming a model that does not exist blocks the key SILENTLY rather than erroring” — are the same bug: an unvalidated string that must match a <code>modelName</code>. One script over the rendered kustomize output covers every instance of it.</p>
+      </div>
+
+      <p>Concretely, build the set of valid <code>modelName</code>s and assert that each of these resolves into it:</p>
+      <ul>
+        <li>every entry in a <code>LiteLLMVirtualKey.spec.models</code> list — the silent-scope trap, live in both repos;</li>
+        <li>every <code>fallbacks</code>, <code>context_window_fallbacks</code> and <code>content_policy_fallbacks</code> target;</li>
+        <li>every complexity-router <code>tiers</code> value, <code>complexity_router_default_model</code>, and <code>classifier_llm_config.model</code> — finding one, caught by three lines of script;</li>
+        <li>every model name hardcoded in a consumer ConfigMap or HelmRelease env (<code>WIKI_MODEL</code>, <code>MODEL</code>, foreman agent <code>providerConfig.model</code>, the opencode and openclaw pickers).</li>
+      </ul>
+
+      <p>Two structural assertions belong in the same script, and both are cheap:</p>
+      <ul>
+        <li><b>No dangling backends.</b> Any <code>LiteLLMModel</code> whose <code>apiBase</code> names an in-cluster Service must have a matching InferenceService in the same rendered output — finding three, and it fires on a commented-out line, which is exactly when a human misses it.</li>
+        <li><b>Advertised context must match the backend.</b> Cogito's README calls the <code>maxInputTokens</code> ↔ <code>maxModelLen</code>/<code>contextSize</code> mirror “a standing maintenance cost rather than a bug to fix” — that is a diff, and a diff is testable. The same assertion applied to a multi-member group would have caught the 1M-versus-262k mismatch behind finding four.</li>
+      </ul>
+    </section>
+
+    <!-- ============================================ 10 -->
+    <section id="future">
+      <h2><span class="num">10</span>The target state: one local model, nothing swaps</h2>
+
+      <p class="lede">Section nine analysed cogito as it is — one resident model chosen from an eleven-member swap pool. The target is narrower than that analysis assumed: <b>a single local model, Qwen 3.8 27B at FP8, spanning both 3090s, with the KV pool spent on concurrent seats rather than a maximal per-sequence ceiling.</b> That one endpoint serves several agents at once, so a second local model is no longer needed to get a second lane — Muse Glimmer becomes optional rather than pending. Everything else falls out of the catalogue.</p>
+
+      <div class="callout good">
+        <h4>Revised after the capacity plan</h4>
+        <p>This section and the next were first written with the endpoint tuned as it ships — two seats at a 262k ceiling. <a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac"><b>The Idle Bench</b></a> re-derives the numbers for a coordinator actually fanning out subagents, and four of its conclusions land back here: the per-seat ceiling drops to 131k to fund about six concurrent seats (§2 there); vision leaves the 3090s entirely (§4); Muse's landing spot is the preemptible utility node (§3); and the cloud seating puts Luna at the coordinator, GLM 5.3 at <code>worker-escalated</code>, and K3 at <code>reviewer-escalated</code> (§6). The text below is updated in place; this callout exists so the delta stays visible to anyone who read the earlier version.</p>
+      </div>
+
+      <div class="callout">
+        <h4>Why only one model on two cards</h4>
+        <p>The arithmetic decides it. Qwen 3.8 27B at FP8 is roughly 27GB of weights, which does not fit a 24GB card — hence <code>tensorParallelSize: 2</code> across both. Muse Glimmer is 17GB (the size is in its filename). Two 3090s are 48GB, so holding both leaves about 4GB for every KV cache on the node, which defeats the point of the exercise. One model with a large context beats two models with none.</p>
+      </div>
+
+      <figure>
+        <svg viewBox="0 0 920 250" role="img" aria-label="Both 3090s hold one tensor-parallel Qwen instance whose spare memory becomes KV cache, and a single vLLM endpoint serves the worker and reviewer roles concurrently through continuous batching rather than needing a second GPU">
+          <defs>
+            <marker id="ta2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M 0 0 L 10 5 L 0 10 z"/></marker>
+            <marker id="ta2-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-a" d="M 0 0 L 10 5 L 0 10 z"/></marker>
+          </defs>
+
+          <text class="th" x="16" y="24">IGGY · 2 × RTX 3090 · 48GB</text>
+          <rect class="box" x="16" y="38" width="420" height="128" rx="3"/>
+          <rect class="boxlive" x="30" y="52" width="392" height="40" rx="2"/>
+          <text class="ts" x="40" y="70">qwen-3-8-fp8 · tensorParallelSize: 2</text>
+          <text class="tl" x="40" y="86">~27GB of weights, split across both cards</text>
+          <rect class="boxpaid" x="30" y="98" width="392" height="52" rx="2"/>
+          <text class="ts" x="40" y="118">everything left over → KV cache</text>
+          <text class="tl" x="40" y="136">kvCacheDtype: fp8_e4m3 · gpuMemoryUtilization tuned up</text>
+
+          <text class="tl" x="16" y="192">no ModelPool · no ModelRouter · nothing to swap</text>
+
+          <polyline class="eaccent" points="436,102 486,102" marker-end="url(#ta2-a)"/>
+
+          <text class="th" x="500" y="24">ONE ENDPOINT, TWO ROLES</text>
+          <rect class="boxlive" x="500" y="38" width="404" height="40" rx="2"/>
+          <text class="ts" x="512" y="56">worker · reasoning_effort: low</text>
+          <text class="tl" x="512" y="72">yaml edits, bash, file work — many short turns</text>
+          <rect class="boxlive" x="500" y="86" width="404" height="40" rx="2"/>
+          <text class="ts" x="512" y="104">reviewer · reasoning_effort: medium</text>
+          <text class="tl" x="512" y="120">judgement-shaped, structured output</text>
+          <text class="ts accent" x="500" y="152">concurrency comes from --max-num-seqs,</text>
+          <text class="ts accent" x="500" y="170">not from a second GPU</text>
+          <text class="tl" x="500" y="196">two LiteLLMModel aliases over one apiBase</text>
+        </svg>
+        <figcaption><b>A correction to an earlier recommendation.</b> A previous version of this plan argued for one model per card so a worker and a reviewer would not queue behind each other. That reasoning does not hold for vLLM: continuous batching already serves concurrent requests on a single instance. Two role aliases over one endpoint, differing only in <code>reasoning_effort</code>, give the same concurrency and leave both cards free to hold one large-context model.</figcaption>
+      </figure>
+
+      <h3>Parallel agents on one endpoint — shipped at two seats, retuned to six</h3>
+
+      <p class="lede">The mechanism does not need building — the manifest already sets <code>--max-num-seqs: 2</code>, and three neighbouring settings make that number mean something. What changes is the sizing: the shipped values serve two long interactive chats, and the capacity plan re-spends the same pool on six worker seats.</p>
+
+      <p>The mechanism is vLLM's <b>continuous batching</b>: scheduling happens per iteration rather than per request, so every forward step batches whatever sequences are runnable at that moment instead of running one request to completion before starting the next. Four settings in <code>qwen-3-8-fp8</code> govern it, and they are all already on:</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Setting</th><th>Today</th><th>Target</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">--max-num-seqs</td><td class="mono">2</td><td class="mono">6 <span class="chip idle">sweep to 8</span></td><td class="note">Cap on sequences batched concurrently. This is literally the parallel-agent count</td></tr>
+            <tr><td class="mono">--max-model-len</td><td class="mono">262144</td><td class="mono">131072</td><td class="note">The per-seat ceiling. KV cost is linear in tokens held, so halving it roughly doubles the full-length seats the pool holds — and the coordinator keeps long context in the cloud, so no local consumer should miss it. <code>maxInputTokens</code> mirrors it in the same commit</td></tr>
+            <tr><td class="mono">enableChunkedPrefill</td><td class="mono">true</td><td class="mono">keep</td><td class="note">Splits a long prefill into chunks interleaved with other sequences' decode. Without it, one agent submitting a 100k-token prompt stalls the others for the entire prefill — which is what makes concurrency feel real rather than nominal</td></tr>
+            <tr><td class="mono">enablePrefixCaching</td><td class="mono">true</td><td class="mono">keep</td><td class="note">Concurrent agents sharing a system prompt and tool definitions share KV blocks, so the Nth one's prefill is largely a cache hit — it earns more as the seat count rises, not less</td></tr>
+            <tr><td class="mono">maxNumBatchedTokens</td><td class="mono">8192</td><td class="mono">keep</td><td class="note">Per-step token budget across the whole batch</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>It costs less than it sounds because decode is <b>memory-bandwidth bound, not compute bound</b>. Reading the weights for one forward step costs the same whether one sequence or eight are riding along, so a second concurrent sequence adds very little per-token latency while nearly doubling aggregate throughput. That is the whole reason batching works, and why one endpoint serving two agents is not the same as two agents splitting one agent's worth of capacity.</p>
+
+      <h4>What it actually trades against</h4>
+      <p>KV cache, not compute. Every concurrent sequence carries its own, and <code>maxModelLen: 262144</code> is the per-sequence ceiling — two agents both at full context need twice the pool. The current <code>--max-num-seqs: 2</code> is very likely sized to exactly that: the KV pool left after ~27GB of FP8 weights holds about two sequences at the advertised length.</p>
+      <p>vLLM degrades gracefully rather than failing — when blocks run out it preempts and requeues rather than erroring — but a preempted sequence is <i>recomputed</i>, which is a latency cliff rather than a gentle slope. So raising the cap above 2 is free only while the concurrent sequences are short. The real budget is <code>max_num_seqs × realistic context</code> against the KV pool, and “realistic” for a subagent is far below 262k. Subagent prompts are short and self-contained — that is the whole point of the coordinator shape in section eleven — so the capacity plan commits to the trade rather than leaving it hypothetical: ceiling 131072, cap 6 swept toward 8, <code>maxInputTokens</code> mirrored to 131072 in the same commit, and an <code>rpm</code> / parallel-request limit on the <code>worker</code> key a notch above the seat count, so a coordinator that fans out twelve subagents queues at the proxy with clean per-key errors instead of stacking silent timeouts inside vLLM's scheduler. The arithmetic, and the seat-sweep benchmark that replaces it with data, are <a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac">The Idle Bench</a> §2 and §7.</p>
+
+      <h4>One interaction to watch</h4>
+      <p>This build runs <code>--speculative-config {"method":"mtp","num_speculative_tokens":3}</code>. Speculative decoding pays off most at <i>low</i> batch sizes, where the accelerator has idle capacity to verify draft tokens almost for free; as concurrency rises and the GPU saturates, the benefit shrinks. Two concurrent agents sat comfortably in the range where both mechanisms help; six seats does not obviously, so the retune carries its benchmark with it — MTP on and off at <code>max-num-seqs 6</code>, keeping speculation only if it still earns its verify-compute at real concurrency rather than assuming the two optimisations compose.</p>
+
+      <div class="callout">
+        <h4>What this does and does not settle about Muse</h4>
+        <p>It settles the <b>capacity</b> question completely. If the reason to want a second local model was to run a reviewer alongside a worker without them queueing, that reason is gone — one Qwen endpoint does it today, and the two roles are just two aliases with different <code>reasoning_effort</code>.</p>
+        <p>It does not touch the <b>capability</b> question. Muse Glimmer is an uncensored creative model; concurrency does not make Qwen into one. If Muse was wanted for what it writes rather than for the lane it occupies, that reason survives untouched and still needs its own card — and it now has one on paper: a re-quant small enough to leave KV headroom on the preemptible 5070 Ti, in the utility roster of <a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac">The Idle Bench</a> §3. Worth being deliberate about which of the two motivated it, because only one of them has just been answered.</p>
+      </div>
+
+      <h3>The alternative: one model per card</h3>
+
+      <p>The other way to spend 48GB is to give each card a whole model and keep both resident permanently. It is worth writing down because the trade is not one-sided, and one of its costs is not the one people expect.</p>
+
+      <p>The quant is chosen for you. Of the three Qwen 3.8 builds already published, only one fits a 24GB card:</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Build</th><th>Weights</th><th>Fits one 3090?</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">Qwen/Qwen3.8-27B-FP8</td><td class="note">~27GB (8-bit weights)</td><td><span class="chip broken">No — needs TP=2</span></td></tr>
+            <tr><td class="mono">lued/Qwen3.8-27B-INT8-W8A16-MTP</td><td class="note">~27GB (8-bit weights; the MTP speculative decoding is the draw)</td><td><span class="chip broken">No — same size</span></td></tr>
+            <tr><td class="mono">Vishva007/Qwen3.8-27B-W4A16-AutoRound</td><td class="note">~13.5GB (4-bit weights, 16-bit activations)</td><td><span class="chip live">Yes, ~8GB left for KV</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>So the alternative is concretely: <code>qwen-3-8-w4a16-autoround</code> at <code>gpu: 1</code> and <code>tensorParallelSize: 1</code> on one card, <code>muse-glimmer-30b</code> at <code>gpu: 1</code> on the other. Both always up, nothing swaps, and Muse is available today rather than waiting on a node that does not exist yet.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th></th><th>Target · Qwen FP8 across both cards</th><th>Alternative · one model per card</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">Qwen quality</td><td class="note">FP8 — 8-bit weights</td><td class="note">4-bit AutoRound. Good for 4-bit; still 4-bit on a 27B</td></tr>
+            <tr><td class="mono">KV headroom</td><td class="note">~48GB pooled minus ~27GB weights, all of it KV</td><td class="note">~8GB on the Qwen card. Roughly a 2–3× cut in maximum context</td></tr>
+            <tr><td class="mono">Throughput</td><td class="note">TP=2 <b>over PCIe</b> — an all-reduce every layer</td><td class="note">Single-card, no interconnect in the loop</td></tr>
+            <tr><td class="mono">Muse</td><td class="note">Not available until the 5070 Ti lands</td><td class="note">Available now — but 17GB of weights on a 24GB card leaves little KV, so its context still has to come down hard</td></tr>
+            <tr><td class="mono">Blast radius</td><td class="note">One process; a crash takes the only local model with it</td><td class="note">Card-level isolation between the two</td></tr>
+            <tr><td class="mono">Device plugin</td><td class="note"><code>replicas: 1</code> advisable</td><td class="note"><code>replicas: 1</code> <b>mandatory</b> — see below</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The throughput row is the one that might surprise</h4>
+      <p>Cogito's own manifest records that the two 3090s have <b>no NVLink</b>, so tensor-parallel workers exchange activations across PCIe, with an all-reduce at every layer. That is a real and well-known throughput tax on consumer cards. It is entirely possible that 4-bit on a single card is <i>faster</i> in tokens per second than FP8 split across two, even though it is the lower-quality build — which turns the choice into quality-and-context versus latency rather than a straight downgrade. Neither direction should be assumed: this is a benchmark, not an argument, and it is cheap to run because both builds are already staged.</p>
+
+      <h4>And the device-plugin fix stops being optional</h4>
+      <p>Under the target there is one pod on the node, so however the plugin hands out its eight time-sliced replicas, that pod is alone on the hardware. Under the alternative there are two pods each requesting one unit, and time-sliced replicas of the same physical GPU are interchangeable to the scheduler — so both models can be handed slices of the <b>same</b> card while the other sits idle. That is not a subtle degradation; it is two 30B-class models contending for 24GB. Setting <code>replicas: 1</code> so the advertised count is the physical count is a prerequisite for this layout, not a tidy-up.</p>
+
+      <h4>1 · Make the GPU unit count truthful</h4>
+      <p>Cogito's <code>nvidia-device-plugin</code> time-slices with <code>replicas: 4</code>, so iggy advertises eight units for two cards. The single remaining local model is tensor-parallel and therefore needs two <b>distinct</b> devices — the two 3090s have no NVLink and workers exchange tensors over shared memory — while a request for two time-sliced units is not guaranteed to span two cards. It evidently works today, so the plugin is handing out distinct devices in practice; that is worth confirming with <code>nvidia-smi -L</code> and <code>CUDA_VISIBLE_DEVICES</code> inside the running pod, and then pinning by setting <code>replicas: 1</code> so the advertised count is the physical count. With one model on the node this is the only correctness property left that depends on the plugin's allocation order — and under the alternative above it is a prerequisite rather than a precaution.</p>
+
+      <h4>2 · Delete the swap machinery outright</h4>
+      <p>With nothing to swap, an entire layer goes away rather than being retuned:</p>
+      <ul>
+        <li><code>ModelPool</code> — <code>default</code>, <code>swapPolicy: sticky</code>, <code>swapBudget: 1800s</code> and its eleven members. All of it.</li>
+        <li><code>ModelRouter</code> — with a single backend there is nothing to dispatch between. <code>BackendNameMatch</code> was earning its keep across eleven backends and one resident member; against one always-on <code>InferenceService</code> the catalogue can point <code>apiBase</code> straight at its Service and remove a hop and a component. The cost is losing the <code>modelName</code>-to-slug indirection, which the role aliases in section eleven replace anyway.</li>
+        <li><code>routerSettings.timeout: 1900</code> — chosen to exceed the swap budget. With a resident model it means a hung backend hangs the client for 32 minutes. Bring it down to a real inference ceiling.</li>
+        <li><code>num_retries: 2</code> — its comment explains it approximates the swap wait for a 503 plus <code>Retry-After</code> that <code>ModelRouter</code> will no longer emit. The count is still reasonable; the reasoning behind it is not, so rewrite the comment or someone will preserve the number for the wrong reason.</li>
+        <li><code>rbac-prefetch.yaml</code> — supplementary RBAC for <code>Model.spec.prefetch</code>. Harmless, and it guards a genuinely quiet failure, but with <code>pvc://</code> sources and no swapping there is nothing left to prefetch.</li>
+      </ul>
+
+      <h4>3 · The cache is already simpler than its documentation</h4>
+      <p>The two-tier hot and cold cache reads as significant overhead, and it is worth knowing that in the manifests it is not. <b>Every <code>Model.spec.source</code> is <code>pvc://llmkube-model-cache/…</code></b> — the hot NVMe PVC. Nothing references <code>llm-model-archive</code>; that NFS PV is declared and reconciled but no source traverses it. The “cold to hot copy on first serve” the README describes is not what happens: the weights were staged onto the hot PVC out of band and the operator mounts them read-only.</p>
+      <p>So simplification here is mostly deleting a mental model:</p>
+      <ul>
+        <li><b>Stop calling it a cache.</b> With no eviction, no swapping and two models ever, it is storage. That removes the working-set sizing, the “must hold every model simultaneously or swaps fail on a full disk” caveat, and any need for <code>llmkube cache clear</code>.</li>
+        <li><b>The 450Gi sizing is now wrong by an order of magnitude</b> — it was computed for ten models totalling ~336GiB, against a target of roughly 45GB. Worth knowing that PVCs generally expand but do not shrink, so reclaiming it means a new PVC and re-staging the weights. On a 932GiB NVMe that may not be worth the churn; the number being wrong in the comment is worse than the space being allocated.</li>
+        <li><b>Keep the NFS archive, demote it in the docs.</b> It is a pre-existing NAS share costing nothing incremental, and it is the only off-node copy of weights that would otherwise need re-downloading. It is a backup, not a tier.</li>
+      </ul>
+
+      <h4>4 · Shrink the catalogue, and move the key scopes in the same commit</h4>
+      <p>Nine local aliases lose their backends. Their <code>LiteLLMModel</code>s, <code>Model</code>s and <code>InferenceService</code>s all go, and the <code>open-webui</code> virtual key currently scopes eight of them by name. Its own comment records why that has to move together: “a scope naming a model that does not exist blocks the key SILENTLY rather than erroring”. This is the exact failure the validator below exists to catch, and it is about to be triggered deliberately.</p>
+      <p>One capability leaves with them: the retiring Gemmas were the catalogue's only vision models, and nothing on the target endpoint replaces them. Deliberately so — rare vision should not hold 3090 VRAM hostage, and the answer is tiered <i>off</i> the worker GPUs entirely: a small VLM running wholly on kristeva's CPU (llama.cpp keeps the projector there via <code>--no-mmproj-offload</code>, and image encode on 40 threads is seconds — fine for occasional screenshots), the compact VLM on the 5070 Ti when no game holds it, and the cloud tier for genuinely hard vision. The sizing and the tiering are <a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac">The Idle Bench</a> §4.</p>
+
+      <h4>5 · Keep auto-registration off, for a different reason than before</h4>
+      <p>The models README gives two reasons it must stay off, and this plan removes both: nothing sits in <code>Stopped</code> any more, and pointing <code>apiBase</code> at an <code>InferenceService</code> no longer risks a backend the pool can scale away mid-request. The third reason survives and is now decisive on its own — projected models are named after the InferenceService, so client-facing names become deployment names, which is precisely what section eleven's role aliases exist to prevent. Rewrite the README's stated reasons, or the next reader will correctly conclude the ban lapsed with the pool.</p>
+
+      <h4>6 · Routing is superseded — see section eleven</h4>
+      <p>An earlier version of this plan asked whether always-on models finally made the complexity router viable here. That question is closed: a per-request classifier is the wrong shape for a deliberately hybrid cloud-and-local cluster, for reasons section eleven sets out. What replaces it is a coordinator that delegates, and it removes rather than adds routing configuration.</p>
+
+      <h4>7 · What the validator must now assert</h4>
+      <ul>
+        <li>Every alias named in a virtual-key scope, a consumer ConfigMap, or a fallback chain resolves to a published <code>modelName</code> — the check that would catch step four going wrong.</li>
+        <li>No <code>LiteLLMModel</code> points at an in-cluster Service with no matching <code>InferenceService</code> in the same rendered output.</li>
+        <li><code>maxInputTokens</code> matches the backend's <code>maxModelLen</code> — concretely, 131072 on both sides once the seat retune lands. With one model this is a two-line check, and it is the assertion that keeps the advertised context honest through exactly that kind of retune.</li>
+      </ul>
+      <p>Section eleven adds the role-alias assertions.</p>
+
+    </section>
+
+    <!-- ============================================ 10 -->
+    <section id="coordinator">
+      <h2><span class="num">11</span>The coordinator pattern, and why it beats autorouting here</h2>
+
+      <p class="lede">The routing plan assumed something this cluster is not: a single cost domain. A per-request classifier is a reasonable optimiser when every candidate sits on the same premises and a wrong guess costs only prefill time. Across a cloud-to-local boundary each switch costs money at cache-creation rates, and the guess is made before the work exists. Delegation replaces prediction.</p>
+
+      <h3>Four reasons the boundary changes the answer</h3>
+      <ol class="body">
+        <li><b>The expensive axis is the cache boundary, not the token price.</b> Section six put numbers on it — 5× for MiniMax, 10× for Luna between a cache read and a fresh input token. A classifier flapping between tiers re-pays creation rates at every crossing, and the mitigation LiteLLM ships for it needs session ids the clients do not send. A coordinator <i>is</i> the session: it holds one long-lived prefix at one provider, so cache locality is structural rather than something a flag has to defend.</li>
+        <li><b>Classification happens before the work exists.</b> Part two's coding loop reaches the same cost goal with no classifier at all — grooming answers only ready or not-ready, and escalation follows attempts that actually failed. A coordinator goes one better: it escalates having <i>read</i> the subagent's output.</li>
+        <li><b>A per-request classifier cannot see task structure.</b> “Update these three HelmReleases and explain what changed” is one request that wants a mechanical model for the edits and a reasoning model for the explanation. A router must pick one. A coordinator splits it.</li>
+        <li><b>The router's failure mode is silent.</b> Finding one is exactly that shape: a name that does not resolve degrades to a default model behind a log warning. Delegation failures surface as tool errors inside a conversation somebody is reading.</li>
+      </ol>
+
+      <figure>
+        <svg viewBox="0 0 940 360" role="img" aria-label="Autorouting sends every request through a classifier that picks a tier, so consecutive turns cross the cloud and local boundary and lose the prompt cache each time; the coordinator pattern keeps one long-lived cloud conversation that delegates short self-contained subtasks to a local worker and escalates only on failure">
+          <defs>
+            <marker id="ka" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M 0 0 L 10 5 L 0 10 z"/></marker>
+            <marker id="ka-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-w" d="M 0 0 L 10 5 L 0 10 z"/></marker>
+            <marker id="ka-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-a" d="M 0 0 L 10 5 L 0 10 z"/></marker>
+          </defs>
+
+          <text class="th warn" x="16" y="24">AUTOROUTING ACROSS THE BOUNDARY</text>
+          <rect class="boxghost" x="16" y="38" width="420" height="118" rx="3"/>
+          <text class="ts" x="28" y="58">turn 1 “fix this yaml”</text>
+          <rect class="boxlive" x="228" y="44" width="98" height="22" rx="2"/><text class="ts" x="238" y="60">local</text>
+          <text class="ts" x="28" y="86">turn 2 “now explain it”</text>
+          <rect class="boxpaid" x="336" y="72" width="90" height="22" rx="2"/><text class="ts" x="346" y="88">cloud</text>
+          <text class="ts" x="28" y="114">turn 3 “ok, apply it”</text>
+          <rect class="boxlive" x="228" y="100" width="98" height="22" rx="2"/><text class="ts" x="238" y="116">local</text>
+          <line class="ewarn" x1="326" y1="58" x2="330" y2="76" marker-end="url(#ka-w)"/>
+          <line class="ewarn" x1="336" y1="90" x2="330" y2="104" marker-end="url(#ka-w)"/>
+          <text class="ts warn" x="28" y="142">every crossing = cold prefix, re-paid at creation rates</text>
+
+          <text class="th" x="500" y="24">COORDINATOR</text>
+          <rect class="boxpaid" x="500" y="38" width="424" height="52" rx="3"/>
+          <text class="t" x="512" y="60">coordinator · cloud (Luna) · high reasoning</text>
+          <text class="ts" x="512" y="78">one conversation, one growing prefix, one provider</text>
+
+          <polyline class="eaccent" points="560,90 560,132 604,132" marker-end="url(#ka-a)"/>
+          <polyline class="eaccent" points="620,90 620,182 604,182" marker-end="url(#ka-a)"/>
+          <text class="ts accent" x="500" y="118">delegates</text>
+
+          <rect class="boxlive" x="612" y="112" width="312" height="42" rx="3"/>
+          <text class="ts" x="624" y="132">worker · Qwen 3.8 · local · free</text>
+          <text class="tl" x="624" y="148">short self-contained prompt, no shared history</text>
+
+          <rect class="boxlive" x="612" y="164" width="312" height="42" rx="3"/>
+          <text class="ts" x="624" y="184">reviewer · local · reasoning_effort medium</text>
+          <text class="tl" x="624" y="200">checks the worker before results return</text>
+
+          <rect class="boxpaid" x="612" y="218" width="312" height="42" rx="3"/>
+          <text class="ts" x="624" y="238">escalation · GLM 5.3 / K3</text>
+          <text class="tl" x="624" y="254">entered only after a worker attempt fails</text>
+          <polyline class="ewarn" points="768,154 768,212" marker-end="url(#ka-w)"/>
+          <text class="ts warn" x="782" y="190">on failure</text>
+
+          <text class="ts accent" x="500" y="288">results return to the coordinator; its own prefix stays warm throughout</text>
+
+          <text class="th" x="16" y="212">WHAT MOVES</text>
+          <text class="ts" x="16" y="234">prediction  →  delegation</text>
+          <text class="ts" x="16" y="254">per-request guess  →  post-hoc judgement</text>
+          <text class="ts" x="16" y="274">one alias, no attribution  →  one key per role</text>
+          <text class="ts" x="16" y="294">affinity flag defends the cache  →  structure does</text>
+          <text class="ts" x="16" y="314">silent classifier failure  →  visible tool error</text>
+        </svg>
+        <figcaption><b>The cache argument inverts the design.</b> Under autorouting, consecutive turns of one conversation can land on different providers, and the prompt cache is defended by a session-affinity flag that needs plumbing the clients do not have. Under a coordinator, the long context never moves: subagents receive short, self-contained prompts whose cold prefixes are cheap by construction.</figcaption>
+      </figure>
+
+
+      <h3>Home-ops has already converged on this</h3>
+      <p>This is not a hypothetical alternative to the router — it is the shape the same cluster settled into where the work actually happens. The <code>openclaw</code> config declares three named agents with per-role models, per-role thinking defaults, and per-role fallback chains, plus a spawned-subagent tier:</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Agent</th><th>Primary model</th><th>Thinking</th><th>Tools</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="mono">Saffron</td>
+              <td class="mono">reasoning-pool <span class="chip paid">cloud</span></td>
+              <td class="note">high</td>
+              <td class="note">full — exec, write, browser, <code>sessions_spawn</code>, toolhive</td>
+              <td class="note"><b>The coordinator.</b> The only agent that can spawn subagents</td>
+            </tr>
+            <tr>
+              <td class="mono">Miso</td>
+              <td class="mono">glm-5.3 <span class="chip paid">cloud</span></td>
+              <td class="note">adaptive</td>
+              <td class="note">default plus memory</td>
+              <td class="note">The default conversational agent</td>
+            </tr>
+            <tr>
+              <td class="mono">Matcha</td>
+              <td class="mono">dsv4f <span class="chip paid">cloud</span></td>
+              <td class="note">low</td>
+              <td class="note">restricted — no write, no spawn</td>
+              <td class="note">Cheap, fast, read-mostly worker</td>
+            </tr>
+            <tr>
+              <td class="mono">subagents</td>
+              <td class="mono">dsv4f <span class="chip paid">cloud</span></td>
+              <td class="note">high</td>
+              <td class="note">inherited</td>
+              <td class="note"><code>maxConcurrent: 3</code>, archived after 120 minutes</td>
+            </tr>
+            <tr>
+              <td class="mono">heartbeat</td>
+              <td class="mono">llama-nvidia <span class="chip live">local</span></td>
+              <td class="note">reasoning off</td>
+              <td class="note">direct policy allow</td>
+              <td class="note">Hourly, <code>lightContext</code>, <code>isolatedSession</code> — never touches the main prefix</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Three details are worth lifting directly. Thinking level is set <b>per agent</b>, not per model — <code>low</code> for the restricted worker, <code>high</code> for the coordinator and its subagents — which is the same knob argued for below, already in production. The recurring background task is pinned to the <b>local</b> model in an isolated session with <code>includeReasoning: false</code>, so routine work never enters the expensive conversation's context. And the coordinator's growing prefix is managed explicitly rather than left to grow: compaction with a 30k reserve floor and a memory flush at 80k tokens that writes decisions out to a dated file.</p>
+
+      <p>Two differences from the plan sketched here, both driven by hardware rather than preference:</p>
+      <ul>
+        <li><b>Home-ops' workers are cloud, its local models are the floor.</b> Every agent's fallback chain ends the same way — cloud primary, then cheaper cloud, then <code>llama-nvidia</code>, then <code>llama-strix</code>. Local capacity is the free backstop underneath, not the default worker. That follows from the hardware: one 3090 running a single 27B tenant that games can preempt, and a Strix box shared with a reranker, an embedder and image generation. Cogito's two 3090s can be dedicated to worker traffic, which is what makes local-first workers plausible there and not here.</li>
+        <li><b>The fallback chains live in the client, not the proxy.</b> Each agent declares its own ordered list in openclaw's config rather than relying on <code>routerSettings.fallbacks</code>. That gets per-role fallback without per-role proxy configuration — but it also means two fallback mechanisms can fire on one request, and only the proxy's half is visible in the LiteLLM dashboards. Worth choosing one layer deliberately rather than inheriting both.</li>
+      </ul>
+
+      <div class="callout">
+        <p>Read against section six, this reframes the <code>auto</code> router: the heaviest agentic consumers here — openclaw explicitly, and opencode by default — either bypass tier routing entirely or point at a single alias. A classifier that has never routed a request has evidently not been missed.</p>
+      </div>
+
+      <h3>The three roles, against cogito's current catalogue</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Role</th><th>Model</th><th>Status in cogito today</th><th>Traffic shape</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="mono">coordinator</td>
+              <td class="note">High-reasoning cloud model — plans, decomposes, reads results, decides</td>
+              <td class="note"><code>planner-gpt</code> (gpt-5.5) exists as the metered seat; the capacity plan seats <b>GPT Luna via the ChatGPT subscription's OAuth path</b> here — flat-rate and cache-friendly, ToS-gray, with the metered aliases as the standing hedge <span class="chip live">have it</span></td>
+              <td class="note">Few turns, one huge growing prefix, long thinking</td>
+            </tr>
+            <tr>
+              <td class="mono">worker</td>
+              <td class="note">Qwen 3.8-27B FP8, tensor-parallel across both 3090s — yaml edits, limited coding, bash, file work</td>
+              <td class="note">Published today at 262k in / 16k out, function calling, <code>thinking_levels: [low, medium, xhigh]</code>; the capacity plan trades the ceiling for seats — 131k in, about six concurrent. The other local aliases are being retired <span class="chip live">have it</span></td>
+              <td class="note">Many turns, short self-contained prompts, no shared history</td>
+            </tr>
+            <tr>
+              <td class="mono">reviewer</td>
+              <td class="note">Same local backend, different defaults</td>
+              <td class="note">A second alias over the <i>same</i> endpoint as <code>worker</code>, differing only in <code>reasoning_effort</code> <span class="chip idle">one file</span></td>
+              <td class="note">Short, structured, judgement-shaped</td>
+            </tr>
+            <tr>
+              <td class="mono">worker-escalated</td>
+              <td class="note">GLM 5.3 — a subtask the local model could not finish; short cold-prefix pay-per-incident traffic, which the cheap coding plan absorbs well</td>
+              <td class="note"><b>Not in the catalogue.</b> A one-file addition <span class="chip broken">missing</span></td>
+              <td class="note">Rare, short, entered on failure</td>
+            </tr>
+            <tr>
+              <td class="mono">reviewer-escalated</td>
+              <td class="note">K3 — second opinions and hard reviews at cache-discounted metered rates; doubles as the coordinator's understudy if the OAuth path breaks</td>
+              <td class="note"><b>Not in the catalogue.</b> A one-file addition <span class="chip broken">missing</span></td>
+              <td class="note">Rare, short, structured</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Give each escalation its own <code>modelName</code> rather than reusing <code>planner-gpt-pro</code>, even where two aliases resolve to the same provider. The coordinator and the escalation paths have different volumes and different reasons to exist, and separate aliases are what make their spend separable in the dashboard afterwards. The provider seating itself — why Luna coordinates, GLM 5.3 catches worker failures, and K3 reviews — is argued in <a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac">The Idle Bench</a> §6, along with the design rule the OAuth path imposes: nothing may work <i>only</i> if that path survives.</p>
+
+      <h3>What the LiteLLM config becomes</h3>
+
+      <h4>1 · Role aliases, not model identifiers</h4>
+      <p>Publish <code>coordinator</code>, <code>worker</code>, <code>reviewer</code>, <code>worker-escalated</code>, <code>reviewer-escalated</code> as <code>modelName</code>s over concrete backends — the <code>gemma4-agentic</code> precedent generalised — and, once the A380 retrieval floor lands, <code>embedder</code> and <code>reranker</code> beside them over <code>/v1/embeddings</code> and <code>/v1/rerank</code> (<a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac">The Idle Bench</a> §4). Swapping the worker quant then touches one file rather than every consumer config and key scope. The Hugging Face identifiers can stay published alongside for direct use from Open WebUI.</p>
+
+      <h4>2 · One virtual key per role</h4>
+      <p>This is where the coordinator pattern beats autorouting most decisively, and it is not about quality. Under a single <code>auto</code> alias every request enters the proxy identically and nothing downstream can attribute spend or intent. With a key per role, LiteLLM's per-key accounting answers “what did delegation cost this week” for free — and because the local entries declare <code>input_cost_per_token: 0</code>, free and billed separate themselves in the existing dashboard. Part two's <code>foreman</code> key, scoped to exactly the three models its agents use, is the pattern to copy: a worker key that permits only <code>worker</code> means a harness bug <b>cannot</b> spend money.</p>
+
+      <h4>3 · Fallbacks by role — and deliberately asymmetric</h4>
+      <p><code>worker: [worker-escalated]</code> is exactly right, and it is cheap precisely because worker prompts are short and self-contained: a cold prefix on the escalation target costs almost nothing. The <b>coordinator should carry no cross-provider fallback at all</b> — its prefix is the entire conversation, so failing it over re-pays creation rates on a very large context for a request a retry would probably have served. That asymmetry falls straight out of the cache numbers in section six and is invisible without them. Whatever is chosen, remember section seven: a partial <code>context_window_fallbacks</code> map removes fallback rather than adding it, so cover every role or set none.</p>
+
+      <h4>4 · Timeouts by role</h4>
+      <p>The coordinator wants a long ceiling — it thinks for a while and that is the point. The worker wants a tight one, because a <i>fast</i> worker failure is what makes escalation feel responsive. One global <code>timeout: 1900</code>, inherited from the swap budget, serves neither.</p>
+
+      <h4>5 · Thinking level is a role knob, not a model property</h4>
+      <p>The Qwen 3.8 entries already expose <code>reasoning_effort</code> through <code>allowed_openai_params</code> and declare <code>low / medium / xhigh</code>. Mechanical worker turns — a yaml edit, a bash invocation, a file read — want <code>low</code>: thinking tokens are latency multiplied by turn count, and there are many turns. Review turns want <code>medium</code>. That is a sufficient reason for <code>worker</code> and <code>reviewer</code> to be separate aliases even when they point at the same InferenceService.</p>
+
+      <h4>6 · Everything the router needed simply does not arise</h4>
+      <p>No <code>auto</code> entry, no classifier model to resolve, no tier map to validate, no session-id plumbing through Open WebUI, Hermes and pi. Findings one, two and five in section eight are prerequisites that this design never incurs.</p>
+
+      <h3>What it changes about the hardware plan</h3>
+      <ul>
+        <li><b>Both worker roles live on one endpoint.</b> The coordinator is in the cloud, so both 3090s serve subagents — but as a single tensor-parallel Qwen instance, not as two smaller models. <code>worker</code> and <code>reviewer</code> are two <code>LiteLLMModel</code> aliases over the same <code>apiBase</code>, differing in <code>reasoning_effort</code>, and their concurrency comes from <code>--max-num-seqs</code> and continuous batching. The capacity plan sizes it: six seats at a 131k per-seat ceiling, with a 2 → 8 sweep in <a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac">The Idle Bench</a> §7 to replace the estimate with measurement.</li>
+        <li><b>The FP8 build already has speculative decoding.</b> An earlier version of this argued for <code>lued/Qwen3.8-27B-INT8-W8A16-MTP</code> on the grounds that speculative decoding cuts worker latency, which is multiplied by turn count. That trade does not exist: the FP8 repo ships <code>mtp.safetensors</code> and the manifest already runs <code>--speculative-config {"method":"mtp","num_speculative_tokens":3}</code>. The chosen build carries the same MTP head as its sibling, so there is nothing to give up here.</li>
+        <li><b>The preemptible node has no mandatory tenant — and now a planned utility roster.</b> Muse Glimmer was going to be the second local lane; continuous batching removes that need, so the 5070 Ti hosts only tenants whose eviction costs a retry: a compact VLM, a Muse re-quant if it is still wanted for what it writes, Whisper, and an optional heavy reranker. See <a href="https://claude.ai/code/artifact/68ddd1e2-92ee-49fd-bc97-abad5fff7b9c">The Contested GPU</a> for how the eviction works and for the two things about Muse's current configuration that will not fit a 16GB card, and <a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac">The Idle Bench</a> §3 for the roster and its rules.</li>
+        <li><b>Retrieval gets its own always-on silicon.</b> The embedding and rerank floor lives on kristeva's Arc A380 — never on the preemptible node, so RAG does not silently break whenever someone streams a game — and vision leaves the 3090s entirely for the CPU, utility-node and cloud tiers. Both are The Idle Bench §4.</li>
+        <li><b>Nothing local backs anything else up.</b> With one local endpoint there is no second local model to fall back to. The escalation path is entirely cloud, which makes the <code>worker → worker-escalated</code> fallback load-bearing rather than an optimisation.</li>
+      </ul>
+
+      <h3>What still has to be true</h3>
+      <p>A reasoning coordinator is not a substitute for the rails part two documents — it changes which ones you need.</p>
+      <ul>
+        <li><b>Ground subagent output deterministically wherever you can.</b> Foreman requires its reviewer to quote the ask verbatim, list files from the real diff, and anchor findings to changed lines, because a 30B model's verdict is not trustworthy on its own. A local worker reporting “I updated the YAML” deserves a <code>kustomize build</code> and a diff, not a nod.</li>
+        <li><b>Cap turns and spend per subtask.</b> Foreman's Agents carry <code>maxTurns</code> — 160 for coders, 80 for reviewers — plus stuck-loop detection with context soft and hard caps. A coordinator loop needs the equivalent, or a confused coordinator retries a failing subtask indefinitely at cloud rates.</li>
+        <li><b>Record why each escalation happened.</b> The escalation log is the dataset that tells you whether the local model is actually capable of the work being handed to it — which is the question the whole design turns on, and the one a classifier can never answer because it never sees the outcome.</li>
+      </ul>
+
+      <h3>The validator changes shape</h3>
+      <p>The checks proposed in sections nine and ten survive, with the tier assertions replaced:</p>
+      <ul>
+        <li>every role alias resolves to a published <code>modelName</code>, and every virtual-key scope names only aliases that exist;</li>
+        <li>no role alias whose backend sits on the preemptible node appears without a fallback behind it;</li>
+        <li>the <code>embedder</code> and <code>reranker</code> aliases resolve to live backends once the retrieval floor lands;</li>
+        <li>the <code>coordinator</code> alias has <b>no</b> cross-provider fallback entry — an assertion that encodes the cache reasoning above, so a future edit cannot quietly undo it;</li>
+        <li>the dangling-backend and advertised-context checks are unchanged, and still catch the class of bug behind findings three and four.</li>
+      </ul>
+    </section>
+
+  </main>
+
+  <footer>
+    Read from joryirving/home-ops at eed15dcc0a05cdfefb365af7b7d3c99404865f70 · behaviour verified against the litellm 1.97.0 wheel (<code>router.py</code>, <code>router_strategy/complexity_router/</code>, <code>router_utils/fallback_event_handlers.py</code>) · cogito comparison from kubernetes/apps/llm at 674d1e0d. Companions: Foreman and ToolHive; The Contested GPU; The Idle Bench — whose capacity plan sections ten and eleven now assume. Line references are to that commit and will drift.
+  </footer>
+
+</div>

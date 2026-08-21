@@ -1,0 +1,610 @@
+<title>The Idle Bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@500;600;700&family=Newsreader:opsz,wght@6..72,380;6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root {
+  --ground:      #F4F6F4;
+  --surface:     #FFFFFF;
+  --surface-alt: #EDF1EE;
+  --ink:         #141916;
+  --ink-soft:    #56635C;
+  --ink-faint:   #7E8A84;
+  --rule:        #D8E0DA;
+  --rule-strong: #B9C5BE;
+  --live:        #2E6B54;
+  --live-bg:     #E3EFE8;
+  --paid:        #86671A;
+  --paid-bg:     #F3ECDA;
+  --broken:      #A83C24;
+  --broken-bg:   #F6E5E0;
+  --idle:        #6F7C76;
+  --idle-bg:     #E6EAE7;
+  --shadow:      0 1px 2px rgba(20, 25, 22, .06), 0 8px 24px -16px rgba(20, 25, 22, .30);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:#0E1311; --surface:#151C18; --surface-alt:#1B241F;
+    --ink:#E2E9E4; --ink-soft:#97A49C; --ink-faint:#74827A;
+    --rule:#26302A; --rule-strong:#3A473F;
+    --live:#5FBB96; --live-bg:#16281F;
+    --paid:#D2A648; --paid-bg:#2A2312;
+    --broken:#E07C61; --broken-bg:#2E1B15;
+    --idle:#8B978F; --idle-bg:#1E2622;
+    --shadow: 0 1px 2px rgba(0,0,0,.40), 0 8px 24px -16px rgba(0,0,0,.70);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#0E1311; --surface:#151C18; --surface-alt:#1B241F;
+  --ink:#E2E9E4; --ink-soft:#97A49C; --ink-faint:#74827A;
+  --rule:#26302A; --rule-strong:#3A473F;
+  --live:#5FBB96; --live-bg:#16281F;
+  --paid:#D2A648; --paid-bg:#2A2312;
+  --broken:#E07C61; --broken-bg:#2E1B15;
+  --idle:#8B978F; --idle-bg:#1E2622;
+  --shadow: 0 1px 2px rgba(0,0,0,.40), 0 8px 24px -16px rgba(0,0,0,.70);
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--ground); color: var(--ink);
+  font-family: "Newsreader", Georgia, "Times New Roman", serif;
+  font-size: 17.5px; line-height: 1.62; margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+.frame { max-width: 1240px; margin: 0 auto; padding: 0 28px 96px; display: grid; grid-template-columns: 1fr; gap: 0 56px; }
+@media (min-width: 1120px) { .frame { grid-template-columns: 214px minmax(0, 1fr); } }
+
+.masthead { grid-column: 1 / -1; border-bottom: 2px solid var(--ink); padding: 64px 0 26px; margin-bottom: 44px; }
+.eyebrow { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.5px; font-weight: 500; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-faint); }
+.masthead h1 { font-family: "Chivo", "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: clamp(2.5rem, 6vw, 4.1rem); line-height: 1.02; letter-spacing: -.025em; text-wrap: balance; margin: 14px 0 0; }
+.deck { font-size: 1.24rem; color: var(--ink-soft); max-width: 62ch; margin: 18px 0 0; }
+.provenance { display: flex; flex-wrap: wrap; gap: 6px 26px; margin-top: 30px; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; color: var(--ink-faint); }
+.provenance b { color: var(--ink-soft); font-weight: 500; }
+
+.rail { display: none; }
+@media (min-width: 1120px) { .rail { display: block; grid-column: 1; align-self: start; position: sticky; top: 32px; padding-top: 4px; } }
+.rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.rail a { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; line-height: 1.4; color: var(--ink-faint); text-decoration: none; display: block; border-left: 2px solid var(--rule); padding: 2px 0 2px 12px; }
+.rail a:hover, .rail a:focus-visible { color: var(--live); border-left-color: var(--live); }
+.rail .sib { margin-top: 20px; border-top: 1px solid var(--rule); padding-top: 14px; }
+.rail .sib a { border-left-color: var(--live); color: var(--live); }
+
+main { grid-column: 1; min-width: 0; }
+@media (min-width: 1120px) { main { grid-column: 2; } }
+
+section { margin-bottom: 68px; scroll-margin-top: 24px; }
+h2 { font-family: "Chivo", "Helvetica Neue", Arial, sans-serif; font-weight: 600; font-size: 1.86rem; letter-spacing: -.018em; line-height: 1.16; text-wrap: balance; margin: 0 0 4px; padding-top: 10px; border-top: 1px solid var(--rule-strong); }
+h2 .num { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .62em; font-weight: 500; color: var(--ink-faint); margin-right: .6em; }
+h3 { font-family: "Chivo", "Helvetica Neue", Arial, sans-serif; font-weight: 600; font-size: 1.14rem; letter-spacing: -.005em; margin: 38px 0 0; text-wrap: balance; }
+h4 { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-soft); margin: 30px 0 0; }
+p { margin: 14px 0 0; max-width: 68ch; }
+ul, ol.body { max-width: 68ch; margin: 14px 0 0; padding-left: 1.15em; }
+li { margin-top: 7px; }
+li::marker { color: var(--ink-faint); }
+strong { font-weight: 600; }
+a { color: var(--live); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--live); outline-offset: 2px; border-radius: 2px; }
+
+code { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .845em; background: var(--surface-alt); border: 1px solid var(--rule); border-radius: 3px; padding: .08em .32em; word-break: break-word; }
+pre { margin: 18px 0 0; background: var(--surface); border: 1px solid var(--rule); border-left: 3px solid var(--rule-strong); border-radius: 3px; padding: 14px 16px; overflow-x: auto; }
+pre code { background: none; border: 0; padding: 0; font-size: 12.6px; line-height: 1.62; color: var(--ink-soft); white-space: pre; }
+pre code b { color: var(--ink); font-weight: 600; }
+pre code i { color: var(--ink-faint); font-style: normal; }
+
+.chip { display: inline-block; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; padding: 2px 7px; border-radius: 2px; white-space: nowrap; vertical-align: 1px; }
+.chip.live { color: var(--live); background: var(--live-bg); }
+.chip.paid { color: var(--paid); background: var(--paid-bg); }
+.chip.broken { color: var(--broken); background: var(--broken-bg); }
+.chip.idle { color: var(--idle); background: var(--idle-bg); }
+
+.tablewrap { margin: 22px 0 0; overflow-x: auto; border: 1px solid var(--rule); border-radius: 3px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+thead th { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-faint); text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule-strong); white-space: nowrap; }
+tbody td { padding: 10px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; font-variant-numeric: tabular-nums; }
+tbody tr:last-child td { border-bottom: 0; }
+td.mono, th.mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12.4px; }
+td.note { color: var(--ink-soft); font-size: 13.4px; }
+
+figure { margin: 30px 0 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 3px; padding: 22px 22px 16px; overflow-x: auto; }
+figure svg { display: block; max-width: 100%; height: auto; margin: 0 auto; color: var(--ink-soft); }
+figcaption { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--rule); font-size: 13.4px; color: var(--ink-soft); max-width: 76ch; }
+figcaption b { color: var(--ink); font-weight: 600; }
+
+svg .box { fill: var(--surface-alt); stroke: var(--rule-strong); stroke-width: 1; }
+svg .boxlive { fill: var(--live-bg); stroke: var(--live); stroke-width: 1.25; }
+svg .boxbroken { fill: var(--broken-bg); stroke: var(--broken); stroke-width: 1.25; }
+svg .boxpaid { fill: var(--paid-bg); stroke: var(--paid); stroke-width: 1.25; }
+svg .boxghost { fill: none; stroke: var(--rule-strong); stroke-width: 1; stroke-dasharray: 3 3; }
+svg text { font-family: "IBM Plex Mono", ui-monospace, monospace; fill: var(--ink); }
+svg .t { font-size: 12px; }
+svg .ts { font-size: 10.5px; fill: var(--ink-soft); }
+svg .tl { font-size: 11px; fill: var(--ink-faint); }
+svg .th { font-size: 11px; font-weight: 600; letter-spacing: .07em; fill: var(--ink-faint); }
+svg .accent { fill: var(--live); }
+svg .warn { fill: var(--broken); }
+svg line, svg polyline, svg path.edge { fill: none; stroke: currentColor; stroke-width: 1.3; }
+svg marker path.mk { fill: currentColor; stroke: none; }
+svg marker path.mk-a { fill: var(--live); stroke: none; }
+svg marker path.mk-w { fill: var(--broken); stroke: none; }
+svg .eaccent { stroke: var(--live); }
+svg .ewarn { stroke: var(--broken); }
+svg .edash { stroke-dasharray: 5 4; }
+
+.callout { margin: 24px 0 0; border: 1px solid var(--rule); border-left: 3px solid var(--ink-faint); border-radius: 3px; background: var(--surface); padding: 16px 18px; max-width: 72ch; }
+.callout.bad { border-left-color: var(--broken); }
+.callout.good { border-left-color: var(--live); }
+.callout p:first-child { margin-top: 0; }
+.callout h4 { margin-top: 0; }
+
+.lede { font-size: 1.06rem; color: var(--ink-soft); max-width: 68ch; margin: 14px 0 0; }
+
+.xref {
+  grid-column: 1 / -1;
+  margin: 0 0 44px;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--live);
+  border-radius: 3px;
+  background: var(--surface);
+  padding: 16px 20px;
+}
+.xref .eyebrow { margin-bottom: 6px; }
+.xref p { margin: 0; max-width: 78ch; font-size: 15.6px; color: var(--ink-soft); }
+
+footer { grid-column: 1 / -1; border-top: 1px solid var(--rule-strong); padding-top: 18px; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.5px; color: var(--ink-faint); line-height: 1.7; }
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="frame">
+
+  <header class="masthead">
+    <div class="eyebrow">Capacity plan · every card enlisted</div>
+    <h1>The Idle Bench</h1>
+    <p class="deck">Where cogito's unused silicon goes to work once the coordinator lands: the 3090s trade context ceiling for parallel-agent seats, an Arc card everyone has been calling an iGPU becomes the always-on RAG floor, the desktop's 5070&nbsp;Ti joins as a preemptible utility node, and the cloud tier is spent frugally on exactly two jobs.</p>
+    <div class="provenance">
+      <span><b>Source</b> cogito @ a94e24ce + live cluster, 2026-08-21</span>
+      <span><b>Builds on</b> LiteLLM Routing Teardown · The Contested GPU</span>
+      <span><b>Status</b> plan — nothing here is implemented</span>
+    </div>
+  </header>
+
+  <div class="xref">
+    <div class="eyebrow">Read alongside</div>
+    <p>This document assumes two things its companions establish and does not re-argue them: the <b>coordinator pattern</b> — a high-reasoning cloud model delegating short, self-contained subtasks to role-aliased local workers, from <a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96"><b>LiteLLM Routing Teardown</b></a> §11 — and the <b>preemption mechanics</b> a game-streaming GPU node inherits, from <a href="https://claude.ai/code/artifact/68ddd1e2-92ee-49fd-bc97-abad5fff7b9c"><b>The Contested GPU</b></a>. What it adds is the hardware answer: which silicon hosts which role, and the small set of changes that gets there without buying anything.</p>
+  </div>
+
+  <nav class="rail" aria-label="Contents">
+    <ol>
+      <li><a href="#inventory">1 · The inventory, corrected</a></li>
+      <li><a href="#seats">2 · Seats over ceiling</a></li>
+      <li><a href="#desktop">3 · The desktop changes rooms</a></li>
+      <li><a href="#kristeva">4 · Kristeva, the always-on floor</a></li>
+      <li><a href="#nucs">5 · The NUCs stay boring</a></li>
+      <li><a href="#cloud">6 · The cloud tier, frugally</a></li>
+      <li><a href="#bench">7 · Measure before moving</a></li>
+      <li class="sib"><a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96">Routing teardown →</a></li>
+      <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/68ddd1e2-92ee-49fd-bc97-abad5fff7b9c">Contested GPU →</a></li>
+      <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/3bbe6e0b-d8af-4a5f-a596-7e266605951e">Foreman &amp; ToolHive →</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <section id="inventory">
+      <h2><span class="num">01</span>The inventory, corrected</h2>
+
+      <p class="lede">The cluster owns far more accelerator than its LLM stack uses — and the most useful idle piece has been mislabeled in every conversation so far.</p>
+
+      <p>Five nodes today, one prospective, one deliberately excluded. Only iggy does any LLM serving at all; everything else in the accelerator column sits idle or runs a single opportunistic tenant:</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Node</th><th>Silicon</th><th>RAM</th><th>Serving today</th><th>Idle capacity</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="mono">iggy</td>
+              <td class="note">2× RTX 3090 (48GB) · 24 threads</td>
+              <td class="mono">128GB</td>
+              <td class="note"><code>qwen-3-8-fp8</code>, TP=2 — the cluster's only LLM tenant</td>
+              <td class="note">Concurrency, not VRAM — see §2</td>
+            </tr>
+            <tr>
+              <td class="mono">kristeva</td>
+              <td class="note"><b>Arc A380, 6GB dedicated</b> · 40 threads</td>
+              <td class="mono">128GB</td>
+              <td class="note">camofox only; the A380 serves nothing</td>
+              <td class="note">The whole card, plus ~all 40 threads</td>
+            </tr>
+            <tr>
+              <td class="mono">nuc-1/2/3</td>
+              <td class="note">Meteor Lake iGPU + NPU · 18 threads each</td>
+              <td class="mono">96GB each</td>
+              <td class="note">Ceph OSDs; <code>immich-ml</code> holds one i915 unit</td>
+              <td class="note">Deliberately little — they are the storage floor</td>
+            </tr>
+            <tr>
+              <td class="mono">5070 Ti node</td>
+              <td class="note">RTX 5070 Ti (16GB) · today's desktop</td>
+              <td class="mono">64GB DDR5</td>
+              <td class="note">Not in the cluster yet</td>
+              <td class="note">Everything — the node §3 plans</td>
+            </tr>
+            <tr>
+              <td class="mono">laptop</td>
+              <td class="note">RTX 3070 Mobile (8GB)</td>
+              <td class="mono">—</td>
+              <td class="note">—</td>
+              <td class="note">Stays out: it becomes the daily driver and Moonlight client</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Kristeva's "iGPU" is a discrete Arc A380</h3>
+
+      <p>Node-feature-discovery labels kristeva <code>intel.feature.node.kubernetes.io/gpu-type: A380</code> — a discrete Arc card with 6GB of its own GDDR6 and XMX matrix units, not an iGPU borrowing system RAM. Every earlier discussion binned it with the NUC iGPUs, and that misfiled it: 6GB of dedicated memory on an always-on node is exactly the shape an embedding-and-rerank floor wants, and it is the load-bearing discovery behind §4. Worth a one-minute confirmation against the PCI id before building on it, since the claim currently rests on one NFD label.</p>
+
+      <p>The target allocation, in one picture:</p>
+
+      <figure>
+        <svg viewBox="0 0 960 560" role="img" aria-label="Target allocation: LiteLLM fronts four kinds of silicon — the cloud coordinator and escalation tier, the Qwen worker endpoint on iggy's 3090s, the always-on embedding and rerank floor on kristeva's A380, and a preemptible 5070 Ti utility node that a game session evicts. The NUC trio deliberately hosts no serving role.">
+          <defs>
+            <marker id="mk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="mkw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-w" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+
+          <!-- LiteLLM hub -->
+          <rect class="box" x="380" y="240" width="200" height="80" rx="3"/>
+          <text class="th" x="480" y="268" text-anchor="middle">LITELLM · NUC-2</text>
+          <text class="ts" x="480" y="290" text-anchor="middle">role aliases · per-role keys</text>
+          <text class="ts" x="480" y="306" text-anchor="middle">budgets · fallbacks</text>
+
+          <!-- Cloud -->
+          <rect class="boxpaid" x="40" y="40" width="256" height="122" rx="3"/>
+          <text class="th" x="168" y="64" text-anchor="middle">CLOUD · PAID TIER</text>
+          <text class="t" x="56" y="92">coordinator → Luna (sub)</text>
+          <text class="t" x="56" y="114">worker-escalated → GLM 5.3</text>
+          <text class="t" x="56" y="136">reviewer-escalated → K3</text>
+
+          <!-- iggy -->
+          <rect class="boxlive" x="670" y="40" width="250" height="100" rx="3"/>
+          <text class="th" x="795" y="64" text-anchor="middle">IGGY · 2× RTX 3090</text>
+          <text class="t" x="686" y="92">qwen-3.8-27B FP8 · TP2</text>
+          <text class="ts" x="686" y="114">worker / reviewer · ~6 seats</text>
+
+          <!-- kristeva -->
+          <rect class="boxlive" x="670" y="200" width="250" height="112" rx="3"/>
+          <text class="th" x="795" y="224" text-anchor="middle">KRISTEVA · A380 + 40T</text>
+          <text class="t" x="686" y="252">embedder + reranker (A380)</text>
+          <text class="ts" x="686" y="274">vision encode · MoE lane (CPU)</text>
+          <text class="ts" x="686" y="292">always on — never evicted</text>
+
+          <!-- 5070 Ti -->
+          <rect class="box" x="670" y="372" width="250" height="108" rx="3"/>
+          <text class="th" x="795" y="396" text-anchor="middle">5070 TI NODE · PREEMPTIBLE</text>
+          <text class="t" x="686" y="424">compact VLM · muse · whisper</text>
+          <text class="ts" x="686" y="446">unavailable while a game runs</text>
+
+          <!-- NUC trio -->
+          <rect class="boxghost" x="40" y="386" width="256" height="104" rx="3"/>
+          <text class="th" x="168" y="410" text-anchor="middle">NUC-1/2/3 · METEOR LAKE</text>
+          <text class="ts" x="56" y="438">Ceph OSDs · vector DB · immich-ml</text>
+          <text class="ts" x="56" y="458">no serving role — deliberate</text>
+
+          <!-- Wolf session -->
+          <rect class="boxghost" x="396" y="396" width="164" height="60" rx="3"/>
+          <text class="t" x="478" y="422" text-anchor="middle">wolf session</text>
+          <text class="ts" x="478" y="440" text-anchor="middle">(game stream)</text>
+
+          <!-- Edges -->
+          <line x1="380" y1="256" x2="302" y2="140" marker-end="url(#mk)"/>
+          <text class="tl" x="322" y="180" text-anchor="middle">coordinator ·</text>
+          <text class="tl" x="322" y="194" text-anchor="middle">*-escalated</text>
+
+          <line x1="580" y1="256" x2="664" y2="112" marker-end="url(#mk)"/>
+          <text class="tl" x="638" y="164" text-anchor="middle">worker ·</text>
+          <text class="tl" x="638" y="178" text-anchor="middle">reviewer</text>
+
+          <line x1="580" y1="278" x2="664" y2="264" marker-end="url(#mk)"/>
+          <text class="tl" x="622" y="258" text-anchor="middle">embed · rerank</text>
+
+          <line x1="580" y1="300" x2="664" y2="408" marker-end="url(#mk)"/>
+          <text class="tl" x="600" y="368" text-anchor="middle">vlm · stt</text>
+
+          <line class="ewarn edash" x1="560" y1="426" x2="664" y2="426" marker-end="url(#mkw)"/>
+          <text class="tl warn" x="612" y="416" text-anchor="middle">evicts</text>
+        </svg>
+        <figcaption><b>One proxy, four kinds of silicon, and only one of them is allowed to disappear.</b> Every consumer enters through LiteLLM's role aliases. The always-on pair (green) carries everything the coordinator depends on: the worker endpoint on iggy and the retrieval floor on kristeva. The 5070&nbsp;Ti hosts only tenants whose eviction costs a retry, and the NUC trio's disconnection is the point — it has no serving role at all. The cloud tier (amber) is entered deliberately, never by load-balancing.</figcaption>
+      </figure>
+
+      <p>The through-line for everything below: the 3090s stay a single dense always-on worker but get re-tuned for seats; everything small, evictable, or rarely used moves onto silicon already owned and currently idle; and the only hardware acquisition in the whole plan costs zero dollars — it is the desktop changing rooms.</p>
+    </section>
+
+    <section id="seats">
+      <h2><span class="num">02</span>Seats over ceiling</h2>
+
+      <p class="lede">The routing teardown established that parallel agents come from continuous batching on one endpoint, not from a second model. What it left sized wrong is who the KV budget serves.</p>
+
+      <p><code>--max-num-seqs 2</code> is sized for two sequences at the full 262k ceiling — the teardown's own reading is that the KV pool left after ~27GB of FP8 weights holds about two sequences at the advertised length. That is the right trade for two long interactive chats. It is the wrong trade once a cloud coordinator is spraying subagents at the endpoint, because the coordinator design itself guarantees the local prompts are short: the long context lives in the cloud conversation, and workers receive self-contained subtasks. KV cost is linear in tokens held, so the same pool can be spent on <i>seats</i> instead of on a per-seat ceiling nobody local uses:</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Setting</th><th>Today</th><th>Proposed</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="mono">--max-model-len</td>
+              <td class="mono">262144</td>
+              <td class="mono">131072</td>
+              <td class="note">Still generous for any worker turn or interactive chat; halving the ceiling roughly doubles the count of full-length seats the pool holds</td>
+            </tr>
+            <tr>
+              <td class="mono">--max-num-seqs</td>
+              <td class="mono">2</td>
+              <td class="mono">6 <span class="chip idle">sweep to 8</span></td>
+              <td class="note">The literal parallel-agent count. vLLM only charges KV for tokens actually held, so short worker turns pack far denser than the worst case</td>
+            </tr>
+            <tr>
+              <td class="mono">maxInputTokens <i>(LiteLLM)</i></td>
+              <td class="mono">262144</td>
+              <td class="mono">131072</td>
+              <td class="note">Mirrored in the same commit — this is exactly the advertised-context drift the teardown's validator exists to catch</td>
+            </tr>
+            <tr>
+              <td class="mono">--enable-prefix-caching</td>
+              <td class="mono" colspan="2">keep</td>
+              <td class="note">Earns more as seat count rises: parallel subagents share a system prompt and tool schemas, so the Nth prefill is largely a cache hit</td>
+            </tr>
+            <tr>
+              <td class="mono">--enable-chunked-prefill · --max-num-batched-tokens 8192</td>
+              <td class="mono" colspan="2">keep</td>
+              <td class="note">What stops one agent's 100k-token prefill from stalling five others' decode</td>
+            </tr>
+            <tr>
+              <td class="mono">--speculative-config (MTP)</td>
+              <td class="mono" colspan="2">benchmark</td>
+              <td class="note">Speculation pays most at low batch; at 6 seats the verify work competes with real decode. Probably still net-positive, but that is a measurement, not an assumption</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <figure>
+        <svg viewBox="0 0 900 252" role="img" aria-label="The 48GB budget on iggy: 27GB of FP8 weights leave a KV pool that today holds about two 262k-token sequences. Halving the per-seat ceiling to 131k turns the same pool into roughly four full-length seats, run as six concurrent seats because real worker turns hold far fewer tokens than the ceiling.">
+          <!-- Row 0: the fixed budget -->
+          <text class="th" x="60" y="30">THE 48GB BUDGET (2× 3090)</text>
+          <rect class="box" x="60" y="42" width="450" height="34" rx="2"/>
+          <text class="ts" x="285" y="63" text-anchor="middle">weights · ~27GB FP8</text>
+          <rect class="boxlive" x="510" y="42" width="350" height="34" rx="2"/>
+          <text class="ts" x="685" y="63" text-anchor="middle">KV pool (holds ≈ 2 × 262k today)</text>
+
+          <line class="edash" x1="510" y1="84" x2="510" y2="216" stroke-width="1"/>
+          <line class="edash" x1="860" y1="84" x2="860" y2="216" stroke-width="1"/>
+
+          <!-- Row 1: today -->
+          <text class="th" x="60" y="112">TODAY · MAX-NUM-SEQS 2, CEILING 262K</text>
+          <rect class="boxlive" x="510" y="122" width="171" height="34" rx="2"/>
+          <text class="ts" x="595" y="143" text-anchor="middle">seat · 262k</text>
+          <rect class="boxlive" x="689" y="122" width="171" height="34" rx="2"/>
+          <text class="ts" x="774" y="143" text-anchor="middle">seat · 262k</text>
+
+          <!-- Row 2: proposed -->
+          <text class="th" x="60" y="192">PROPOSED · MAX-NUM-SEQS 6, CEILING 131K</text>
+          <rect class="boxlive" x="510" y="202" width="53" height="34" rx="2"/>
+          <rect class="boxlive" x="569" y="202" width="53" height="34" rx="2"/>
+          <rect class="boxlive" x="628" y="202" width="53" height="34" rx="2"/>
+          <rect class="boxlive" x="687" y="202" width="53" height="34" rx="2"/>
+          <rect class="boxlive" x="746" y="202" width="53" height="34" rx="2"/>
+          <rect class="boxlive" x="805" y="202" width="55" height="34" rx="2"/>
+          <text class="tl" x="60" y="248">six seats share the pool · per-seat ceiling 131k · vLLM preempts if all run long at once</text>
+        </svg>
+        <figcaption><b>The pool is fixed; the trade is how it is sliced.</b> KV cost is linear in tokens held, so a 131k ceiling makes the same pool worth about four full-length sequences — and because real worker turns hold a fraction of the ceiling, six concurrent seats fit comfortably in practice. Overcommit is safe by design: when blocks run out vLLM preempts and recomputes rather than erroring, a latency cliff reserved for the rare moment every agent runs long simultaneously.</figcaption>
+      </figure>
+
+      <h3>Backpressure belongs at the proxy, not the backend</h3>
+
+      <p>Give the <code>worker</code> virtual key an <code>rpm</code> / parallel-request limit a notch above the seat count. A coordinator that fans out twelve subagents then queues at LiteLLM with clean, visible errors and per-key accounting, instead of stacking silent timeouts inside vLLM's scheduler. The escalation path stays honest too: a worker that fails fast is what makes <code>worker → worker-escalated</code> feel responsive rather than like a hang.</p>
+
+      <div class="callout">
+        <h4>Who loses the 262k ceiling</h4>
+        <p>Anything driving the local model directly — Open WebUI, Hermes — with a genuine &gt;131k local conversation. The bet this section makes is that no such consumer exists: long context is precisely what the coordinator holds in the cloud, where prompt caching makes it cheap to keep. If that bet is wrong for some workflow, the ceiling is one flag to revisit — but revisit it consciously, because every ceiling token is a seat token spent.</p>
+      </div>
+
+      <h3>The device-plugin fix graduates to prerequisite</h3>
+
+      <p>The teardown flagged iggy's time-slicing (<code>replicas: 4</code>, so two cards advertise eight units) as a correctness risk worth closing. Once a second GPU node exists it is no longer optional hygiene: The Contested GPU's central scheduling rule — <i>advertise no more units than a game session consumes</i> — is only expressible when advertised units equal physical devices. Set <code>replicas: 1</code> on iggy so the TP=2 worker's <code>gpu: 2</code> means "both physical cards" by construction, and plan the 5070&nbsp;Ti node's slice count around its session arithmetic from day one.</p>
+    </section>
+
+    <section id="desktop">
+      <h2><span class="num">03</span>The desktop changes rooms</h2>
+
+      <p class="lede">Promote the 5070 Ti machine into the cluster and daily-drive the 3070-mobile laptop. The Contested GPU already wrote the hard part of this node's design; what is new here is what should live on it — and it is not a second worker.</p>
+
+      <h3>Why not a worker</h3>
+
+      <p>The arithmetic first: the only Qwen build that fits 16GB is the W4A16 at ~13.5GB, leaving ~2.5GB for KV — a cramped seat with a fraction of the context the main endpoint offers. And the structural rule from the teardown is decisive regardless: nothing on the critical path belongs on a node that disappears when someone starts a game, and after §2 the critical path is the six-seat endpoint on iggy, which stays put. A preempted worker is a broken pipeline; a preempted <i>utility</i> is a retry.</p>
+
+      <h3>The utility stack</h3>
+
+      <p>Small, stateless, warm-restartable tenants — the shape that tolerates eviction gracefully. Everything below reloads from the hot tier in seconds to a minute:</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Tenant</th><th>~VRAM</th><th>Job</th><th>Cost of eviction</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="mono">compact VLM</td>
+              <td class="mono">7–8GB</td>
+              <td class="note">A 12B-class multimodal at 4-bit for the occasional screenshot — the vision lane §4 sizes</td>
+              <td class="note">A retry, or the CPU path on kristeva answers instead</td>
+            </tr>
+            <tr>
+              <td class="mono">muse-glimmer <i>(re-quant)</i></td>
+              <td class="mono">≤12GB</td>
+              <td class="note">Kept only for what it writes — the capability question the teardown left open. The 17GB Q4_K_M does not fit; a smaller quant has to be sourced first</td>
+              <td class="note">A stalled creative session, annoying and harmless</td>
+            </tr>
+            <tr>
+              <td class="mono">whisper</td>
+              <td class="mono">~3GB</td>
+              <td class="note">STT bursts; nothing holds a connection open</td>
+              <td class="note">Transcription waits until the game ends</td>
+            </tr>
+            <tr>
+              <td class="mono">heavy reranker <i>(optional)</i></td>
+              <td class="mono">2–4GB</td>
+              <td class="note">Only if benchmarks show the A380 floor too slow for bulk re-indexing — §7 measures this before anything is built</td>
+              <td class="note">Indexing throughput drops; the A380 floor keeps queries alive</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Not all four need to run at once — 16GB comfortably holds the VLM plus Whisper plus a reranker, or Muse alone with real KV headroom. Which subset stays resident is a llmkube InferenceService toggle, not an architectural decision, precisely because nothing here is load-bearing.</p>
+
+      <h3>The rules transfer verbatim</h3>
+
+      <ul>
+        <li><b>PriorityClass −100 on every inference tenant, nothing on the game.</b> The one-negative-number mechanism from The Contested GPU §1, unchanged.</li>
+        <li><b>Advertise exactly the units a session consumes.</b> A Wolf session claims the GPU twice — compositor and app — so the slice count must make that claim equal the node's whole budget, or preemption never fires and both workloads degrade.</li>
+        <li><b>Weights stay in the hot tier.</b> A node preempted several times an evening must restart from local NVMe, not from a LAN copy.</li>
+        <li><b>Gate the session on free VRAM, not on the pod being gone.</b> The DCGM-gated admission policy from The Contested GPU §4 — the driver releases framebuffer asynchronously after the pod dies.</li>
+        <li><b>Never a bare fallback target.</b> Anything routed here needs a target behind it; the aliases in §6 encode that, and the validator asserts it.</li>
+      </ul>
+
+      <div class="callout good">
+        <h4>The zero-dollar acquisition</h4>
+        <p>Gaming moves to a Moonlight stream from this node — which is exactly the working configuration The Contested GPU §§2–3 reverse-engineered from <code>biggs.dog</code>, runtime-class fix and all — and the 3070-mobile laptop becomes the daily driver and streaming client. The 5070&nbsp;Ti earns strictly more in the cluster than it does under a desk: it keeps its game duty via Wolf and picks up every utility model besides. Nothing is bought; a machine changes rooms.</p>
+      </div>
+    </section>
+
+    <section id="kristeva">
+      <h2><span class="num">04</span>Kristeva, the always-on floor</h2>
+
+      <p class="lede">The RAG path must not live on hardware games can evict — retrieval breaking whenever someone streams is silent and infuriating. There is a 6GB Arc card on the calmest node in the cluster doing nothing.</p>
+
+      <h3>The A380 becomes the retrieval floor</h3>
+
+      <p>An embedding model (bge-m3 / Qwen-embed class, ~1GB at int8) plus a cross-encoder reranker (~2GB) fit the A380's 6GB with room to spare, served via OpenVINO Model Server or a SYCL/Vulkan llama.cpp build. Publish both through LiteLLM — <code>/v1/embeddings</code> and <code>/v1/rerank</code> — under stable role aliases (<code>embedder</code>, <code>reranker</code>) beside the worker aliases, so every consumer binds to a name rather than a backend:</p>
+
+      <ul>
+        <li><b>Open WebUI's RAG</b> points at the proxy alias instead of its default in-pod sentence-transformers, which buys a real embedding model and central accounting in one move.</li>
+        <li><b>A future ToolHive-style gateway</b> has an always-on embedder as a hard dependency — Foreman &amp; ToolHive §9's <code>toolhive-embed</code> is exactly this component. On Jory's cluster it shares a box with inference and their failures correlate; here the floor sits on the node least likely to be touched by anything, which is the right decorrelation.</li>
+        <li><b>Bulk indexing</b> almost certainly fits too — an A380 running int8 embeddings should sustain thousands of chunks a minute — but that is §7's benchmark, and the heavy-reranker slot on the 5070&nbsp;Ti exists as the overflow valve if it does not.</li>
+      </ul>
+
+      <div class="callout">
+        <h4>The honest integration caveat</h4>
+        <p>llmkube's Model CRD has a configurable <code>resourceName</code>, so scheduling against <code>gpu.intel.com/i915</code> is expressible — but every serving image in the fleet today is a CUDA build. Getting llama.cpp-SYCL or OVMS under llmkube's management needs a look at <code>~/git/llm-operator</code> before assuming it is free. The fallback costs one abstraction, not the plan: run the floor as a plain Deployment and point a <code>LiteLLMModel</code>'s <code>apiBase</code> at its Service, which is all the litellm-operator ever needs.</p>
+      </div>
+
+      <h3>Vision towers on the CPU — where "I rarely use them" belongs</h3>
+
+      <p>Rare vision should not hold 3090 VRAM hostage, and the swap-pool Gemmas that used to carry it retire with the pool. llama.cpp splits multimodal models so the projector and vision encoder stay on CPU (<code>--no-mmproj-offload</code>); on 40 threads a small VLM runs entirely on kristeva's CPU with image encode measured in seconds — a perfectly acceptable price for an occasional screenshot. The tiered answer:</p>
+
+      <ul>
+        <li><b>Occasional, casual:</b> small VLM on kristeva's CPU, always available, costs no VRAM anywhere.</li>
+        <li><b>Faster, when the node is free:</b> the compact VLM on the 5070&nbsp;Ti, with the CPU path as its natural fallback when a game holds the card.</li>
+        <li><b>Genuinely hard vision:</b> the cloud tier — Luna and GLM 5.3 read images anyway, and rare-by-declaration traffic is what the paid tier is for.</li>
+      </ul>
+
+      <h3>The MoE experiment: 128GB of RAM is a model slot</h3>
+
+      <p>DeepSeek V4 Flash at UD-IQ3_S is ~110GB — it fits kristeva's RAM with the OS and camofox beside it, and flash-class MoEs activate a small expert subset per token, which is exactly the shape that runs tolerably on a fat CPU. Tokens per second will be gated almost entirely by memory bandwidth, and kristeva's 40-thread part has never been identified — a quad-or-more-channel platform changes the answer completely, which is why §7 measures before anyone commits. The weights are already in the NFS archive, so the experiment costs a copy, not a download; a slow cold load is irrelevant for a persistent lane.</p>
+
+      <p>The bar to clear: around 5 tok/s makes this a real overnight and batch lane — summarization queues, bulk review, second opinions — that costs the 3090s nothing. If it lands at 2 tok/s, the cloud's cheap tier wins and the lane is dropped without regret. An experiment, not a commitment.</p>
+    </section>
+
+    <section id="nucs">
+      <h2><span class="num">05</span>The NUCs stay boring</h2>
+
+      <p class="lede">The trio is the storage floor. CPU pressure there becomes Ceph latency everywhere, so their job in this plan is to keep <i>not</i> doing LLM work.</p>
+
+      <p>Three reasons to resist the temptation of 54 threads and 288GB of combined RAM:</p>
+
+      <ul>
+        <li><b>They are the Ceph core.</b> Every OSD they run backs every PVC in the cluster, including the model hot tier. An embedding batch that steals their CPU shows up as I/O latency in workloads that have nothing to do with LLMs.</li>
+        <li><b>The iGPU units offer zero isolation.</b> <code>sharedDevNum: 99</code> means an i915 "unit" is a scheduling fiction ninety-nine deep — fine for the opportunistic tenant already there (<code>immich-ml</code>), wrong for anything latency-sensitive or throughput-promised.</li>
+        <li><b>The RAM has the wrong bandwidth profile for serving.</b> E-core-heavy Meteor Lake on dual-channel memory is the opposite of what token generation wants; 96GB per node is capacity without the bandwidth to feed it.</li>
+      </ul>
+
+      <p>The one placement that <i>does</i> belong here: the vector database (Qdrant or pgvector) behind the RAG floor. It is I/O-shaped rather than compute-shaped, wants to live near the storage it persists to, and its clients tolerate milliseconds happily. The Meteor Lake NPUs remain a curiosity, not capacity — nothing in this plan is worth the OpenVINO-NPU integration tax today.</p>
+    </section>
+
+    <section id="cloud">
+      <h2><span class="num">06</span>The cloud tier, frugally</h2>
+
+      <p class="lede">Two jobs only: coordination, and catching what the local worker drops. The role aliases come from the routing teardown; this section seats providers in them.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Role alias</th><th>Provider</th><th>Price shape</th><th>Why this seat</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="mono">coordinator</td>
+              <td class="note">GPT Luna via the ChatGPT subscription's OAuth path <span class="chip paid">flat-rate</span></td>
+              <td class="note">Already paid for; marginal cost ≈ 0</td>
+              <td class="note">One long-lived conversation at one provider is the cache-friendliest workload there is — the coordinator pattern and a flat-rate subscription are made for each other</td>
+            </tr>
+            <tr>
+              <td class="mono">worker-escalated</td>
+              <td class="note">GLM 5.3 <span class="chip paid">coding plan</span></td>
+              <td class="note">Cheap subscription tier</td>
+              <td class="note">Short, cold-prefix, pay-per-incident traffic entered on a local failure — exactly what a budget coding plan absorbs well</td>
+            </tr>
+            <tr>
+              <td class="mono">reviewer-escalated</td>
+              <td class="note">K3 <span class="chip paid">metered</span></td>
+              <td class="note">Cache-discounted per-token</td>
+              <td class="note">Second opinions and hard reviews; also the coordinator's understudy if the OAuth path ever breaks</td>
+            </tr>
+            <tr>
+              <td class="mono">planner-gpt / -pro</td>
+              <td class="note">gpt-5.5 / gpt-5.5-pro, metered <span class="chip paid">api key</span></td>
+              <td class="note">Full API rates</td>
+              <td class="note">Already in the catalogue; becomes the explicit-choice tier for work that justifies frontier API pricing</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout bad">
+        <h4>The OAuth path is ToS-gray — design around its mortality</h4>
+        <p>LiteLLM can front the Codex/Responses-style OAuth flow and spend subscription entitlements as API-shaped traffic. It is your own paid subscription driving your own interactive-and-agentic use, but it is not the product OpenAI sells, so expect token-refresh churn and accept a nonzero chance of the path being flagged or closed. The design rule that keeps this safe: <b>nothing may work <i>only</i> if this path survives.</b> The K3 understudy seat and the metered <code>planner-gpt</code> entries are the hedge, and they already exist.</p>
+      </div>
+
+      <h3>Frugality is enforced structurally, not aspirationally</h3>
+
+      <ul>
+        <li><b>One virtual key per role, each with a budget.</b> LiteLLM's per-key accounting answers "what did delegation cost this week" for free, and a budget cap turns a runaway loop into a clean 429 instead of a surprise invoice.</li>
+        <li><b>Fallbacks stay asymmetric</b>, exactly as the teardown argues: <code>worker → worker-escalated</code> is load-bearing (short cold prefixes make it nearly free), and the coordinator carries no cross-provider fallback at all — its prefix is the whole conversation, and failing it over re-pays cache-creation rates on everything.</li>
+            <li><b>The validator grows three assertions:</b> the <code>embedder</code> and <code>reranker</code> aliases resolve to live backends; no alias whose backend sits on the preemptible node lacks a fallback behind it; and the coordinator alias still has no fallback entry — encoding the cache argument so a future edit cannot quietly undo it.</li>
+      </ul>
+    </section>
+
+    <section id="bench">
+      <h2><span class="num">07</span>Measure before moving</h2>
+
+      <p class="lede">Every decision above is cheap to check, and none has been checked. In dependency order:</p>
+
+      <ol class="body">
+        <li><b>W4A16 on one card vs FP8 across both.</b> The two 3090s have no NVLink, so TP=2 pays an all-reduce over PCIe every layer; it is genuinely possible the 4-bit single-card build wins on tokens per second. Both builds are staged; this benchmark gates the shape of the entire worker endpoint and costs an afternoon.</li>
+        <li><b><code>nvidia-smi -L</code> and <code>CUDA_VISIBLE_DEVICES</code> inside the running qwen pod, then <code>replicas: 1</code>.</b> Confirms the time-sliced allocation really spans two physical cards today, then makes it true by construction. Gates every scheduling rule the multi-node future depends on.</li>
+        <li><b>Identify kristeva's CPU and measure its memory bandwidth.</b> One <code>lscpu</code> and one STREAM-class run. Gates the MoE lane entirely and calibrates vision-encode latency expectations.</li>
+        <li><b>A380 embedding throughput at int8.</b> Chunks per minute under OVMS or llama.cpp-SYCL. Decides whether the retrieval floor also covers bulk indexing or whether the 5070&nbsp;Ti reranker slot gets built.</li>
+        <li><b>MTP on and off at <code>max-num-seqs 6</code>.</b> Keeps speculative decoding only if it still earns its VRAM and verify-compute at real concurrency.</li>
+        <li><b>A seat sweep, 2 → 8, under synthetic parallel agents.</b> Measure inter-token latency and preemption counts at each step with realistic worker-length prompts. This sizes <code>max-num-seqs</code> empirically — the one number in §2 chosen by argument rather than by data.</li>
+      </ol>
+
+      <p>Then the moves, in the order the measurements unlock them: retune the worker endpoint and mirror its LiteLLM entry (§2), stand up the A380 floor and repoint Open WebUI's RAG (§4), join the 5070&nbsp;Ti node and port the preemption stack (§3), seat the cloud providers and their keys (§6). Each is independently shippable, none requires buying anything, and the bench stops being idle one section at a time.</p>
+    </section>
+
+  </main>
+
+  <footer>
+    Read from cogito's working tree @ a94e24ce (<code>kubernetes/apps/llm</code>, <code>kubernetes/apps/cluster-infra</code>) and live cluster state via kubectl on 2026-08-21 · companions: <a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96">LiteLLM Routing Teardown</a> · <a href="https://claude.ai/code/artifact/68ddd1e2-92ee-49fd-bc97-abad5fff7b9c">The Contested GPU</a> · <a href="https://claude.ai/code/artifact/3bbe6e0b-d8af-4a5f-a596-7e266605951e">Foreman &amp; ToolHive</a>.<br>
+    Explicitly unverified: the A380 identity rests on one NFD label; kristeva's memory bandwidth is unmeasured; llmkube serving on Intel silicon is unbuilt; and the seat arithmetic in §2 is a linear-KV approximation that §7's sweep exists to replace with data.
+  </footer>
+
+</div>
