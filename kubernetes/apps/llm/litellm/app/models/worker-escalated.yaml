@@ -1,0 +1,19 @@
+---
+# Role alias: a subtask the local worker could not finish, entered by the
+# COORDINATOR after reading the failure - never by a proxy fallback (locked
+# decision in plans/llm/plan.md: cross-model fallbacks bypass key scopes and
+# would turn worker backpressure into a paid spillway).
+# Placeholder seat: metered gpt-5.5 until T1.4 lands GLM 5.3 (coding plan,
+# with allowed_openai_params reasoning_effort per Jory's glm lesson).
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: worker-escalated
+spec:
+  modelName: worker-escalated
+  proxyRef: litellm
+  params:
+    model: openai/gpt-5.5
+    apiKey: os.environ/OPENAI_API_KEY
+    additional:
+      timeout: 900

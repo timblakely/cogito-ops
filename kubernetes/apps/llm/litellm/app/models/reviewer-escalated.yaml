@@ -1,0 +1,19 @@
+---
+# Role alias: a second opinion or hard review beyond the local reviewer, entered by the
+# COORDINATOR after reading the failure - never by a proxy fallback (locked
+# decision in plans/llm/plan.md: cross-model fallbacks bypass key scopes and
+# would turn worker backpressure into a paid spillway).
+# Placeholder seat: metered gpt-5.5 until T1.4 lands K3 (metered, cache-discounted;
+# doubles as the coordinator understudy if the OAuth path breaks).
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: reviewer-escalated
+spec:
+  modelName: reviewer-escalated
+  proxyRef: litellm
+  params:
+    model: openai/gpt-5.5
+    apiKey: os.environ/OPENAI_API_KEY
+    additional:
+      timeout: 900

@@ -1,0 +1,20 @@
+---
+# Role alias: the high-reasoning cloud seat that plans, decomposes, delegates,
+# and reads results. Carries NO fallback, ever - its prefix is the entire
+# conversation, and failing it over re-pays cache-creation rates on all of it
+# (validator asserts). Currently seated on the metered gpt-5.5 backend;
+# T1.4 moves the seat to GPT Luna via the ChatGPT subscription's OAuth path,
+# with this metered target remaining the documented hedge.
+# No cost metadata: LiteLLM ships real prices for gpt-5.5.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: coordinator
+spec:
+  modelName: coordinator
+  proxyRef: litellm
+  params:
+    model: openai/gpt-5.5
+    apiKey: os.environ/OPENAI_API_KEY
+    additional:
+      timeout: 1800

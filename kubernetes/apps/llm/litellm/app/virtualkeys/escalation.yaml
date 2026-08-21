@@ -1,0 +1,40 @@
+---
+# Per-role key: both escalation seats, entered only by coordinator delegation
+# (no proxy fallbacks reach these - locked decision). One key for both because
+# they share a failure-driven traffic shape; the dashboard still separates
+# spend per modelName. Budget is a PLACEHOLDER (plan.md open question 2).
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: escalation
+spec:
+  proxyRef: litellm
+  keyAlias: role-escalation
+  secretName: litellm-key-escalation
+  secretKey: api-key
+  maxBudget: "30"
+  budgetDuration: 30d
+  models:
+    - worker-escalated
+    - reviewer-escalated
+---
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: litellm-key-escalation
+spec:
+  refreshInterval: 1h
+  secretStoreRefs:
+    - kind: ClusterSecretStore
+      name: onepassword
+  selector:
+    secret:
+      name: litellm-key-escalation
+  updatePolicy: Replace
+  deletionPolicy: None
+  data:
+    - match:
+        secretKey: api-key
+        remoteRef:
+          remoteKey: litellm
+          property: LITELLM_ESCALATION_API_KEY

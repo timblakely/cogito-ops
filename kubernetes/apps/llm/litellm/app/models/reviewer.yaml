@@ -1,0 +1,34 @@
+---
+# Role alias: judgement-shaped review over the SAME endpoint as worker -
+# concurrency comes from the backend's seats, not a second model. Differs from
+# worker only in its thinking default (medium): review turns are short,
+# structured, and worth the reasoning tokens.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: reviewer
+spec:
+  modelName: reviewer
+  proxyRef: litellm
+  params:
+    model: openai/qwen-3-8-fp8
+    apiBase: http://qwen-3-8-fp8.llm.svc.cluster.local:8000/v1
+    apiKey: not-needed
+    additional:
+      reasoning_effort: medium
+      timeout: 300
+      allowed_openai_params:
+      - reasoning_effort
+  info:
+    supportsFunctionCalling: true
+    # Mirrors the backend's maxModelLen; validator asserts lockstep.
+    maxInputTokens: 131072
+    maxOutputTokens: 16384
+    extra:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+      supports_reasoning: true
+      thinking_levels:
+      - low
+      - medium
+      - xhigh

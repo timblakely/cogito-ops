@@ -1,0 +1,36 @@
+---
+# Role alias (routing teardown S11 / plan.md T1.2): the mechanical delegate -
+# yaml edits, bash, file work, limited coding. Points DIRECTLY at the
+# InferenceService's Service, bypassing the ModelRouter ahead of its deletion,
+# so this apiBase never needs a second touch. Thinking defaults low: worker
+# turns are many and mechanical, and thinking tokens are latency multiplied by
+# turn count. Zero costs keep the free/paid split legible in the dashboard.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: worker
+spec:
+  modelName: worker
+  proxyRef: litellm
+  params:
+    model: openai/qwen-3-8-fp8
+    apiBase: http://qwen-3-8-fp8.llm.svc.cluster.local:8000/v1
+    apiKey: not-needed
+    additional:
+      reasoning_effort: low
+      timeout: 300
+      allowed_openai_params:
+      - reasoning_effort
+  info:
+    supportsFunctionCalling: true
+    # Mirrors the backend's maxModelLen; validator asserts lockstep.
+    maxInputTokens: 131072
+    maxOutputTokens: 16384
+    extra:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+      supports_reasoning: true
+      thinking_levels:
+      - low
+      - medium
+      - xhigh

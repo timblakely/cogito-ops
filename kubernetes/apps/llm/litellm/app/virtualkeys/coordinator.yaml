@@ -1,0 +1,38 @@
+---
+# Per-role key: the coordinator's seat. Budget is a PLACEHOLDER (plan.md open
+# question 2) sized for the metered gpt-5.5 stand-in; revisit when T1.4 moves
+# the seat to the flat-rate OAuth path, where this becomes a hedge budget.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: coordinator
+spec:
+  proxyRef: litellm
+  keyAlias: role-coordinator
+  secretName: litellm-key-coordinator
+  secretKey: api-key
+  maxBudget: "50"
+  budgetDuration: 30d
+  models:
+    - coordinator
+---
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: litellm-key-coordinator
+spec:
+  refreshInterval: 1h
+  secretStoreRefs:
+    - kind: ClusterSecretStore
+      name: onepassword
+  selector:
+    secret:
+      name: litellm-key-coordinator
+  updatePolicy: Replace
+  deletionPolicy: None
+  data:
+    - match:
+        secretKey: api-key
+        remoteRef:
+          remoteKey: litellm
+          property: LITELLM_COORDINATOR_API_KEY

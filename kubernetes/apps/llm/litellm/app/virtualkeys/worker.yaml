@@ -1,0 +1,42 @@
+---
+# Per-role key (plan.md T1.2): the free lane. Scope [worker] plus no
+# cross-model fallbacks (locked decision) means this key literally cannot
+# spend money; the budget is a tripwire, not an allowance. maxParallelRequests
+# sits a notch above the backend's six seats so a runaway coordinator queues
+# at the proxy with clean per-key 429s instead of stacking silent timeouts in
+# vLLM's scheduler.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: worker
+spec:
+  proxyRef: litellm
+  keyAlias: role-worker
+  secretName: litellm-key-worker
+  secretKey: api-key
+  maxBudget: "1"
+  budgetDuration: 30d
+  maxParallelRequests: 8
+  models:
+    - worker
+---
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: litellm-key-worker
+spec:
+  refreshInterval: 1h
+  secretStoreRefs:
+    - kind: ClusterSecretStore
+      name: onepassword
+  selector:
+    secret:
+      name: litellm-key-worker
+  updatePolicy: Replace
+  deletionPolicy: None
+  data:
+    - match:
+        secretKey: api-key
+        remoteRef:
+          remoteKey: litellm
+          property: LITELLM_WORKER_API_KEY
