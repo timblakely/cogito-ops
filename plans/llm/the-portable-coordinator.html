@@ -1,0 +1,566 @@
+<title>The Portable Coordinator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@500;600;700&family=Newsreader:opsz,wght@6..72,380;6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root {
+  --ground:      #F4F6F4;
+  --surface:     #FFFFFF;
+  --surface-alt: #EDF1EE;
+  --ink:         #141916;
+  --ink-soft:    #56635C;
+  --ink-faint:   #7E8A84;
+  --rule:        #D8E0DA;
+  --rule-strong: #B9C5BE;
+  --live:        #2E6B54;
+  --live-bg:     #E3EFE8;
+  --paid:        #86671A;
+  --paid-bg:     #F3ECDA;
+  --broken:      #A83C24;
+  --broken-bg:   #F6E5E0;
+  --idle:        #6F7C76;
+  --idle-bg:     #E6EAE7;
+  --shadow:      0 1px 2px rgba(20, 25, 22, .06), 0 8px 24px -16px rgba(20, 25, 22, .30);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:#0E1311; --surface:#151C18; --surface-alt:#1B241F;
+    --ink:#E2E9E4; --ink-soft:#97A49C; --ink-faint:#74827A;
+    --rule:#26302A; --rule-strong:#3A473F;
+    --live:#5FBB96; --live-bg:#16281F;
+    --paid:#D2A648; --paid-bg:#2A2312;
+    --broken:#E07C61; --broken-bg:#2E1B15;
+    --idle:#8B978F; --idle-bg:#1E2622;
+    --shadow: 0 1px 2px rgba(0,0,0,.40), 0 8px 24px -16px rgba(0,0,0,.70);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#0E1311; --surface:#151C18; --surface-alt:#1B241F;
+  --ink:#E2E9E4; --ink-soft:#97A49C; --ink-faint:#74827A;
+  --rule:#26302A; --rule-strong:#3A473F;
+  --live:#5FBB96; --live-bg:#16281F;
+  --paid:#D2A648; --paid-bg:#2A2312;
+  --broken:#E07C61; --broken-bg:#2E1B15;
+  --idle:#8B978F; --idle-bg:#1E2622;
+  --shadow: 0 1px 2px rgba(0,0,0,.40), 0 8px 24px -16px rgba(0,0,0,.70);
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--ground); color: var(--ink);
+  font-family: "Newsreader", Georgia, "Times New Roman", serif;
+  font-size: 17.5px; line-height: 1.62; margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+.frame { max-width: 1240px; margin: 0 auto; padding: 0 28px 96px; display: grid; grid-template-columns: 1fr; gap: 0 56px; }
+@media (min-width: 1120px) { .frame { grid-template-columns: 214px minmax(0, 1fr); } }
+
+.masthead { grid-column: 1 / -1; border-bottom: 2px solid var(--ink); padding: 64px 0 26px; margin-bottom: 44px; }
+.eyebrow { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.5px; font-weight: 500; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-faint); }
+.masthead h1 { font-family: "Chivo", "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: clamp(2.5rem, 6vw, 4.1rem); line-height: 1.02; letter-spacing: -.025em; text-wrap: balance; margin: 14px 0 0; }
+.deck { font-size: 1.24rem; color: var(--ink-soft); max-width: 62ch; margin: 18px 0 0; }
+.provenance { display: flex; flex-wrap: wrap; gap: 6px 26px; margin-top: 30px; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; color: var(--ink-faint); }
+.provenance b { color: var(--ink-soft); font-weight: 500; }
+
+.rail { display: none; }
+@media (min-width: 1120px) { .rail { display: block; grid-column: 1; align-self: start; position: sticky; top: 32px; padding-top: 4px; } }
+.rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.rail a { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; line-height: 1.4; color: var(--ink-faint); text-decoration: none; display: block; border-left: 2px solid var(--rule); padding: 2px 0 2px 12px; }
+.rail a:hover, .rail a:focus-visible { color: var(--live); border-left-color: var(--live); }
+.rail .sib { margin-top: 20px; border-top: 1px solid var(--rule); padding-top: 14px; }
+.rail .sib a { border-left-color: var(--live); color: var(--live); }
+
+main { grid-column: 1; min-width: 0; }
+@media (min-width: 1120px) { main { grid-column: 2; } }
+
+section { margin-bottom: 68px; scroll-margin-top: 24px; }
+h2 { font-family: "Chivo", "Helvetica Neue", Arial, sans-serif; font-weight: 600; font-size: 1.86rem; letter-spacing: -.018em; line-height: 1.16; text-wrap: balance; margin: 0 0 4px; padding-top: 10px; border-top: 1px solid var(--rule-strong); }
+h2 .num { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .62em; font-weight: 500; color: var(--ink-faint); margin-right: .6em; }
+h3 { font-family: "Chivo", "Helvetica Neue", Arial, sans-serif; font-weight: 600; font-size: 1.14rem; letter-spacing: -.005em; margin: 38px 0 0; text-wrap: balance; }
+h4 { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-soft); margin: 30px 0 0; }
+p { margin: 14px 0 0; max-width: 68ch; }
+ul, ol.body { max-width: 68ch; margin: 14px 0 0; padding-left: 1.15em; }
+li { margin-top: 7px; }
+li::marker { color: var(--ink-faint); }
+strong { font-weight: 600; }
+a { color: var(--live); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--live); outline-offset: 2px; border-radius: 2px; }
+
+code { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .845em; background: var(--surface-alt); border: 1px solid var(--rule); border-radius: 3px; padding: .08em .32em; word-break: break-word; }
+pre { margin: 18px 0 0; background: var(--surface); border: 1px solid var(--rule); border-left: 3px solid var(--rule-strong); border-radius: 3px; padding: 14px 16px; overflow-x: auto; }
+pre code { background: none; border: 0; padding: 0; font-size: 12.6px; line-height: 1.62; color: var(--ink-soft); white-space: pre; }
+pre code b { color: var(--ink); font-weight: 600; }
+pre code i { color: var(--ink-faint); font-style: normal; }
+
+.chip { display: inline-block; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; padding: 2px 7px; border-radius: 2px; white-space: nowrap; vertical-align: 1px; }
+.chip.live { color: var(--live); background: var(--live-bg); }
+.chip.paid { color: var(--paid); background: var(--paid-bg); }
+.chip.broken { color: var(--broken); background: var(--broken-bg); }
+.chip.idle { color: var(--idle); background: var(--idle-bg); }
+
+.tablewrap { margin: 22px 0 0; overflow-x: auto; border: 1px solid var(--rule); border-radius: 3px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+thead th { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-faint); text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule-strong); white-space: nowrap; }
+tbody td { padding: 10px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; font-variant-numeric: tabular-nums; }
+tbody tr:last-child td { border-bottom: 0; }
+td.mono, th.mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12.4px; }
+td.note { color: var(--ink-soft); font-size: 13.4px; }
+
+figure { margin: 30px 0 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 3px; padding: 22px 22px 16px; overflow-x: auto; }
+figure svg { display: block; max-width: 100%; height: auto; margin: 0 auto; color: var(--ink-soft); }
+figcaption { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--rule); font-size: 13.4px; color: var(--ink-soft); max-width: 76ch; }
+figcaption b { color: var(--ink); font-weight: 600; }
+
+svg .box { fill: var(--surface-alt); stroke: var(--rule-strong); stroke-width: 1; }
+svg .boxlive { fill: var(--live-bg); stroke: var(--live); stroke-width: 1.25; }
+svg .boxbroken { fill: var(--broken-bg); stroke: var(--broken); stroke-width: 1.25; }
+svg .boxpaid { fill: var(--paid-bg); stroke: var(--paid); stroke-width: 1.25; }
+svg .boxghost { fill: none; stroke: var(--rule-strong); stroke-width: 1; stroke-dasharray: 3 3; }
+svg text { font-family: "IBM Plex Mono", ui-monospace, monospace; fill: var(--ink); }
+svg .t { font-size: 12px; }
+svg .ts { font-size: 10.5px; fill: var(--ink-soft); }
+svg .tl { font-size: 11px; fill: var(--ink-faint); }
+svg .th { font-size: 11px; font-weight: 600; letter-spacing: .07em; fill: var(--ink-faint); }
+svg .accent { fill: var(--live); }
+svg .warn { fill: var(--broken); }
+svg line, svg polyline, svg path.edge { fill: none; stroke: currentColor; stroke-width: 1.3; }
+svg marker path.mk { fill: currentColor; stroke: none; }
+svg marker path.mk-a { fill: var(--live); stroke: none; }
+svg marker path.mk-w { fill: var(--broken); stroke: none; }
+svg .eaccent { stroke: var(--live); }
+svg .ewarn { stroke: var(--broken); }
+svg .edash { stroke-dasharray: 5 4; }
+
+.callout { margin: 24px 0 0; border: 1px solid var(--rule); border-left: 3px solid var(--ink-faint); border-radius: 3px; background: var(--surface); padding: 16px 18px; max-width: 72ch; }
+.callout.bad { border-left-color: var(--broken); }
+.callout.good { border-left-color: var(--live); }
+.callout p:first-child { margin-top: 0; }
+.callout h4 { margin-top: 0; }
+
+.lede { font-size: 1.06rem; color: var(--ink-soft); max-width: 68ch; margin: 14px 0 0; }
+
+.xref {
+  grid-column: 1 / -1;
+  margin: 0 0 44px;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--live);
+  border-radius: 3px;
+  background: var(--surface);
+  padding: 16px 20px;
+}
+.xref .eyebrow { margin-bottom: 6px; }
+.xref p { margin: 0; max-width: 78ch; font-size: 15.6px; color: var(--ink-soft); }
+
+footer { grid-column: 1 / -1; border-top: 1px solid var(--rule-strong); padding-top: 18px; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.5px; color: var(--ink-faint); line-height: 1.7; }
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="frame">
+
+  <header class="masthead">
+    <div class="eyebrow">Harness teardown · dotfiles, not manifests</div>
+    <h1>The Portable Coordinator</h1>
+    <p class="deck">The client half of <b>joryirving</b>'s LLM stack: a pi.dev harness whose five role agents are priced like a market, subagents that run as isolated processes, a durable workflow layer carrying Foreman's rails into interactive work — and the same roles mirrored into opencode and Zed, all version-controlled in chezmoi.</p>
+    <div class="provenance">
+      <span><b>Source</b> joryirving/dotfiles @ dde72c28 · 2026-08-21</span>
+      <span><b>Runtime</b> pi 0.84.2 · pi-mcp-adapter 2.27.0</span>
+      <span><b>Companion</b> LiteLLM Routing Teardown · The Idle Bench</span>
+    </div>
+  </header>
+
+  <div class="xref">
+    <div class="eyebrow">Read alongside</div>
+    <p>This document covers the harness side only — what runs on the laptop (and in one opencode pod) and how it delegates. The proxy and models those agents call are in <a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96"><b>LiteLLM Routing Teardown</b></a>, whose §12 addendum records the same seventy-two hours from the cluster side. The batch pipeline these roles share a 3090 with is <a href="https://claude.ai/code/artifact/3bbe6e0b-d8af-4a5f-a596-7e266605951e"><b>Foreman and ToolHive</b></a>, and what cogito should run instead is <a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac"><b>The Idle Bench</b></a>.</p>
+  </div>
+
+  <nav class="rail" aria-label="Contents">
+    <ol>
+      <li><a href="#lives">1 · Where it lives</a></li>
+      <li><a href="#market">2 · The role market</a></li>
+      <li><a href="#processes">3 · Subagents are processes</a></li>
+      <li><a href="#workflows">4 · The workflow layer</a></li>
+      <li><a href="#rails">5 · Foreman's rails, miniaturised</a></li>
+      <li><a href="#harnesses">6 · One brain, three harnesses</a></li>
+      <li><a href="#lift">7 · What cogito lifts</a></li>
+      <li><a href="#todo">8 · The to-do list</a></li>
+      <li class="sib"><a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96">Routing teardown →</a></li>
+      <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/68ddd1e2-92ee-49fd-bc97-abad5fff7b9c">Contested GPU →</a></li>
+      <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/3bbe6e0b-d8af-4a5f-a596-7e266605951e">Foreman &amp; ToolHive →</a></li>
+      <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac">The Idle Bench →</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <section id="lives">
+      <h2><span class="num">01</span>Where it lives, and why that is the finding</h2>
+
+      <p class="lede">The pi setup is not in home-ops at all. It is chezmoi-managed dotfiles — which means the client half of the LLM stack is version-controlled, reviewed, and rendered with the same rigor as the cluster half.</p>
+
+      <p>The repository's <code>.chezmoiroot</code> is <code>home</code>, so <code>home/dot_pi/…</code> renders to <code>~/.pi/…</code> on every machine chezmoi manages. The source-of-truth map, from the repo's own README:</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Source</th><th>Destination</th><th>What it is</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">dot_pi/agent/models.json.tmpl</td><td class="mono">~/.pi/agent/models.json</td><td class="note">Two providers, both <code>litellm.jory.dev</code>: <code>jory-litellm</code> (openai-completions, 18 models) and <code>jory-litellm-anthropic</code> (anthropic-messages, MiniMax + <code>auto</code>). The API key is rendered by a chezmoi <code>onepasswordRead</code> template — the same <code>LITELLM_OPENCODE_API_KEY</code> the opencode pod uses</td></tr>
+            <tr><td class="mono">dot_pi/agent/agents/*.md</td><td class="mono">~/.pi/agent/agents/</td><td class="note">The five role agents — markdown with YAML frontmatter pinning tools and model per role</td></tr>
+            <tr><td class="mono">dot_pi/agent/extensions/</td><td class="mono">~/.pi/agent/extensions/</td><td class="note"><code>subagent</code> (the child-process launcher), <code>workflow</code> (the durable runner, new this week), <code>statusbar</code>, <code>context-report</code></td></tr>
+            <tr><td class="mono">dot_pi/agent/workflows/*.json</td><td class="mono">~/.pi/agent/workflows/</td><td class="note">Three portable workflow definitions — §4</td></tr>
+            <tr><td class="mono">dot_pi/agent/prompts/ · settings.json · mcp.json.tmpl</td><td class="mono">~/.pi/agent/…</td><td class="note">Coordinator system prompt, defaults (<code>reasoning-pool</code>, compaction at 16k reserve / 20k recent), ToolHive MCP via <code>pi-mcp-adapter</code> with <code>lifecycle: lazy</code></td></tr>
+            <tr><td class="mono">dot_local/bin/executable_pi-*</td><td class="mono">~/.local/bin/pi-child · pi-lean</td><td class="note">Launcher scripts for delegated children and a minimal-context variant</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Two machine-local files are deliberately excluded via <code>.chezmoiignore</code> — <code>auth.json</code> and <code>models-store.json</code> — so <code>chezmoi apply</code> reconciles configuration without ever clobbering runtime state. Secrets never touch the repo: chezmoi renders them from 1Password at apply time, and the README records the validation that was done (an unauthenticated GET to the ToolHive gateway returned 401; the redacted rendered config loaded through pi 0.84.2 and adapter 2.27.0 before the change shipped).</p>
+
+      <div class="callout">
+        <h4>The structural irony worth noticing</h4>
+        <p>The same seventy-two hours that produced this config also deleted the alias layer from the LiteLLM proxy (Routing Teardown §12) — proxy model names are now deployment names. The stable-name indirection did not die; it migrated <i>here</i>. <code>explorer</code>, <code>fixer</code>, and friends are role names in harness config, and when the week's economics forced two backend retargets (§2), the role names absorbed both without a single caller changing. The alias layer is load-bearing wherever it lives; Jory moved it, cogito keeps it in the proxy — but somebody has to hold it.</p>
+      </div>
+    </section>
+
+    <section id="market">
+      <h2><span class="num">02</span>The role market</h2>
+
+      <p class="lede">Five agents, and the load-bearing insight: roles are not just capability tiers, they are price points — and the coordinator is told the prices.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Agent</th><th>Model</th><th>Context</th><th>Price seat</th><th>Job</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="mono">explorer</td>
+              <td class="mono">mimo-v2.5 <span class="chip paid">go plan</span></td>
+              <td class="mono">256k</td>
+              <td class="note">Cheapest by a wide margin ($0.14/$0.28)</td>
+              <td class="note">Read-only recon; fan out several in parallel — "this is how you buy context." Explicitly the weakest reasoner: locating and summarising, never judgement</td>
+            </tr>
+            <tr>
+              <td class="mono">fixer</td>
+              <td class="mono">llama-nvidia <span class="chip live">local</span></td>
+              <td class="mono">140k</td>
+              <td class="note">Free, but contended by Foreman</td>
+              <td class="note">Fast scoped edits (54s p95 — the fastest lane he has) and <b>the only image-capable lane</b>: Qwen 3.8-27B on the 3090 with the vision projector encoding on CPU</td>
+            </tr>
+            <tr>
+              <td class="mono">fixer-bigctx</td>
+              <td class="mono">dsv4f <span class="chip paid">go plan</span></td>
+              <td class="mono">1M</td>
+              <td class="note">Mid-priced, own $15/mo sub-cap</td>
+              <td class="note">Primary bulk coding lane; parallel implementation attempts; falls back to GPT-5.6 Luna when its cap is spent. Never fast: 117s p95</td>
+            </tr>
+            <tr>
+              <td class="mono">oracle</td>
+              <td class="mono">dsv4p <span class="chip paid">go plan</span></td>
+              <td class="mono">1M</td>
+              <td class="note">Most expensive; use deliberately</td>
+              <td class="note">Hard debugging, root-cause, architecture. Read-mostly — "return a recommendation, don't sprawl into edits"</td>
+            </tr>
+            <tr>
+              <td class="mono">reviewer</td>
+              <td class="mono">MiniMax-M3 <span class="chip paid">anthropic-messages</span></td>
+              <td class="mono">1M</td>
+              <td class="note">—</td>
+              <td class="note">Independent review — deliberately a <i>different model family</i> from the Qwen coders and DeepSeek analysts</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>The prompt is an economics briefing</h3>
+
+      <p>The coordinator system prompt does three unusual things. First, it carries the price model verbatim — "the Opencode Go plan is metered in DOLLARS, not flat-rate… prefer several <code>explorer</code> passes over one speculative <code>oracle</code> call." Second, it specifies a delegation contract: every brief must carry the objective, the decisions already settled with exact values inlined, the files the sub owns, what is out of scope, and <i>the observable check that proves success</i> — "a sub should never have to infer scope or re-derive a decision you already made." Third, it institutionalises the <b>council</b>: high-stakes review gets independent verdicts from different model families — DeepSeek, MiniMax, Qwen — reconciled by the coordinator. "Never let one model grade its own work."</p>
+
+      <h3>Why the prices are in the prompt: they moved twice in a week</h3>
+
+      <p>The Go plan was believed flat-rate; it is actually dollar-denominated — $60/month, $30/week, $12 per rolling five hours. On 2026-08-16 dsv4f was repriced roughly 8× (to $0.22/$0.66) <i>and</i> handed its own $15/month sub-cap inside the $60. The response was two lane retargets in two days: <code>explorer</code> moved from dsv4f to mimo-v2.5, and <code>fixer-bigctx</code> moved from the retired qwen3.7-plus onto dsv4f. Both were one-line model swaps behind stable role names — the churn the role layer exists to absorb, demonstrated live. The honest caveat travels with it: the coordinator's cost model is prose in a prompt, so it drifts the moment the provider reprices again, which is exactly what the chezmoi diff history is for.</p>
+    </section>
+
+    <section id="processes">
+      <h2><span class="num">03</span>Subagents are processes, not threads</h2>
+
+      <p class="lede">Delegation spawns a separate <code>pi</code> process per child, which is what makes the isolation, the caps, and the abort story simple.</p>
+
+      <ul>
+        <li><b>Isolated context by construction.</b> Each child gets its own context window, the delegated system prompt, and the role's tool whitelist. A child whose frontmatter omits <code>model</code> inherits the dispatching session's model and thinking level.</li>
+        <li><b>Bounded fan-out.</b> Parallel mode caps at 8 tasks, 4 concurrent; each completed task returns at most 50KB to the parent model, with full output retained in tool details. The launcher consumes pi's <code>message_end</code> JSON events plus stderr — the README notes it deliberately does not depend on an unsupported <code>tool_result_end</code> event, a scar from an earlier version that did.</li>
+        <li><b>Abort propagates.</b> Ctrl+C kills the child processes; a child that dies before producing output returns its stderr as diagnostics rather than vanishing.</li>
+        <li><b>The trust boundary is explicit.</b> Only user-level agents (<code>~/.pi/agent/agents</code>) load by default. Project-local agents (<code>.pi/agents/*.md</code>) are repo-controlled prompts that can run bash — they require <code>agentScope: "both"</code> to load at all, and untrusted projects get an interactive confirmation on top.</li>
+        <li><b>Agents are discovered fresh per invocation</b>, so a role definition can be edited mid-session and the next delegation picks it up.</li>
+      </ul>
+
+      <p>Three prompt presets wrap common chains — <code>/implement</code> (scout → planner → worker), <code>/scout-and-plan</code>, <code>/implement-and-review</code>. Those are one-shot templates; what shipped this week is their durable successor.</p>
+    </section>
+
+    <section id="workflows">
+      <h2><span class="num">04</span>The workflow layer</h2>
+
+      <p class="lede">Merged 2026-08-21: an opt-in runner that turns delegation chains into declarative, resumable state machines. Definitions are portable JSON in chezmoi; run state is machine-local and crash-safe.</p>
+
+      <p>Workflows are discovered from <code>~/.pi/agent/workflows/*.json</code> and driven by <code>/workflow list · show · start · status · pause · resume · quit</code>. Four stage types compose them: <code>delegate</code> (single or bounded-parallel, to the named role agents), <code>check</code> (deterministic command), <code>approval</code> (human gate), and <code>repair-loop</code> (bounded retry). Handoffs between stages are explicit — <code>handoffFrom</code> names exactly which prior outputs enter a task — and size-capped; full outputs survive only where a stage declares an <code>artifact</code>. Run state lives in <code>state.json</code> written via same-directory temp file, fsync, and rename, so an interrupted write can never replace the last good state.</p>
+
+      <figure>
+        <svg viewBox="0 0 960 420" role="img" aria-label="The implement-and-review workflow: oracle plans read-only, a human approval gate pre-approves the mutation stages, fixer implements with mutation flagged, a trusted git diff check runs, the reviewer fails the stage if it reports actionable findings, and a repair loop bounded to one attempt re-fixes, re-checks, and re-reviews. State is fsynced after every stage.">
+          <defs>
+            <marker id="wf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="wfw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-w" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+
+          <text class="th" x="16" y="26">IMPLEMENT-AND-REVIEW · STAGES</text>
+
+          <rect class="box" x="16" y="46" width="158" height="66" rx="3"/>
+          <text class="t" x="28" y="70">plan · oracle</text>
+          <text class="ts" x="28" y="90">read-only, handoff</text>
+
+          <rect class="boxghost" x="208" y="46" width="158" height="66" rx="3"/>
+          <text class="t" x="220" y="70">approval</text>
+          <text class="ts" x="220" y="90">human pre-approves</text>
+          <text class="ts" x="220" y="104">the mutation stages</text>
+
+          <rect class="boxpaid" x="400" y="46" width="158" height="66" rx="3"/>
+          <text class="t" x="412" y="70">implement · fixer</text>
+          <text class="ts" x="412" y="90">mutation: true</text>
+
+          <rect class="boxlive" x="592" y="46" width="158" height="66" rx="3"/>
+          <text class="t" x="604" y="70">check</text>
+          <text class="ts" x="604" y="90">git diff --check</text>
+          <text class="tl" x="604" y="104">trusted registry only</text>
+
+          <rect class="box" x="784" y="46" width="160" height="66" rx="3"/>
+          <text class="t" x="796" y="70">review · reviewer</text>
+          <text class="ts" x="796" y="90">fails on ACTIONABLE</text>
+          <text class="ts" x="796" y="104">FINDINGS</text>
+
+          <line x1="174" y1="79" x2="200" y2="79" marker-end="url(#wf)"/>
+          <line x1="366" y1="79" x2="392" y2="79" marker-end="url(#wf)"/>
+          <line x1="558" y1="79" x2="584" y2="79" marker-end="url(#wf)"/>
+          <line x1="750" y1="79" x2="776" y2="79" marker-end="url(#wf)"/>
+
+          <rect class="boxghost" x="208" y="196" width="560" height="140" rx="3"/>
+          <text class="th" x="224" y="220">REPAIR-LOOP · MAXATTEMPTS: 1 (EXTENSION CAP 3)</text>
+
+          <rect class="boxpaid" x="228" y="236" width="158" height="60" rx="3"/>
+          <text class="t" x="240" y="260">repair-fix · fixer</text>
+          <text class="ts" x="240" y="280">mutation: true</text>
+
+          <rect class="boxlive" x="418" y="236" width="150" height="60" rx="3"/>
+          <text class="t" x="430" y="260">repair-check</text>
+          <text class="ts" x="430" y="280">same trusted check</text>
+
+          <rect class="box" x="600" y="236" width="150" height="60" rx="3"/>
+          <text class="t" x="612" y="260">repair-review</text>
+          <text class="ts" x="612" y="280">artifact kept</text>
+
+          <line x1="386" y1="266" x2="410" y2="266" marker-end="url(#wf)"/>
+          <line x1="568" y1="266" x2="592" y2="266" marker-end="url(#wf)"/>
+
+          <polyline class="ewarn edash" points="864,112 864,266 758,266" marker-end="url(#wfw)"/>
+          <text class="tl warn" x="790" y="200">if check or review</text>
+          <text class="tl warn" x="790" y="214">failed</text>
+
+          <text class="ts" x="16" y="382">state.json — temp file + fsync + rename after every stage · resume revokes prior approvals</text>
+          <text class="tl" x="16" y="404">artifacts kept only where declared: check.txt · repair-check.txt · repair-review.md</text>
+        </svg>
+        <figcaption><b>One workflow, every stage type.</b> Amber stages may edit the working tree and cannot run without the approval gate; green stages are deterministic checks resolved from a trusted registry; the dashed loop is the only retry path and its bound is enforced by the extension, not trusted from the definition. The reviewer's verdict becomes machine-readable through one convention — a response starting with <code>ACTIONABLE FINDINGS</code> fails the stage via <code>failureIfContains</code>.</figcaption>
+      </figure>
+
+      <p>The other two shipped workflows exercise the remaining shapes. <code>debug-until-green</code> is oracle-diagnose then a repair loop bounded at two attempts, and its README note is characteristically careful: the free-form input is <i>diagnosis context only</i> — it is never executed, because the check is the fixed trusted <code>git-diff-check</code>. <code>review-pr</code> is the council as a workflow: resolve the PR target, then a <b>parallel fan-out of three read-only lanes</b> — explorer, oracle, reviewer, three model families — synthesized by the reviewer into a saved <code>review.md</code> artifact.</p>
+    </section>
+
+    <section id="rails">
+      <h2><span class="num">05</span>Foreman's rails, miniaturised</h2>
+
+      <p class="lede">Every safety idea in the workflow layer has a named ancestor in the batch pipeline. This is Foreman's philosophy — model output is evidence, not authority — carried into interactive work.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Rail</th><th>In Foreman (batch)</th><th>In the workflow layer (interactive)</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="mono">verdicts grounded</td>
+              <td class="note">Reviewer must quote the ask verbatim and anchor findings to changed lines; unverified GO demotes to NO-GO</td>
+              <td class="note"><code>failureIfContains: "ACTIONABLE FINDINGS"</code> makes the verdict machine-checkable, and deterministic <code>check</code> stages run regardless of what any model claims</td>
+            </tr>
+            <tr>
+              <td class="mono">no shell from models</td>
+              <td class="note">Gate commands come from a per-repo profile in git, digest-pinned</td>
+              <td class="note"><code>check</code> stages resolve only a name in the extension's <b>trusted registry of fixed argvs</b> — no command arrays, no shell strings, no <code>{input}</code> expansion into commands, ever. Adding a check means adding a fixed argv to source first</td>
+            </tr>
+            <tr>
+              <td class="mono">bounded retries</td>
+              <td class="note"><code>maxTurns</code> 160/80; three attempts then escalate; then BLOCKED</td>
+              <td class="note">Repair loops must declare <code>maxAttempts</code> and the extension hard-caps them at 3; parallel delegation caps at 4 children</td>
+            </tr>
+            <tr>
+              <td class="mono">human at the gate</td>
+              <td class="note">A human appears exactly once — at merge</td>
+              <td class="note"><code>mutation: true</code> stages require interactive approval; an <code>approval</code> stage can pre-approve named mutation stages — and <b>resume revokes prior approvals</b>, so a resumed run always re-confirms before touching the tree</td>
+            </tr>
+            <tr>
+              <td class="mono">honest blast radius</td>
+              <td class="note">Coders run rootless in Jobs; verify is the repo's own CI</td>
+              <td class="note">Stated in the README rather than implied: "the runner has no sandbox: use a disposable worktree or container for autonomous mutation"</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>The pattern underneath all five rows: the model proposes, the harness disposes. The workflow definition is data a model could plausibly have written; the registry, the caps, and the approval semantics live in the extension's code, which a workflow cannot override. That division — definitions portable and cheap, enforcement centralised and versioned — is the part worth copying even where the specific rails differ.</p>
+    </section>
+
+    <section id="harnesses">
+      <h2><span class="num">06</span>One brain, three harnesses</h2>
+
+      <p class="lede">The same roles, keys, tools, and memory span pi, opencode, and Zed — and one of the three now also runs as a pod.</p>
+
+      <figure>
+        <svg viewBox="0 0 940 400" role="img" aria-label="Chezmoi renders the dotfiles into pi, opencode, and Zed configs on the laptop; a home-ops ConfigMap mirrors the opencode config into an in-cluster server pod. All harnesses share one LiteLLM virtual key, one ToolHive API key, and — for the two opencodes — one memini memory namespace.">
+          <defs>
+            <marker id="hb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="hba" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-a" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+
+          <rect class="box" x="16" y="40" width="230" height="120" rx="3"/>
+          <text class="th" x="131" y="64" text-anchor="middle">DOTFILES · CHEZMOI</text>
+          <text class="ts" x="32" y="90">dot_pi · dot_config/opencode</text>
+          <text class="ts" x="32" y="108">dot_config/zed · templates</text>
+          <text class="tl" x="32" y="130">secrets rendered from 1Password</text>
+          <text class="tl" x="32" y="146">at apply time — never in the repo</text>
+
+          <rect class="boxlive" x="330" y="24" width="200" height="56" rx="3"/>
+          <text class="t" x="342" y="48">pi · ~/.pi/agent</text>
+          <text class="ts" x="342" y="66">roles + workflows + MCP</text>
+
+          <rect class="box" x="330" y="96" width="200" height="56" rx="3"/>
+          <text class="t" x="342" y="120">opencode · laptop</text>
+          <text class="ts" x="342" y="138">same roles, task tool</text>
+
+          <rect class="box" x="330" y="168" width="200" height="56" rx="3"/>
+          <text class="t" x="342" y="192">Zed</text>
+          <text class="ts" x="342" y="210">one global subagent → nvidia</text>
+
+          <rect class="boxlive" x="330" y="252" width="200" height="66" rx="3"/>
+          <text class="t" x="342" y="276">opencode · pod</text>
+          <text class="ts" x="342" y="294">Saffron bot · authentik SSO</text>
+          <text class="ts" x="342" y="310">home-ops pre-cloned</text>
+
+          <rect class="boxghost" x="16" y="252" width="230" height="66" rx="3"/>
+          <text class="ts" x="32" y="278">home-ops ConfigMap</text>
+          <text class="ts" x="32" y="296">mirrors the dotfiles config</text>
+          <text class="tl" x="32" y="312">two sources, kept aligned by hand</text>
+
+          <line x1="246" y1="80" x2="322" y2="52" marker-end="url(#hb)"/>
+          <line x1="246" y1="100" x2="322" y2="124" marker-end="url(#hb)"/>
+          <line x1="246" y1="120" x2="322" y2="196" marker-end="url(#hb)"/>
+          <text class="tl" x="262" y="70">chezmoi apply</text>
+          <line x1="246" y1="285" x2="322" y2="285" marker-end="url(#hb)"/>
+
+          <rect class="boxpaid" x="640" y="40" width="284" height="64" rx="3"/>
+          <text class="t" x="652" y="64">litellm.jory.dev</text>
+          <text class="ts" x="652" y="84">one opencode virtual key, all harnesses</text>
+
+          <rect class="box" x="640" y="128" width="284" height="64" rx="3"/>
+          <text class="t" x="652" y="152">ToolHive · mcp.jory.dev</text>
+          <text class="ts" x="652" y="172">one x-api-key, all three clients</text>
+
+          <rect class="boxlive" x="640" y="216" width="284" height="80" rx="3"/>
+          <text class="t" x="652" y="240">memini · memory</text>
+          <text class="ts" x="652" y="260">namespace "opencode" — laptop and</text>
+          <text class="ts" x="652" y="276">pod remember together</text>
+
+          <line class="eaccent" x1="530" y1="60" x2="632" y2="66" marker-end="url(#hba)"/>
+          <line class="eaccent" x1="530" y1="124" x2="632" y2="80" marker-end="url(#hba)"/>
+          <line class="eaccent" x1="530" y1="196" x2="632" y2="94" marker-end="url(#hba)"/>
+          <line class="eaccent" x1="530" y1="285" x2="632" y2="100" marker-end="url(#hba)"/>
+          <line x1="530" y1="130" x2="632" y2="156" marker-end="url(#hb)"/>
+          <line x1="530" y1="290" x2="632" y2="180" marker-end="url(#hb)"/>
+          <line x1="530" y1="118" x2="632" y2="240" marker-end="url(#hb)"/>
+          <line x1="530" y1="300" x2="632" y2="262" marker-end="url(#hb)"/>
+        </svg>
+        <figcaption><b>The sharing topology.</b> Chezmoi renders one source into three laptop harnesses; a home-ops ConfigMap mirrors the opencode config into a persistent in-cluster server. Everything converges on shared services: one LiteLLM virtual key (green edges), one ToolHive API key, and — for the two opencodes — one memini memory namespace, so a fact learned at the desk is known to the pod and vice versa.</figcaption>
+      </figure>
+
+      <ul>
+        <li><b>opencode grew a body in the cluster.</b> An <code>opencode serve</code> pod with a kopiur-backed 20Gi home, home-ops pre-cloned at boot, committing as the Saffron bot, fronted by authentik SSO — a coordinator that survives the laptop's lid. Its agent config carries the same coordinator-plus-five-roles as pi's.</li>
+        <li><b>Zed shows the constraint the others escape.</b> It has exactly one global subagent model, so it cannot fan out to a cheap lane the way <code>explorer</code> does — the config pins it to <code>nvidia</code> as the fastest lane and the comment tells the operator to keep Zed subagent jobs bounded. A harness's delegation model limits which economics you can express.</li>
+        <li><b>Auth converged the hard way.</b> ToolHive gained API-key auth this week; all three clients now send the same 1Password-backed <code>x-api-key</code>, with chezmoi rendering the key because Zed uses header values verbatim and cannot expand env vars.</li>
+        <li><b>The two-source wrinkle.</b> The pod's opencode config is a home-ops ConfigMap that mirrors the dotfiles template by hand. It has already been patched pod-side three times in two days (server working directory, envsubst escaping, memini plugin) — a drift surface the memory namespace makes worth watching, since both ends write to it.</li>
+      </ul>
+    </section>
+
+    <section id="lift">
+      <h2><span class="num">07</span>What cogito lifts, and what it does not</h2>
+
+      <p class="lede">Cogito already runs pi — the <code>pi</code> virtual key and the <code>llm-proxy-refresh</code> extension exist today — so most of this section is one chezmoi PR, not a project.</p>
+
+      <h4>Lift</h4>
+      <ul>
+        <li><b>The workflow layer, near-verbatim.</b> Portable JSON definitions plus one extension, already engineered for exactly cogito's shape of work. The one adaptation worth making on day one: extend the trusted check registry with gitops-shaped fixed argvs — <code>kustomize build</code> over the rendered path, <code>git diff --check</code> — so "the worker says it updated the YAML" gets the deterministic verification the Routing Teardown's §11 already demands.</li>
+        <li><b>A price-aware coordinator prompt, inverted.</b> Jory's capacity policy rations dollar lanes; cogito's shape is the mirror image — <code>worker</code> and <code>reviewer</code> seats are free and plentiful (six seats after the retune in The Idle Bench §2), so the prompt should say <i>fan out locally by default</i>, and escalation to GLM 5.3 / K3 is entered on failure, with per-key budgets as the hard backstop.</li>
+        <li><b>The delegation contract paragraph.</b> Objective, settled decisions inlined, files owned, out-of-scope, observable success check — this is the discipline that makes short self-contained worker prompts (the whole cache argument) actually short and self-contained.</li>
+        <li><b>The council, across cogito's families.</b> Local Qwen, GLM 5.3, and K3 are three families; <code>review-pr</code>'s fan-out-then-synthesize shape maps onto them directly, and it is a workflow definition, not infrastructure.</li>
+      </ul>
+
+      <h4>Do not lift</h4>
+      <ul>
+        <li><b>Roles only in the harness.</b> Jory deleted his proxy aliases and pays for it in coupled renames; cogito's role aliases stay in LiteLLM because multiple clients (Open WebUI, Hermes, pi) and per-key spend attribution consume them there. Harness role names <i>on top of</i> proxy aliases is the right stack for this cluster — two thin layers, each absorbing its own kind of churn.</li>
+        <li><b>The dollar-lane arithmetic.</b> Cogito's lanes are free-local plus two subscriptions; the useful residue is the principle (tell the coordinator the ladder), not the numbers.</li>
+        <li><b>Mutation without a sandbox.</b> The README's own warning stands: autonomous mutation stages belong in a disposable worktree. Cogito's jj-colocated repos make that cheap — take the advice literally.</li>
+      </ul>
+
+      <p>The cluster-side seating these roles call into — which provider sits behind <code>coordinator</code>, <code>worker-escalated</code>, <code>reviewer-escalated</code>, and the retrieval floor — remains The Idle Bench §6; nothing here changes it. What this document adds is the missing client half: the coordinator pattern is not a proxy feature, and the seventy-two hours that built it twice at Jory's are the proof it lives in the harness.</p>
+    </section>
+
+    <section id="todo">
+      <h2><span class="num">08</span>The to-do list</h2>
+
+      <p class="lede">The harness lift — one chezmoi PR plus prompts. <b>Third</b> in the serial plan: item 4 binds to the role aliases the routing teardown's list publishes.</p>
+
+      <ol class="body">
+        <li><b>Port the workflow layer.</b>
+          <ul>
+            <li>Copy the workflow extension and the three definitions into cogito's chezmoi-managed pi config, keeping run state machine-local.</li>
+          </ul>
+        </li>
+        <li><b>Extend the trusted check registry with gitops argvs.</b>
+          <ul>
+            <li>Add <code>kustomize build</code> over the rendered path and <code>git diff --check</code> as fixed argvs in source, before any workflow names them.</li>
+          </ul>
+        </li>
+        <li><b>Write the coordinator prompt, inverted.</b>
+          <ul>
+            <li>Local seats are free, so fan out <code>worker</code>/<code>reviewer</code> by default; escalation is entered on failure, with per-key budgets as the hard backstop.</li>
+            <li>Carry the delegation contract verbatim in spirit: objective, settled decisions inlined, files owned, out-of-scope, observable success check.</li>
+          </ul>
+        </li>
+        <li><b>Define the role agents and bind the models.</b>
+          <ul>
+            <li>Agent files for worker/reviewer on the local aliases and the escalations on GLM 5.3 / K3, wired through pi's <code>models.json</code> against cogito's LiteLLM.</li>
+          </ul>
+        </li>
+        <li><b>Add the council workflow.</b>
+          <ul>
+            <li><code>review-pr</code>'s fan-out-then-synthesize across three families: local Qwen, GLM 5.3, K3.</li>
+          </ul>
+        </li>
+        <li><b>Run mutation stages in disposable jj worktrees.</b>
+          <ul>
+            <li>The README's no-sandbox warning taken literally — cheap on jj-colocated repos.</li>
+          </ul>
+        </li>
+      </ol>
+
+      <p>Hand-off: the rails items in Foreman and ToolHive's list (§12 there) are implemented by items 2 and 3 here — that list adds only the escalation log and the deferred options.</p>
+    </section>
+
+  </main>
+
+  <footer>
+    Read from joryirving/dotfiles @ dde72c28 (main, 2026-08-21) — <code>home/dot_pi</code>, <code>home/dot_config/opencode</code>, <code>home/dot_config/zed</code>, <code>home/.chezmoitemplates</code> — and joryirving/home-ops through 695556bd for the opencode pod and its memini mirror. Runtime: pi 0.84.2 · pi-mcp-adapter 2.27.0. Prices, caps, and p95 latencies are as recorded in the config comments on that date; the Go plan repriced once mid-month already and will drift. Companions: <a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96">LiteLLM Routing Teardown</a> (§12 covers the same window cluster-side) · <a href="https://claude.ai/code/artifact/68ddd1e2-92ee-49fd-bc97-abad5fff7b9c">The Contested GPU</a> · <a href="https://claude.ai/code/artifact/3bbe6e0b-d8af-4a5f-a596-7e266605951e">Foreman &amp; ToolHive</a> · <a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac">The Idle Bench</a>.
+  </footer>
+
+</div>

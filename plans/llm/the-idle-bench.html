@@ -184,9 +184,11 @@ footer { grid-column: 1 / -1; border-top: 1px solid var(--rule-strong); padding-
       <li><a href="#nucs">5 · The NUCs stay boring</a></li>
       <li><a href="#cloud">6 · The cloud tier, frugally</a></li>
       <li><a href="#bench">7 · Measure before moving</a></li>
+      <li><a href="#todo">8 · The to-do list</a></li>
       <li class="sib"><a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96">Routing teardown →</a></li>
       <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/68ddd1e2-92ee-49fd-bc97-abad5fff7b9c">Contested GPU →</a></li>
       <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/3bbe6e0b-d8af-4a5f-a596-7e266605951e">Foreman &amp; ToolHive →</a></li>
+      <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/04ec2542-d4ac-4b25-8ffe-9ff428379a73">Portable Coordinator →</a></li>
     </ol>
   </nav>
 
@@ -461,7 +463,12 @@ footer { grid-column: 1 / -1; border-top: 1px solid var(--rule-strong); padding-
         </table>
       </div>
 
-      <p>Not all four need to run at once — 16GB comfortably holds the VLM plus Whisper plus a reranker, or Muse alone with real KV headroom. Which subset stays resident is a llmkube InferenceService toggle, not an architectural decision, precisely because nothing here is load-bearing.</p>
+      <p>Not all four need to run at once — 16GB comfortably holds the VLM plus Whisper plus a reranker, or Muse alone with real KV headroom. Which subset stays resident is a config toggle, not an architectural decision, precisely because nothing here is load-bearing. How they ship, though, is constrained by the preemption arithmetic:</p>
+
+      <div class="callout bad">
+        <h4>The roster must evict as one pod</h4>
+        <p>Kubernetes preemption removes the <i>minimal</i> set of lower-priority pods that lets the pending pod fit. Run the roster as three or four single-unit pods and a Wolf session claiming two units evicts only enough of them to free two — the survivors keep running beside the game, degrading it, and keep holding VRAM, which deadlocks the DCGM free-VRAM gate that is waiting to admit the session. The fix is structural: advertise exactly what a session consumes (two units), and run the whole roster as <b>one pod that requests both</b> — llama.cpp serving several small models from one process, or multiple containers in a single pod — so eviction is all-or-nothing and The Contested GPU's mechanism transfers verbatim. This constraint surfaced in review, not in any running cluster; it is the first thing to verify when the node joins.</p>
+      </div>
 
       <h3>The rules transfer verbatim</h3>
 
@@ -501,7 +508,7 @@ footer { grid-column: 1 / -1; border-top: 1px solid var(--rule-strong); padding-
 
       <h3>Vision towers on the CPU — where "I rarely use them" belongs</h3>
 
-      <p>Rare vision should not hold 3090 VRAM hostage, and the swap-pool Gemmas that used to carry it retire with the pool. llama.cpp splits multimodal models so the projector and vision encoder stay on CPU (<code>--no-mmproj-offload</code>); on 40 threads a small VLM runs entirely on kristeva's CPU with image encode measured in seconds — a perfectly acceptable price for an occasional screenshot. The tiered answer:</p>
+      <p>Rare vision should not hold 3090 VRAM hostage, and the swap-pool Gemmas that used to carry it retire with the pool. llama.cpp splits multimodal models so the projector and vision encoder stay on CPU (<code>--no-mmproj-offload</code>); on 40 threads a small VLM runs entirely on kristeva's CPU with image encode measured in seconds — a perfectly acceptable price for an occasional screenshot. And this is no longer speculative: Jory's <code>llama-nvidia</code> lane already serves Qwen 3.8 exactly this way in production — 140k context with the projector encoding on CPU — and it carries his <i>only</i> image-capable lane (<a href="https://claude.ai/code/artifact/04ec2542-d4ac-4b25-8ffe-9ff428379a73">The Portable Coordinator</a> §2). The tiered answer:</p>
 
       <ul>
         <li><b>Occasional, casual:</b> small VLM on kristeva's CPU, always available, costs no VRAM anywhere.</li>
@@ -579,6 +586,8 @@ footer { grid-column: 1 / -1; border-top: 1px solid var(--rule-strong); padding-
       <ul>
         <li><b>One virtual key per role, each with a budget.</b> LiteLLM's per-key accounting answers "what did delegation cost this week" for free, and a budget cap turns a runaway loop into a clean 429 instead of a surprise invoice.</li>
         <li><b>Fallbacks stay asymmetric</b>, exactly as the teardown argues: <code>worker → worker-escalated</code> is load-bearing (short cold prefixes make it nearly free), and the coordinator carries no cross-provider fallback at all — its prefix is the whole conversation, and failing it over re-pays cache-creation rates on everything.</li>
+        <li><b>A PAYG floor under escalation is a candidate rung.</b> Jory's ladder gained an energy-priced neuralwatt backstop (DeepSeek V4 Flash at $0.104/$0.207) precisely because his "flat-rate" plan turned out to be dollar-capped and repriced mid-month. The same shape here: a cheap metered rung behind the GLM 5.3 seat, so coding-plan cap exhaustion degrades in price instead of failing — and his principle transfers with it: <i>order encodes preference, not cost</i>, so the ladder need not be monotonic.</li>
+        <li><b>Tell the coordinator the ladder.</b> Jory writes the lane economics into the coordinator's own prompt; cogito's version inverts it — <code>worker</code> and <code>reviewer</code> seats are free, so the prompt says fan out locally by default and enter the paid rungs on failure, with per-key budgets as the hard backstop. His council rule transfers unchanged: high-stakes review takes verdicts from different model families (local Qwen, GLM 5.3, K3) and never lets one model grade its own work. The harness side of both ideas is <a href="https://claude.ai/code/artifact/04ec2542-d4ac-4b25-8ffe-9ff428379a73">The Portable Coordinator</a> §2 and §7.</li>
             <li><b>The validator grows three assertions:</b> the <code>embedder</code> and <code>reranker</code> aliases resolve to live backends; no alias whose backend sits on the preemptible node lacks a fallback behind it; and the coordinator alias still has no fallback entry — encoding the cache argument so a future edit cannot quietly undo it.</li>
       </ul>
     </section>
@@ -586,10 +595,14 @@ footer { grid-column: 1 / -1; border-top: 1px solid var(--rule-strong); padding-
     <section id="bench">
       <h2><span class="num">07</span>Measure before moving</h2>
 
-      <p class="lede">Every decision above is cheap to check, and none has been checked. In dependency order:</p>
+      <p class="lede">Every decision above is cheap to check, and all but one remain unchecked — that one was settled by decision instead. In dependency order:</p>
+
+      <div class="callout good">
+        <h4>Settled without the benchmark: FP8 across both cards</h4>
+        <p>The single-card W4A16 alternative was worth an afternoon's A/B; on 2026-08-21 the decision landed on <b>FP8 spanning both 3090s now</b>, trading a possible single-card latency win for settled quality and context. The alternative stays recorded in the routing teardown §10 as the fallback if TP2 throughput ever becomes the constraint. If that A/B is ever run, one rule from Jory's strix experiment applies: <b>match the KV cache dtype across both arms</b> — his FP8-vs-Q4 run initially measured a 4-bit V cache rather than the weights (protocol adherence fell while single-shot reasoning held) and had to be redone at q8_0 on both sides.</p>
+      </div>
 
       <ol class="body">
-        <li><b>W4A16 on one card vs FP8 across both.</b> The two 3090s have no NVLink, so TP=2 pays an all-reduce over PCIe every layer; it is genuinely possible the 4-bit single-card build wins on tokens per second. Both builds are staged; this benchmark gates the shape of the entire worker endpoint and costs an afternoon.</li>
         <li><b><code>nvidia-smi -L</code> and <code>CUDA_VISIBLE_DEVICES</code> inside the running qwen pod, then <code>replicas: 1</code>.</b> Confirms the time-sliced allocation really spans two physical cards today, then makes it true by construction. Gates every scheduling rule the multi-node future depends on.</li>
         <li><b>Identify kristeva's CPU and measure its memory bandwidth.</b> One <code>lscpu</code> and one STREAM-class run. Gates the MoE lane entirely and calibrates vision-encode latency expectations.</li>
         <li><b>A380 embedding throughput at int8.</b> Chunks per minute under OVMS or llama.cpp-SYCL. Decides whether the retrieval floor also covers bulk indexing or whether the 5070&nbsp;Ti reranker slot gets built.</li>
@@ -597,14 +610,62 @@ footer { grid-column: 1 / -1; border-top: 1px solid var(--rule-strong); padding-
         <li><b>A seat sweep, 2 → 8, under synthetic parallel agents.</b> Measure inter-token latency and preemption counts at each step with realistic worker-length prompts. This sizes <code>max-num-seqs</code> empirically — the one number in §2 chosen by argument rather than by data.</li>
       </ol>
 
-      <p>Then the moves, in the order the measurements unlock them: retune the worker endpoint and mirror its LiteLLM entry (§2), stand up the A380 floor and repoint Open WebUI's RAG (§4), join the 5070&nbsp;Ti node and port the preemption stack (§3), seat the cloud providers and their keys (§6). Each is independently shippable, none requires buying anything, and the bench stops being idle one section at a time.</p>
+      <p>Then the moves. The §2 retune goes first and is unblocked today — with the endpoint's shape settled by decision, only check 1 (truthful device-plugin counts) gates it. The rest follow the measurements that unlock them: stand up the A380 floor and repoint Open WebUI's RAG (§4), join the 5070&nbsp;Ti node and port the preemption stack (§3), seat the cloud providers and their keys (§6). Each is independently shippable, none requires buying anything, and the bench stops being idle one section at a time.</p>
+    </section>
+
+    <section id="todo">
+      <h2><span class="num">08</span>The to-do list</h2>
+
+      <p class="lede">Everything this document decides, as ordered work. This list runs <b>first</b> in the serial plan across the five documents — nothing below waits on any other list, and the first two items are unblocked today.</p>
+
+      <ol class="body">
+        <li><b>Make the GPU counts truthful.</b>
+          <ul>
+            <li>Run <code>nvidia-smi -L</code> and <code>CUDA_VISIBLE_DEVICES</code> inside the running qwen pod to confirm the two time-sliced units span both physical 3090s.</li>
+            <li>Set the nvidia-device-plugin to <code>replicas: 1</code> on iggy so advertised units equal physical cards.</li>
+            <li>Watch the qwen pod reschedule cleanly requesting 2 of 2.</li>
+          </ul>
+        </li>
+        <li><b>Retune the worker endpoint for seats (§2).</b>
+          <ul>
+            <li>Set <code>--max-model-len 131072</code> and <code>--max-num-seqs 6</code> on the InferenceService.</li>
+            <li>Mirror <code>maxInputTokens: 131072</code> in the LiteLLM entry in the same commit.</li>
+            <li>Cap the worker key's parallel requests a notch above the seat count so overflow queues at the proxy.</li>
+          </ul>
+        </li>
+        <li><b>Run the §7 measurements.</b>
+          <ul>
+            <li>Sweep seats 2 → 8 with realistic worker prompts, watching inter-token latency and preemption counts.</li>
+            <li>A/B the MTP speculative decoding on and off at six seats.</li>
+            <li>Identify kristeva's CPU and measure its memory bandwidth — this gates items 5a and 5b.</li>
+            <li>Bench A380 embedding throughput at int8 — this decides whether bulk indexing ever needs the 5070&nbsp;Ti reranker slot.</li>
+          </ul>
+        </li>
+        <li><b>Stand up the A380 retrieval floor (§4).</b>
+          <ul>
+            <li>Confirm the A380's identity from the PCI id before building on the NFD label.</li>
+            <li>Check <code>~/git/llm-operator</code> for non-CUDA serving support, falling back to a plain OVMS or llama.cpp-SYCL Deployment.</li>
+            <li>Deploy the embedder and reranker, and publish the <code>embedder</code> / <code>reranker</code> aliases (one file each).</li>
+            <li>Repoint Open WebUI's RAG at the proxy alias, and place the vector DB on a NUC.</li>
+          </ul>
+        </li>
+        <li><b>Light kristeva's CPU lanes (§4).</b>
+          <ul>
+            <li>Stand up the small VLM with the projector on CPU via llama.cpp <code>--no-mmproj-offload</code>.</li>
+            <li>Trial the DeepSeek V4 Flash MoE lane from the NFS archive, and keep it only if it clears ~5 tok/s.</li>
+          </ul>
+        </li>
+        <li><b>The 5070&nbsp;Ti node's list lives in The Contested GPU §6</b> — deliberately last in the serial plan; nothing above waits for it.</li>
+      </ol>
+
+      <p>Hand-off: once item 4's aliases exist, the routing teardown's list (§13 there) restructures the catalogue around them — its validator asserts everything this list created.</p>
     </section>
 
   </main>
 
   <footer>
     Read from cogito's working tree @ a94e24ce (<code>kubernetes/apps/llm</code>, <code>kubernetes/apps/cluster-infra</code>) and live cluster state via kubectl on 2026-08-21 · companions: <a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96">LiteLLM Routing Teardown</a> · <a href="https://claude.ai/code/artifact/68ddd1e2-92ee-49fd-bc97-abad5fff7b9c">The Contested GPU</a> · <a href="https://claude.ai/code/artifact/3bbe6e0b-d8af-4a5f-a596-7e266605951e">Foreman &amp; ToolHive</a>.<br>
-    Explicitly unverified: the A380 identity rests on one NFD label; kristeva's memory bandwidth is unmeasured; llmkube serving on Intel silicon is unbuilt; and the seat arithmetic in §2 is a linear-KV approximation that §7's sweep exists to replace with data.
+    Explicitly unverified: the A380 identity rests on one NFD label; kristeva's memory bandwidth is unmeasured; llmkube serving on Intel silicon is unbuilt; and the seat arithmetic in §2 is a linear-KV approximation that §7's sweep exists to replace with data. The worker endpoint's shape — FP8 spanning both cards — was settled by decision on 2026-08-21 without the single-card benchmark; the alternative remains recorded in the routing teardown §10.
   </footer>
 
 </div>

@@ -182,9 +182,11 @@ footer { grid-column: 1 / -1; border-top: 1px solid var(--rule-strong); padding-
       <li><a href="#streaming">3 · Getting video out</a></li>
       <li><a href="#arbiter">4 · Gate, don't just preempt</a></li>
       <li><a href="#node">5 · A second card for cogito</a></li>
+      <li><a href="#todo">6 · The to-do list</a></li>
       <li class="sib"><a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96">Routing teardown →</a></li>
       <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/3bbe6e0b-d8af-4a5f-a596-7e266605951e">Foreman &amp; ToolHive →</a></li>
       <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac">The Idle Bench →</a></li>
+      <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/04ec2542-d4ac-4b25-8ffe-9ff428379a73">Portable Coordinator →</a></li>
     </ol>
   </nav>
 
@@ -567,10 +569,56 @@ footer { grid-column: 1 / -1; border-top: 1px solid var(--rule-strong); padding-
 
       <div class="callout bad">
         <h4>The prerequisite nobody will notice is missing</h4>
-        <p>Cogito's <code>routerSettings</code> declares <b>no fallbacks at all</b>. On a swap pool that was defensible — there was nowhere to fall back to. With a preemptible node in the mix, an evicted model means a failed request with no escape path, and the eviction is silent and routine. If anything at all is placed on the 5070 Ti, the narrow local → <code>planner-gpt</code> fallback proposed in the <a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96">routing teardown</a> stops being an optimisation and becomes the thing that makes the node usable.</p>
+        <p>Cogito's <code>routerSettings</code> declares <b>no fallbacks at all</b>. On a swap pool that was defensible — there was nowhere to fall back to. With a preemptible node in the mix, an evicted model means a failed request with no escape path, and the eviction is silent and routine. If anything at all is placed on the 5070 Ti, the per-role fallbacks the <a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96">routing teardown</a> §11 now specifies — <code>worker → worker-escalated</code>, and a target behind every alias this node backs — stop being an optimisation and become the thing that makes the node usable. The teardown's validator asserts exactly this.</p>
       </div>
 
-      <p>The routing half of this — role aliases, per-role virtual keys, and why the coordinator must not carry a cross-provider fallback — is in the <a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96">routing teardown</a>. Two things matter here. A node that disappears mid-request needs something behind it, and cogito currently declares no fallbacks at all. And whatever lands here has only one tenant, so a game session does not degrade it to a slower model — it makes that model simply unavailable until the session ends. That is an acceptable answer for a creative model or an embedder, and never one for a worker, which is why the two 3090s keep the critical path.</p>
+      <p>The routing half of this — role aliases, per-role virtual keys, and why the coordinator must not carry a cross-provider fallback — is in the <a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96">routing teardown</a>. Two things matter here. A node that disappears mid-request needs something behind it — the role fallbacks above, now that the teardown declares them. And whatever lands here should evict as <b>one schedulable tenant</b>: the utility roster <a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac">The Idle Bench</a> §3 plans (a compact VLM, a Muse re-quant, Whisper, an optional heavy reranker) ships as a single pod holding the node's whole advertised budget, so a session preempts everything at once instead of leaving survivors sharing the silicon — §3 there covers why the scheduler's minimal-preemption behaviour forces that shape. Unavailability during a session is an acceptable answer for creative and auxiliary models, and never for a worker or the retrieval floor — which is why the two 3090s keep the critical path and the embedder lives on kristeva's A380, not here.</p>
+    </section>
+
+    <section id="todo">
+      <h2><span class="num">06</span>The to-do list</h2>
+
+      <p class="lede">The gaming node — deliberately <b>last</b> in the serial plan: nothing on the critical path waits for it, and every prior list leaves it a clean slot to land in.</p>
+
+      <ol class="body">
+        <li><b>Swap the machines.</b>
+          <ul>
+            <li>The desktop joins the cluster; the laptop becomes the daily driver and Moonlight client.</li>
+          </ul>
+        </li>
+        <li><b>Provision the Talos node.</b>
+          <ul>
+            <li>NVIDIA extensions and runtime class, with the device plugin advertising exactly two units — the number a Wolf session consumes.</li>
+          </ul>
+        </li>
+        <li><b>Ship the utility roster as one pod at priority −100.</b>
+          <ul>
+            <li>A single pod requests both units so eviction is all-or-nothing (The Idle Bench §3's rule); verify a synthetic default-priority claimant actually preempts it before anything else lands.</li>
+          </ul>
+        </li>
+        <li><b>Bring up Wolf by the bisection ladder (§3).</b>
+          <ul>
+            <li>Runtime class on the session pod first — nothing downstream is testable without injected driver userspace.</li>
+            <li>Agree every App on the dGPU's render node, then Test Ball, then Firefox with <code>GBM_BACKENDS_PATH</code> on both containers, then Steam with the Vulkan pinning, shm, and userns items.</li>
+            <li>Apply the DSR annotation before judging stream quality — hairpinned UDP impersonates an encoder problem.</li>
+          </ul>
+        </li>
+        <li><b>Gate sessions on free VRAM (§4).</b>
+          <ul>
+            <li>MutatingAdmissionPolicy at CREATE plus a DCGM-driven ungate with a bounded timeout, taking the gating half of the arbiter only.</li>
+          </ul>
+        </li>
+        <li><b>Source the Muse re-quant.</b>
+          <ul>
+            <li>Small enough to leave real KV headroom on 16GB before it joins the roster; fix the 200k-context KV config it inherits.</li>
+          </ul>
+        </li>
+        <li><b>Confirm the fallbacks.</b>
+          <ul>
+            <li>The routing teardown's validator asserts a target behind every alias this node backs — run it as the node's acceptance check.</li>
+          </ul>
+        </li>
+      </ol>
     </section>
 
   </main>

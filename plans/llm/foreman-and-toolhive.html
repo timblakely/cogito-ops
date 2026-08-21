@@ -175,6 +175,11 @@ footer { grid-column: 1 / -1; border-top: 1px solid var(--rule-strong); padding-
     <p>This is part two. <a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96"><b>LiteLLM Routing Teardown</b></a> covers the serving layer these agents call — which models are running on which card, how the <code>auto</code> router decides, and where the fallback graph dead-ends. Every model name below resolves through that catalogue. <a href="https://claude.ai/code/artifact/68ddd1e2-92ee-49fd-bc97-abad5fff7b9c"><b>The Contested GPU</b></a> covers the hardware those local models run on.</p>
   </div>
 
+  <div class="xref">
+    <div class="eyebrow">Drift notice · 2026-08-21</div>
+    <p>This document reads eed15dcc, and the pipeline moved within days. The bridge is at 0.7.0, runs <b>overnight only</b> — time-partitioning the contended 3090 between interactive traffic by day and this pipeline by night — and gives the local coder a second slot; <code>coder-frontier</code> moved off the MiniMax shim onto <code>reasoning-pool</code>; reviewers no longer join lines into the <code>issueAsk</code> quote; coders write Conventional Commit titles; and ToolHive hosts a tenth server, <code>dispatch</code>. The prose below is left at its pin — the cluster-side changelog is <a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96"><b>LiteLLM Routing Teardown</b></a> §12, and the interactive harness these agents now share their models with is <a href="https://claude.ai/code/artifact/04ec2542-d4ac-4b25-8ffe-9ff428379a73"><b>The Portable Coordinator</b></a>.</p>
+  </div>
+
   <nav class="rail" aria-label="Contents">
     <ol>
       <li><a href="#three">1 · Three systems</a></li>
@@ -188,9 +193,11 @@ footer { grid-column: 1 / -1; border-top: 1px solid var(--rule-strong); padding-
       <li><a href="#optimizer">9 · The tool optimizer</a></li>
       <li><a href="#coordinator">10 · Coordinator shape</a></li>
       <li><a href="#takeaways">11 · Takeaways</a></li>
+      <li><a href="#todo">12 · The to-do list</a></li>
       <li class="sib"><a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96">← Routing teardown</a></li>
       <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/68ddd1e2-92ee-49fd-bc97-abad5fff7b9c">The Contested GPU →</a></li>
       <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac">The Idle Bench →</a></li>
+      <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/04ec2542-d4ac-4b25-8ffe-9ff428379a73">Portable Coordinator →</a></li>
     </ol>
   </nav>
 
@@ -624,6 +631,40 @@ footer { grid-column: 1 / -1; border-top: 1px solid var(--rule-strong); padding-
       </ul>
 
       <p>And one caution that applies to both halves of this cluster: the durable configuration is spread across an <code>Agent</code> CR, a HelmRelease values block, a large JSON env on a CronJob, a virtual key's scope, and a prose note in <code>docs/</code> that has already drifted from the manifests. Every one of those is a place a name can be wrong without anything erroring.</p>
+    </section>
+
+    <section id="todo">
+      <h2><span class="num">12</span>The to-do list</h2>
+
+      <p class="lede">Cogito runs no batch pipeline, so this list is the rails plus the deferred options — <b>fourth</b> in the serial plan, and mostly discharged through the other documents' lists.</p>
+
+      <ol class="body">
+        <li><b>Ground worker claims deterministically.</b>
+          <ul>
+            <li>The gitops check-registry argvs in The Portable Coordinator's list are this document's reviewer rails applied client-side — "I updated the YAML" gets a <code>kustomize build</code> and a diff, not a nod.</li>
+          </ul>
+        </li>
+        <li><b>Record why each escalation happened.</b>
+          <ul>
+            <li>An escalation log keyed by the <code>worker-escalated</code> virtual key — the dataset that says whether the local model is actually capable of the work being delegated to it.</li>
+          </ul>
+        </li>
+        <li><b>Cap turns and spend per subtask.</b>
+          <ul>
+            <li>Per-role key budgets plus the workflow layer's <code>maxAttempts</code> stand in for foreman's <code>maxTurns</code> and stuck-loop detection.</li>
+          </ul>
+        </li>
+        <li><b>Deferred: a ToolHive-style MCP gateway.</b>
+          <ul>
+            <li>The embedding-based tool optimizer becomes attractive once the A380 embedder exists — and is decorrelated by construction, since cogito's floor does not share a box with inference.</li>
+          </ul>
+        </li>
+        <li><b>Deferred: an overnight batch lane.</b>
+          <ul>
+            <li>Jory's overnight-only bridge proves time-partitioning works; revisit only if unattended work outgrows the six interactive seats.</li>
+          </ul>
+        </li>
+      </ol>
     </section>
 
   </main>

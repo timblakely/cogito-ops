@@ -409,7 +409,7 @@ footer {
 
   <div class="xref">
     <div class="eyebrow">Read alongside</div>
-    <p>Three companion documents. <a href="https://claude.ai/code/artifact/3bbe6e0b-d8af-4a5f-a596-7e266605951e"><b>Foreman and ToolHive</b></a> covers the agentic half — how GitHub issues become reviewed PRs on these same models, and how the MCP gateway keeps nine tool servers out of the context window. <a href="https://claude.ai/code/artifact/68ddd1e2-92ee-49fd-bc97-abad5fff7b9c"><b>The Contested GPU</b></a> covers the hardware the local models sit on: how a game session preempts the 3090, why Wolf produces no video yet, and how to plan a second card that yields to games. <a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac"><b>The Idle Bench</b></a> carries the capacity plan that sections ten and eleven now assume — the seat retune on the 3090s, the always-on retrieval floor, the utility roster on the preemptible node, and which cloud provider sits in each role.</p>
+    <p>Four companion documents. <a href="https://claude.ai/code/artifact/04ec2542-d4ac-4b25-8ffe-9ff428379a73"><b>The Portable Coordinator</b></a> covers the harness half of the same cluster — the pi.dev role agents and workflow layer that consume this catalogue, and the seventy-two hours §12 records from the client side. <a href="https://claude.ai/code/artifact/3bbe6e0b-d8af-4a5f-a596-7e266605951e"><b>Foreman and ToolHive</b></a> covers the agentic half — how GitHub issues become reviewed PRs on these same models, and how the MCP gateway keeps nine tool servers out of the context window. <a href="https://claude.ai/code/artifact/68ddd1e2-92ee-49fd-bc97-abad5fff7b9c"><b>The Contested GPU</b></a> covers the hardware the local models sit on: how a game session preempts the 3090, why Wolf produces no video yet, and how to plan a second card that yields to games. <a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac"><b>The Idle Bench</b></a> carries the capacity plan that sections ten and eleven now assume — the seat retune on the 3090s, the always-on retrieval floor, the utility roster on the preemptible node, and which cloud provider sits in each role.</p>
   </div>
 
   <nav class="rail" aria-label="Contents">
@@ -425,9 +425,12 @@ footer {
       <li><a href="#cogito">9 · Cogito today</a></li>
       <li><a href="#future">10 · The target state</a></li>
       <li><a href="#coordinator">11 · The coordinator</a></li>
+      <li><a href="#addendum">12 · 72 hours later</a></li>
+      <li><a href="#todo">13 · The to-do list</a></li>
       <li class="sib"><a href="https://claude.ai/code/artifact/3bbe6e0b-d8af-4a5f-a596-7e266605951e">Foreman &amp; ToolHive →</a></li>
       <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/68ddd1e2-92ee-49fd-bc97-abad5fff7b9c">The Contested GPU →</a></li>
       <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac">The Idle Bench →</a></li>
+      <li class="sib" style="margin-top:8px;border-top:0;padding-top:0"><a href="https://claude.ai/code/artifact/04ec2542-d4ac-4b25-8ffe-9ff428379a73">Portable Coordinator →</a></li>
     </ol>
   </nav>
 
@@ -963,7 +966,7 @@ combined_fallbacks = order_fallback_entries + external_fallback_group</code></pr
 
       <h4>Worth considering</h4>
       <ul>
-        <li><b>A narrow fallback to the frontier tier.</b> <code>routerSettings</code> currently declares only <code>num_retries: 2</code> and <code>timeout: 1900</code>, so a swap-budget 503 surfaces to the client after two retries. A <code>fallbacks</code> entry mapping local aliases to <code>planner-gpt</code> would give a real escape hatch, since the frontier models are remote and always available. Two caveats, both from this teardown: an accidental fallback bills OpenAI, so scope it to the aliases where that is acceptable; and <b>do not add a <code>context_window_fallbacks</code> map unless every group is in it</b>, because a partial map removes the generic fallback rather than supplementing it.</li>
+        <li><b>A narrow fallback to the frontier tier.</b> <code>routerSettings</code> currently declares only <code>num_retries: 2</code> and <code>timeout: 1900</code>, so a swap-budget 503 surfaces to the client after two retries. A <code>fallbacks</code> entry mapping local aliases to <code>planner-gpt</code> would give a real escape hatch, since the frontier models are remote and always available. Two caveats, both from this teardown: an accidental fallback bills OpenAI, so scope it to the aliases where that is acceptable; and <b>do not add a <code>context_window_fallbacks</code> map unless every group is in it</b>, because a partial map removes the generic fallback rather than supplementing it. <i>Superseded by §11: the escape hatch shipped as the role-level <code>worker → worker-escalated</code> fallback — seated on GLM 5.3 in The Idle Bench §6 — rather than a blanket map onto <code>planner-gpt</code>.</i></li>
         <li><b>Extend the role-alias precedent.</b> <code>gemma4-agentic</code> already points at <code>openai/gemma-4-31b-google-qat</code> under a stable role name — the pattern that would have spared Jory the <code>dsv4f</code> leak. Client-facing HF identifiers like <code>Vishva007/Qwen3.8-27B-W4A16-AutoRound</code> are honest but couple every consumer and virtual-key scope to one exact quant; a role alias beside them lets the quant change without touching clients.</li>
       </ul>
 
@@ -1073,6 +1076,11 @@ combined_fallbacks = order_fallback_entries + external_fallback_group</code></pr
 
       <h3>The alternative: one model per card</h3>
 
+      <div class="callout good">
+        <h4>Decided — the target stands</h4>
+        <p>On 2026-08-21 the choice landed on <b>FP8 across both cards</b>, without running the benchmark below. The alternative stays written down as the recorded fallback if TP2 throughput ever becomes the constraint that matters, not as an open question.</p>
+      </div>
+
       <p>The other way to spend 48GB is to give each card a whole model and keep both resident permanently. It is worth writing down because the trade is not one-sided, and one of its costs is not the one people expect.</p>
 
       <p>The quant is chosen for you. Of the three Qwen 3.8 builds already published, only one fits a 24GB card:</p>
@@ -1105,7 +1113,7 @@ combined_fallbacks = order_fallback_entries + external_fallback_group</code></pr
       </div>
 
       <h4>The throughput row is the one that might surprise</h4>
-      <p>Cogito's own manifest records that the two 3090s have <b>no NVLink</b>, so tensor-parallel workers exchange activations across PCIe, with an all-reduce at every layer. That is a real and well-known throughput tax on consumer cards. It is entirely possible that 4-bit on a single card is <i>faster</i> in tokens per second than FP8 split across two, even though it is the lower-quality build — which turns the choice into quality-and-context versus latency rather than a straight downgrade. Neither direction should be assumed: this is a benchmark, not an argument, and it is cheap to run because both builds are already staged.</p>
+      <p>Cogito's own manifest records that the two 3090s have <b>no NVLink</b>, so tensor-parallel workers exchange activations across PCIe, with an all-reduce at every layer. That is a real and well-known throughput tax on consumer cards. It is entirely possible that 4-bit on a single card is <i>faster</i> in tokens per second than FP8 split across two, even though it is the lower-quality build — which turns the choice into quality-and-context versus latency rather than a straight downgrade. Neither direction should be assumed: this is a benchmark, not an argument, and it is cheap to run because both builds are already staged. That benchmark is now deliberately deferred — the decision landed on FP8 without it, trading a possible latency win for settled quality and context. If it is ever run, one rule from §12 applies: <b>match the KV cache dtype across both arms</b> — the strix FP8-vs-Q4 A/B initially measured a 4-bit V cache rather than the weights, and had to be redone at q8_0 on both sides.</p>
 
       <h4>And the device-plugin fix stops being optional</h4>
       <p>Under the target there is one pod on the node, so however the plugin hands out its eight time-sliced replicas, that pod is alone on the hardware. Under the alternative there are two pods each requesting one unit, and time-sliced replicas of the same physical GPU are interchangeable to the scheduler — so both models can be handed slices of the <b>same</b> card while the other sits idle. That is not a subtle degradation; it is two 30B-class models contending for 24GB. Setting <code>replicas: 1</code> so the advertised count is the physical count is a prerequisite for this layout, not a tidy-up.</p>
@@ -1369,10 +1377,94 @@ combined_fallbacks = order_fallback_entries + external_fallback_group</code></pr
       </ul>
     </section>
 
+    <section id="addendum">
+      <h2><span class="num">12</span>Addendum: the next seventy-two hours</h2>
+
+      <p class="lede">This document reads home-ops at eed15dcc — a pin that aged fast. Within three days the alias layer was gone, the router's economics changed underneath it, and the coordinator this document argued for was running in two harnesses. The deltas, mapped to the sections they amend.</p>
+
+      <h3>The alias layer is gone — and the trap fired on the way out</h3>
+      <p>Commit cefbebe9 deleted seven hand-written <code>LiteLLMModel</code>s and renamed every caller onto llmkube projection names (<code>self-hosted → llama-strix</code>, <code>nvidia → llama-nvidia</code>, …), explicitly accepting the trade §9 warns cogito away from: "model names are now deployment names, so swapping what backs a lane renames the model and moves every caller with it. Over the last two days that would have been three renames on the strix lane alone." On the way, the rerank rename left memini's virtual key scoped to a name that no longer existed — the silent-scope failure of finding one, fired in production. The fix (8f9c52fc) moves <b>eleven virtual keys into git, with every scope entry checked against the rendered <code>model_list</code></b> — the validator §9 proposed, built independently three days later, after the failure it exists to prevent. Cogito keeps its aliases; the counter-experiment now has a documented body count on both sides of the trade.</p>
+
+      <h3>drop_params: set globally, reverted in a day</h3>
+      <p>The same refactor set <code>litellm_settings.drop_params: true</code> to absorb the deleted per-model <code>additional_drop_params</code>. It lasted twenty hours: b49d40c4 reverts it because <b>it strips thinking from every request</b>. Cogito's own <code>qwen-3-8-fp8</code> manifest predicted this class of failure verbatim — "dropping params everywhere would have hidden exactly this class of mistake silently" — and Jory's glm-5.3 now carries the same per-model <code>allowed_openai_params: [reasoning_effort]</code> pattern instead.</p>
+
+      <h3>The ladder learned economics</h3>
+      <p>The Opencode Go plan behind §4's pools turned out to be dollar-metered — $60/month, $30/week, $12 per rolling five hours — and dsv4f was repriced roughly 8× mid-month with its own $15 sub-cap. The response (d22e42d9) inserted <b>neuralwatt</b>, an energy-priced PAYG provider, as a dsv4f backstop rung and as frontier-pool rung 5 (DeepSeek V4 Flash at $0.104/$0.207, with glm-5.2-flex at half its old price behind it). The resulting ladder is deliberately non-monotonic in price, with the commit stating the principle outright: <b>"order encodes preference, not cost."</b> The commit is equally honest about quality: the benchmark scores that would justify the floor came from a retired suite "measuring retrieval rather than real work," so the rung ships with a one-line revert path instead of a citation. Amends the group table in §4 and the flat-rate assumption behind §6's cost table.</p>
+
+      <h3>The coordinator is no longer a proposal</h3>
+      <p>Both opencode — now also an in-cluster server pod with SSO, a persistent home, and memini memory shared with the laptop — and pi carry a coordinator with five role subagents (<code>explorer</code> / <code>fixer</code> / <code>fixer-bigctx</code> / <code>oracle</code> / <code>reviewer</code>), the lane price model written into the coordinator's own prompt, and a council rule for high-stakes review: verdicts from different model families, never one model grading its own work. The role indirection deleted from the proxy re-appeared in the harness, where it absorbed two lane retargets in a week without touching a caller. The whole client half is the fifth companion, <a href="https://claude.ai/code/artifact/04ec2542-d4ac-4b25-8ffe-9ff428379a73"><b>The Portable Coordinator</b></a> — including the durable workflow layer that carries part two's rails into interactive work.</p>
+
+      <h3>Foreman keeps tightening</h3>
+      <p>Bridge 0.7.0 gives the local coder a second slot, coder-frontier moved off the MiniMax shim onto reasoning-pool, and the dispatch bridge now runs <b>overnight only</b> — time-partitioning the contended 3090 between interactive <code>fixer</code> traffic by day and the batch pipeline by night. That is a third answer to seat contention, alongside cogito's more-seats retune and the prompt-level "keep fixer jobs small" in the harness.</p>
+
+      <h3>Two experiments concluded</h3>
+      <ul>
+        <li><b>ninfer-3090 is dead.</b> The from-scratch CUDA engine claiming to beat llama.cpp on a 3090 was containerized (no Linux build existed upstream), given the card, and ditched within a day — leaving behind one useful by-product, a measured context ceiling of ~157k for Qwen 3.8-27B on that card.</li>
+        <li><b>The FP8-vs-Q4 A/B initially measured the wrong thing.</b> The FP8 arm ran a 4-bit V cache; protocol adherence fell while single-shot reasoning held — the signature of instructions given early decaying over accumulated context — and the run was redone with KV matched at q8_0 on both arms before any conclusion. The generalisable rule, now recorded in The Idle Bench §7: <b>match KV dtype across arms, or the benchmark measures the cache.</b></li>
+      </ul>
+
+      <div class="callout">
+        <p>Addendum provenance: home-ops through 695556bd and joryirving/dotfiles at dde72c28, both read 2026-08-21. Sections 1–11 still read at eed15dcc and are amended, not rewritten — the addendum is the changelog.</p>
+      </div>
+    </section>
+
+    <section id="todo">
+      <h2><span class="num">13</span>The to-do list</h2>
+
+      <p class="lede">The proxy-side restructure, ordered so the validator exists before the change it protects. <b>Second</b> in the serial plan, after The Idle Bench's hardware list.</p>
+
+      <ol class="body">
+        <li><b>Build the validator first.</b>
+          <ul>
+            <li>One script over rendered kustomize output: every alias, key scope, and fallback target resolves to a published <code>modelName</code>.</li>
+            <li>No <code>LiteLLMModel</code> points at an in-cluster Service without a matching InferenceService in the same output.</li>
+            <li><code>maxInputTokens</code> matches the backend's <code>maxModelLen</code> (131072 both sides after the retune).</li>
+            <li>The <code>coordinator</code> alias carries no fallback; nothing preemptible-backed lacks one; <code>embedder</code>/<code>reranker</code> resolve.</li>
+          </ul>
+        </li>
+        <li><b>Publish the role aliases (§11).</b>
+          <ul>
+            <li><code>coordinator</code>, <code>worker</code>, <code>reviewer</code>, <code>worker-escalated</code>, <code>reviewer-escalated</code> over concrete backends, beside the Hugging Face identifiers.</li>
+          </ul>
+        </li>
+        <li><b>Cut one virtual key per role, each with a budget.</b>
+          <ul>
+            <li>A worker key that permits only <code>worker</code> means a harness bug cannot spend money.</li>
+          </ul>
+        </li>
+        <li><b>Declare the asymmetric fallbacks and per-role timeouts.</b>
+          <ul>
+            <li><code>worker → worker-escalated</code>; nothing on the coordinator; a tight worker ceiling and a long coordinator one.</li>
+          </ul>
+        </li>
+        <li><b>Seat the cloud providers (The Idle Bench §6).</b>
+          <ul>
+            <li>Luna via the ChatGPT OAuth path at <code>coordinator</code>, with the metered <code>planner-gpt</code> entries as the standing hedge.</li>
+            <li>GLM 5.3 at <code>worker-escalated</code>; K3 at <code>reviewer-escalated</code>.</li>
+            <li>Optionally add a cheap PAYG backstop rung under escalation, neuralwatt-style — order encodes preference, not cost.</li>
+          </ul>
+        </li>
+        <li><b>Delete the swap machinery (§10).</b>
+          <ul>
+            <li>ModelPool, ModelRouter, <code>rbac-prefetch.yaml</code>, and the 1900s timeout all go; <code>apiBase</code> points straight at the InferenceService's Service.</li>
+            <li>Rewrite the <code>num_retries</code> comment so the number survives for the right reason.</li>
+          </ul>
+        </li>
+        <li><b>Retire the nine local aliases, key scopes in the same commit (§10 step 4).</b>
+          <ul>
+            <li>Validator green before and after — this step deliberately triggers the silent-scope trap it exists to catch.</li>
+            <li>Keep auto-registration off and rewrite the models README's reasons (§10 step 5).</li>
+          </ul>
+        </li>
+      </ol>
+
+      <p>Hand-off: with the aliases live, The Portable Coordinator's list (§8 there) binds the pi harness to them, and consumers re-point as each is touched.</p>
+    </section>
+
   </main>
 
   <footer>
-    Read from joryirving/home-ops at eed15dcc0a05cdfefb365af7b7d3c99404865f70 · behaviour verified against the litellm 1.97.0 wheel (<code>router.py</code>, <code>router_strategy/complexity_router/</code>, <code>router_utils/fallback_event_handlers.py</code>) · cogito comparison from kubernetes/apps/llm at 674d1e0d. Companions: Foreman and ToolHive; The Contested GPU; The Idle Bench — whose capacity plan sections ten and eleven now assume. Line references are to that commit and will drift.
+    Read from joryirving/home-ops at eed15dcc0a05cdfefb365af7b7d3c99404865f70 · behaviour verified against the litellm 1.97.0 wheel (<code>router.py</code>, <code>router_strategy/complexity_router/</code>, <code>router_utils/fallback_event_handlers.py</code>) · cogito comparison from kubernetes/apps/llm at 674d1e0d; §12 reads home-ops through 695556bd and joryirving/dotfiles at dde72c28 (2026-08-21). Companions: Foreman and ToolHive; The Contested GPU; The Idle Bench — whose capacity plan sections ten and eleven now assume; The Portable Coordinator — the harness half of §12. Line references are to the pinned commits and will drift.
   </footer>
 
 </div>
