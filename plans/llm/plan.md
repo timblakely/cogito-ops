@@ -77,16 +77,16 @@ pattern, `--language-model-only`, and the MTP token-count warning.
 Files: `kubernetes/apps/cluster-infra/nvidia-device-plugin/app/` (time-slicing
 config), no others.
 
-- [ ] Capture current allocation from inside the running pod:
+- [x] Capture current allocation from inside the running pod:
       `kubectl -n llm exec deploy/qwen-3-8-fp8 -c vllm -- nvidia-smi -L`
       and `... -- env | grep CUDA_VISIBLE_DEVICES` — expect **two distinct GPU
       UUIDs**. Save output into bench-notes.
-- [ ] Locate the `timeSlicing` block (teardown records `replicas: 4`) and set
+- [x] Locate the `timeSlicing` block (teardown records `replicas: 4`) and set
       `replicas: 1` for iggy's config.
-- [ ] Push, reconcile, let the device-plugin DaemonSet roll.
-- [ ] Verify `kubectl get node iggy -o jsonpath='{.status.capacity.nvidia\.com/gpu}'`
+- [x] Push, reconcile, let the device-plugin DaemonSet roll.
+- [x] Verify `kubectl get node iggy -o jsonpath='{.status.capacity.nvidia\.com/gpu}'`
       returns `2`.
-- [ ] Verify the qwen pod is Running with `nvidia.com/gpu: 2` of 2, and run one
+- [x] Verify the qwen pod is Running with `nvidia.com/gpu: 2` of 2, and run one
       smoke completion through LiteLLM.
 
 **Done when:** iggy advertises 2 units, qwen serves at 2/2, smoke test passes.
@@ -98,24 +98,24 @@ idle window; blast radius is the one model.
 Files: new `scripts/validate-llm-catalogue.py` (or `.sh`), optional GitHub
 workflow / pre-push hook.
 
-- [ ] Render the full output (`kustomize build` over the llm namespace paths)
+- [x] Render the full output (`kustomize build` over the llm namespace paths)
       and build the set of published `modelName`s.
-- [ ] Assert: every `LiteLLMVirtualKey.spec.models` entry resolves (the
+- [x] Assert: every `LiteLLMVirtualKey.spec.models` entry resolves (the
       silent-scope trap).
-- [ ] Assert: every `fallbacks` / `context_window_fallbacks` target resolves.
-- [ ] Assert: any `LiteLLMModel.apiBase` naming an in-cluster Service has a
+- [x] Assert: every `fallbacks` / `context_window_fallbacks` target resolves.
+- [x] Assert: any `LiteLLMModel.apiBase` naming an in-cluster Service has a
       matching InferenceService/Deployment in the same rendered output.
-- [ ] Assert: `maxInputTokens` on the qwen entry equals the backend's
+- [x] Assert: `maxInputTokens` on the qwen entry equals the backend's
       `maxModelLen` (131072/131072 after T1.1).
-- [ ] Assert: `coordinator` has **no** fallback entry (encodes the cache
+- [x] Assert: `coordinator` has **no** fallback entry (encodes the cache
       argument); every alias whose backend sits on a preemptible node **has** one.
-- [ ] Assert: any declared fallback target is the **same underlying model** as
+- [x] Assert: any declared fallback target is the **same underlying model** as
       its primary, and every key's scope contains the transitive fallback
       closure of its aliases (Phor's scope-leak rule).
-- [ ] Assert: `embedder`/`reranker`, once declared, resolve to live backends.
-- [ ] Assert: model names referenced in consumer env/ConfigMaps (open-webui,
+- [x] Assert: `embedder`/`reranker`, once declared, resolve to live backends.
+- [x] Assert: model names referenced in consumer env/ConfigMaps (open-webui,
       hermes) resolve.
-- [ ] Negative test: break one scope name locally and confirm the script fails.
+- [x] Negative test: break one scope name locally and confirm the script fails.
 
 **Done when:** green on current rendered output; red on a deliberately broken
 scope; wired to run before push (hook or CI).
@@ -131,19 +131,19 @@ Order within the wave: T1.1 → T1.2 → T1.3 → T1.4 (T1.4 can trail or overla
 Files: `kubernetes/apps/llm/llmkube/resources/inferenceservices.yaml`,
 `kubernetes/apps/llm/litellm/app/models/qwen-3-8-fp8.yaml`.
 
-- [ ] **Check for a resident vision tower first:** read the model's
+- [x] **Check for a resident vision tower first:** read the model's
       `config.json` architectures in the serving pod; if the build is
       multimodal, add vLLM's `--language-model-only` (Phor runs it on the same
       model family) — freed VRAM goes straight into the KV pool.
-- [ ] InferenceService: `maxModelLen 262144 → 131072`, `maxNumSeqs 2 → 6`.
+- [x] InferenceService: `maxModelLen 262144 → 131072`, `maxNumSeqs 2 → 6`.
       Keep chunked prefill, prefix caching, `maxNumBatchedTokens 8192`, and the
       MTP speculative config exactly as they are.
-- [ ] Same commit: LiteLLM entry `maxInputTokens 262144 → 131072`.
-- [ ] On restart, read the vLLM startup log's KV-cache block count and record it
+- [x] Same commit: LiteLLM entry `maxInputTokens 262144 → 131072`.
+- [x] On restart, read the vLLM startup log's KV-cache block count and record it
       as a comment next to `maxNumSeqs` (the number future tuning reasons from).
-- [ ] Smoke: 6 concurrent short completions all succeed; one 100k-token prompt
+- [x] Smoke: 6 concurrent short completions all succeed; one 100k-token prompt
       succeeds.
-- [ ] Validator green (context mirror assertion now bites).
+- [x] Validator green (context mirror assertion now bites).
 
 **Done when:** endpoint serves 6 concurrent seats at the 131k ceiling, mirror
 matches, KV block count recorded.
@@ -155,31 +155,31 @@ Files: new `litellm/app/models/{coordinator,worker,reviewer,worker-escalated,rev
 new `litellm/app/virtualkeys/{coordinator,worker,reviewer,escalation}.yaml`,
 `litellm/app/litellmproxy.yaml`.
 
-- [ ] `worker` and `reviewer` aliases over the qwen backend, pointed **directly
+- [x] `worker` and `reviewer` aliases over the qwen backend, pointed **directly
       at the InferenceService's Service** (verify the Service name with
       `kubectl -n llm get svc`) — this pre-empts the ModelRouter deletion in
       T1.3 so the apiBase never needs a second touch.
-  - [ ] `worker`: default `reasoning_effort: low`; `reviewer`: default `medium`;
+  - [x] `worker`: default `reasoning_effort: low`; `reviewer`: default `medium`;
         both keep `allowed_openai_params: [reasoning_effort]` and zero costs.
-- [ ] `coordinator` alias initially over `openai/gpt-5.5` (the planner-gpt
+- [x] `coordinator` alias initially over `openai/gpt-5.5` (the planner-gpt
       backend) as a stand-in until T1.4 seats Luna.
-- [ ] `worker-escalated` / `reviewer-escalated` aliases created but pointed at
+- [x] `worker-escalated` / `reviewer-escalated` aliases created but pointed at
       the planner-gpt backend as placeholders until T1.4 (they must exist for
       the fallback graph and validator).
-- [ ] Virtual keys, one per role, each with a budget (values: **your call**,
+- [x] Virtual keys, one per role, each with a budget (values: **your call**,
       placeholders in the manifests):
-  - [ ] `worker` key: scope `[worker]` only, `rpm`/`max_parallel_requests` ≈ 8
+  - [x] `worker` key: scope `[worker]` only, `rpm`/`max_parallel_requests` ≈ 8
         (a notch above the seat count).
-  - [ ] `coordinator` key: scope `[coordinator]`, monthly budget.
-  - [ ] `escalation` key(s): scope the two escalated aliases, monthly budget.
-- [ ] `routerSettings.fallbacks`: **none.** Escalation is coordinator-driven
+  - [x] `coordinator` key: scope `[coordinator]`, monthly budget.
+  - [x] `escalation` key(s): scope the two escalated aliases, monthly budget.
+- [x] `routerSettings.fallbacks`: **none.** Escalation is coordinator-driven
       (locked decision above); the escalated aliases exist as explicit
       delegation targets, never as automatic fallbacks. The worker key's 429
       backpressure therefore queues instead of spilling to paid rungs, and
       "a worker key cannot spend money" stays literally true.
-- [ ] Per-alias timeouts: worker/reviewer tight (~300s), coordinator long
+- [x] Per-alias timeouts: worker/reviewer tight (~300s), coordinator long
       (~1800s), escalations ~900s.
-- [ ] Enforcement test: a `worker`-key request naming `planner-gpt` is refused
+- [x] Enforcement test: a `worker`-key request naming `planner-gpt` is refused
       by the proxy.
 
 **Done when:** `/v1/models` lists all five; scoped-key smoke tests pass;
@@ -192,30 +192,31 @@ Files: `llmkube/resources/{modelpool,modelrouter,rbac-prefetch}.yaml` (delete),
 `litellm/app/models/*` (prune), `litellm/app/virtualkeys/*` (scopes),
 `litellm/app/litellmproxy.yaml`.
 
-- [ ] **First:** set the qwen InferenceService to explicit `replicas: 1` — the
+- [x] **First:** set the qwen InferenceService to explicit `replicas: 1` — the
       ModelPool owned residency until now (every member ships at 0); deleting
       the pool without this scales the only local model to zero. Reference the
       Flux/ModelPool replica-fight fix (f77bb0a4) in the commit message.
-- [ ] Delete `modelpool.yaml`, `modelrouter.yaml`, `rbac-prefetch.yaml` and
+- [x] Delete `modelpool.yaml`, `modelrouter.yaml`, `rbac-prefetch.yaml` and
       their kustomization entries.
-- [ ] Prune the nine retiring backends from `models.yaml` and
+- [x] Prune the nine retiring backends from `models.yaml` and
       `inferenceservices.yaml` (everything except qwen-3-8-fp8; muse's weights
       stay archived for the 5070 Ti later).
-- [ ] Prune the nine retiring LiteLLMModels, including `gemma4-agentic` (its
+- [x] Prune the nine retiring LiteLLMModels, including `gemma4-agentic` (its
       backend retires; its consumers move to `worker`).
-- [ ] **Same commit:** update every virtual-key scope that names a retiring
+- [x] **Same commit:** update every virtual-key scope that names a retiring
       alias (`open-webui` scopes eight; check `hermes` and `pi` too).
-- [ ] `litellmproxy.yaml`: `timeout 1900 →` a real inference ceiling (600);
+- [x] `litellmproxy.yaml`: `timeout 1900 →` a real inference ceiling (600);
       rewrite the `num_retries: 2` comment (the swap-wait reasoning is dead).
-- [ ] Confirm qwen's LiteLLM entry apiBase points at the Service (done in T1.2).
+- [x] Confirm qwen's LiteLLM entry apiBase points at the Service (done in T1.2).
 - [ ] Optional chore: delete retired weights from the hot-tier PVC to free NVMe
       (the NFS archive keeps the durable copies); leave the PVC size alone.
-- [ ] **Wire the ordering, Phor's shape (supersedes the consolidation move).**
+      (Left undone deliberately - disk is not tight.)
+- [x] **Wire the ordering, Phor's shape (supersedes the consolidation move).**
       Keep the serving CRs where they live; ensure they render from their own
       Flux Kustomization and add `dependsOn` from the litellm Kustomization to
       it, so backends always exist before the catalogue names them. No file
       moves, no ownership transfer, serving pod untouched.
-- [ ] Soak: qwen stays Ready across a full `flux reconcile` cycle (no replica
+- [x] Soak: qwen stays Ready across a full `flux reconcile` cycle (no replica
       fight); Open WebUI and Hermes still answer.
 
 **Done when:** no ModelPool/ModelRouter CRs exist; the litellm Kustomization
@@ -224,6 +225,12 @@ expected set; validator green; consumers unaffected after reconcile; qwen pod
 uptime unbroken throughout.
 
 ### T1.4 · Seat the cloud providers  *(Teardown §13.5 / Idle Bench §6)*
+
+> STATUS 2026-08-22: aliases and keys are live with metered gpt-5.5 as the
+> placeholder seat, but the OpenAI account is OUT OF QUOTA (429s) - so every
+> cloud seat is blocked on account actions only the operator can take:
+> fund/replace OPENAI_API_KEY, subscribe GLM 5.3, get a K3 key, decide the
+> Luna OAuth path. The local lanes are unaffected and fully verified.
 
 Files: `litellm/app/models/*.yaml`, `litellm/app/externalsecret.yaml`,
 1Password items.
