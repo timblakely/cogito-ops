@@ -24,22 +24,11 @@ spec:
   maxBudget: "25"
   budgetDuration: 30d
   models:
-    # Local tier only. These are the client-facing modelNames exactly as
-    # ./models declares them - a scope naming a model that does not exist blocks
-    # the key SILENTLY rather than erroring, so this list and the modelName
-    # fields have to move in the same commit if an alias is ever renamed.
-    - google/gemma-4-31B-it-qat-w4a16-ct
-    - cyankiwi/gemma-4-31B-it-qat-AWQ-INT4
-    - mradermacher/gemma-4-31B-it-heretic-GGUF
-    - poolside/Laguna-S-2.1
-    - meta-models/Muse-Glimmer-30B-GGUF
-    - deepseek-ai/DeepSeek-V4-Flash-0731
-    - DavidAU/Qwen3.6-27B-Fable-Fusion-711-Uncensored-Heretic-NM-DAU-NEO-MAX-MTP-GGUF
-    - Lorbus/Qwen3.6-27B-int4-AutoRound
-    - lued/Qwen3.8-27B-INT8-W8A16-MTP
-    - Vishva007/Qwen3.8-27B-W4A16-AutoRound
+    # Local tier only, post-shrink: the one HF-identifier alias that survived
+    # the target state (plan.md T1.3). A scope naming a model that does not
+    # exist blocks the key SILENTLY rather than erroring - this list and the
+    # modelName fields move in the same commit, and the validator asserts it.
     - Qwen/Qwen3.8-27B-FP8
-    - gemma4-agentic
 ---
 apiVersion: external-secrets.io/v1alpha1
 kind: PushSecret

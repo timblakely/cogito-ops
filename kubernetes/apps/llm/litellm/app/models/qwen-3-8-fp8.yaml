@@ -27,7 +27,10 @@ spec:
   proxyRef: litellm
   params:
     model: openai/qwen-3-8-fp8
-    apiBase: http://cogito-llm-router-router-proxy.llm.svc.cluster.local:8080/v1
+    # Direct to the InferenceService's Service - the ModelRouter and its
+    # proxy were deleted with the swap pool; with one always-on backend there
+    # is nothing to dispatch between.
+    apiBase: http://qwen-3-8-fp8.llm.svc.cluster.local:8000/v1
     apiKey: not-needed
     additional:
       allowed_openai_params:

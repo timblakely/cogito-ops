@@ -183,16 +183,14 @@ spec:
     require_auth_for_metrics_endpoint: false
 
   routerSettings:
-    # NOT retry_policy. That field only pattern-matches Authentication/Timeout/
-    # RateLimit/ContentPolicy/BadRequest errors and has no
-    # ServiceUnavailableErrorRetries at all, so it is dead config for the 503 +
-    # Retry-After that ModelRouter returns when a swap exceeds the pool's
-    # swapBudget. A 503 is retried through the generic path instead, which
-    # retries any status >= 500 using this plain count with exponential backoff.
-    # LiteLLM does not honour Retry-After, so this approximates the real swap
-    # wait rather than bounding it.
+    # Two retries against a transient backend blip (rollout, brief 5xx). The
+    # count predates the swap pool but survives it for a different reason:
+    # there is no swap wait to approximate any more, just ordinary retry
+    # hygiene against a single always-on backend.
     num_retries: 2
-    # Must exceed the ModelPool's 1800s swapBudget, or LiteLLM gives up while
-    # ModelRouter is still legitimately holding the request open waiting for a
-    # large model to load.
-    timeout: 1900
+    # A real inference ceiling for a resident model. The old 1900 existed to
+    # outlast the swap pool's 1800s budget; with nothing to swap, a hung
+    # backend should fail the client in minutes, not tie it up for 32.
+    # Per-role alias timeouts (worker 300 / escalation 900 / coordinator 1800)
+    # override this where they are set.
+    timeout: 600

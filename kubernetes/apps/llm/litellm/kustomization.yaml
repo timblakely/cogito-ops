@@ -55,6 +55,13 @@ patches:
         path: /spec/dependsOn/-
         value:
           name: litellm-operator
+      # Backends before the catalogue (Phor's ordering, plan.md T1.3): the
+      # role aliases point straight at InferenceService Services now, so the
+      # serving CRs must exist before the catalogue names them.
+      - op: add
+        path: /spec/dependsOn/-
+        value:
+          name: llmkube-resources
     target:
       group: kustomize.toolkit.fluxcd.io
       kind: Kustomization
