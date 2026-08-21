@@ -17,3 +17,12 @@ CUDA_VISIBLE_DEVICES=(unset)
 
 Two distinct physical UUIDs → the TP=2 allocation does span both cards today.
 The `replicas: 1` change makes that true by construction rather than by luck.
+
+## 2026-08-21 · T0.1 outcome
+
+- Gotcha: the device plugin **rejects `timeSlicing.replicas: 1`** ("number of
+  replicas must be >= 2"). Removing the sharing block entirely is how
+  advertised = physical. First attempt crash-looped the plugin for ~2 min;
+  running workloads were unaffected.
+- After fix: `iggy` capacity `nvidia.com/gpu: 2`, plugin 2/2 Running, qwen pod
+  untouched (41h uptime preserved), backend smoke completion OK.
