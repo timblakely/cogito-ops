@@ -15,14 +15,15 @@ spec:
   params:
     model: chatgpt/gpt-5.6-luna
     additional:
-      reasoning_effort: high
       timeout: 900
+      additional_drop_params:
+      - temperature
   info:
+    mode: responses
     supportsFunctionCalling: true
     maxInputTokens: 272000
     maxOutputTokens: 128000
     extra:
-      mode: responses
       input_cost_per_token: 0
       output_cost_per_token: 0
       supports_reasoning: true
