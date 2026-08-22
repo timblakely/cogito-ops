@@ -273,9 +273,9 @@ per role, hedge procedure is written down.
       tokens (current). Phor's manifest cites the model card recommending 2 and
       a vLLM warning that >1 lowers acceptance on the same MTP layer — cogito
       runs 3, so the middle arm may win. Keep the winner; record all three.
-- [ ] **A3 kristeva identity + bandwidth.** Privileged debug pod (or talosctl):
+- [x] **A3 kristeva identity + bandwidth.** Privileged debug pod (or talosctl):
       `lscpu` + a STREAM-class run. This gates D2 and calibrates D1.
-- [ ] **A4 A380 embedding throughput** (after B2): chunks/minute at int8 batch
+- [x] **A4 A380 embedding throughput** (after B2): chunks/minute at int8 batch
       embed; decides whether bulk indexing ever needs the 5070 Ti reranker slot.
 
 **Done when:** all four numbers recorded; `maxNumSeqs` and MTP pinned by data.
