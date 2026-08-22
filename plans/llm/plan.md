@@ -339,7 +339,7 @@ works, validator asserts both aliases.
 
 ### Track D · Kristeva CPU lanes  *(Idle Bench §8.5)*
 
-- [ ] **D1** CPU VLM: llama.cpp CPU deployment of a small multimodal (+ its
+- [x] **D1** CPU VLM: llama.cpp CPU deployment of a small multimodal (+ its
       mmproj) on kristeva with CPU/memory limits that protect camofox; publish
       as a `vision` alias; measure seconds/image encode and record it.
 - [ ] **D2** MoE lane (gated on A3's bandwidth number): llama.cpp CPU with
@@ -429,3 +429,5 @@ the critical path noticed.
    cheap model. Default: leave until the GLM caps bite.
 5. **Muse re-quant source:** hunt an existing ≤12GB build vs. quantize locally
    (only matters at Wave 4).
+6. **chatgpt-token PVC**: migrate RWO ceph-block -> cephfs RWX (or Recreate
+   strategy) so proxy rolling updates stop deadlocking on multi-attach.

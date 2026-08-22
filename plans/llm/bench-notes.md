@@ -212,3 +212,49 @@ remains unfunded, as decided; metered planner-gpt stays the dormant hedge.
 - Honest status: vision is NOT on CPU yet - the worker's tower was REMOVED
   (VRAM -> KV), and the CPU lane is Track D1, still pending. Until D1 lands,
   vision = coordinator only.
+
+## 2026-08-22 · Track D1: CPU vision lane live
+
+- Huihui-Qwen3.5-9B (Jory's proven VLM) + f16 mmproj, llama.cpp CPU on
+  kristeva, 16 threads (one socket - avoids the NUMA cliff), 16k ctx.
+- **Verified: a red test image answers "Red" - 24.9s cold, 14.8s warm**
+  through the full path (pi key -> litellm `vision` alias -> CPU server).
+  Thinking is ON for this model; max_tokens must leave room for it (a
+  100-token cap returned empty content, all budget spent reasoning).
+- pi usage: `/model vision` for the image turn, back to Qwen after
+  (pi history is client-side; switching models mid-session is free).
+  pi catalogues updated live + in the dotfiles template; coordinator
+  entry now declares image input too (Luna vision).
+- Gotchas hit and fixed:
+  - cache-prime v1 failed fast x3 - almost certainly unauthenticated HF
+    rate limiting (debug rerun succeeded in 71s). Consider HF_TOKEN in
+    the job for future primes.
+  - **RWO chatgpt-token PVC vs rolling updates**: the surge pod landed on
+    another node and sat ContainerCreating on the multi-attach; released
+    by deleting the old pod. Follow-up chore: move the token PVC to
+    cephfs RWX (Phor's documented evolution) or set Recreate strategy.
+
+## 2026-08-22 · ChatGPT sub limits: credit-weighted, with hard multipliers
+
+learn.chatgpt.com/docs/pricing (via developers.openai.com/codex/pricing):
+"Usage is calculated in credits per million input tokens, cached input
+tokens, and output tokens" and "credit cost varies by model, context,
+reasoning, and tools." NOT request-count-shaped (an earlier in-chat claim
+of mine, corrected by Tim's challenge).
+
+Credits per 1M tokens:      input   output
+  gpt-5.6-sol                100     500
+  gpt-5.6-terra               50     300
+  gpt-5.6-luna                 5      30
+
+So thinking tokens (output-class) are NOT free - they are ~16.7x cheaper
+on Luna than Sol and 10x cheaper than Terra. "Abuse Luna + xhigh" works
+by ARBITRAGING the multiplier: a million thinking tokens on Luna costs
+the window what ~60k costs on Sol. Plus-tier translation from the docs:
+roughly 10-100 messages/5h on Sol vs 250-2000 on Luna.
+
+Decision consequence: Terra-as-default-coordinator is a ~10x window burn
+on the token-hungriest role, not a free upgrade. Luna@xhigh as the
+default coordinator diet is the credit-optimal shape (and is Jory's
+revealed preference - reasoning-pool rung 1); Terra/Sol belong behind an
+explicit-choice alias for deliberately-spent hard sessions.
