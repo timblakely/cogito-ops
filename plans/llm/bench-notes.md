@@ -162,3 +162,13 @@ time + the 300s worker timeout before KV. Prefix caching (shared system
 prompts) improves the real-world large case. gpu_cache_usage_perc metric
 scrape returned 0 both runs - regex/label issue, not trusted; the
 running/waiting gauges and preemption counter were the evidence.
+
+## 2026-08-22 · Club 3090 number reconciled
+
+Their "2x concurrency at 262k with ~600k KV" is the W4A16 build at TP=2:
+derived KV cost ~48.7KB/token means their pool implies ~13.5GB weights =
+the 4-bit build. Same ratio as our FP8 measurement (2.11x) at double the
+ceiling. Not a contradiction - the FP8/W4A16 weight-precision-for-KV trade,
+quantified: each GB of weights ~ 20k KV tokens. FP8 decision stands
+(user-confirmed); W4A16-TP2 remains the recorded fallback if
+context-parallelism ever outranks weight quality.
