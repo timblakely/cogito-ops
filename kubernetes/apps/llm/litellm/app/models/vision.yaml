@@ -1,0 +1,24 @@
+---
+# The CPU vision lane's alias (Track D1). Generous timeout: AVX-only encode
+# plus CPU decode makes this a patience lane by design. Zero cost - kristeva
+# electrons.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: vision
+spec:
+  modelName: vision
+  proxyRef: litellm
+  params:
+    model: openai/vision-cpu
+    apiBase: http://vision-cpu.llm.svc.cluster.local:8080/v1
+    apiKey: not-needed
+    additional:
+      timeout: 600
+  info:
+    supportsVision: true
+    maxInputTokens: 16384
+    maxOutputTokens: 4096
+    extra:
+      input_cost_per_token: 0
+      output_cost_per_token: 0

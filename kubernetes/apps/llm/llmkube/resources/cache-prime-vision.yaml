@@ -1,0 +1,63 @@
+---
+# Stage the CPU vision lane's GGUFs (main + mmproj) into the NFS archive.
+# Rotate metadata.name on change - Job templates are immutable.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cache-prime-vision-v1
+  annotations:
+    kustomize.toolkit.fluxcd.io/force: Enabled
+  labels:
+    app.kubernetes.io/name: cache-prime-vision
+spec:
+  activeDeadlineSeconds: 7200
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cache-prime-vision
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: OnFailure
+      containers:
+        - name: download
+          image: docker.io/library/python:3.13-slim
+          env:
+            - name: HOME
+              value: /tmp
+            - name: HF_HOME
+              value: /tmp/huggingface
+            - name: PIP_DISABLE_PIP_VERSION_CHECK
+              value: "1"
+          command:
+            - sh
+            - -ec
+            - |
+              python -m venv /tmp/venv
+              /tmp/venv/bin/pip install --no-cache-dir "huggingface_hub[cli]"
+              dir=/models/llmkube/huihui-qwen3.5-9b
+              mkdir -p "$dir"
+              for f in Huihui-Qwen3.5-9B-abliterated.Q4_K_M.gguf \
+                       Huihui-Qwen3.5-9B-abliterated.mmproj-f16.gguf; do
+                /tmp/venv/bin/hf download mradermacher/Huihui-Qwen3.5-9B-abliterated-GGUF \
+                  "$f" --local-dir "$dir" --max-workers 2
+              done
+              ls -l "$dir"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 256Mi
+            limits:
+              memory: 2Gi
+          volumeMounts:
+            - name: archive
+              mountPath: /models
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: archive
+          persistentVolumeClaim:
+            claimName: llm-model-archive
+        - name: tmp
+          emptyDir: {}

@@ -1,0 +1,56 @@
+---
+# The CPU vision lane (Idle Bench S4 / plan.md Track D1): a small multimodal
+# entirely on kristeva's CPUs, so pi + local Qwen sessions have an image path
+# without touching the coordinator. Jory's proven VLM choice (his llama-vision
+# runs the same weights). Expectations calibrated by A3: dual E5-2680 v2 is
+# AVX-only - decode ~4-7 tok/s, image encode tens of seconds; fine for
+# occasional screenshots, never a latency lane.
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: vision-cpu
+spec:
+  source: pvc://llm-model-archive/llmkube/huihui-qwen3.5-9b/Huihui-Qwen3.5-9B-abliterated.Q4_K_M.gguf
+  format: gguf
+  quantization: Q4_K_M
+  hardware:
+    # cpu is INTENTIONAL here (elsewhere it is the silently-slow default).
+    accelerator: cpu
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: InferenceService
+metadata:
+  name: vision-cpu
+spec:
+  modelRef: vision-cpu
+  runtime: llamacpp
+  image: ghcr.io/ggml-org/llama.cpp:server
+  replicas: 1
+  nodeSelector:
+    kubernetes.io/hostname: kristeva
+  contextSize: 16384
+  parallelSlots: 1
+  jinja: true
+  batchSize: 512
+  uBatchSize: 512
+  extraArgs:
+    # mmproj by absolute path (the Muse precedent - multi-file staging is
+    # hf://-only, and both files sit in the same archive directory).
+    - --mmproj
+    - /model-source/llmkube/huihui-qwen3.5-9b/Huihui-Qwen3.5-9B-abliterated.mmproj-f16.gguf
+    # One socket's worth of threads: leaves headroom for camofox and the
+    # A380 floor pods on the same box, and avoids the NUMA cliff A3 measured.
+    - --threads
+    - "16"
+  resources:
+    cpu: "16"
+    memory: 12Gi
+  endpoint:
+    port: 8080
+  probeOverrides:
+    startup:
+      httpGet:
+        path: /health
+        port: 8080
+      periodSeconds: 10
+      failureThreshold: 180
