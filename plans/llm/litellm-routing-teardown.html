@@ -1411,10 +1411,10 @@ combined_fallbacks = order_fallback_entries + external_fallback_group</code></pr
     <section id="todo">
       <h2><span class="num">13</span>The to-do list</h2>
 
-      <p class="lede">The proxy-side restructure, ordered so the validator exists before the change it protects. <b>Second</b> in the serial plan, after The Idle Bench's hardware list.</p>
+      <p class="lede">The proxy-side restructure, ordered so the validator exists before the change it protects. <b>Second</b> in the serial plan, after The Idle Bench's hardware list. <i>Status synced 2026-08-22 — the repo's <code>plans/llm/plan.md</code> and <code>bench-notes.md</code> are the authoritative record.</i></p>
 
       <ol class="body">
-        <li><b>Build the validator first.</b>
+        <li><b>Build the validator first.</b> <span class="chip live">done</span>
           <ul>
             <li>One script over rendered kustomize output: every alias, key scope, and fallback target resolves to a published <code>modelName</code>.</li>
             <li>No <code>LiteLLMModel</code> points at an in-cluster Service without a matching InferenceService in the same output.</li>
@@ -1422,35 +1422,35 @@ combined_fallbacks = order_fallback_entries + external_fallback_group</code></pr
             <li>The <code>coordinator</code> alias carries no fallback; nothing preemptible-backed lacks one; <code>embedder</code>/<code>reranker</code> resolve.</li>
           </ul>
         </li>
-        <li><b>Publish the role aliases (§11).</b>
+        <li><b>Publish the role aliases (§11).</b> <span class="chip live">done</span>
           <ul>
             <li><code>coordinator</code>, <code>worker</code>, <code>reviewer</code>, <code>worker-escalated</code>, <code>reviewer-escalated</code> over concrete backends, beside the Hugging Face identifiers.</li>
           </ul>
         </li>
-        <li><b>Cut one virtual key per role, each with a budget.</b>
+        <li><b>Cut one virtual key per role, each with a budget.</b> <span class="chip live">done</span>
           <ul>
             <li>A worker key that permits only <code>worker</code> means a harness bug cannot spend money.</li>
           </ul>
         </li>
-        <li><b>Declare the asymmetric fallbacks and per-role timeouts.</b>
+        <li><b>Declare the asymmetric fallbacks and per-role timeouts.</b> <span class="chip live">done</span> <i>(implemented as per-alias timeouts and <b>no</b> proxy fallbacks — the same-model-only decision in plan.md superseded the worker fallback; escalation is coordinator-driven)</i>
           <ul>
             <li><code>worker → worker-escalated</code>; nothing on the coordinator; a tight worker ceiling and a long coordinator one.</li>
           </ul>
         </li>
-        <li><b>Seat the cloud providers (The Idle Bench §6).</b>
+        <li><b>Seat the cloud providers (The Idle Bench §6).</b> <span class="chip broken">blocked</span> <i>(aliases live on metered placeholders; the OpenAI account is out of quota, and GLM 5.3 / K3 / Luna OAuth need account actions)</i>
           <ul>
             <li>Luna via the ChatGPT OAuth path at <code>coordinator</code>, with the metered <code>planner-gpt</code> entries as the standing hedge.</li>
             <li>GLM 5.3 at <code>worker-escalated</code>; K3 at <code>reviewer-escalated</code>.</li>
             <li>Optionally add a cheap PAYG backstop rung under escalation, neuralwatt-style — order encodes preference, not cost.</li>
           </ul>
         </li>
-        <li><b>Delete the swap machinery (§10).</b>
+        <li><b>Delete the swap machinery (§10).</b> <span class="chip live">done</span>
           <ul>
             <li>ModelPool, ModelRouter, <code>rbac-prefetch.yaml</code>, and the 1900s timeout all go; <code>apiBase</code> points straight at the InferenceService's Service.</li>
             <li>Rewrite the <code>num_retries</code> comment so the number survives for the right reason.</li>
           </ul>
         </li>
-        <li><b>Retire the nine local aliases, key scopes in the same commit (§10 step 4).</b>
+        <li><b>Retire the nine local aliases, key scopes in the same commit (§10 step 4).</b> <span class="chip live">done</span>
           <ul>
             <li>Validator green before and after — this step deliberately triggers the silent-scope trap it exists to catch.</li>
             <li>Keep auto-registration off and rewrite the models README's reasons (§10 step 5).</li>

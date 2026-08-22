@@ -404,6 +404,11 @@ footer { grid-column: 1 / -1; border-top: 1px solid var(--rule-strong); padding-
         <figcaption><b>The pool is fixed; the trade is how it is sliced.</b> KV cost is linear in tokens held, so a 131k ceiling makes the same pool worth about four full-length sequences — and because real worker turns hold a fraction of the ceiling, six concurrent seats fit comfortably in practice. Overcommit is safe by design: when blocks run out vLLM preempts and recomputes rather than erroring, a latency cliff reserved for the rare moment every agent runs long simultaneously.</figcaption>
       </figure>
 
+      <div class="callout good">
+        <h4>Measured, 2026-08-22</h4>
+        <p>The retuned endpoint reports a <b>KV pool of 277,007 tokens</b> (2.11× full-ceiling concurrency; ~6% block-padding waste). Load-tested through the proxy with unique (cache-defeating) prompts: <b>six agents at ~8k tokens each ran fully concurrent</b> — all completed together in 53s with zero preemptions — while six at ~55k collapsed to 2 running with the rest queued, three hitting the worker's 300s timeout. Two conclusions: for the coordinator's designed workload (short self-contained briefs) the answer to "how many agents at once" is simply the <b><code>max-num-seqs</code> cap — 6 today, 8 after the sweep</b> (KV would hold ~17 at 16k each); and above the ~46k-per-agent crossover the practical binder is <b>prefill bandwidth</b> (~1k tok/s aggregate on unique text), not KV — six 55k prefills are ~5 minutes of work no pool size fixes. Real agents share prefixes, so prefix caching softens this in practice.</p>
+      </div>
+
       <h3>Backpressure belongs at the proxy, not the backend</h3>
 
       <p>Give the <code>worker</code> virtual key an <code>rpm</code> / parallel-request limit a notch above the seat count. A coordinator that fans out twelve subagents then queues at LiteLLM with clean, visible errors and per-key accounting, instead of stacking silent timeouts inside vLLM's scheduler. The escalation path stays honest too: a worker that fails fast is what makes <code>worker → worker-escalated</code> feel responsive rather than like a hang.</p>
@@ -616,24 +621,24 @@ footer { grid-column: 1 / -1; border-top: 1px solid var(--rule-strong); padding-
     <section id="todo">
       <h2><span class="num">08</span>The to-do list</h2>
 
-      <p class="lede">Everything this document decides, as ordered work. This list runs <b>first</b> in the serial plan across the five documents — nothing below waits on any other list, and the first two items are unblocked today.</p>
+      <p class="lede">Everything this document decides, as ordered work. This list runs <b>first</b> in the serial plan across the five documents — nothing below waits on any other list, and the first two items are unblocked today. <i>Status synced 2026-08-22 — the repo's <code>plans/llm/plan.md</code> and <code>bench-notes.md</code> are the authoritative record.</i></p>
 
       <ol class="body">
-        <li><b>Make the GPU counts truthful.</b>
+        <li><b>Make the GPU counts truthful.</b> <span class="chip live">done</span>
           <ul>
             <li>Run <code>nvidia-smi -L</code> and <code>CUDA_VISIBLE_DEVICES</code> inside the running qwen pod to confirm the two time-sliced units span both physical 3090s.</li>
             <li>Set the nvidia-device-plugin to <code>replicas: 1</code> on iggy so advertised units equal physical cards.</li>
             <li>Watch the qwen pod reschedule cleanly requesting 2 of 2.</li>
           </ul>
         </li>
-        <li><b>Retune the worker endpoint for seats (§2).</b>
+        <li><b>Retune the worker endpoint for seats (§2).</b> <span class="chip live">done</span>
           <ul>
             <li>Set <code>--max-model-len 131072</code> and <code>--max-num-seqs 6</code> on the InferenceService.</li>
             <li>Mirror <code>maxInputTokens: 131072</code> in the LiteLLM entry in the same commit.</li>
             <li>Cap the worker key's parallel requests a notch above the seat count so overflow queues at the proxy.</li>
           </ul>
         </li>
-        <li><b>Run the §7 measurements.</b>
+        <li><b>Run the §7 measurements.</b> <span class="chip idle">partial</span>
           <ul>
             <li>Sweep seats 2 → 8 with realistic worker prompts, watching inter-token latency and preemption counts.</li>
             <li>A/B the MTP speculative decoding on and off at six seats.</li>
@@ -641,7 +646,7 @@ footer { grid-column: 1 / -1; border-top: 1px solid var(--rule-strong); padding-
             <li>Bench A380 embedding throughput at int8 — this decides whether bulk indexing ever needs the 5070&nbsp;Ti reranker slot.</li>
           </ul>
         </li>
-        <li><b>Stand up the A380 retrieval floor (§4).</b>
+        <li><b>Stand up the A380 retrieval floor (§4).</b> <span class="chip live">done</span>
           <ul>
             <li>Confirm the A380's identity from the PCI id before building on the NFD label.</li>
             <li>Check <code>~/git/llm-operator</code> for non-CUDA serving support, falling back to a plain OVMS or llama.cpp-SYCL Deployment.</li>
@@ -649,7 +654,7 @@ footer { grid-column: 1 / -1; border-top: 1px solid var(--rule-strong); padding-
             <li>Repoint Open WebUI's RAG at the proxy alias, and place the vector DB on a NUC.</li>
           </ul>
         </li>
-        <li><b>Light kristeva's CPU lanes (§4).</b>
+        <li><b>Light kristeva's CPU lanes (§4).</b> <span class="chip idle">pending</span>
           <ul>
             <li>Stand up the small VLM with the projector on CPU via llama.cpp <code>--no-mmproj-offload</code>.</li>
             <li>Trial the DeepSeek V4 Flash MoE lane from the NFS archive, and keep it only if it clears ~5 tok/s.</li>

@@ -518,36 +518,36 @@ footer { grid-column: 1 / -1; border-top: 1px solid var(--rule-strong); padding-
     <section id="todo">
       <h2><span class="num">08</span>The to-do list</h2>
 
-      <p class="lede">The harness lift — one chezmoi PR plus prompts. <b>Third</b> in the serial plan: item 4 binds to the role aliases the routing teardown's list publishes.</p>
+      <p class="lede">The harness lift — one chezmoi PR plus prompts. <b>Third</b> in the serial plan: item 4 binds to the role aliases the routing teardown's list publishes. <i>Status synced 2026-08-22 — the repo's <code>plans/llm/plan.md</code> and <code>bench-notes.md</code> are the authoritative record.</i></p>
 
       <ol class="body">
-        <li><b>Port the workflow layer.</b>
+        <li><b>Port the workflow layer.</b> <span class="chip live">done</span>
           <ul>
             <li>Copy the workflow extension and the three definitions into cogito's chezmoi-managed pi config, keeping run state machine-local.</li>
           </ul>
         </li>
-        <li><b>Extend the trusted check registry with gitops argvs.</b>
+        <li><b>Extend the trusted check registry with gitops argvs.</b> <span class="chip live">done</span>
           <ul>
             <li>Add <code>kustomize build</code> over the rendered path and <code>git diff --check</code> as fixed argvs in source, before any workflow names them.</li>
           </ul>
         </li>
-        <li><b>Write the coordinator prompt, inverted.</b>
+        <li><b>Write the coordinator prompt, inverted.</b> <span class="chip live">done</span>
           <ul>
             <li>Local seats are free, so fan out <code>worker</code>/<code>reviewer</code> by default; escalation is entered on failure, with per-key budgets as the hard backstop.</li>
             <li>Carry the delegation contract verbatim in spirit: objective, settled decisions inlined, files owned, out-of-scope, observable success check.</li>
           </ul>
         </li>
-        <li><b>Define the role agents and bind the models.</b>
+        <li><b>Define the role agents and bind the models.</b> <span class="chip live">done</span> <i>(the pi key stays deliberately unscoped per its own manifest; provider id unified on <code>llm-proxy</code>)</i>
           <ul>
             <li>Agent files for worker/reviewer on the local aliases and the escalations on GLM 5.3 / K3, wired through pi's <code>models.json</code> against cogito's LiteLLM.</li>
           </ul>
         </li>
-        <li><b>Add the council workflow.</b>
+        <li><b>Add the council workflow.</b> <span class="chip live">done</span>
           <ul>
             <li><code>review-pr</code>'s fan-out-then-synthesize across three families: local Qwen, GLM 5.3, K3.</li>
           </ul>
         </li>
-        <li><b>Run mutation stages in disposable jj worktrees.</b>
+        <li><b>Run mutation stages in disposable jj worktrees.</b> <span class="chip live">done</span>
           <ul>
             <li>The README's no-sandbox warning taken literally — cheap on jj-colocated repos.</li>
           </ul>

@@ -136,3 +136,29 @@ vLLM startup (recorded per the manifest-comment convention):
 - Deviation from plan C4: the pi key stays deliberately UNSCOPED (its
   manifest documents budget-as-the-bound); role aliases are reachable
   without a scope change.
+
+## 2026-08-22 · Context-vs-parallelism measurement (mini-A1)
+
+Load through the proxy (worker alias/key), unique random prompts (defeats
+prefix cache = worst case), max_tokens 16, 6-way concurrent:
+
+- SMALL 6 x ~8k tok: wall 53s, per-req [39.7, 51.0-52.5], 0 preemptions,
+  peak waiting 4 (brief prefill queueing). All six genuinely concurrent.
+- LARGE 6 x ~55k tok: peak running 2; completions at 121/172/240s; three
+  requests hit the worker's 300s timeout. 0 preemptions - the scheduler
+  never over-admitted; the constraint was PREFILL BANDWIDTH (~1k tok/s
+  aggregate on unique text; 6x55k = 330k tokens = ~5 min of prefill).
+
+Capacity model (KV pool 277,007 tok, ~6% padding waste, cap 6):
+  <=16k/agent -> cap-bound: 6 concurrent (KV would hold ~17)
+   32k/agent  -> cap-bound: 6
+  ~46k/agent  -> crossover (277k/6)
+   64k/agent  -> KV-bound ~4, prefill ~70s each
+  131k/agent  -> KV-bound 2 (vLLM's own 2.11x)
+
+Practical answer: 6 agents whenever briefs stay <=~32k held tokens (the
+designed coordinator workload); large-context fan-out is bounded by prefill
+time + the 300s worker timeout before KV. Prefix caching (shared system
+prompts) improves the real-world large case. gpu_cache_usage_perc metric
+scrape returned 0 both runs - regex/label issue, not trusted; the
+running/waiting gauges and preemption counter were the evidence.
