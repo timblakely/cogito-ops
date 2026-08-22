@@ -1,0 +1,103 @@
+---
+# The retrieval floor (Idle Bench S4 / plan.md Track B): embedder + reranker
+# on kristeva's Arc A380 - ALWAYS-ON silicon, never the preemptible node, so
+# RAG does not silently break when a game streams. Served by llama.cpp's
+# official SYCL image through the generic i915 plugin (sharedDevNum lets both
+# share the one card; each model is ~600MB on a 6GB card).
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: bge-m3
+spec:
+  source: pvc://llm-model-archive/llmkube/bge-m3/bge-m3-Q8_0.gguf
+  format: gguf
+  quantization: Q8_0
+  hardware:
+    accelerator: intel
+    gpu:
+      enabled: true
+      vendor: intel
+      resourceName: gpu.intel.com/i915
+      count: 1
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: InferenceService
+metadata:
+  name: bge-m3
+spec:
+  modelRef: bge-m3
+  runtime: llamacpp
+  image: ghcr.io/ggml-org/llama.cpp:server-intel
+  replicas: 1
+  nodeSelector:
+    kubernetes.io/hostname: kristeva
+  # bge-m3 is an encoder: CLS pooling, and batch/ubatch sized to the full
+  # context so a max-length document embeds in one physical batch.
+  contextSize: 8192
+  batchSize: 8192
+  uBatchSize: 8192
+  extraArgs:
+    - --embedding
+    - --pooling
+    - cls
+  resources:
+    gpu: 1
+    cpu: "2"
+    memory: 4Gi
+  endpoint:
+    port: 8080
+  probeOverrides:
+    startup:
+      httpGet:
+        path: /health
+        port: 8080
+      periodSeconds: 5
+      failureThreshold: 120
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: bge-reranker-v2-m3
+spec:
+  source: pvc://llm-model-archive/llmkube/bge-reranker-v2-m3/bge-reranker-v2-m3-Q8_0.gguf
+  format: gguf
+  quantization: Q8_0
+  hardware:
+    accelerator: intel
+    gpu:
+      enabled: true
+      vendor: intel
+      resourceName: gpu.intel.com/i915
+      count: 1
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: InferenceService
+metadata:
+  name: bge-reranker-v2-m3
+spec:
+  modelRef: bge-reranker-v2-m3
+  runtime: llamacpp
+  image: ghcr.io/ggml-org/llama.cpp:server-intel
+  replicas: 1
+  nodeSelector:
+    kubernetes.io/hostname: kristeva
+  contextSize: 8192
+  batchSize: 8192
+  uBatchSize: 8192
+  # --rerank puts llama-server in reranking mode (Jina-style /rerank + native
+  # /v1/rerank), with rank pooling implied.
+  extraArgs:
+    - --rerank
+  resources:
+    gpu: 1
+    cpu: "2"
+    memory: 4Gi
+  endpoint:
+    port: 8080
+  probeOverrides:
+    startup:
+      httpGet:
+        path: /health
+        port: 8080
+      periodSeconds: 5
+      failureThreshold: 120

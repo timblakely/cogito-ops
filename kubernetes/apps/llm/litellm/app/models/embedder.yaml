@@ -1,0 +1,20 @@
+---
+# Retrieval-floor alias (Track B): served from kristeva's A380, published at
+# /v1/embeddings. Always-on by design - retrieval must never sit on
+# preemptible hardware. Zero costs keep the free tier legible.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: embedder
+spec:
+  modelName: embedder
+  proxyRef: litellm
+  params:
+    model: openai/bge-m3
+    apiBase: http://bge-m3.llm.svc.cluster.local:8080/v1
+    apiKey: not-needed
+  info:
+    extra:
+      mode: embedding
+      input_cost_per_token: 0
+      output_cost_per_token: 0

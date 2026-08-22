@@ -1,0 +1,23 @@
+---
+# Retrieval-floor alias (Track B). NOT the openai/ provider on purpose:
+# LiteLLM rejects rerank through it ("Unsupported provider") - the same
+# finding that made Jory keep his rerank entry explicit. The infinity
+# provider speaks the Jina-style /rerank API that llama-server's --rerank
+# mode exposes; apiBase deliberately has no /v1 (the provider appends the
+# path itself).
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: reranker
+spec:
+  modelName: reranker
+  proxyRef: litellm
+  params:
+    model: infinity/bge-reranker-v2-m3
+    apiBase: http://bge-reranker-v2-m3.llm.svc.cluster.local:8080
+    apiKey: not-needed
+  info:
+    extra:
+      mode: rerank
+      input_cost_per_token: 0
+      output_cost_per_token: 0

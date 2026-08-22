@@ -83,3 +83,14 @@ vLLM startup (recorded per the manifest-comment convention):
   is out of credit, which also means planner-gpt/-pro are currently dead.
   User action required (T1.4): fund the account or land the real seats
   (Luna OAuth, GLM 5.3, K3).
+
+## 2026-08-22 · Track B / B1-B2 probe
+
+- **A380 confirmed by PCI id**: `0x8086:0x56a5` (DG2/Arc A380) — the NFD
+  label was honest.
+- **SYCL path proven before deploy**: `sycl-ls` inside the official
+  `ghcr.io/ggml-org/llama.cpp:server-intel` image, unprivileged, with only
+  `gpu.intel.com/i915: 1`, enumerates "Intel(R) Arc(TM) A380 Graphics" via
+  Level Zero. /dev/dri injected by the plugin (card0 + renderD128).
+- **No Resizable BAR** (Ivy Bridge platform cannot): notorious for Arc gaming
+  performance, mild for compute; A4's throughput bench is the arbiter.

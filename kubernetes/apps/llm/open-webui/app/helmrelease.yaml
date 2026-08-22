@@ -71,6 +71,26 @@ spec:
               OAUTH_ADMIN_ROLES: admin
               WEBUI_SESSION_COOKIE_SAME_SITE: lax
               WEBUI_SESSION_COOKIE_SECURE: "true"
+              # --- RAG floor (Idle Bench S4 / plan.md Track B) ---
+              # Embeddings go through LiteLLM's `embedder` alias (kristeva's
+              # A380) via the in-cluster Service - never the external ingress.
+              # RAG_OPENAI_API_KEY defaults to OPENAI_API_KEY (the open-webui
+              # virtual key), whose scope includes `embedder`.
+              RAG_EMBEDDING_ENGINE: openai
+              RAG_EMBEDDING_MODEL: embedder
+              RAG_OPENAI_API_BASE_URL: http://litellm.llm.svc.cluster.local:4000/v1
+              # Hybrid search + the external reranker, pointed DIRECTLY at the
+              # llama-server rerank Service (free lane; skipping the proxy
+              # avoids guessing at payload translation - the alias still
+              # exists for consumers that want /v1/rerank with accounting).
+              ENABLE_RAG_HYBRID_SEARCH: "true"
+              RAG_RERANKING_ENGINE: external
+              RAG_EXTERNAL_RERANKER_URL: http://bge-reranker-v2-m3.llm.svc.cluster.local:8080/v1/rerank
+              # Vector store: qdrant on the Ceph-core NUCs. Switching from the
+              # default on-disk chroma resets existing knowledge collections -
+              # documents need re-uploading, embeddings are re-derived.
+              VECTOR_DB: qdrant
+              QDRANT_URI: http://qdrant.llm.svc.cluster.local:6333
               ENABLE_OPENAI_API: "true"
               OPENAI_API_BASE_URL: https://litellm.${DOMAIN_NAME}/v1
               # This endpoint is LiteLLM, which enforces auth - the old

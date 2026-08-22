@@ -2,9 +2,9 @@
 # yaml-language-server: $schema=https://json.schemastore.org/kustomization
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-resources:
-  - ./model-archive.yaml
-  - ./models.yaml
-  - ./inferenceservices.yaml
-  - ./retrieval-floor.yaml
-  - ./cache-prime-retrieval.yaml
+configMapGenerator:
+  - name: APP-app-vars
+    literals:
+      - APP=qdrant
+components:
+  - ../../../components/ks/app

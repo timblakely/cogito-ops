@@ -29,6 +29,10 @@ spec:
     # exist blocks the key SILENTLY rather than erroring - this list and the
     # modelName fields move in the same commit, and the validator asserts it.
     - Qwen/Qwen3.8-27B-FP8
+    # RAG embeddings (Track B). REMEMBER the operator gap: scope changes are
+    # NOT pushed to existing keys - after editing this list, push it manually
+    # via the admin API (/key/update); see bench-notes 2026-08-22.
+    - embedder
 ---
 apiVersion: external-secrets.io/v1alpha1
 kind: PushSecret

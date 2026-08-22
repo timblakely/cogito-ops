@@ -1,0 +1,72 @@
+---
+# Cache-prime Job (Phor's pattern, plan.md conventions): stage the retrieval
+# floor's GGUFs into the NFS archive with the official HF tooling. The floor
+# serves DIRECTLY from the archive - the NVMe hot tier is openebs-hostpath on
+# iggy (RWO, node-local) and cannot mount on kristeva; two ~700MB GGUFs over
+# NFS load in seconds, so the hot tier is not missed.
+#
+# When changing this Job, change metadata.name too: Job pod templates are
+# immutable, and Flux prunes the old Job after applying the new one.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cache-prime-retrieval-v1
+  annotations:
+    kustomize.toolkit.fluxcd.io/force: Enabled
+  labels:
+    app.kubernetes.io/name: cache-prime-retrieval
+spec:
+  activeDeadlineSeconds: 3600
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cache-prime-retrieval
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: OnFailure
+      containers:
+        - name: download
+          image: docker.io/library/python:3.13-slim
+          env:
+            - name: HOME
+              value: /tmp
+            - name: HF_HOME
+              value: /tmp/huggingface
+            - name: PIP_DISABLE_PIP_VERSION_CHECK
+              value: "1"
+          command:
+            - sh
+            - -ec
+            - |
+              python -m venv /tmp/venv
+              /tmp/venv/bin/pip install --no-cache-dir "huggingface_hub[cli]"
+              stage() {
+                repo="$1"; file="$2"; dir="$3"
+                mkdir -p "$dir"
+                /tmp/venv/bin/hf download "$repo" "$file" \
+                  --local-dir "$dir" --max-workers 2
+                ls -l "$dir"
+              }
+              stage gpustack/bge-m3-GGUF bge-m3-Q8_0.gguf \
+                /models/llmkube/bge-m3
+              stage gpustack/bge-reranker-v2-m3-GGUF bge-reranker-v2-m3-Q8_0.gguf \
+                /models/llmkube/bge-reranker-v2-m3
+          resources:
+            requests:
+              cpu: 500m
+              memory: 256Mi
+            limits:
+              memory: 2Gi
+          volumeMounts:
+            - name: archive
+              mountPath: /models
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: archive
+          persistentVolumeClaim:
+            claimName: llm-model-archive
+        - name: tmp
+          emptyDir: {}
