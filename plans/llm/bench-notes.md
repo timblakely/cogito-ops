@@ -94,3 +94,22 @@ vLLM startup (recorded per the manifest-comment convention):
   Level Zero. /dev/dri injected by the plugin (card0 + renderD128).
 - **No Resizable BAR** (Ivy Bridge platform cannot): notorious for Arc gaming
   performance, mild for compute; A4's throughput bench is the arbiter.
+
+## 2026-08-22 · Track B live + A4
+
+- Cache-prime Job staged both GGUFs into the NFS archive in 61s (the serving
+  pods raced it and crash-looped until the files appeared - expected, backoff
+  absorbed it; a Job-before-InferenceService ordering would remove the noise).
+- bge-m3 + bge-reranker-v2-m3 Ready on the A380 (llama.cpp SYCL, ~600MB each
+  on the 6GB card, shared via the i915 plugin).
+- **Embeddings end-to-end**: open-webui key -> LiteLLM /v1/embeddings ->
+  embedder -> A380 -> 1024-dim vectors (bge-m3's dimension).
+- **Rerank both paths identical**: LiteLLM /v1/rerank (infinity provider) and
+  direct service - same scores. Jory's "openai/ rejects rerank" lesson held;
+  infinity/ + no-/v1 apiBase is the working shape.
+- **A4 throughput: 869 chunks/min** (~90-token chunks, batch 32, sequential
+  requests, parallelSlots 1, no ReBAR). A 10k-chunk reindex is ~12 min ->
+  the A380 floor covers bulk indexing; no 5070 Ti reranker slot needed.
+- Gotchas: node-role label values here are "true", not "" (qdrant selector);
+  flux reconcile of the namespace-wide `llm` Kustomization blocks on
+  wait:true - reconcile per-app Kustomizations instead.

@@ -282,24 +282,24 @@ per role, hedge procedure is written down.
 
 ### Track B · Retrieval floor  *(Idle Bench §8.4)*
 
-- [ ] **B1** Confirm the A380 from the PCI id (debug pod `lspci` or node
+- [x] **B1** Confirm the A380 from the PCI id (debug pod `lspci` or node
       labels), not just the NFD label.
-- [ ] **B2** Serving path: check `~/git/llm-operator` for non-CUDA accelerator
+- [x] **B2** Serving path: check `~/git/llm-operator` for non-CUDA accelerator
       support; if absent, plain Deployment (OpenVINO Model Server or a
       llama.cpp SYCL/Vulkan image) requesting `gpu.intel.com/i915: 1`, pinned
       to kristeva. Stage embedder (bge-m3-class, int8) + reranker
       (bge-reranker-v2-class) weights into the NFS archive first. Manifests
       live under `litellm/app/` per the layout convention — beside the aliases
       that will name them.
-- [ ] **B3** LiteLLM entries: `embedder` (mode embedding). For `reranker`,
+- [x] **B3** LiteLLM entries: `embedder` (mode embedding). For `reranker`,
       note Jory's finding — the `openai/` provider shape rejects rerank; keep
       the rerank entry explicit with a provider LiteLLM's `/v1/rerank` accepts.
-- [ ] **B4** Repoint Open WebUI RAG at the proxy alias (RAG embedding engine →
+- [x] **B4** Repoint Open WebUI RAG at the proxy alias (RAG embedding engine →
       OpenAI-compatible, base URL + a key whose scope includes `embedder`;
       extend the open-webui key scope in the same commit — validator watches).
-- [ ] **B5** Vector DB near storage: Qdrant (or pgvector via the existing CNPG
+- [x] **B5** Vector DB near storage: Qdrant (or pgvector via the existing CNPG
       pattern) with a NUC node selector; point Open WebUI's vector store at it.
-- [ ] Verify: a RAG query embeds on the A380 (drm-exporter shows GPU activity;
+- [x] Verify: a RAG query embeds on the A380 (drm-exporter shows GPU activity;
       LiteLLM logs show the alias); re-index a real doc set end-to-end.
 
 **Done when:** retrieval runs through the proxy on always-on silicon, reindex
