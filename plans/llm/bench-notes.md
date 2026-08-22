@@ -172,3 +172,31 @@ ceiling. Not a contradiction - the FP8/W4A16 weight-precision-for-KV trade,
 quantified: each GB of weights ~ 20k KV tokens. FP8 decision stands
 (user-confirmed); W4A16-TP2 remains the recorded fallback if
 context-parallelism ever outranks weight quality.
+
+## 2026-08-22 · T1.4 coordinator seat: subscription OAuth, live
+
+The chatgpt/ provider (docs.litellm.ai/docs/providers/chatgpt), landed the
+hard way; the record for whoever debugs this next:
+
+1. **Token seeding**: the codex CLI's 9-day-old auth.json was rejected
+   (refresh tokens rotate single-use); the DOCUMENTED path is LiteLLM's own
+   device flow. Running it LOCALLY (litellm SDK, CHATGPT_TOKEN_DIR set)
+   surfaces the device code without racing the pod's ~6.5min liveness window;
+   the minted auth.json then ships to the litellm-chatgpt-token PVC via
+   kubectl cp. In-pod boots are headless thereafter (refresh in place).
+2. **Cloudflare red herring**: the local SDK test hit a CF managed challenge
+   on chatgpt.com (workstation egress); the cluster passed. Separate issue
+   from:
+3. **The real bug — non-streaming is broken upstream**: the Codex backend
+   forces SSE even for stream:false; LiteLLM 1.97.0 parses that as "Unknown
+   items in responses API response: []" (BerriAI/litellm #37039, #34094; fix
+   PRs #35062, #34095 open). **Streaming works.** Every real consumer here
+   streams (pi, opencode, subagent children) - only curl-style smokes hit
+   the broken path. Re-test non-streaming after the next litellm bump.
+4. Model shape matched to Jory's proven entries: typed info.mode: responses,
+   additional_drop_params: [temperature], reasoning_effort left to clients.
+
+Verified live: coordinator -> LUNA-OK, worker-escalated + reviewer-escalated
+-> ESC-OK (interim on the same subscription seat), and the full harness path
+pi --model llm-proxy/coordinator -> COORD-VIA-PI-OK. The OpenAI API account
+remains unfunded, as decided; metered planner-gpt stays the dormant hedge.

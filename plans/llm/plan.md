@@ -226,20 +226,22 @@ uptime unbroken throughout.
 
 ### T1.4 · Seat the cloud providers  *(Teardown §13.5 / Idle Bench §6)*
 
-> STATUS 2026-08-22: aliases and keys are live with metered gpt-5.5 as the
-> placeholder seat, but the OpenAI account is OUT OF QUOTA (429s) - so every
-> cloud seat is blocked on account actions only the operator can take:
-> fund/replace OPENAI_API_KEY, subscribe GLM 5.3, get a K3 key, decide the
-> Luna OAuth path. The local lanes are unaffected and fully verified.
+> STATUS 2026-08-22 (evening): **the OAuth path is LIVE.** coordinator +
+> both escalated seats run on the ChatGPT subscription via the chatgpt/
+> provider (device-flow tokens on the litellm-chatgpt-token PVC; streaming
+> required until upstream fixes non-streaming - see bench-notes). Remaining
+> here: GLM 5.3 and K3 as the real escalation seats (account actions), and
+> real budget numbers. The OpenAI API account stays unfunded by decision.
 
 Files: `litellm/app/models/*.yaml`, `litellm/app/externalsecret.yaml`,
 1Password items.
 
-- [ ] **coordinator → GPT Luna via the ChatGPT subscription's OAuth path.**
-  - [ ] Research LiteLLM's Codex/Responses-style OAuth support; document the
+- [x] **coordinator → GPT Luna via the ChatGPT subscription's OAuth path.**
+  - [x] Research LiteLLM's Codex/Responses-style OAuth support; document the
         token acquisition + refresh flow.
-  - [ ] Secrets via 1Password → ExternalSecret; no tokens in git.
-  - [ ] Repoint the `coordinator` alias; keep `planner-gpt`/`-pro` as the
+  - [x] Tokens live on a PVC, not a Secret (refresh rotates single-use;
+        1Password copies go stale - rebuild path is a fresh device flow).
+  - [x] Repoint the `coordinator` alias; keep `planner-gpt`/`-pro` as the
         documented manual hedge (ToS-gray path: nothing may work *only* if it
         survives).
 - [ ] **worker-escalated → GLM 5.3** (coding plan).
