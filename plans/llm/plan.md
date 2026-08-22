@@ -307,23 +307,23 @@ works, validator asserts both aliases.
 
 ### Track C · Harness lift  *(Portable Coordinator §8 — dotfiles, not cluster)*
 
-- [ ] **C1** Port the workflow extension + the three definitions
+- [x] **C1** Port the workflow extension + the three definitions
       (implement-and-review, debug-until-green, review-pr) into the
       chezmoi-managed pi config; keep run state machine-local.
-- [ ] **C2** Extend the trusted check registry with fixed argvs **in source
+- [x] **C2** Extend the trusted check registry with fixed argvs **in source
       before any workflow names them**: `git diff --check`, `kustomize build`
       over the rendered path.
-- [ ] **C3** Coordinator system prompt, inverted for cogito's economics: local
+- [x] **C3** Coordinator system prompt, inverted for cogito's economics: local
       seats free → fan out `worker`/`reviewer` by default; escalation entered
       on failure; per-key budgets as the hard backstop. Include the delegation
       contract: objective, settled decisions inlined, files owned,
       out-of-scope, observable success check.
-- [ ] **C4** Role agent files (worker, reviewer, worker-escalated,
+- [x] **C4** Role agent files (worker, reviewer, worker-escalated,
       reviewer-escalated) + `models.json` against cogito's LiteLLM; update the
       `pi` virtual key's scope to the role aliases (validator watches).
-- [ ] **C5** Council workflow: review-pr's fan-out-then-synthesize across three
+- [x] **C5** Council workflow: review-pr's fan-out-then-synthesize across three
       families — local Qwen, GLM 5.3, K3.
-- [ ] **C6** Mutation stages run in disposable jj worktrees; write the
+- [x] **C6** Mutation stages run in disposable jj worktrees; write the
       convention into the workflow README.
 - [ ] **C7 · PENDING YOUR CALL:** a persistent in-cluster coordinator pod
       (pi or opencode server, hermes/open-webui deployment pattern, own

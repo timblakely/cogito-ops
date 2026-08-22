@@ -113,3 +113,26 @@ vLLM startup (recorded per the manifest-comment convention):
 - Gotchas: node-role label values here are "true", not "" (qdrant selector);
   flux reconcile of the namespace-wide `llm` Kustomization blocks on
   wait:true - reconcile per-app Kustomizations instead.
+
+## 2026-08-22 · Track C (pi harness lift)
+
+- New dotfiles repo at ~/git/dotfiles: jj-colocated clone of
+  joryirving/dotfiles (remote `upstream`, no origin yet - add one to push).
+  Old blakely-dotfiles untouched; live ~/.pi/agent backed up to
+  ~/.pi/agent.bak-20260822 before apply.
+- Adaptation: role agents (worker/reviewer/escalated x2), inverted-economy
+  coordinator prompt, trusted checks + validate-llm-catalogue +
+  kustomize-build-llm, workflows re-agented (review-pr = council across
+  families; new implement-and-validate gates manifest work on the validator).
+- Provider naming unified on `llm-proxy` (his llm-proxy-refresh extension's
+  established id) rather than inventing a new one.
+- npm:pi-subagents dropped: the workflow layer hard-imports the vendored
+  subagent extension (../subagent/index.ts), so the vendored copy is
+  authoritative.
+- Live models.json: 11 retired aliases dropped, Qwen ctx fixed 262144->131072,
+  role aliases added. verify-llm-proxy.sh had the pre-migration
+  llm-switch.timblakely.com host - fixed; smoke passes (8 models).
+- pi -p on llm-proxy/worker: end-to-end OK from the workstation.
+- Deviation from plan C4: the pi key stays deliberately UNSCOPED (its
+  manifest documents budget-as-the-bound); role aliases are reachable
+  without a scope change.
