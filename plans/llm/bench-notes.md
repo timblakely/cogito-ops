@@ -200,3 +200,15 @@ Verified live: coordinator -> LUNA-OK, worker-escalated + reviewer-escalated
 -> ESC-OK (interim on the same subscription seat), and the full harness path
 pi --model llm-proxy/coordinator -> COORD-VIA-PI-OK. The OpenAI API account
 remains unfunded, as decided; metered planner-gpt stays the dormant hedge.
+
+## 2026-08-22 · Verification: pi access + vision reality check
+
+- pi -> Qwen/Qwen3.8-27B-FP8: QWEN-INTERACTIVE-OK (pi key sees all 10 names).
+- Worker text-only re-confirmed in the running pod ("text-only mode" x4).
+- Image routing today: coordinator (Luna) ACCEPTS images and answers
+  (vision path proven through the chatgpt translation, streaming); the
+  local Qwen alias rejects them LOUDLY - vLLM 400 "At most 0 image(s)" -
+  the clean failure mode --language-model-only buys (no silent ignoring).
+- Honest status: vision is NOT on CPU yet - the worker's tower was REMOVED
+  (VRAM -> KV), and the CPU lane is Track D1, still pending. Until D1 lands,
+  vision = coordinator only.
