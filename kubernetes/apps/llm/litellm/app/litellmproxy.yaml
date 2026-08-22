@@ -71,7 +71,19 @@ spec:
     - secretRef:
         name: litellm-secrets
 
+  # The chatgpt/ provider reads and rotates its OAuth tokens (auth.json)
+  # here - seeded once from `codex login`, refreshed in place thereafter.
+  volumes:
+    - name: chatgpt-token
+      persistentVolumeClaim:
+        claimName: litellm-chatgpt-token
+  volumeMounts:
+    - name: chatgpt-token
+      mountPath: /var/lib/litellm/chatgpt
+
   env:
+    - name: CHATGPT_TOKEN_DIR
+      value: /var/lib/litellm/chatgpt
     - name: DATABASE_URL
       valueFrom:
         secretKeyRef:

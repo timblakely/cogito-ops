@@ -1,10 +1,10 @@
 ---
-# Role alias: a second opinion or hard review beyond the local reviewer, entered by the
-# COORDINATOR after reading the failure - never by a proxy fallback (locked
-# decision in plans/llm/plan.md: cross-model fallbacks bypass key scopes and
-# would turn worker backpressure into a paid spillway).
-# Placeholder seat: metered gpt-5.5 until T1.4 lands K3 (metered, cache-discounted;
-# doubles as the coordinator understudy if the OAuth path breaks).
+# Role alias: a paid second opinion beyond the local reviewer, entered by the
+# COORDINATOR after reading the failure - never by a proxy fallback.
+#
+# INTERIM seat: GPT-5.6 Luna on the subscription OAuth path (zero marginal
+# cost) until the target seat lands - K3 (metered, cache-discounted; also the
+# coordinator understudy if the OAuth path breaks) per plan.md T1.4.
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:
@@ -13,7 +13,16 @@ spec:
   modelName: reviewer-escalated
   proxyRef: litellm
   params:
-    model: openai/gpt-5.5
-    apiKey: os.environ/OPENAI_API_KEY
+    model: chatgpt/gpt-5.6-luna
     additional:
+      reasoning_effort: high
       timeout: 900
+  info:
+    supportsFunctionCalling: true
+    maxInputTokens: 272000
+    maxOutputTokens: 128000
+    extra:
+      mode: responses
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+      supports_reasoning: true
