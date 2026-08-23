@@ -422,6 +422,9 @@ artifacts; the runaway walkthrough is written into bench-notes.
 - [ ] **G8 acceptance:** validator green (fallback behind every alias this node
       backs); play a session end-to-end while confirming worker/retrieval paths
       are untouched.
+- [ ] **G9 revisit C7** (deferred 2026-08-23, Track C): once this wave retires
+      the desktop as the daily driver, decide the persistent in-cluster
+      coordinator pod for real.
 
 **Done when:** a game streams, the roster yields and returns, and nothing on
 the critical path noticed.
