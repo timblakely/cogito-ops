@@ -330,3 +330,51 @@ explicit-choice alias for deliberately-spent hard sessions.
   has no curl - exec python3 + urllib is the in-pod pattern.
 - Post-update smoke through the coordinator key -> CAP-OK (streamed).
 - Worker/reviewer $1 budgets left as-is: local models, also $0, harmless.
+
+## 2026-08-23 · K3 host research: NeuralWatt yes-at-parity, Nous no
+
+- **NeuralWatt** (portal.neuralwatt.com): DOES serve `kimi-k3`, at exactly
+  Moonshot's $3/$15 - a same-model rung, not a discount. Also carries
+  kimi-k2.7-code $0.95/$4, kimi-k2.6 $0.69/$3.22, glm-5.2 $1.45/$4.50, and
+  the deepseek-v4-flash $0.14/$0.28 rung Jory backstops with. Verdict:
+  viable as a SAME-MODEL fallback for reviewer-escalated (Phor's rule
+  allows it), zero reason to prefer it as primary over the already-wired
+  Moonshot seat. Adds an account for redundancy only.
+- **Nous Research** (portal.nousresearch.com): catalog is Hermes-family
+  only (Hermes 4 405B $1/$3, 70B $0.13/$0.40, DeepHermes 3) plus an
+  image-gen tool gateway; subscriptions unlock Hermes access, NOT
+  third-party frontier models. No Kimi/Moonshot models at all. Verdict:
+  NOT viable for the K3 seat under the same-model rule. (Hermes 4 405B as
+  a council seat would be a new decision, and it is not frontier-class -
+  the council's diversity slot stays K3.)
+- Cross-check: OpenRouter lists 13 K3 providers (Sail $2.60/$13 cheapest,
+  Moonshot/Together/Fireworks/Baseten at $3/$15); neither NeuralWatt nor
+  Nous among them. Ladder unchanged: Moonshot metered now -> Kimi Code sub
+  at rung 1 when the waitlist clears; NeuralWatt on record as rung 3.
+
+## 2026-08-23 · Caps-compose walkthrough (Track E, on paper)
+
+Scenario: a workflow bug makes the implement loop repair forever, fanning
+out worker calls each iteration, escalating one review per iteration.
+
+1. **Workflow `maxAttempts` (C1)** - repair loops declare maxAttempts
+   (implement-and-review ships 1; registry rule in workflows/README) ->
+   the loop terminates in the harness before any flood forms. First line.
+2. **Worker/reviewer keys: maxParallelRequests 8 (T1.2)** - even a
+   harness that ignores its own limits gets at most 8 concurrent local
+   calls per key; excess 429s at the proxy, not at vLLM.
+3. **vLLM maxNumSeqs (T1.1)** - whatever gets through shares the fixed
+   seat count; overflow queues (peak_waiting visible in /metrics),
+   nothing OOMs - KV is block-managed, preemptions counted.
+4. **Coordinator key rpmLimit 30 / maxParallelRequests 4 (2026-08-23)** -
+   a coordinator-side loop 429s within the minute; the 5h credit window
+   cannot be drained mechanically.
+5. **Escalation key maxBudget $30/30d (T1.4)** - the only real-money path
+   (K3 metered) hard-stops at the budget; interactive local lanes are
+   untouched because the block is per-key.
+6. **Visibility** - the new Escalations dashboard row (requests, spend,
+   tokens by seat, budget-left stat) makes the event legible after the
+   fact; the why lives in the workflow's saved review/repair artifacts.
+
+Every layer catches a different failure shape; no single bug bypasses
+more than one layer. Composition confirmed on paper - Track E closes.
