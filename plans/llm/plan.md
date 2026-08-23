@@ -244,12 +244,22 @@ Files: `litellm/app/models/*.yaml`, `litellm/app/externalsecret.yaml`,
   - [x] Repoint the `coordinator` alias; keep `planner-gpt`/`-pro` as the
         documented manual hedge (ToS-gray path: nothing may work *only* if it
         survives).
-- [ ] **worker-escalated → GLM 5.3** (coding plan).
-  - [ ] Subscribe; key into 1Password; alias with
-        `allowed_openai_params: [reasoning_effort]` (Jory's glm-5.3 lesson)
-        and real cost metadata.
-- [ ] **reviewer-escalated → K3** (metered, cache-discounted).
-  - [ ] Key; alias; cost metadata including cache read/write rates.
+- [x] **worker-escalated → Luna@max on the subscription** (rescoped
+      2026-08-22: with escalation coordinator-driven and no volume cloud
+      lane, GLM's coding-plan economics have nothing to bite on — GLM
+      SKIPPED, recorded as the alternative if a volume lane ever returns).
+- [ ] **reviewer-escalated → K3 via the Kimi Code subscription**
+      (`api.kimi.com/coding/v1`, first-party API key — no OAuth gymnastics;
+      council family-diversity + OAuth understudy).
+  - [ ] AWAITING KIMI_API_KEY in the litellm 1Password item (user
+        subscribing); target recorded in reviewer-escalated.yaml's header.
+  - [ ] `reasoning_effort` pinned `high`, NEVER `none` ("none routes to
+        K2.6 instead of K3" — Phor). Optional same-model Moonshot/Fireworks
+        PAYG rung behind it later.
+- [x] **Luna@`max` pinned** on coordinator + both escalated seats (credit
+      arbitrage: thinking bills as output at the model's rate, Luna 30/M vs
+      Sol 500/M); **`coordinator-heavy` → Terra** as the explicit-choice
+      splurge (10x window burn, never a fallback).
 - [ ] Optional (decide later): a cheap PAYG backstop rung under
       `worker-escalated` (neuralwatt-class), order 2 — "order encodes
       preference, not cost." Skip until the GLM cap actually bites.

@@ -1,0 +1,29 @@
+---
+# Explicit-choice heavy coordination: GPT-5.6 Terra on the subscription.
+# NOT the default and never a fallback - Terra burns the credit window 10x
+# faster than Luna (50/300 vs 5/30 credits per 1M in/out), so entering this
+# seat is a deliberate spend of sub capacity on a hard planning session.
+# The subscription analogue of planner-gpt-pro's role.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: coordinator-heavy
+spec:
+  modelName: coordinator-heavy
+  proxyRef: litellm
+  params:
+    model: chatgpt/gpt-5.6-terra
+    additional:
+      timeout: 1800
+      reasoning_effort: max
+      additional_drop_params:
+      - temperature
+  info:
+    mode: responses
+    supportsFunctionCalling: true
+    maxInputTokens: 272000
+    maxOutputTokens: 128000
+    extra:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+      supports_reasoning: true

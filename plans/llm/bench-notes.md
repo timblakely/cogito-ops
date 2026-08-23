@@ -258,3 +258,19 @@ on the token-hungriest role, not a free upgrade. Luna@xhigh as the
 default coordinator diet is the credit-optimal shape (and is Jory's
 revealed preference - reasoning-pool rung 1); Terra/Sol belong behind an
 explicit-choice alias for deliberately-spent hard sessions.
+
+## 2026-08-22 · Seating finalized: Luna@max, coordinator-heavy, K3-via-Kimi-Code
+
+- `max` accepted by the chatgpt backend (verified; xhigh also valid - Phor's
+  choice; max is Jory's). Pinned on coordinator + both escalated seats.
+- coordinator-heavy -> Terra: explicit-choice, 10x window burn, never a
+  fallback. Added to the coordinator key's scope (manual /key/update pushed).
+- Jory's Luna usage, for the record: reasoning-pool rung 1 at effort max IS
+  Saffron-the-coordinator's primary diet; Luna is absent from frontier-pool
+  (hard escalation = Sol/K3). Our shape now matches his exactly.
+- GLM 5.3 SKIPPED (volume-lane alternative on record); reviewer-escalated's
+  target = K3 via the Kimi Code subscription (api.kimi.com/coding/v1,
+  KIMI_API_KEY, effort high never none). Awaiting the key.
+- ctx metadata settled at 272000 for the 5.6 family (Phor + Jory's pi agree;
+  Jory's litellm yaml said 1050000 - outvoted 2:1; understating is the safe
+  direction). Fixed in aliases + both pi catalogues.

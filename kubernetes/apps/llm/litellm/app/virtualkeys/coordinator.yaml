@@ -15,6 +15,9 @@ spec:
   budgetDuration: 30d
   models:
     - coordinator
+    # Explicit-choice Terra splurge shares the key (and its budget); REMEMBER
+    # the operator gap - scope changes need a manual /key/update push.
+    - coordinator-heavy
 ---
 apiVersion: external-secrets.io/v1alpha1
 kind: PushSecret
