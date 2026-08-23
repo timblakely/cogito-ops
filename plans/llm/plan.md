@@ -271,7 +271,8 @@ Files: `litellm/app/models/*.yaml`, `litellm/app/externalsecret.yaml`,
 - [ ] Optional (decide later): a cheap PAYG backstop rung under
       `worker-escalated` (neuralwatt-class), order 2 — "order encodes
       preference, not cost." Skip until the GLM cap actually bites.
-- [ ] Budgets: set real numbers on the coordinator and escalation keys.
+- [ ] Budgets: escalation key only (coordinator resolved 2026-08-23 —
+      rate caps instead, see open question 2).
 - [ ] Smoke each seat through its own key; confirm per-key spend attribution in
       the LiteLLM dashboard.
 
