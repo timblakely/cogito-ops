@@ -439,5 +439,5 @@ the critical path noticed.
    cheap model. Default: leave until the GLM caps bite.
 5. **Muse re-quant source:** hunt an existing ≤12GB build vs. quantize locally
    (only matters at Wave 4).
-6. **chatgpt-token PVC**: migrate RWO ceph-block -> cephfs RWX (or Recreate
-   strategy) so proxy rolling updates stop deadlocking on multi-attach.
+6. ~~chatgpt-token PVC RWX migration~~ — done 2026-08-23 (pre-seed-then-swap;
+   see bench-notes).

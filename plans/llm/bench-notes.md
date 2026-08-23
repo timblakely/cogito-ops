@@ -274,3 +274,19 @@ explicit-choice alias for deliberately-spent hard sessions.
 - ctx metadata settled at 272000 for the 5.6 family (Phor + Jory's pi agree;
   Jory's litellm yaml said 1050000 - outvoted 2:1; understating is the safe
   direction). Fixed in aliases + both pi catalogues.
+
+## 2026-08-23 · Seating live + token store on RWX
+
+- coordinator@max -> COORDINATOR-OK; coordinator-heavy (Terra) ->
+  COORDINATOR-HEAVY-OK; scope pushed past the operator gap.
+- RWX migration done the clean way: exported auth.json at its freshest
+  rotation, PRE-SEEDED the CephFS RWX claim via a throwaway seeder pod,
+  then swapped the mount - the new proxy pod booted headless in 33s with
+  no device flow and no attach deadlock. RWO claim pruned.
+- The stuck rollout this fixed: deleting the RWO-holding pod mid-roll just
+  made its ReplicaSet recreate it (still holding the attach on its node) -
+  circular. Pre-seed-then-swap breaks the cycle; the pattern to reuse.
+- Wart on the record: one empty commit ("complete the token-store RWX
+  migration", c24ab880) pushed after an exec race short-circuited the edit
+  chain but not the jj tail; the like-named real commit follows it.
+- Remaining in the seating: ONLY the K3 flip, waiting on KIMI_API_KEY.
