@@ -248,11 +248,12 @@ Files: `litellm/app/models/*.yaml`, `litellm/app/externalsecret.yaml`,
       2026-08-22: with escalation coordinator-driven and no volume cloud
       lane, GLM's coding-plan economics have nothing to bite on — GLM
       SKIPPED, recorded as the alternative if a volume lane ever returns).
-- [ ] **reviewer-escalated → K3 via the Kimi Code subscription**
-      (`api.kimi.com/coding/v1`, first-party API key — no OAuth gymnastics;
-      council family-diversity + OAuth understudy).
-  - [ ] AWAITING KIMI_API_KEY in the litellm 1Password item (user
-        subscribing); target recorded in reviewer-escalated.yaml's header.
+- [ ] **reviewer-escalated → K3** (council family-diversity + understudy).
+      Kimi Code sub is WAITLISTED (2026-08-23), so: Moonshot metered first
+      (`MOONSHOT_API_KEY`), sub endpoint promotes to rung 1 when the
+      waitlist clears, metered demotes to same-model fallback.
+  - [ ] AWAITING MOONSHOT_API_KEY in the litellm 1Password item; target
+        recorded in reviewer-escalated.yaml's header.
   - [ ] `reasoning_effort` pinned `high`, NEVER `none` ("none routes to
         K2.6 instead of K3" — Phor). Optional same-model Moonshot/Fireworks
         PAYG rung behind it later.
