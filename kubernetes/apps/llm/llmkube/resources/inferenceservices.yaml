@@ -75,10 +75,10 @@ spec:
     - qwen-3-8-fp8
     - --pipeline-parallel-size
     - "1"
-    # 6 concurrent worker seats (sweep toward 8 pending the A1 benchmark).
-    # KV block count at startup recorded in plans/llm/bench-notes.md.
+    # 8 seats for the A1 sweep (plan.md Track A); final value pinned from the
+    # 2/4/6/8 data - table lands here and in plans/llm/bench-notes.md.
     - --max-num-seqs
-    - "6"
+    - "8"
     - --disable-custom-all-reduce
     # The build carries a vision tower (Qwen3_5ForConditionalGeneration,
     # vision_config present) that nothing uses - vision tiers to the kristeva
