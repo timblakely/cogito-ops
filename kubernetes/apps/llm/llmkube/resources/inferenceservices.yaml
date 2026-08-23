@@ -75,8 +75,16 @@ spec:
     - qwen-3-8-fp8
     - --pipeline-parallel-size
     - "1"
-    # 8 seats for the A1 sweep (plan.md Track A); final value pinned from the
-    # 2/4/6/8 data - table lands here and in plans/llm/bench-notes.md.
+    # 8 seats, PINNED by the A1 sweep (2026-08-23, full table in
+    # plans/llm/bench-notes.md). Worst-case-prefix load, 4-16k prompts,
+    # 0.5-2k completions, MTP=3:
+    #   conc  agg tok/s  seat tok/s  ITL p50   preempt
+    #     2      76         55        19ms       0
+    #     4     104         35        29ms       0
+    #     6     115         25        44ms       0
+    #     8     122         21        50ms       0
+    # Aggregate saturates (~122); 8 admits two more seats for +6% agg, zero
+    # preemptions, no ITL cliff - the ceiling is free, so take the seats.
     - --max-num-seqs
     - "8"
     - --disable-custom-all-reduce
@@ -97,5 +105,9 @@ spec:
     # The repo ships mtp.safetensors, so this build does carry an MTP head
     # after all - same speculative config as the INT8-MTP and AutoRound
     # siblings.
+    # MTP=3, PINNED by A2's three arms (2026-08-23, bench-notes): per-seat
+    # decode 89/62/44 tok/s (3/2/off) at conc 1; aggregate 122/115/106 at
+    # conc 8. The model-card "2" and the vLLM acceptance warning both lose
+    # to 3 on this build in both regimes.
     - --speculative-config
-    - '{"method":"mtp","num_speculative_tokens":2}'
+    - '{"method":"mtp","num_speculative_tokens":3}'

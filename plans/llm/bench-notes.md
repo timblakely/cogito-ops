@@ -378,3 +378,60 @@ out worker calls each iteration, escalating one review per iteration.
 
 Every layer catches a different failure shape; no single bug bypasses
 more than one layer. Composition confirmed on paper - Track E closes.
+
+## 2026-08-23 · A1 seat sweep at maxNumSeqs 8 - VERDICT: pin 8
+
+Method: worst-case prefix (random 8-hex tag + shuffled words per request),
+prompt/completion shape cycle (4k/512, 8k/1024, 16k/2048), ignore_eos,
+streaming, 3 requests per worker, direct to vLLM via port-forward.
+KV pool at 8 seats: 275,656 tokens (2.10x @ 131k - unchanged from 6).
+
+| conc | n  | agg out tok/s | seat tok/s med | TTFT p50/max | ITL p50/max | preempt | peak wait |
+|------|----|---------------|----------------|--------------|-------------|---------|-----------|
+| 2    | 6  | 76.3          | 55.1           | 11.3/12.8s   | 19/26ms     | 0       | 0         |
+| 4    | 12 | 103.5         | 34.9           | 11.5/22.5s   | 29/64ms     | 0       | 0         |
+| 6    | 18 | 115.3         | 24.9           | 11.7/40.0s   | 44/95ms     | 0       | 3         |
+| 8    | 24 | 121.8         | 21.4           | 11.8/48.3s   | 50/96ms     | 0       | 4         |
+
+- Aggregate saturates at ~122 tok/s; 6 -> 8 is +5.6% agg for -14% per-seat.
+- ZERO preemptions at every level: at worker shapes (<=18k KV/seat) even
+  8 full seats use ~144k of the 275k pool. The ceiling is free.
+- TTFT p50 ~11.5s is the known prefill bandwidth bound (~1k tok/s on the
+  8k median prompt), constant across levels; the tail (48s at conc 8) is
+  prefill queueing, matching peak_waiting 4.
+- Verdict: PIN 8. Seats-over-ceiling holds; table lives in the manifest.
+
+## 2026-08-23 · A2 MTP three arms at the pinned 8 seats - VERDICT: keep 3
+
+Same harness, conc 1 (interactive regime) + conc 8 (saturated regime):
+
+| arm   | conc1 seat tok/s | conc1 ITL | conc8 agg | conc8 seat med | conc8 ITL p50 |
+|-------|------------------|-----------|-----------|----------------|---------------|
+| MTP=3 | 89.2             | 11.2ms    | 121.8     | 21.4           | 50.1ms        |
+| MTP=2 | 61.7             | 16.2ms    | 114.8     | 20.5           | 50.2ms        |
+| off   | 44.4             | 22.6ms    | 105.6     | 16.7           | 63.3ms        |
+
+- MTP=3 wins BOTH regimes: 2x single-seat decode over no-MTP, and still
+  +15% aggregate at full saturation - on dual 3090s the batch-8 decode is
+  bandwidth-bound, so accepted speculative tokens are nearly free.
+- Phor's citations (model card recommends 2; vLLM warns >1 lowers
+  acceptance on one MTP layer) both LOSE to 3 on this build, measured.
+  His middle arm did not win; cogito's original 3 stands.
+- Ops wart: the A2-off arm hit a dead local SSH agent mid-flight (push
+  impossible), so the arm was applied by suspending the llmkube-resources
+  ks and patching the InferenceService directly - repo and cluster were
+  reconverged at the final pinned config afterward.
+
+## 2026-08-23 · D2 MoE lane trial - VERDICT: deleted, 0.6 tok/s
+
+DeepSeek V4 Flash UD-IQ3_S (~110GB, NFS archive) via llama.cpp CPU on
+kristeva, --numa distribute, 32 threads, ctx 8192, request 80Gi/limit
+115Gi. Cold load off NFS: ~33 min to ready.
+
+- Decode: 0.47 / 0.76 / 0.89 / 0.61 tok/s across four runs (100-150 tok
+  each). ~8% of the 5 tok/s bar - not close, no tuning rescues 8x.
+- Why: the A3 prediction held and compounded - AVX-only decode ceiling,
+  plus the model (~110GB) never fit resident beside the floor pods
+  (~53GiB RSS peak; the rest re-faulted from NFS per expert activation).
+- Per plan: manifests deleted the same hour, number recorded here.
+  kristeva's lanes stay D1 vision + camofox + the A380 floor.

@@ -263,7 +263,9 @@ Files: `litellm/app/models/*.yaml`, `litellm/app/externalsecret.yaml`,
         the drop-list. The `reasoning_effort high, NEVER none` rule ("none
         routes to K2.6" — Phor) applies to the Kimi Code sub endpoint when
         it takes over rung 1. Optional same-model Moonshot/Fireworks PAYG
-        rung behind it later.
+        rung behind it later. Researched 2026-08-23: NeuralWatt serves
+        `kimi-k3` at Moonshot parity ($3/$15) - a valid same-model rung 3;
+        Nous Portal is Hermes-only, no K3, not viable for this seat.
 - [x] **Luna@`max` pinned** on coordinator + both escalated seats (credit
       arbitrage: thinking bills as output at the model's rate, Luna 30/M vs
       Sol 500/M); **`coordinator-heavy` → Terra** as the explicit-choice
@@ -285,15 +287,17 @@ per role, hedge procedure is written down.
 
 ### Track A · Benchmarks  *(Idle Bench §8.3 — background work)*
 
-- [ ] **A1 seat sweep.** Set the backend to `maxNumSeqs 8`; drive 2/4/6/8
+- [x] **A1 seat sweep** (2026-08-23): PINNED 8 - aggregate saturates at
+      ~122 tok/s, zero preemptions at every level, no ITL cliff; table in
+      the manifest comment + bench-notes. Original spec: drive 2/4/6/8
       client-side concurrent synthetic worker loads (4–16k prompts, 0.5–2k
       completions); record ITL, TTFT, and `vllm:num_preemptions` from
       `/metrics` per level; pin the final `maxNumSeqs` from the data and record
       the table in the manifest comment + bench-notes.
-- [ ] **A2 MTP, three arms** at the pinned seat count: off / 2 tokens / 3
-      tokens (current). Phor's manifest cites the model card recommending 2 and
-      a vLLM warning that >1 lowers acceptance on the same MTP layer — cogito
-      runs 3, so the middle arm may win. Keep the winner; record all three.
+- [x] **A2 MTP, three arms** (2026-08-23): KEEP 3 - wins both regimes
+      (89/62/44 seat tok/s at conc 1; 122/115/106 agg at conc 8 for 3/2/off).
+      Phor's model-card-recommends-2 and the vLLM acceptance warning both
+      lost to 3 on this build; all three arms recorded in bench-notes.
 - [x] **A3 kristeva identity + bandwidth.** Privileged debug pod (or talosctl):
       `lscpu` + a STREAM-class run. This gates D2 and calibrates D1.
 - [x] **A4 A380 embedding throughput** (after B2): chunks/minute at int8 batch
@@ -365,13 +369,10 @@ works, validator asserts both aliases.
 - [x] **D1** CPU VLM: llama.cpp CPU deployment of a small multimodal (+ its
       mmproj) on kristeva with CPU/memory limits that protect camofox; publish
       as a `vision` alias; measure seconds/image encode and record it.
-- [ ] **D2** MoE lane (gated on A3's bandwidth number): llama.cpp CPU with
-      DeepSeek V4 Flash UD-IQ3_S from the NFS archive, ~115Gi memory limit,
-      kristeva-pinned; measure tok/s.
-  - [ ] ≥ ~5 tok/s → keep as a `batch-lane` alias, clearly labeled
-        non-interactive, no fallback semantics that could route interactive
-        traffic here.
-  - [ ] < ~5 tok/s → delete the manifests without regret; record the number.
+- [x] **D2** MoE lane (2026-08-23): trialed and DELETED at 0.6 tok/s -
+      ~8% of the 5 tok/s bar (AVX-only ceiling + the ~110GB model never fit
+      resident beside the floor pods, re-faulting from NFS per expert).
+      Numbers in bench-notes; manifests deleted the same hour, per spec.
 
 **Done when:** vision has a working CPU path; the MoE lane is kept-with-numbers
 or deleted-with-numbers.
@@ -380,11 +381,13 @@ or deleted-with-numbers.
 
 ## Wave 3 — Rails bookkeeping  *(Foreman §12 — rides on Waves 1–2)*
 
-- [ ] **Escalation log.** Keep it proportional to one operator: a Grafana panel
+- [x] **Escalation log** (2026-08-23): "Escalations" row added to the
+      litellm dashboard - requests/spend/tokens by seat + budget-left stat,
+      all filtered to `role-escalation`. Original spec: a Grafana panel
       filtered to the escalation key(s) answers "what escalated, how often,
       what did it cost"; the *why* lives in workflow artifacts (C1 saves
       review/repair artifacts per run). No new service.
-- [ ] **Verify the caps compose:** per-role budgets (T1.2/T1.4) +
+- [x] **Verify the caps compose** (2026-08-23, walkthrough in bench-notes): per-role budgets (T1.2/T1.4) +
       workflow `maxAttempts` (C1) + `maxNumSeqs` backpressure (T1.1) — walk one
       runaway scenario on paper and confirm each layer catches it.
 - [ ] **Deferred, recorded as deferred:** ToolHive-style MCP gateway (revisit
