@@ -313,3 +313,20 @@ explicit-choice alias for deliberately-spent hard sessions.
 - Effort note: K3 on Moonshot's OpenAI-compat endpoint always reasons;
   `thinking` sits in additional_drop_params. Phor's "high, never none"
   rule is about the Kimi Code endpoint and applies when the sub takes over.
+
+## 2026-08-23 · Coordinator key: dollar budget out, rate caps in
+
+- Realization (user question exposed it): every alias in the coordinator
+  key's scope is subscription-backed and meters at $0, so maxBudget could
+  never trip. Dollar budgets only do real work on the escalation key
+  (Moonshot metered) - the sole real-money path.
+- Swap: maxBudget/budgetDuration removed; rpmLimit 30 +
+  maxParallelRequests 4 added. Rationale: the scarce resource is the 5h
+  credit window, which is rate-shaped; caps turn a runaway loop into 429s
+  at the proxy instead of a drained subscription.
+- Operator gap hit again as expected: CR updated on reconcile but the live
+  key kept its old row; manual POST /key/update (rpm_limit,
+  max_parallel_requests, max_budget:null) applied it. NOTE: litellm image
+  has no curl - exec python3 + urllib is the in-pod pattern.
+- Post-update smoke through the coordinator key -> CAP-OK (streamed).
+- Worker/reviewer $1 budgets left as-is: local models, also $0, harmless.

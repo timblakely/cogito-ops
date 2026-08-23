@@ -438,7 +438,12 @@ the critical path noticed.
 ## Open questions (answers needed, none blocking Wave 0)
 
 1. **C7 — in-cluster coordinator pod:** approve / defer / decline.
-2. **Budget values** for the coordinator and escalation keys.
+2. **Budget value for the escalation key** — the one key where dollars are
+   real (K3 via Moonshot metered); $30/30d is the placeholder. The
+   coordinator key RESOLVED 2026-08-23: subscription seats meter at $0,
+   so its budget was dead — swapped for rate caps (rpmLimit 30,
+   maxParallelRequests 4) guarding the 5h credit window; pushed to the
+   live key past the operator gap, CAP-OK smoke after.
 3. ~~Reviewer fallback~~ — resolved by the no-cross-model-fallback decision:
    both escalations are coordinator-driven delegation targets.
 4. **PAYG backstop for escalation:** if added, Phor's refinement applies —
