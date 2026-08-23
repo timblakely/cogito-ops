@@ -1,0 +1,16 @@
+---
+# RWX successor for the chatgpt token store (Phor's documented evolution):
+# RWO ceph-block deadlocked every rolling update when the surge pod landed on
+# another node (multi-attach refused). CephFS RWX mounts anywhere; the single
+# auth.json is tiny and nearly idle.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: litellm-chatgpt-token-rwx
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ceph-filesystem
+  resources:
+    requests:
+      storage: 256Mi
