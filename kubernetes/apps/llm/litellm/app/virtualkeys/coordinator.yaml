@@ -1,7 +1,8 @@
 ---
-# Per-role key: the coordinator's seat. Budget is a PLACEHOLDER (plan.md open
-# question 2) sized for the metered gpt-5.5 stand-in; revisit when T1.4 moves
-# the seat to the flat-rate OAuth path, where this becomes a hedge budget.
+# Per-role key: the coordinator's seat. Both aliases in scope are
+# subscription-backed (Luna/Terra via OAuth) and meter at $0, so a dollar
+# budget can never trip — the guardrail here is RATE, protecting the 5h
+# credit window from a runaway loop. Human-driven traffic never nears it.
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMVirtualKey
 metadata:
@@ -11,11 +12,11 @@ spec:
   keyAlias: role-coordinator
   secretName: litellm-key-coordinator
   secretKey: api-key
-  maxBudget: "50"
-  budgetDuration: 30d
+  rpmLimit: 30
+  maxParallelRequests: 4
   models:
     - coordinator
-    # Explicit-choice Terra splurge shares the key (and its budget); REMEMBER
+    # Explicit-choice Terra splurge shares the key (and its rate caps); REMEMBER
     # the operator gap - scope changes need a manual /key/update push.
     - coordinator-heavy
 ---
