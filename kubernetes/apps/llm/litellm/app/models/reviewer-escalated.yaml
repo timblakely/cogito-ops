@@ -1,10 +1,14 @@
 ---
 # Role alias: a paid second opinion beyond the local reviewer, entered by the
-# COORDINATOR after reading the failure - never by a proxy fallback.
+# COORDINATOR after reading the evidence - never by a proxy fallback.
 #
-# INTERIM seat: GPT-5.6 Luna on the subscription OAuth path (zero marginal
-# cost) until the target seat lands - K3 (metered, cache-discounted; also the
-# coordinator understudy if the OAuth path breaks) per plan.md T1.4.
+# K3 via Moonshot metered (Jory's exact shape, including the params Moonshot
+# rejects). The Kimi Code subscription is waitlisted; when it clears, the sub
+# endpoint (api.kimi.com/coding/v1) becomes rung 1 and this entry demotes to
+# the same-model fallback - the recorded ladder, no rework. K3 always reasons
+# by default, which satisfies the never-effort-none rule by sending nothing.
+# Council family-diversity + the coordinator's understudy if the OAuth path
+# breaks. Real costs so the dashboard shows true spend on this seat.
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:
@@ -13,23 +17,26 @@ spec:
   modelName: reviewer-escalated
   proxyRef: litellm
   params:
-    model: chatgpt/gpt-5.6-luna
+    model: openai/kimi-k3
+    apiBase: https://api.moonshot.ai/v1
+    apiKey: os.environ/MOONSHOT_API_KEY
     additional:
       timeout: 900
-      # Pinned at max (Jory's level for his Luna rung; xhigh is Phor's - both
-      # accepted by the backend, verified 2026-08-22). The credit arbitrage:
-      # thinking bills as output at the MODEL's rate, and Luna's 30/M is
-      # ~17x cheaper than Sol's 500/M - max thinking on the light model is
-      # the quality-per-credit optimum.
-      reasoning_effort: max
       additional_drop_params:
+      - frequency_penalty
+      - n
+      - presence_penalty
       - temperature
+      - thinking
+      - top_p
   info:
-    mode: responses
+    mode: chat
+    maxInputTokens: 1048576
+    maxOutputTokens: 131072
     supportsFunctionCalling: true
-    maxInputTokens: 272000
-    maxOutputTokens: 128000
+    supportsPromptCaching: true
     extra:
-      input_cost_per_token: 0
-      output_cost_per_token: 0
+      input_cost_per_token: 3.0e-06
+      cache_read_input_token_cost: 3.0e-07
+      output_cost_per_token: 1.5e-05
       supports_reasoning: true
