@@ -248,15 +248,22 @@ Files: `litellm/app/models/*.yaml`, `litellm/app/externalsecret.yaml`,
       2026-08-22: with escalation coordinator-driven and no volume cloud
       lane, GLM's coding-plan economics have nothing to bite on — GLM
       SKIPPED, recorded as the alternative if a volume lane ever returns).
-- [ ] **reviewer-escalated → K3** (council family-diversity + understudy).
+- [x] **reviewer-escalated → K3** (council family-diversity + understudy).
       Kimi Code sub is WAITLISTED (2026-08-23), so: Moonshot metered first
       (`MOONSHOT_API_KEY`), sub endpoint promotes to rung 1 when the
       waitlist clears, metered demotes to same-model fallback.
-  - [ ] AWAITING MOONSHOT_API_KEY in the litellm 1Password item; target
-        recorded in reviewer-escalated.yaml's header.
-  - [ ] `reasoning_effort` pinned `high`, NEVER `none` ("none routes to
-        K2.6 instead of K3" — Phor). Optional same-model Moonshot/Fireworks
-        PAYG rung behind it later.
+  - [x] MOONSHOT_API_KEY landed in the litellm 1P item (2026-08-23); ES
+        synced, proxy recycled, smoke returned Moonshot's 429
+        "suspended due to insufficient balance" WITH our org+key ids
+        echoed back — auth and routing verified end-to-end. Seat goes
+        live the moment the account is funded (re-smoke then: expect
+        `K3-OK`).
+  - [ ] FUND the Moonshot account (user), then re-smoke reviewer-escalated.
+  - [x] Effort semantics: K3 on Moonshot always reasons; `thinking` is in
+        the drop-list. The `reasoning_effort high, NEVER none` rule ("none
+        routes to K2.6" — Phor) applies to the Kimi Code sub endpoint when
+        it takes over rung 1. Optional same-model Moonshot/Fireworks PAYG
+        rung behind it later.
 - [x] **Luna@`max` pinned** on coordinator + both escalated seats (credit
       arbitrage: thinking bills as output at the model's rate, Luna 30/M vs
       Sol 500/M); **`coordinator-heavy` → Terra** as the explicit-choice

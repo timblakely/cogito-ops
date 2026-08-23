@@ -290,3 +290,26 @@ explicit-choice alias for deliberately-spent hard sessions.
   migration", c24ab880) pushed after an exec race short-circuited the edit
   chain but not the jj tail; the like-named real commit follows it.
 - Remaining in the seating: ONLY the K3 flip, waiting on KIMI_API_KEY.
+
+## 2026-08-23 · K3 seat wired via Moonshot metered (awaiting funds)
+
+- Kimi Code sub is waitlisted, so rung 1 for now = Moonshot metered
+  (`api.moonshot.ai/v1`, `openai/kimi-k3`, MOONSHOT_API_KEY). Sub endpoint
+  (`api.kimi.com/coding/v1`) promotes to rung 1 when the waitlist clears.
+- First ES sync failed with `map has no entry for key MOONSHOT_API_KEY` -
+  the 1P field existed but hadn't been SAVED. After the save: forced sync
+  via `force-sync` annotation, key present in the secret.
+- Smoke verdict: HTTP 429 `account org-729e6b3b... <ak-fc7a7...> is
+  suspended due to insufficient balance`. That is the GOOD failure: Moonshot
+  authenticated the key (echoes our org + key ids) and LiteLLM routed
+  reviewer-escalated to it correctly. Only money is missing; re-smoke for
+  `K3-OK` once funded.
+- Operational gotcha, will recur: `kubectl rollout restart deploy/litellm`
+  does NOT stick - the litellm-operator reconciles the pod template right
+  back (strips `restartedAt`, scales the fresh ReplicaSet to 0). The
+  reliable env refresh is deleting the pod: `envFrom` re-resolves the
+  Secret at container start. (Reloader's annotation is present but the
+  operator won the fight; don't count on it.)
+- Effort note: K3 on Moonshot's OpenAI-compat endpoint always reasons;
+  `thinking` sits in additional_drop_params. Phor's "high, never none"
+  rule is about the Kimi Code endpoint and applies when the sub takes over.
