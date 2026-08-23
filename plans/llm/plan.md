@@ -345,10 +345,14 @@ works, validator asserts both aliases.
       families — local Qwen, GLM 5.3, K3.
 - [x] **C6** Mutation stages run in disposable jj worktrees; write the
       convention into the workflow README.
-- [ ] **C7 · PENDING YOUR CALL:** a persistent in-cluster coordinator pod
-      (pi or opencode server, hermes/open-webui deployment pattern, own
-      virtual key, backed-up home) — the one Jory item not yet on any list.
-      Approve, defer, or decline.
+- [x] **C7 · DEFERRED, tied to Wave 4** (decided 2026-08-23): a persistent
+      in-cluster coordinator pod (pi or opencode server, hermes/open-webui
+      deployment pattern, own virtual key, backed-up home). Every benefit —
+      detach-and-continue, attach-from-anywhere, durable home, a seat for
+      unattended work — is about not sitting at the desktop; that starts
+      mattering when Wave 4 absorbs the desktop into the cluster and the
+      daily driver becomes the sleeping laptop. Revisit at Wave 4, or
+      earlier if the overnight batch lane gets built first.
 - [ ] End-to-end proof: run implement-and-review on a toy change in a worktree
       — approval gate fires, check runs, delegation shows up under the worker
       key in the dashboard.
@@ -437,7 +441,8 @@ the critical path noticed.
 
 ## Open questions (answers needed, none blocking Wave 0)
 
-1. **C7 — in-cluster coordinator pod:** approve / defer / decline.
+1. ~~C7 — in-cluster coordinator pod~~ — DEFERRED, tied to Wave 4
+   (2026-08-23); see Track C for the reasoning.
 2. **Budget value for the escalation key** — the one key where dollars are
    real (K3 via Moonshot metered); $30/30d is the placeholder. The
    coordinator key RESOLVED 2026-08-23: subscription seats meter at $0,
