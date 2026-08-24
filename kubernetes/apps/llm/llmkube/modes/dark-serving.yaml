@@ -11,6 +11,13 @@ apiVersion: inference.llmkube.dev/v1alpha1
 kind: InferenceService
 metadata:
   name: qwen-3-8-fp8
+  # Namespace is pinned here on purpose. These files are applied by hand
+  # rather than by Flux, so they inherit whatever namespace the operator's
+  # kubectl context happens to point at - which is how a mode switch silently
+  # lands in `default`, reports success, and changes nothing. Flux-rendered
+  # manifests get their namespace injected by the Kustomization, so this is
+  # the one place it has to be written out.
+  namespace: llm
 spec:
   modelRef: qwen-3-8-fp8
   replicas: 0

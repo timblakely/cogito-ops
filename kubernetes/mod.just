@@ -121,8 +121,22 @@ llm-split variant='a':
     # Serving first: it holds both GPUs, and the dev pod cannot schedule until
     # the Recreate releases one. It carries PreemptionPolicy Never, so a
     # momentary shortage makes it wait rather than evict a model.
-    kubectl apply --server-side --field-manager=kustomize-controller -f "$spec"
-    kubectl apply --server-side --field-manager=kustomize-controller -f "{{ llm_modes }}/cuda-dev-1gpu.yaml"
+    kubectl apply -n llm --server-side --field-manager=kustomize-controller -f "$spec"
+    kubectl apply -n llm --server-side --field-manager=kustomize-controller -f "{{ llm_modes }}/cuda-dev-1gpu.yaml"
+    # Assert the apply actually landed BEFORE waiting on rollouts. A rollout
+    # check against an object the apply never touched passes instantly and
+    # reports success for a switch that did not happen - which is exactly what
+    # a namespace mistake looks like from the outside.
+    want_model=$([ "{{ variant }}" = a ] && echo qwen-3-8-ud-q4 || echo qwen-3-8-nvfp4)
+    got_model=$(kubectl -n llm get inferenceservice qwen-3-8-fp8 -o jsonpath='{.spec.modelRef}')
+    got_gpu=$(kubectl -n llm get inferenceservice qwen-3-8-fp8 -o jsonpath='{.spec.resources.gpu}')
+    dev_gpu=$(kubectl -n llm get deploy cuda-dev -o jsonpath='{.spec.template.spec.containers[0].resources.limits.nvidia\.com/gpu}')
+    if [ "$got_model" != "$want_model" ] || [ "$got_gpu" != "1" ] || [ "$dev_gpu" != "1" ]; then
+      echo "SPLIT did not take effect: modelRef=$got_model (want $want_model)," >&2
+      echo "  serving gpu=$got_gpu (want 1), dev gpu=$dev_gpu (want 1)" >&2
+      echo "Run 'just kube llm-normal' to return to a known state." >&2
+      exit 1
+    fi
     kubectl -n llm rollout status deploy/cuda-dev --timeout=15m
     # Serving last and generously: a first serve of a candidate copies its
     # weights from the NFS archive to the NVMe hot tier before the engine loads.
@@ -137,7 +151,7 @@ llm-dark gpus='2':
     echo "$(date -Is)  mode DARK  dev pod holds {{ gpus }} GPU(s); local seats are gone until llm-normal"
     flux suspend kustomization -n llm llmkube-resources
     flux suspend kustomization -n llm cuda-dev
-    kubectl apply --server-side --field-manager=kustomize-controller -f "{{ llm_modes }}/dark-serving.yaml"
+    kubectl apply -n llm --server-side --field-manager=kustomize-controller -f "{{ llm_modes }}/dark-serving.yaml"
     # Wait for the card to actually come back, not just for the spec to land:
     # rollout status can pass against the pre-scale generation. `wait --for=delete`
     # errors when nothing matches, which is the success case here, so the
@@ -147,7 +161,13 @@ llm-dark gpus='2':
       echo "serving pod is still present; refusing to hand its GPU to the dev pod" >&2
       exit 1
     fi
-    kubectl apply --server-side --field-manager=kustomize-controller -f "{{ llm_modes }}/cuda-dev-{{ gpus }}gpu.yaml"
+    kubectl apply -n llm --server-side --field-manager=kustomize-controller -f "{{ llm_modes }}/cuda-dev-{{ gpus }}gpu.yaml"
+    dev_gpu=$(kubectl -n llm get deploy cuda-dev -o jsonpath='{.spec.template.spec.containers[0].resources.limits.nvidia\.com/gpu}')
+    if [ "$dev_gpu" != "{{ gpus }}" ]; then
+      echo "DARK did not take effect: dev gpu=$dev_gpu (want {{ gpus }})" >&2
+      echo "Run 'just kube llm-normal' to return to a known state." >&2
+      exit 1
+    fi
     kubectl -n llm rollout status deploy/cuda-dev --timeout=15m
     just kube llm-mode
 

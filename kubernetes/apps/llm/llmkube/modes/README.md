@@ -31,7 +31,15 @@ the bookkeeping: fields the manager owned and no longer sets are removed, so
 `llm-normal` - which is nothing but `flux resume` plus a reconcile - restores
 git exactly, including dropping the fields only a mode file sets.
 
-Two rules follow from that and must not be broken:
+Three rules follow from that and must not be broken:
+
+- **Every mode file pins `metadata.namespace: llm`, and every apply passes
+  `-n llm`.** Flux injects the namespace from its Kustomization, so manifests
+  it renders never need one; these are applied by hand and inherit whatever
+  the operator's kubectl context points at. When that context is `default` the
+  apply *succeeds*, the objects land in the wrong namespace, and every check
+  downstream passes against the untouched originals - so the switch reports
+  success and changes nothing. This happened once; both belts stay on.
 
 - **Never switch modes with `kubectl patch`/`edit`/`scale`.** Those record
   ownership under a different manager, and Flux's re-apply then cannot remove
@@ -39,6 +47,11 @@ Two rules follow from that and must not be broken:
   to have left it.
 - **Mode files must be complete objects**, not fragments. A partial apply under
   the shared manager strips every field it omits.
+
+The mode targets assert the resulting spec before waiting on any rollout, for
+the same reason: `kubectl rollout status` against an object the apply never
+touched returns success immediately, turning a silent no-op into a green
+result.
 
 DARK sets `replicas: 0` on the serving object rather than deleting or
 suspending it. That keeps the revert a plain field change, and it is why the
