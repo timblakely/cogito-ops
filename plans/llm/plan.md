@@ -276,7 +276,9 @@ Files: `litellm/app/models/*.yaml`, `litellm/app/externalsecret.yaml`,
       preference, not cost." Skip until the GLM cap actually bites.
 - [x] Budgets: DONE - escalation $15/30d (2026-08-24), coordinator rate
       caps (2026-08-23). No dollar placeholder left anywhere.
-- [ ] Smoke each seat through its own key; confirm per-key spend attribution in
+- [x] (2026-08-24) Smoked: coordinator CAP-OK, worker SEATS-OK/CONVERGED-OK,
+      reviewer OK (bench-notes), escalation K3-OK with real spend ($0.0019)
+      attributing on the dashboard. Original spec: each seat via its key +
       the LiteLLM dashboard.
 
 **Done when:** all three seats answer through their keys, spend is attributed

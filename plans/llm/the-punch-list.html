@@ -1,0 +1,220 @@
+<title>The Punch List</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@500;600;700&family=Newsreader:opsz,wght@6..72,380;6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root {
+  --ground:      #F4F6F4;
+  --surface:     #FFFFFF;
+  --surface-alt: #EDF1EE;
+  --ink:         #141916;
+  --ink-soft:    #56635C;
+  --ink-faint:   #7E8A84;
+  --rule:        #D8E0DA;
+  --rule-strong: #B9C5BE;
+  --live:        #2E6B54;
+  --live-bg:     #E3EFE8;
+  --paid:        #86671A;
+  --paid-bg:     #F3ECDA;
+  --broken:      #A83C24;
+  --broken-bg:   #F6E5E0;
+  --idle:        #6F7C76;
+  --idle-bg:     #E6EAE7;
+  --shadow:      0 1px 2px rgba(20, 25, 22, .06), 0 8px 24px -16px rgba(20, 25, 22, .30);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:#0E1311; --surface:#151C18; --surface-alt:#1B241F;
+    --ink:#E2E9E4; --ink-soft:#97A49C; --ink-faint:#74827A;
+    --rule:#26302A; --rule-strong:#3A473F;
+    --live:#5FBB96; --live-bg:#16281F;
+    --paid:#D2A648; --paid-bg:#2A2312;
+    --broken:#E07C61; --broken-bg:#2E1B15;
+    --idle:#8B978F; --idle-bg:#1E2622;
+    --shadow: 0 1px 2px rgba(0,0,0,.40), 0 8px 24px -16px rgba(0,0,0,.70);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#0E1311; --surface:#151C18; --surface-alt:#1B241F;
+  --ink:#E2E9E4; --ink-soft:#97A49C; --ink-faint:#74827A;
+  --rule:#26302A; --rule-strong:#3A473F;
+  --live:#5FBB96; --live-bg:#16281F;
+  --paid:#D2A648; --paid-bg:#2A2312;
+  --broken:#E07C61; --broken-bg:#2E1B15;
+  --idle:#8B978F; --idle-bg:#1E2622;
+  --shadow: 0 1px 2px rgba(0,0,0,.40), 0 8px 24px -16px rgba(0,0,0,.70);
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--ground); color: var(--ink);
+  font-family: "Newsreader", Georgia, "Times New Roman", serif;
+  font-size: 17px; line-height: 1.58; margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+.frame { max-width: 1080px; margin: 0 auto; padding: 0 28px 96px; }
+
+.masthead { border-bottom: 2px solid var(--ink); padding: 56px 0 24px; margin-bottom: 8px; }
+.eyebrow { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.5px; font-weight: 500; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-faint); }
+.masthead h1 { font-family: "Chivo", "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: clamp(2.4rem, 6vw, 3.8rem); line-height: 1.02; letter-spacing: -.025em; text-wrap: balance; margin: 14px 0 0; }
+.deck { font-size: 1.2rem; color: var(--ink-soft); max-width: 64ch; margin: 16px 0 0; }
+.provenance { display: flex; flex-wrap: wrap; gap: 6px 26px; margin-top: 26px; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; color: var(--ink-faint); }
+.provenance b { color: var(--ink-soft); font-weight: 500; }
+
+.scoreband { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 30px 0 54px; }
+.score { background: var(--surface); border: 1px solid var(--rule); border-radius: 3px; padding: 14px 16px 12px; box-shadow: var(--shadow); }
+.score .n { font-family: "Chivo", "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: 2rem; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.score .n.live { color: var(--live); } .score .n.paid { color: var(--paid); } .score .n.idle { color: var(--idle); }
+.score .l { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-faint); margin-top: 7px; }
+
+h2 { font-family: "Chivo", "Helvetica Neue", Arial, sans-serif; font-weight: 600; font-size: 1.6rem; letter-spacing: -.018em; line-height: 1.16; text-wrap: balance; margin: 0 0 6px; padding-top: 12px; border-top: 1px solid var(--rule-strong); }
+section { margin-bottom: 60px; }
+.sectionnote { color: var(--ink-soft); margin: 4px 0 18px; max-width: 70ch; }
+
+.chip { display: inline-block; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; padding: 2px 7px; border-radius: 2px; white-space: nowrap; vertical-align: 1px; }
+.chip.live { color: var(--live); background: var(--live-bg); }
+.chip.paid { color: var(--paid); background: var(--paid-bg); }
+.chip.broken { color: var(--broken); background: var(--broken-bg); }
+.chip.idle { color: var(--idle); background: var(--idle-bg); }
+
+.board { display: grid; gap: 12px; }
+.trackrow { background: var(--surface); border: 1px solid var(--rule); border-left: 3px solid var(--rule-strong); border-radius: 3px; padding: 16px 20px 14px; box-shadow: var(--shadow); }
+.trackrow.done { border-left-color: var(--live); }
+.trackrow.wait { border-left-color: var(--paid); }
+.trackrow.parked { border-left-color: var(--idle); }
+.trackhead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; }
+.trackhead .t { font-family: "Chivo", "Helvetica Neue", Arial, sans-serif; font-weight: 600; font-size: 1.06rem; letter-spacing: -.005em; }
+.trackhead .frac { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; color: var(--ink-faint); font-variant-numeric: tabular-nums; margin-left: auto; }
+.trackrow p { margin: 8px 0 0; color: var(--ink-soft); font-size: .95rem; max-width: 78ch; }
+.trackrow p b { color: var(--ink); font-weight: 600; }
+
+.tablewrap { margin: 18px 0 0; overflow-x: auto; border: 1px solid var(--rule); border-radius: 3px; background: var(--surface); box-shadow: var(--shadow); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); text-align: left; padding: 10px 14px 8px; border-bottom: 1px solid var(--rule-strong); background: var(--surface-alt); }
+td { padding: 9px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+td.mono, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12.5px; }
+td .why { color: var(--ink-faint); font-size: 13px; display: block; margin-top: 2px; }
+td.num { font-variant-numeric: tabular-nums; text-align: right; }
+
+ul.punch { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 10px; }
+ul.punch li { background: var(--surface); border: 1px solid var(--rule); border-radius: 3px; padding: 12px 16px; box-shadow: var(--shadow); }
+ul.punch li b { font-family: "Chivo", "Helvetica Neue", Arial, sans-serif; font-weight: 600; font-size: .98rem; }
+ul.punch li .d { color: var(--ink-soft); font-size: .93rem; display: block; margin-top: 3px; max-width: 76ch; }
+
+.doclist { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 18px; }
+.doclist a { display: block; background: var(--surface); border: 1px solid var(--rule); border-radius: 3px; padding: 13px 16px; text-decoration: none; color: var(--ink); box-shadow: var(--shadow); }
+.doclist a:hover { border-color: var(--live); }
+.doclist .dt { font-family: "Chivo", "Helvetica Neue", Arial, sans-serif; font-weight: 600; font-size: .98rem; }
+.doclist .dd { color: var(--ink-faint); font-size: .86rem; margin-top: 3px; }
+.footnote { color: var(--ink-faint); font-size: .9rem; margin-top: 40px; border-top: 1px solid var(--rule); padding-top: 14px; }
+.footnote .mono { font-size: 12px; }
+</style>
+
+<div class="frame">
+<header class="masthead">
+  <div class="eyebrow">cogito &middot; llm program &middot; status board</div>
+  <h1>The Punch List</h1>
+  <p class="deck">Exactly what has shipped, what is waiting, and what is deliberately parked
+  &mdash; the glanceable view of <span class="mono">plans/llm/plan.md</span>, which remains the
+  item-by-item source of truth. Evidence for every number lives in
+  <span class="mono">bench-notes.md</span>.</p>
+  <div class="provenance">
+    <span>updated <b>2026-08-24</b></span>
+    <span>tracker <b>plans/llm/plan.md</b></span>
+    <span>evidence <b>plans/llm/bench-notes.md</b></span>
+  </div>
+</header>
+
+<div class="scoreband">
+  <div class="score"><div class="n live">74</div><div class="l">items shipped</div></div>
+  <div class="score"><div class="n idle">12</div><div class="l">parked, with triggers</div></div>
+  <div class="score"><div class="n paid">3</div><div class="l">waiting on events</div></div>
+  <div class="score"><div class="n live">0</div><div class="l">open decisions</div></div>
+</div>
+
+<section>
+  <h2>The system, as it runs today</h2>
+  <p class="sectionnote">Every seat below is live, smoked through its own key, and attributed on the dashboard.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Seat</th><th>Backing</th><th>Guardrail</th><th></th></tr>
+    <tr><td class="mono">coordinator</td><td>Luna@max, ChatGPT sub via OAuth (token on RWX, headless boot)<span class="why">credit-optimal diet: 5/30 per M vs Sol&rsquo;s 100/500</span></td><td>30 rpm / 4 parallel</td><td><span class="chip live">live</span></td></tr>
+    <tr><td class="mono">coordinator-heavy</td><td>Terra, explicit-choice splurge<span class="why">10&times; window burn &mdash; never a fallback</span></td><td>shares coordinator key</td><td><span class="chip live">live</span></td></tr>
+    <tr><td class="mono">worker / reviewer</td><td>Qwen 3.8 FP8, dual-3090 TP2, 131k ctx<span class="why">8 seats + MTP=3, both pinned by measurement</span></td><td>8 parallel per key</td><td><span class="chip live">live</span></td></tr>
+    <tr><td class="mono">worker-escalated</td><td>Luna@max on the sub</td><td>escalation key</td><td><span class="chip live">live</span></td></tr>
+    <tr><td class="mono">reviewer-escalated</td><td>K3 via Moonshot metered ($3/$15)<span class="why">funded 08-24, K3-OK smoked; first real spend attributing</span></td><td>$15 / 30d budget</td><td><span class="chip live">live</span></td></tr>
+    <tr><td class="mono">embedder / reranker</td><td>A380 retrieval floor (SYCL), Qdrant hybrid RAG behind Open WebUI</td><td>&mdash;</td><td><span class="chip live">live</span></td></tr>
+    <tr><td class="mono">vision</td><td>Qwen3.5-9B Q4 + mmproj on kristeva CPU<span class="why">pi + qwen image path without the coordinator; ~15s warm</span></td><td>&mdash;</td><td><span class="chip live">live</span></td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2>Tracks</h2>
+  <div class="board">
+    <div class="trackrow done"><div class="trackhead"><span class="t">Wave 0&ndash;1 &middot; Truthful GPUs, teardown, role aliases</span><span class="chip live">complete</span><span class="frac">all items</span></div>
+      <p>Single always-on backend, eleven-member swap pool deleted, role-alias catalogue in LiteLLM, per-role keys with budgets-or-caps, validator guarding scope closure and same-model-only fallbacks.</p></div>
+    <div class="trackrow done"><div class="trackhead"><span class="t">Track A &middot; Benchmarks</span><span class="chip live">complete</span><span class="frac">4/4</span></div>
+      <p><b>A1:</b> seats pinned at 8 (aggregate saturates ~122 tok/s, zero preemptions). <b>A2:</b> MTP=3 beats 2/off in both regimes (89/62/44 tok/s single-seat). <b>A3:</b> kristeva identified (AVX-only, 53&ndash;71 GB/s). <b>A4:</b> A380 embeds 869 chunks/min.</p></div>
+    <div class="trackrow done"><div class="trackhead"><span class="t">Track B &middot; Retrieval floor</span><span class="chip live">complete</span></div>
+      <p>A380 embedder + reranker through the infinity provider, Qdrant on the rook core, Open WebUI hybrid RAG wired end to end with identical rerank scores direct vs proxied.</p></div>
+    <div class="trackrow done"><div class="trackhead"><span class="t">Track C &middot; Portable coordinator (pi)</span><span class="chip live">complete, one deferral</span><span class="frac">6/7</span></div>
+      <p>Dotfiles reborn on Jory&rsquo;s base as a jj repo; four role agents, council workflow, delegation chain proven end to end. <b>C7</b> (in-cluster coordinator pod) deferred by decision &mdash; see parked.</p></div>
+    <div class="trackrow done"><div class="trackhead"><span class="t">Track D &middot; Kristeva CPU lanes</span><span class="chip live">complete</span><span class="frac">2/2</span></div>
+      <p><b>D1:</b> CPU vision lane live. <b>D2:</b> MoE lane trialed honestly and <b>deleted at 0.6 tok/s</b> against the 5 tok/s bar &mdash; kept-with-numbers or deleted-with-numbers, as specified. It was deleted with numbers.</p></div>
+    <div class="trackrow done"><div class="trackhead"><span class="t">Track E &middot; Rails bookkeeping</span><span class="chip live">complete</span></div>
+      <p>Escalations dashboard row (requests, spend, tokens by seat, budget-left) filtered to the escalation key; caps-compose walkthrough written &mdash; five layers, each catching a different runaway shape.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>Waiting on events, not work</h2>
+  <ul class="punch">
+    <li><b>Kimi Code waitlist</b> <span class="chip paid">external</span><span class="d">When it clears: the sub endpoint promotes to rung 1 of the K3 seat, Moonshot metered demotes to same-model fallback. NeuralWatt sits on record as rung 3 at Moonshot parity; Nous was vetted and is Hermes-only &mdash; not viable.</span></li>
+    <li><b>Interactive workflow shakedown</b> <span class="chip paid">your terminal</span><span class="d">A live <span class="mono">pi</span> session running implement-and-validate &mdash; the delegation chain is proven non-interactively; this is about the TUI feel, so only you can run it.</span></li>
+    <li><b>Dotfiles origin remote</b> <span class="chip paid">your call</span><span class="d">~/git/dotfiles still has no origin; pick where it lives and the first push follows.</span></li>
+  </ul>
+</section>
+
+<section>
+  <h2>Parked, on purpose</h2>
+  <p class="sectionnote">Nothing here is blocked &mdash; each item has a named trigger that un-parks it.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Item</th><th>Un-parks when</th><th></th></tr>
+    <tr><td>Wave 4: gaming node (G1&ndash;G8)<span class="why">5070 Ti + 64GB joins as a Talos node; Wolf, preemption ladder, VRAM gate, Muse re-quant</span></td><td>the desktop hardware swap happens</td><td><span class="chip idle">parked</span></td></tr>
+    <tr><td>G9 / C7: in-cluster coordinator pod<span class="why">detach-and-continue, attach-from-anywhere, durable home &mdash; all about not being at the desktop</span></td><td>Wave 4 retires the desktop as daily driver</td><td><span class="chip idle">parked</span></td></tr>
+    <tr><td>ToolHive-style MCP gateway</td><td>MCP tool count actually hurts</td><td><span class="chip idle">parked</span></td></tr>
+    <tr><td>Overnight batch lane</td><td>unattended work outgrows six seats</td><td><span class="chip idle">parked</span></td></tr>
+    <tr><td>Hot-tier weight cleanup; HF_TOKEN in cache-prime jobs; non-streaming chatgpt/ retest</td><td>convenient chore window / next litellm bump</td><td><span class="chip idle">parked</span></td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2>Numbers the system now stands on</h2>
+  <div class="tablewrap"><table>
+    <tr><th>Number</th><th class="num">Value</th><th>Meaning</th></tr>
+    <tr><td>Local seats &times; context</td><td class="num mono">8 &times; 131k</td><td>KV pool 276k tokens; zero preemptions at worker shapes</td></tr>
+    <tr><td>Aggregate decode</td><td class="num mono">~122 tok/s</td><td>saturation at 8 seats; 55 tok/s per seat at 2</td></tr>
+    <tr><td>Single-seat decode</td><td class="num mono">89 tok/s</td><td>with MTP=3 &mdash; 2&times; the no-MTP rate</td></tr>
+    <tr><td>Prefill bound</td><td class="num mono">~1k tok/s</td><td>TTFT &asymp; prompt/1k seconds, constant across seat counts</td></tr>
+    <tr><td>Escalation budget</td><td class="num mono">$15 / 30d</td><td>the $30 one-time K3 pot survives &ge; 2 worst-case months</td></tr>
+    <tr><td>Coordinator caps</td><td class="num mono">30 rpm / 4 par</td><td>rate-shaped guard for the 5h credit window ($ budget was dead)</td></tr>
+    <tr><td>D2 verdict</td><td class="num mono">0.6 tok/s</td><td>vs the 5 tok/s bar &mdash; MoE lane deleted with the number</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2>The rest of the shelf</h2>
+  <div class="doclist">
+    <a href="https://claude.ai/code/artifact/48d11ee1-4b07-4663-a58a-e85a57fd2a96"><div class="dt">LiteLLM Routing Teardown</div><div class="dd">target state: one backend, role aliases, no autorouting</div></a>
+    <a href="https://claude.ai/code/artifact/68ddd1e2-92ee-49fd-bc97-abad5fff7b9c"><div class="dt">The Contested GPU</div><div class="dd">the gaming node &mdash; Wave 4&rsquo;s design, parked with it</div></a>
+    <a href="https://claude.ai/code/artifact/3bbe6e0b-d8af-4a5f-a596-7e266605951e"><div class="dt">Foreman and ToolHive</div><div class="dd">rails: keys, budgets, escalation bookkeeping</div></a>
+    <a href="https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac"><div class="dt">The Idle Bench</div><div class="dd">kristeva, the NUCs, and every non-3090 watt</div></a>
+    <a href="https://claude.ai/code/artifact/04ec2542-d4ac-4b25-8ffe-9ff428379a73"><div class="dt">The Portable Coordinator</div><div class="dd">the pi lift, dotfiles, and the C7 question</div></a>
+  </div>
+  <p class="footnote">The to-do lists appended to the five design docs are era snapshots; this board and
+  <span class="mono">plan.md</span> supersede them for status. Locked decisions of record: FP8 dual-card,
+  no cross-model proxy fallbacks, seats over ceiling, Luna@max as the coordinator diet, GLM skipped,
+  coordinator pattern over autorouting.</p>
+</section>
+</div>
