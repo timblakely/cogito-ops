@@ -13,7 +13,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: cache-prime-single-card-v1
+  name: cache-prime-single-card-v2
   annotations:
     kustomize.toolkit.fluxcd.io/force: Enabled
   labels:
@@ -60,10 +60,17 @@ spec:
               ls -l /models/llmkube/qwen-3-8-nvfp4 /models/llmkube/qwen-3-8-ud-q4
           resources:
             requests:
-              cpu: "1"
-              memory: 512Mi
+              cpu: "2"
+              memory: 1Gi
             limits:
-              memory: 4Gi
+              # 16Gi, not the 4Gi the sibling prime Jobs use. Those stage
+              # files of a few hundred MB; this one pulls a single 22.6GB
+              # shard, and hf_xet's concurrent range fetches scale their
+              # buffers with file size and worker count. v1 died on the 4Gi
+              # ceiling partway through that shard, after the small files had
+              # already landed - which is why a retry looks like it is
+              # "doing nothing" until it reaches the big file again.
+              memory: 16Gi
           volumeMounts:
             - name: archive
               mountPath: /models
