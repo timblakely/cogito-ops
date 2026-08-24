@@ -258,7 +258,8 @@ Files: `litellm/app/models/*.yaml`, `litellm/app/externalsecret.yaml`,
         echoed back — auth and routing verified end-to-end. Seat goes
         live the moment the account is funded (re-smoke then: expect
         `K3-OK`).
-  - [ ] FUND the Moonshot account (user), then re-smoke reviewer-escalated.
+  - [x] FUNDED 2026-08-24 ($30 one-time, manual recharge); re-smoke
+        returned `K3-OK` streamed through the escalation key. Seat LIVE.
   - [x] Effort semantics: K3 on Moonshot always reasons; `thinking` is in
         the drop-list. The `reasoning_effort high, NEVER none` rule ("none
         routes to K2.6" — Phor) applies to the Kimi Code sub endpoint when

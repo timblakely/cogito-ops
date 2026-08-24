@@ -447,3 +447,10 @@ once more before the follow-up reconcile restored the pinned config
 not possible - so push first, refresh the GitRepository, THEN resume).
 Converged state verified after: RS hash matches the pinned config,
 CONVERGED-OK through the proxy, dashboard synchronized.
+
+## 2026-08-24 · K3 seat LIVE
+
+- User funded Moonshot with $30 (one-time, manual recharge, same key).
+- Re-smoke: `K3-OK` streamed through reviewer-escalated on the escalation
+  key. The council's second family is live; ladder unchanged (Kimi Code
+  sub still promotes to rung 1 when the waitlist clears).
