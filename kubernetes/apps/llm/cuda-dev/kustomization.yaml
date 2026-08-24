@@ -1,0 +1,23 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: APP-app-vars
+    literals:
+      - APP=cuda-dev
+components:
+  - ../../../components/ks/app
+patches:
+  # The shared ks base fixes timeout at 3m, which a first reconcile cannot
+  # meet: this app pulls a ~4GB CUDA devel image and provisions a 150Gi
+  # hostpath volume before the Deployment can go Ready. Without the bump the
+  # first apply reports a spurious failure and then retries only at the 30m
+  # interval.
+  - target:
+      kind: Kustomization
+      group: kustomize.toolkit.fluxcd.io
+    patch: |
+      - op: replace
+        path: /spec/timeout
+        value: 15m

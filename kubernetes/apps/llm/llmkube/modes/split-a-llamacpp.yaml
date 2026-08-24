@@ -1,0 +1,48 @@
+---
+# SPLIT candidate A: Unsloth Dynamic V3 Q4 GGUF on llama.cpp, one 3090.
+# Complete replacement for the NORMAL InferenceService - see ./README.md for
+# why these files must stay complete and must be applied with Flux's own
+# field manager.
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: InferenceService
+metadata:
+  name: qwen-3-8-fp8
+spec:
+  modelRef: qwen-3-8-ud-q4
+  replicas: 1
+  runtime: llamacpp
+  image: ghcr.io/ggml-org/llama.cpp:server-cuda
+  runtimeClassName: nvidia
+  nodeSelector:
+    kubernetes.io/hostname: iggy
+  resources:
+    gpu: 1
+    cpu: "6"
+    memory: 24Gi
+  endpoint:
+    # 8000, not llama.cpp's usual 8080: the LiteLLM catalogue addresses this
+    # Service at :8000 and is deliberately not edited when modes change.
+    port: 8000
+  # Hybrid backbone: only 16 of 64 layers are full attention, so KV is cheap
+  # and a long window is affordable even with the whole model resident.
+  contextSize: 49152
+  parallelSlots: 2
+  flashAttention: true
+  jinja: true
+  batchSize: 2048
+  uBatchSize: 512
+  extraArgs:
+    - --n-gpu-layers
+    - "999"
+    # The served name clients see must keep matching the catalogue entry,
+    # which sends `qwen-3-8-fp8` regardless of what is behind it.
+    - --alias
+    - qwen-3-8-fp8
+  probeOverrides:
+    startup:
+      httpGet:
+        path: /health
+        port: 8000
+      periodSeconds: 10
+      # ~17.6GB off NFS on first serve, then off the NVMe hot tier.
+      failureThreshold: 180

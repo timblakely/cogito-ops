@@ -1,0 +1,24 @@
+---
+# DARK: no local serving. Complete replacement for the NORMAL InferenceService
+# with replicas 0 - see ./README.md for why scaling to zero here beats
+# deleting the object or setting spec.suspend.
+#
+# With no pod there is nothing for a runtime configuration to configure, so
+# this spec deliberately carries only what the CRD needs to validate. Flux
+# restores the full NORMAL spec on `just kube llm-normal`; do not copy tuning
+# into this file, where it would silently rot out of sync with the real one.
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: InferenceService
+metadata:
+  name: qwen-3-8-fp8
+spec:
+  modelRef: qwen-3-8-fp8
+  replicas: 0
+  runtime: vllm
+  runtimeClassName: nvidia
+  nodeSelector:
+    kubernetes.io/hostname: iggy
+  resources:
+    gpu: 2
+  endpoint:
+    port: 8000

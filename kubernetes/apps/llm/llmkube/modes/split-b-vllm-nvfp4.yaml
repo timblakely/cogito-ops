@@ -1,0 +1,78 @@
+---
+# SPLIT candidate B: the 4-bit mixed-precision safetensors build on vLLM's
+# pre-Blackwell weight-only path, one 3090. Complete replacement for the
+# NORMAL InferenceService - see ./README.md.
+#
+# ~22.6GB of weights on a 24GB card. Everything below is chosen to buy back
+# VRAM, and the fit is still not guaranteed; if it OOMs, candidate A wins by
+# default and this spec stays useful only inside DARK windows.
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: InferenceService
+metadata:
+  # Same object as candidate A, and as NORMAL: SPLIT frees exactly one GPU, so
+  # the two candidates are measured one at a time, in place. Re-applying the
+  # other file is the whole switch, and `just kube llm-split a` is therefore
+  # also the recovery path if this candidate does not fit.
+  name: qwen-3-8-fp8
+spec:
+  modelRef: qwen-3-8-nvfp4
+  replicas: 1
+  runtime: vllm
+  runtimeClassName: nvidia
+  nodeSelector:
+    kubernetes.io/hostname: iggy
+  env:
+    - name: PYTORCH_CUDA_ALLOC_CONF
+      value: expandable_segments:True,max_split_size_mb:512
+    - name: VLLM_NO_USAGE_STATS
+      value: "1"
+    - name: TRITON_CACHE_DIR
+      value: /tmp/triton-cache
+  resources:
+    gpu: 1
+    cpu: "6"
+    memory: 32Gi
+  endpoint:
+    port: 8000
+  extraVolumes:
+    - name: shm
+      emptyDir:
+        medium: Memory
+        sizeLimit: 8Gi
+  extraVolumeMounts:
+    - name: shm
+      mountPath: /dev/shm
+  vllmConfig:
+    # 16k, down from 131k: what is left of a 24GB card after the weights.
+    maxModelLen: 16384
+    tensorParallelSize: 1
+    # Higher than NORMAL's 0.90 because there is no second worker to leave
+    # room for, and every megabyte is contested here.
+    gpuMemoryUtilization: 0.95
+    maxNumBatchedTokens: 4096
+    # quantization is deliberately unset: the mixed 4-bit/8-bit layout is
+    # described by the checkpoint's own config and is not in the CRD's enum.
+    kvCacheDtype: fp8_e4m3
+    enablePrefixCaching: true
+    enableChunkedPrefill: true
+  extraArgs:
+    - --served-model-name
+    - qwen-3-8-fp8
+    - --pipeline-parallel-size
+    - "1"
+    # Two seats, matching candidate A, so the comparison is like-for-like.
+    - --max-num-seqs
+    - "2"
+    - --disable-custom-all-reduce
+    # Vision tower off-card, as in NORMAL.
+    - --language-model-only
+    - --trust-remote-code
+    - --tool-call-parser
+    - qwen3_xml
+    - --reasoning-parser
+    - qwen3
+    - --enable-auto-tool-choice
+    - --default-chat-template-kwargs
+    - '{"enable_thinking": true}'
+    # No --speculative-config: the MTP head is another 0.85GB of weights, and
+    # this candidate has no VRAM to spend on decode tricks.

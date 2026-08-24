@@ -1,0 +1,77 @@
+---
+# Stage the single-card candidates into the NFS archive with the official HF
+# tooling (the cache-prime pattern; LLMKube cannot fetch multi-file HF repos
+# itself). ~41GB over the download link, never through the desktop.
+#
+# The mmproj companions are deliberately NOT staged: the cluster already
+# serves text-only (--language-model-only) and routes image traffic to
+# kristeva's CPU vision lane, so a vision tower on the degraded card would
+# spend VRAM that KV needs.
+#
+# Job pod templates are immutable and Flux prunes the old Job after applying
+# the new one: rotate metadata.name when changing this file.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cache-prime-single-card-v1
+  annotations:
+    kustomize.toolkit.fluxcd.io/force: Enabled
+  labels:
+    app.kubernetes.io/name: cache-prime-single-card
+spec:
+  activeDeadlineSeconds: 21600
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cache-prime-single-card
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: OnFailure
+      containers:
+        - name: download
+          image: docker.io/library/python:3.13-slim
+          env:
+            - name: HOME
+              value: /tmp
+            - name: HF_HOME
+              value: /tmp/huggingface
+            - name: PIP_DISABLE_PIP_VERSION_CHECK
+              value: "1"
+          command:
+            - sh
+            - -ec
+            - |
+              python -m venv /tmp/venv
+              /tmp/venv/bin/pip install --no-cache-dir "huggingface_hub[cli]"
+
+              # 4-bit mixed-precision safetensors build (whole repo minus the
+              # video preprocessor config, which nothing here reads).
+              /tmp/venv/bin/hf download unsloth/Qwen3.8-27B-NVFP4 \
+                --local-dir /models/llmkube/qwen-3-8-nvfp4 --max-workers 4
+
+              # Single-file GGUF; fetch just the one quant, not the repo.
+              /tmp/venv/bin/hf download unsloth/Qwen3.8-27B-GGUF \
+                Qwen3.8-27B-UD-Q4_K_XL.gguf \
+                --local-dir /models/llmkube/qwen-3-8-ud-q4 --max-workers 4
+
+              du -sh /models/llmkube/qwen-3-8-nvfp4 /models/llmkube/qwen-3-8-ud-q4
+              ls -l /models/llmkube/qwen-3-8-nvfp4 /models/llmkube/qwen-3-8-ud-q4
+          resources:
+            requests:
+              cpu: "1"
+              memory: 512Mi
+            limits:
+              memory: 4Gi
+          volumeMounts:
+            - name: archive
+              mountPath: /models
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: archive
+          persistentVolumeClaim:
+            claimName: llm-model-archive
+        - name: tmp
+          emptyDir: {}

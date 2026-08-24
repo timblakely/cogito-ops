@@ -1,0 +1,53 @@
+---
+# Weights for single-card operation. Neither Model serves anything in NORMAL:
+# they exist so the degraded single-GPU serving variants in ../modes/ have a
+# modelRef to point at, and so the analysis pod has both quantizations on
+# local storage. A Model CR with a pvc:// source stages nothing on its own -
+# it is a declaration, and the copy to the hot tier happens on first serve.
+#
+# The pair is the A/B the LLM plan left open (plans/llm/plan.md, "the
+# single-card W4A16 A/B is deliberately deferred"): one 4-bit checkpoint that
+# maximises retained intelligence per byte, and one whose weight bits the
+# serving engine consumes through a 4-bit-storage kernel. They are staged by
+# cache-prime-single-card.yaml.
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: qwen-3-8-ud-q4
+spec:
+  # Unsloth's Dynamic V3 GGUF: calibrated for intelligence retention rather
+  # than uniform bit width, and the quant family Unsloth directs pre-Blackwell
+  # users to for this model. ~17.6GB, so a 24GB card keeps real KV headroom.
+  source: pvc://llm-model-archive/llmkube/qwen-3-8-ud-q4/Qwen3.8-27B-UD-Q4_K_XL.gguf
+  format: gguf
+  quantization: Q4_K_XL
+  hardware:
+    # cuda is load-bearing; the cpu default serves silently from the host CPU.
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 1
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: qwen-3-8-nvfp4
+spec:
+  # The 4-bit mixed-precision build of the same model: MLPs of layers 0-55 at
+  # 4 bits with per-16 microscales, attention/GDN projections and the last
+  # eight MLP blocks at 8 bits, vision tower left alone. ~22.6GB plus a 0.85GB
+  # MTP head in a separate file. On a 24GB card this is tight enough that the
+  # fit is an empirical question, which is the point of the A/B.
+  source: pvc://llm-model-archive/llmkube/qwen-3-8-nvfp4
+  format: safetensors
+  # Not in VLLMConfig.quantization's enum; the engine reads the checkpoint's
+  # own quantization_config, so the field is left off rather than guessed at.
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 1

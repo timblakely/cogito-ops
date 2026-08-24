@@ -2,6 +2,7 @@ set quiet := true
 set shell := ['bash', '-euo', 'pipefail', '-c']
 
 kubernetes_dir := justfile_dir() + '/kubernetes'
+llm_modes := kubernetes_dir + '/apps/llm/llmkube/modes'
 
 [private]
 default:
@@ -85,6 +86,84 @@ view-secret namespace secret:
 [doc('Backup a cnpg database')]
 backup-cnpg namespace cluster:
     kubectl cnpg backup {{ cluster }} --method=plugin --plugin-name=barman-cloud.cloudnative-pg.io -n {{ namespace }}
+
+# --- LLM serving modes -------------------------------------------------------
+# Git is always NORMAL. SPLIT and DARK hand one or both of iggy's GPUs to the
+# CUDA dev pod by suspending Flux and server-side applying a complete
+# replacement object under Flux's OWN field manager, so `llm-normal` - which is
+# only `flux resume` plus a reconcile - restores git exactly. Never switch
+# modes with patch/edit/scale: those record a different field manager, and
+# Flux cannot then remove what they set. Details in
+# kubernetes/apps/llm/llmkube/modes/README.md.
+
+[doc('Show the current LLM serving mode')]
+llm-mode:
+    kubectl -n llm get kustomizations.kustomize.toolkit.fluxcd.io llmkube-resources cuda-dev \
+        -o custom-columns='FLUX-KS:.metadata.name,SUSPENDED:.spec.suspend'
+    kubectl -n llm get inferenceservice qwen-3-8-fp8 \
+        -o custom-columns='SERVING:.metadata.name,RUNTIME:.spec.runtime,MODEL:.spec.modelRef,WANT:.spec.replicas,GPU:.spec.resources.gpu,PHASE:.status.phase'
+    kubectl -n llm get deploy cuda-dev \
+        -o custom-columns='DEV:.metadata.name,READY:.status.readyReplicas,GPU:.spec.template.spec.containers[0].resources.limits.nvidia\.com/gpu'
+    kubectl -n llm get pods -l app.kubernetes.io/name=cuda-dev --no-headers
+
+[doc('LLM mode SPLIT: degraded single-card serving, one GPU to the dev pod (variant a|b)')]
+llm-split variant='a':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "{{ variant }}" in
+      a) spec="{{ llm_modes }}/split-a-llamacpp.yaml" ;;
+      b) spec="{{ llm_modes }}/split-b-vllm-nvfp4.yaml" ;;
+      *) echo "unknown SPLIT candidate '{{ variant }}' (expected a or b)" >&2; exit 1 ;;
+    esac
+    echo "$(date -Is)  mode SPLIT candidate {{ variant }}  ($(basename "$spec"))"
+    flux suspend kustomization -n llm llmkube-resources
+    flux suspend kustomization -n llm cuda-dev
+    # Serving first: it holds both GPUs, and the dev pod cannot schedule until
+    # the Recreate releases one. It carries PreemptionPolicy Never, so a
+    # momentary shortage makes it wait rather than evict a model.
+    kubectl apply --server-side --field-manager=kustomize-controller -f "$spec"
+    kubectl apply --server-side --field-manager=kustomize-controller -f "{{ llm_modes }}/cuda-dev-1gpu.yaml"
+    kubectl -n llm rollout status deploy/cuda-dev --timeout=15m
+    # Serving last and generously: a first serve of a candidate copies its
+    # weights from the NFS archive to the NVMe hot tier before the engine loads.
+    kubectl -n llm rollout status deploy/qwen-3-8-fp8 --timeout=30m
+    just kube llm-mode
+
+[doc('LLM mode DARK: no local serving, dev pod takes both GPUs (gpus=1|2)')]
+llm-dark gpus='2':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "{{ gpus }}" in 1|2) ;; *) echo "gpus must be 1 or 2" >&2; exit 1 ;; esac
+    echo "$(date -Is)  mode DARK  dev pod holds {{ gpus }} GPU(s); local seats are gone until llm-normal"
+    flux suspend kustomization -n llm llmkube-resources
+    flux suspend kustomization -n llm cuda-dev
+    kubectl apply --server-side --field-manager=kustomize-controller -f "{{ llm_modes }}/dark-serving.yaml"
+    # Wait for the card to actually come back, not just for the spec to land:
+    # rollout status can pass against the pre-scale generation. `wait --for=delete`
+    # errors when nothing matches, which is the success case here, so the
+    # assertion below is what decides.
+    kubectl -n llm wait --for=delete pod -l inference.llmkube.dev/service=qwen-3-8-fp8 --timeout=10m 2>/dev/null || true
+    if [ -n "$(kubectl -n llm get pods -l inference.llmkube.dev/service=qwen-3-8-fp8 --no-headers 2>/dev/null)" ]; then
+      echo "serving pod is still present; refusing to hand its GPU to the dev pod" >&2
+      exit 1
+    fi
+    kubectl apply --server-side --field-manager=kustomize-controller -f "{{ llm_modes }}/cuda-dev-{{ gpus }}gpu.yaml"
+    kubectl -n llm rollout status deploy/cuda-dev --timeout=15m
+    just kube llm-mode
+
+[doc('LLM mode NORMAL: restore git state - TP=2 serving, dev pod CPU-only')]
+llm-normal:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Rollback from anywhere, and deliberately independent of dev-pod state:
+    # nothing below reads or waits on it.
+    echo "$(date -Is)  mode NORMAL  restoring git state"
+    flux reconcile source git -n flux-system flux-system
+    flux resume kustomization -n llm llmkube-resources
+    flux resume kustomization -n llm cuda-dev
+    flux reconcile kustomization -n llm llmkube-resources
+    flux reconcile kustomization -n llm cuda-dev
+    just kube llm-mode
 
 [private]
 render-local-ks ns ks:

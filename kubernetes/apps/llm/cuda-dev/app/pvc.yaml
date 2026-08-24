@@ -1,0 +1,24 @@
+---
+# Workspace for the on-node CUDA development pod: source trees, a python venv
+# with the CUDA-13 torch wheels, Nsight Compute, build output and result JSON.
+#
+# openebs-hostpath (iggy's NVMe, the same disk as the LLMKube hot tier) rather
+# than Ceph, deliberately: compiles are latency-sensitive and the pod is pinned
+# to iggy anyway, so replicated storage buys nothing here. The tradeoff is
+# accepted explicitly - this volume does not survive loss of that disk, and
+# nothing whose loss would matter is kept only here. The class is
+# WaitForFirstConsumer, so the volume binds on iggy when the Deployment lands.
+#
+# openebs-hostpath does not allow volume expansion; 150Gi is a one-way choice
+# (932G device, ~509G free at creation).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cuda-dev-workspace
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: openebs-hostpath
+  resources:
+    requests:
+      storage: 150Gi

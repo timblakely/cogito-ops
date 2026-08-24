@@ -1,0 +1,121 @@
+---
+# On-node CUDA development pod for GPU kernel work on iggy.
+#
+# THIS FILE IS THE NORMAL-MODE (git) STATE: the pod runs, but with NO GPU.
+# Both 3090s belong to the serving stack in NORMAL, and the pod's CPU-only
+# workloads (checkpoint analysis against the weights on the model archive)
+# have no reason to wait for a GPU window. The GPU-bearing variants of this
+# same Deployment live in ../../llmkube/modes/ and are applied by the
+# `just kube llm-split` / `llm-dark` targets; `just kube llm-normal` resumes
+# Flux and this file is what comes back.
+#
+# Two consequences of "no GPU" are load-bearing and easy to get wrong:
+#   - runtimeClassName is deliberately ABSENT here. The nvidia runtime honours
+#     the image's NVIDIA_VISIBLE_DEVICES, and the upstream CUDA images ship
+#     `all`, so a pod that requests zero GPUs but selects the nvidia runtime
+#     gets every card on the node - it would be able to allocate VRAM out from
+#     under the serving pods. NVIDIA_VISIBLE_DEVICES=void below is the second
+#     belt on the same trousers.
+#   - the container therefore has no libcuda/nvidia-smi in NORMAL; that is
+#     expected, not a fault. Anything requiring a device runs in SPLIT/DARK.
+#
+# The image tracks what the serving stack is actually built against, so kernels
+# compiled here are ABI-compatible with the vLLM the cluster serves: vLLM
+# v0.25.1 carries torch 2.11.0+cu130, nvcc 13.0.88, Python 3.12 (verified in
+# the running pod, 2026-08-24). Bump this tag when that image moves.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cuda-dev
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    # Recreate, not RollingUpdate: the GPU-bearing variants hold an exclusive
+    # nvidia.com/gpu unit, and a rolling replacement would deadlock waiting for
+    # a device the outgoing pod still holds.
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cuda-dev
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cuda-dev
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: iggy
+      # Below every serving priority (llmkube-normal is 10000) and with
+      # PreemptionPolicy Never, so this pod can never evict a model to get
+      # scheduled - it waits instead.
+      priorityClassName: llmkube-batch
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: dev
+          image: docker.io/nvidia/cuda:13.0.2-devel-ubuntu24.04
+          command: ["sleep", "infinity"]
+          env:
+            # See the header: keeps the GPUs invisible even if the nvidia
+            # runtime is ever selected here by accident.
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: void
+            - name: HOME
+              value: /workspace
+            - name: CUDA_CACHE_PATH
+              value: /workspace/.nv/ComputeCache
+            - name: PIP_DISABLE_PIP_VERSION_CHECK
+              value: "1"
+          securityContext:
+            # SYS_ADMIN, not privileged. It is what the two device-touching
+            # operations actually need - nvidia-smi clock/power writes and
+            # Nsight Compute's performance counters (the driver's
+            # RestrictProfilingToAdminUsers check passes for CAP_SYS_ADMIN) -
+            # and unlike `privileged: true` it does not hand the container the
+            # whole node. The nvidia-power-limit DaemonSet already establishes
+            # the same capability is sufficient for nvidia-smi writes here.
+            capabilities:
+              add:
+                - SYS_ADMIN
+          resources:
+            requests:
+              cpu: "2"
+              memory: 8Gi
+            limits:
+              # No CPU limit (repo convention): CPU limits throttle rather than
+              # protect. The memory ceiling is sized for whole-tensor analysis
+              # of a 23GB checkpoint with room to spare; iggy has 128GB.
+              memory: 64Gi
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+            - name: archive
+              mountPath: /archive
+              readOnly: true
+            - name: hot
+              mountPath: /hot
+              readOnly: true
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: workspace
+          persistentVolumeClaim:
+            claimName: cuda-dev-workspace
+        # The NFS weight archive, read-only. Every checkpoint this pod reads
+        # is already staged here by the cache-prime Jobs.
+        - name: archive
+          persistentVolumeClaim:
+            claimName: llm-model-archive
+            readOnly: true
+        # The NVMe hot tier, read-only. RWO, but ReadWriteOnce is node-scoped:
+        # this pod is pinned to iggy, which is where the serving pod that also
+        # mounts it runs, so both mounts are legal.
+        - name: hot
+          persistentVolumeClaim:
+            claimName: llmkube-model-cache
+            readOnly: true
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 8Gi
