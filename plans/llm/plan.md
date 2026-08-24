@@ -274,8 +274,8 @@ Files: `litellm/app/models/*.yaml`, `litellm/app/externalsecret.yaml`,
 - [ ] Optional (decide later): a cheap PAYG backstop rung under
       `worker-escalated` (neuralwatt-class), order 2 — "order encodes
       preference, not cost." Skip until the GLM cap actually bites.
-- [ ] Budgets: escalation key only (coordinator resolved 2026-08-23 —
-      rate caps instead, see open question 2).
+- [x] Budgets: DONE - escalation $15/30d (2026-08-24), coordinator rate
+      caps (2026-08-23). No dollar placeholder left anywhere.
 - [ ] Smoke each seat through its own key; confirm per-key spend attribution in
       the LiteLLM dashboard.
 
@@ -451,9 +451,12 @@ the critical path noticed.
 
 1. ~~C7 — in-cluster coordinator pod~~ — DEFERRED, tied to Wave 4
    (2026-08-23); see Track C for the reasoning.
-2. **Budget value for the escalation key** — the one key where dollars are
-   real (K3 via Moonshot metered); $30/30d is the placeholder. The
-   coordinator key RESOLVED 2026-08-23: subscription seats meter at $0,
+2. ~~Budget value for the escalation key~~ — RESOLVED 2026-08-24: $15/30d
+   (user decision: the $30 one-time pot survives >= 2 worst-case months,
+   keeping runway to switch models). Live on the key, /key/info verified;
+   first real spend ($0.0019, the K3-OK smoke) already attributing. The
+   coordinator half of the old question was
+   RESOLVED 2026-08-23: subscription seats meter at $0,
    so its budget was dead — swapped for rate caps (rpmLimit 30,
    maxParallelRequests 4) guarding the 5h credit window; pushed to the
    live key past the operator gap, CAP-OK smoke after.
