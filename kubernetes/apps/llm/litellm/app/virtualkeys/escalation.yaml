@@ -2,7 +2,10 @@
 # Per-role key: both escalation seats, entered only by coordinator delegation
 # (no proxy fallbacks reach these - locked decision). One key for both because
 # they share a failure-driven traffic shape; the dashboard still separates
-# spend per modelName. Budget is a PLACEHOLDER (plan.md open question 2).
+# spend per modelName. Budget $15/30d (user decision 2026-08-24): the $30
+# one-time Moonshot pot survives >= 2 worst-case months, keeping runway to
+# switch if a better model shows up. Only reviewer-escalated (K3 metered)
+# accrues real dollars; worker-escalated is sub-backed at $0.
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMVirtualKey
 metadata:
@@ -12,7 +15,7 @@ spec:
   keyAlias: role-escalation
   secretName: litellm-key-escalation
   secretKey: api-key
-  maxBudget: "30"
+  maxBudget: "15"
   budgetDuration: 30d
   models:
     - worker-escalated
