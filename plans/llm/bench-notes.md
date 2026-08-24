@@ -435,3 +435,15 @@ kristeva, --numa distribute, 32 threads, ctx 8192, request 80Gi/limit
   (~53GiB RSS peak; the rest re-faulted from NFS per expert activation).
 - Per plan: manifests deleted the same hour, number recorded here.
   kristeva's lanes stay D1 vision + camofox + the A380 floor.
+
+## 2026-08-23 · Addendum: flux resume applies the STALE revision first
+
+`flux resume kustomization` immediately re-applies the last-FETCHED
+revision before any source refresh - resuming llmkube-resources after the
+SSH outage applied the mid-experiment MTP=2 commit and rolled the backend
+once more before the follow-up reconcile restored the pinned config
+(cost: one extra ~3.5min model load). Next time: reconcile the SOURCE
+(`flux reconcile source git ...` or ks --with-source WHILE SUSPENDED is
+not possible - so push first, refresh the GitRepository, THEN resume).
+Converged state verified after: RS hash matches the pinned config,
+CONVERGED-OK through the proxy, dashboard synchronized.
