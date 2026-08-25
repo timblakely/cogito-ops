@@ -19,10 +19,14 @@
 #   - the container therefore has no libcuda/nvidia-smi in NORMAL; that is
 #     expected, not a fault. Anything requiring a device runs in SPLIT/DARK.
 #
-# The image tracks what the serving stack is actually built against, so kernels
-# compiled here are ABI-compatible with the vLLM the cluster serves: vLLM
-# v0.25.1 carries torch 2.11.0+cu130, nvcc 13.0.88, Python 3.12 (verified in
-# the running pod, 2026-08-24). Bump this tag when that image moves.
+# The image tracks the CUDA toolkit the vLLM this project TARGETS is built
+# against - not necessarily the one currently deployed. Deployed serving is
+# v0.25.1 (torch 2.11.0); the project targets v0.27.1 (torch 2.13.0), because
+# 0.25.1 cannot load this checkpoint's quantised lm_head on SM8.6. Both are
+# CUDA 13.0 / nvcc 13.0.88 / Python 3.12, so this tag serves both, but the
+# torch ABI in the workspace venv is pinned to the TARGET, not the deployed
+# version. Re-check this comment whenever either version moves - a silent
+# divergence here produces a plugin that imports and then segfaults.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
