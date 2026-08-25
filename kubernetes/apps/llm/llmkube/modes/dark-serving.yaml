@@ -1,12 +1,28 @@
 ---
 # DARK: no local serving. Complete replacement for the NORMAL InferenceService
-# with replicas 0 - see ./README.md for why scaling to zero here beats
-# deleting the object or setting spec.suspend.
+# with the workload suspended - see ./README.md for the field-manager rules
+# these files live by.
 #
-# With no pod there is nothing for a runtime configuration to configure, so
-# this spec deliberately carries only what the CRD needs to validate. Flux
-# restores the full NORMAL spec on `just kube llm-normal`; do not copy tuning
-# into this file, where it would silently rot out of sync with the real one.
+# WHY spec.suspend AND NOT replicas: 0. The LLMKube operator co-owns
+# .spec.replicas (field manager "manager", operation Update) and writes it
+# back. Flux only gets away with owning that field because it applies the same
+# value the operator wants; an apply of a DIFFERENT value is refused outright:
+#
+#   error: Apply failed with 1 conflict: conflict with "manager"
+#   using inference.llmkube.dev/v1alpha1: .spec.replicas
+#
+# Forcing it with --force-conflicts would win the apply and then leave the
+# operator and Flux disagreeing about the field - the same fight this repo
+# already fought once in the ModelPool era. spec.suspend is the field the CRD
+# documents for this exact purpose ("stops the inference workload without
+# losing the desired replica count"), nothing else owns it, and because it is
+# set through a server-side apply under Flux's own manager, Flux's next apply -
+# which does not mention suspend - removes it again. The revert stays free.
+#
+# With the workload suspended there is no pod, so this spec deliberately
+# carries only what the CRD needs to validate. Do not copy tuning in here,
+# where it would rot out of sync with the real spec; Flux restores the full
+# NORMAL spec on `just kube llm-normal`.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: InferenceService
 metadata:
@@ -20,7 +36,8 @@ metadata:
   namespace: llm
 spec:
   modelRef: qwen-3-8-fp8
-  replicas: 0
+  # NOTE: replicas is deliberately ABSENT - see the header.
+  suspend: true
   runtime: vllm
   runtimeClassName: nvidia
   nodeSelector:

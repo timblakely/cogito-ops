@@ -53,10 +53,15 @@ the same reason: `kubectl rollout status` against an object the apply never
 touched returns success immediately, turning a silent no-op into a green
 result.
 
-DARK sets `replicas: 0` on the serving object rather than deleting or
-suspending it. That keeps the revert a plain field change, and it is why the
-DARK spec may omit the runtime detail the NORMAL spec carries - with no pod,
-there is nothing for the omitted fields to configure, and Flux restores them.
+DARK sets **`spec.suspend: true`**, not `replicas: 0` and not a delete. The
+LLMKube operator co-owns `.spec.replicas` and writes it back, so an apply that
+sets a different value is refused as a field-manager conflict; Flux only avoids
+that conflict because it applies the value the operator already wants. Forcing
+it would leave the operator and Flux disagreeing about the field. `suspend` is
+the field the CRD documents for this, nothing else owns it, and clearing it is
+just Flux's next apply omitting it. With no pod running, the DARK spec may omit
+the runtime detail the NORMAL spec carries - there is nothing for the omitted
+fields to configure, and Flux restores them on the way back.
 
 ## The degraded serving candidates
 
