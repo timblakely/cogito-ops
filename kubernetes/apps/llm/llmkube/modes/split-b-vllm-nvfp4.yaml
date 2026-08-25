@@ -3,9 +3,26 @@
 # pre-Blackwell weight-only path, one 3090. Complete replacement for the
 # NORMAL InferenceService - see ./README.md.
 #
+# DOES NOT CURRENTLY START on vLLM 0.25.1 (tried 2026-08-24). It is NOT a
+# VRAM failure - the engine loads all 21.81 GiB of weights and then dies in
+# process_weights_after_loading:
+#
+#   AttributeError: 'ParallelLMHead' object has no attribute
+#   'output_partition_sizes'   (humming_utils.py:457, via the
+#   compressed-tensors W8A16-FP8 scheme)
+#
+# This checkpoint quantises lm_head to FP8, and W8A16-FP8 is the scheme vLLM
+# picks precisely BECAUSE SM8.6 has no FP8 tensor cores - so the working
+# hypothesis is that stock vLLM 0.25.1 cannot serve this build on Ampere at
+# all, regardless of memory. Consistent with Unsloth pointing pre-Blackwell
+# users at GGUF instead.
+#
+# The VRAM question is therefore still open: nothing here has been shown to
+# fit or not fit. Kept for a retest after a vLLM bump or an lm_head
+# workaround. Candidate A is the degraded mode until then.
+#
 # ~22.6GB of weights on a 24GB card. Everything below is chosen to buy back
-# VRAM, and the fit is still not guaranteed; if it OOMs, candidate A wins by
-# default and this spec stays useful only inside DARK windows.
+# VRAM, and the fit is still not guaranteed.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: InferenceService
 metadata:

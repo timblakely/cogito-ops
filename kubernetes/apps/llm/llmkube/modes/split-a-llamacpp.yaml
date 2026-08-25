@@ -30,6 +30,19 @@ spec:
     # 8000, not llama.cpp's usual 8080: the LiteLLM catalogue addresses this
     # Service at :8000 and is deliberately not edited when modes change.
     port: 8000
+  # MEASURED 2026-08-24, SPLIT A/B: 35.34 tok/s single-stream decode, TTFT
+  # 0.36s, ~1270 tok/s prefill at 8K, 51.16 tok/s aggregate over 2 seats.
+  # Clears the >=20 tok/s bar. The NORMAL TP=2 baseline is 58.73 tok/s, and
+  # most of that gap is MTP: llama.cpp ignores this model's multi-token
+  # prediction block outright ("unused tensor blk.64.nextn.* -- ignoring"),
+  # which settles the ops plan's open question - no MTP on this runtime.
+  #
+  # CONTEXT DIVIDES BY SLOTS, it does not share. llama.cpp splits contextSize
+  # across --parallel, so 49152 with 2 slots yields 24576 usable tokens PER
+  # REQUEST and a 32K prompt is refused with HTTP 400 "exceeds the available
+  # context size (24576 tokens)". That still clears the 16K bar. To give one
+  # seat the full 48K, ask for 98304 here or drop parallelSlots to 1.
+  #
   # Hybrid backbone: only 16 of 64 layers are full attention, so KV is cheap
   # and a long window is affordable even with the whole model resident.
   contextSize: 49152

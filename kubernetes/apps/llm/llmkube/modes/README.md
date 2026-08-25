@@ -77,6 +77,17 @@ Selection rule: keep whichever clears **20 tok/s single-stream decode with at
 least 16k usable context**; ties break toward B, which additionally keeps a
 4-bit-storage GEMM path warm on the serving card.
 
+**Result (2026-08-24): A is the degraded mode.** It measured 35.34 tok/s
+single-stream with 24,576 usable tokens per request and two working seats,
+clearing both bars. B never reached the bars - it loads all 21.81 GiB and then
+crashes in vLLM 0.25.1's compressed-tensors W8A16-FP8 path on this
+checkpoint's quantised `lm_head`, so its VRAM fit is still an open question
+rather than a measured failure. Details are in each mode file's header.
+
+Two things A's run settled that the plan had marked unverified: llama.cpp
+ignores this model's MTP block entirely (no speculative decoding), and
+`contextSize` is divided by `parallelSlots` rather than shared across them.
+
 ## Known consequence of leaving the catalogue alone
 
 LiteLLM keeps advertising `maxInputTokens: 131072` in every mode, because the

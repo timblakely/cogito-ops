@@ -55,7 +55,23 @@ spec:
       containers:
         - name: dev
           image: docker.io/nvidia/cuda:13.0.2-devel-ubuntu24.04
-          command: ["sleep", "infinity"]
+          command:
+            - /bin/bash
+            - -c
+            - |
+              # Self-heal on every start. Only the workspace PVC survives a
+              # pod recreation: apt-installed tooling lives in the container
+              # layer and disappears, which leaves the venv DIRECTORY intact
+              # on the PVC while the interpreter it symlinks to is gone - a
+              # venv that exists and cannot run. Re-running the workspace's
+              # own idempotent bootstrap repairs that before anyone trips on
+              # it. Skipped silently when there is no bootstrap yet, which is
+              # the case on a first-ever start.
+              mkdir -p /workspace/logs
+              if [ -f /workspace/bootstrap.sh ]; then
+                bash /workspace/bootstrap.sh >>/workspace/logs/bootstrap.log 2>&1 || true
+              fi
+              exec sleep infinity
           env:
             # See the header: keeps the GPUs invisible even if the nvidia
             # runtime is ever selected here by accident.
