@@ -22,6 +22,15 @@ spec:
   # deterministic.
   replicas: 1
   runtime: vllm
+  # Pinned above the operator default (v0.25.1): v0.28.0 ships the fused
+  # CUDA GDN MTP decode kernel (vllm#51674), which is compiled for sm8.6
+  # and fuses the whole GDN decode step (gating, delta-rule recurrence,
+  # state update, gated RMSNorm) into one launch for MTP speculative
+  # decode. It is built only when the image is CUDA >= 13.0, so this must
+  # be the default -cu130 tag, not -cu129; iggy's 595.x driver supports it.
+  # Safe either way: VLLM_GDN_DECODE_KERNEL defaults to cuda and falls
+  # back to the Triton path (logged) if any runtime precondition fails.
+  image: vllm/vllm-openai:v0.28.0
   env:
     - name: NCCL_P2P_DISABLE
       value: "1"
