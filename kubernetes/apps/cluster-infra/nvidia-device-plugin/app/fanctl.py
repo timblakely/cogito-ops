@@ -122,9 +122,14 @@ def board_temps(hwmon):
         except OSError:
             label = ""
         try:
-            out[label or "temp%s" % n] = int(val) / 1000.0
+            v = int(val) / 1000.0
         except ValueError:
-            pass
+            continue
+        # nct6775 reports -128/-1 for unconnected channels and 0 for
+        # unused ones (PCH, DIMM); real board temps never run below 10C.
+        if v < 10:
+            continue
+        out[label or "temp%s" % n] = v
     return out
 
 def render_metrics():
