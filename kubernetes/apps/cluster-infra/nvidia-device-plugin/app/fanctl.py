@@ -118,7 +118,7 @@ def board_temps(hwmon):
         except OSError:
             continue
         try:
-            label = open(os.path.join(hwmon, "temp%d_label" % n)).read().strip()
+            label = open(os.path.join(hwmon, "temp%s_label" % n)).read().strip()
         except OSError:
             label = ""
         try:
