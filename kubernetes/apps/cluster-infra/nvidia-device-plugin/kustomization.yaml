@@ -6,6 +6,11 @@ configMapGenerator:
   - name: APP-app-vars
     literals:
       - APP=nvidia-device-plugin
+  # Content-hashed: script edits change the ConfigMap name, which kustomize
+  # rewrites in the DaemonSet volume ref, rolling the pod.
+  - name: fan-control-script
+    files:
+      - app/fanctl.py
 labels:
   - pairs:
       kustomize.autoreiv/cluster-settings: "false"
