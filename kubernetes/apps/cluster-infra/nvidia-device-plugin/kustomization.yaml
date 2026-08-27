@@ -6,11 +6,9 @@ configMapGenerator:
   - name: APP-app-vars
     literals:
       - APP=nvidia-device-plugin
-  # Content-hashed: script edits change the ConfigMap name, which kustomize
-  # rewrites in the DaemonSet volume ref, rolling the pod.
-  - name: fan-control-script
-    files:
-      - app/fanctl.py
+# fan-control-script is generated in app/kustomization.yaml (stage 2): the
+# DaemonSet is built there, and name-reference rewriting does not cross the
+# two Flux build stages.
 labels:
   - pairs:
       kustomize.autoreiv/cluster-settings: "false"
