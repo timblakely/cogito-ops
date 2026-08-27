@@ -19,7 +19,7 @@ data:
     import time
 
     NVML_LIB = "/host-libs/libnvidia-ml.so.1"
-    HWMON_ROOT = "/host-hwmon"
+    HWMON_ROOT = "/sys/class/hwmon"  # host sysfs (privileged pod); hostPath subtree mounts break sysfs relative symlinks
     BOARD_PWMS = [3, 4, 5, 6, 7]
     FLOOR, CEIL = 50, 100       # percent
     T_LO, T_HI = 55.0, 85.0     # deg C
@@ -170,9 +170,6 @@ spec:
         - name: host-libs
           hostPath:
             path: /usr/local/lib
-        - name: hwmon
-          hostPath:
-            path: /sys/class/hwmon
       containers:
         - name: fan-control
           image: docker.io/nvidia/cuda:13.0.2-devel-ubuntu24.04
@@ -184,8 +181,6 @@ spec:
             - name: host-libs
               mountPath: /host-libs
               readOnly: true
-            - name: hwmon
-              mountPath: /host-hwmon
           command:
             - /bin/sh
             - -c
