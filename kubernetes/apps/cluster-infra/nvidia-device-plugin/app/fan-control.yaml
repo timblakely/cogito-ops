@@ -1,0 +1,201 @@
+---
+# Fan controller for iggy (2x RTX 3090 + NCT6797 board fans).
+# Card fans: NVML MANUAL policy, driven by a curve of the hottest GPU temp.
+# Board fans pwm3-7: sysfs manual, same curve (exhaust follows GPU heat).
+# pwm1 (100% flat) and pwm2 (auto-tracks a board sensor) are untouched.
+# On clean stop: restores firmware auto profile + board AUTO mode.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fan-control-script
+data:
+  fanctl.py: |
+    #!/usr/bin/env python3
+    import ctypes
+    import glob
+    import os
+    import signal
+    import sys
+    import time
+
+    NVML_LIB = "/host-libs/libnvidia-ml.so.1"
+    HWMON_ROOT = "/host-hwmon"
+    BOARD_PWMS = [3, 4, 5, 6, 7]
+    FLOOR, CEIL = 50, 100       # percent
+    T_LO, T_HI = 55.0, 85.0     # deg C
+    POLL_S = 5
+    LOG_EVERY = 12              # ~60s
+
+    nvml = ctypes.CDLL(NVML_LIB)
+    _running = True
+
+    def _stop(sig, frame):
+        global _running
+        _running = False
+
+    def curve(t):
+        if t <= T_LO:
+            return FLOOR
+        if t >= T_HI:
+            return CEIL
+        return int(round(FLOOR + (t - T_LO) * (CEIL - FLOOR) / (T_HI - T_LO)))
+
+    def gpu_handles():
+        cnt = ctypes.c_uint()
+        if nvml.nvmlDeviceGetCount_v2(ctypes.byref(cnt)) != 0:
+            return []
+        out = []
+        for i in range(cnt.value):
+            h = ctypes.c_void_p()
+            if nvml.nvmlDeviceGetHandleByIndex_v2(i, ctypes.byref(h)) == 0:
+                out.append(h)
+        return out
+
+    def gpu_temp(h):
+        t = ctypes.c_uint()
+        return t.value if nvml.nvmlDeviceGetTemperature(h, 0, ctypes.byref(t)) == 0 else None
+
+    def gpu_set_fans(handles, duty):
+        for gi, h in enumerate(handles):
+            nf = ctypes.c_uint()
+            if nvml.nvmlDeviceGetNumFans(h, ctypes.byref(nf)) != 0:
+                continue
+            for f in range(nf.value):
+                rc = nvml.nvmlDeviceSetFanSpeed_v2(h, f, duty)
+                if rc != 0:
+                    print(f"WARN gpu{gi} fan{f} set rc={rc}", flush=True)
+
+    def board_hwmon():
+        for d in sorted(glob.glob(os.path.join(HWMON_ROOT, "hwmon*"))):
+            try:
+                name = open(os.path.join(d, "name")).read().strip().lower()
+            except OSError:
+                continue
+            if "nct6775" in name or "nct6797" in name:
+                return d
+        return None
+
+    def board_set(hwmon, duty):
+        raw = duty * 255 // 100  # sysfs pwm is 0-255, not percent
+        for p in BOARD_PWMS:
+            en = os.path.join(hwmon, "pwm%d_enable" % p)
+            pw = os.path.join(hwmon, "pwm%d" % p)
+            try:
+                if open(en).read().strip() != "1":
+                    open(en, "w").write("1")
+                if open(pw).read().strip() != str(raw):
+                    open(pw, "w").write(str(raw))
+            except OSError as e:
+                print("WARN board pwm%d: %s" % (p, e), flush=True)
+
+    def board_restore(hwmon):
+        for p in BOARD_PWMS:
+            try:
+                open(os.path.join(hwmon, "pwm%d_enable" % p), "w").write("5")  # AUTO
+            except OSError:
+                pass
+
+    def restore(handles, hwmon):
+        for gi, h in enumerate(handles):
+            rc = nvml.nvmlDeviceSetFanControlPolicy(h, 0)  # AUTO
+            if rc != 0:
+                print("WARN restore gpu%d policy rc=%d" % (gi, rc), flush=True)
+        if hwmon:
+            board_restore(hwmon)
+
+    def main():
+        if nvml.nvmlInit_v2() != 0:
+            print("FATAL: nvmlInit_v2 failed", flush=True)
+            sys.exit(1)
+        handles = gpu_handles()
+        if not handles:
+            print("FATAL: no GPUs", flush=True)
+            sys.exit(1)
+        hwmon = board_hwmon()
+        if not hwmon:
+            print("WARN: board hwmon not found; case fans stay on BIOS auto", flush=True)
+        for gi, h in enumerate(handles):
+            rc = nvml.nvmlDeviceSetFanControlPolicy(h, 1)  # MANUAL
+            print("gpu%d fan policy MANUAL rc=%d" % (gi, rc), flush=True)
+        print("fan-control started: %d gpus, board hwmon=%s" % (len(handles), hwmon), flush=True)
+        i = 0
+        try:
+            while _running:
+                temps = [gpu_temp(h) for h in handles]
+                live = [t for t in temps if t is not None]
+                if live:
+                    duty = curve(max(live))
+                    gpu_set_fans(handles, duty)
+                    if hwmon:
+                        board_set(hwmon, duty)
+                    if i % LOG_EVERY == 0:
+                        print("temps=[%s] duty=%d%%" % (",".join(str(t) for t in temps), duty), flush=True)
+                i += 1
+                time.sleep(POLL_S)
+        finally:
+            print("stopping: restoring auto profiles", flush=True)
+            restore(handles, hwmon)
+
+    if __name__ == "__main__":
+        signal.signal(signal.SIGTERM, _stop)
+        signal.signal(signal.SIGINT, _stop)
+        main()
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fan-control
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: fan-control
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: fan-control
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: iggy
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      volumes:
+        - name: script
+          configMap:
+            name: fan-control-script
+        - name: host-libs
+          hostPath:
+            path: /usr/local/lib
+        - name: hwmon
+          hostPath:
+            path: /sys/class/hwmon
+      containers:
+        - name: fan-control
+          image: docker.io/nvidia/cuda:13.0.2-devel-ubuntu24.04
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: script
+              mountPath: /fanctl
+            - name: host-libs
+              mountPath: /host-libs
+              readOnly: true
+            - name: hwmon
+              mountPath: /host-hwmon
+          command:
+            - /bin/sh
+            - -c
+            - |
+              apt-get update -qq >/dev/null 2>&1
+              DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3-minimal >/dev/null 2>&1
+              exec python3 -u /fanctl/fanctl.py
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
