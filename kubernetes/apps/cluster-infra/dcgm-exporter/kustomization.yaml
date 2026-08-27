@@ -6,6 +6,18 @@ configMapGenerator:
   - name: APP-app-vars
     literals:
       - APP=dcgm-exporter
+  - name: gpu-thermal-dashboard
+    files:
+      - app/dashboard/gpu-thermal.json
+generatorOptions:
+  # Fixed name: the GrafanaDashboard references this ConfigMap directly, so
+  # no content-hash suffix (same convention as the litellm dashboard).
+  disableNameSuffixHash: true
+  annotations:
+    # Load-bearing. The dashboard JSON is full of ${datasource}/${__range}
+    # Grafana tokens that this app's Flux Kustomization would otherwise try
+    # to envsubst away in strict mode.
+    kustomize.toolkit.fluxcd.io/substitute: disabled
 labels:
   - pairs:
       kustomize.autoreiv/cluster-settings: "false"
