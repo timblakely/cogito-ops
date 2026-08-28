@@ -48,7 +48,23 @@ spec:
       input_cost_per_token: 0
       output_cost_per_token: 0
       supports_reasoning: true
+      # ONE level, and it is the one pinned in params.additional above - not
+      # the three the chat template knows. thinking_levels answers "what can a
+      # CLIENT actually choose here", and on this alias the answer is nothing:
+      # verified 2026-08-28 that LiteLLM's server-side reasoning_effort
+      # overwrites whatever a client puts in chat_template_kwargs. The proof is
+      # that sending the template-invalid `high` to this alias returns 200
+      # (the pin replaced it) while the same request to the passthrough alias
+      # Qwen/Qwen3.8-27B-FP8, which pins nothing, 400s out of the Jinja.
+      #
+      # So listing low/medium/xhigh here published two levels that silently did
+      # nothing. Listing the pinned level alone leaves a client offering
+      # exactly the two outcomes that are real: this effort, or thinking off -
+      # `enable_thinking: false` is NOT overwritten, since the pin does not set
+      # it, and does zero the reasoning output (verified same day).
+      #
+      # Raising the level for a whole role is a change to this alias's reasoning_effort, not a client
+      # setting. A caller who wants to choose per-request should use the
+      # passthrough alias, which is what it is for.
       thinking_levels:
       - low
-      - medium
-      - xhigh

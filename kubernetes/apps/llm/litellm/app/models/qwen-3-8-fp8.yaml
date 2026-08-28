@@ -9,10 +9,13 @@
 #
 # thinking_levels is non-standard, consumed by the pi llm-proxy-refresh
 # extension, and lives under info.extra because the CRD has no typed field for
-# it. The set is what the chat template actually accepts - it raises out of
-# Jinja on anything else, and `high` is a common client default - so the levels
-# a client offers have to come from here rather than the generic OpenAI
-# vocabulary.
+# it. It answers "what may a CLIENT choose", which on THIS alias is the full
+# set the chat template accepts - it raises out of Jinja on anything else, and
+# `high` is a common client default - so the levels a client offers have to
+# come from here rather than the generic OpenAI vocabulary. This alias pins no
+# reasoning_effort of its own, which is exactly why the client's choice is the
+# one that reaches the template; the role aliases pin one and therefore
+# publish only that one. See worker.yaml for the measurement behind that.
 #
 # supports_reasoning is also under info.extra: the CRD types
 # supportsFunctionCalling, supportsVision and supportsPromptCaching, but not

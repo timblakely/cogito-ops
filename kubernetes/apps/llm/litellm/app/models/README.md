@@ -57,7 +57,29 @@ anything else through verbatim:
 | `chat_template_kwargs` | `params.additional` | passthrough request kwarg |
 | `supports_reasoning` | `info.extra` | the CRD types vision/tools/caching, not reasoning |
 | `thinking_levels` | `info.extra` | non-standard; read by the pi `llm-proxy-refresh` extension |
+| `supportsVision` | `info` (typed) | modalities come from the proxy, not from each client's config |
 | `input_cost_per_token` | `info.extra` | cost keys are not typed |
+
+## What `thinking_levels` means
+
+It is not "what the chat template accepts". It is **what a client may choose**,
+and the two differ whenever an alias pins `reasoning_effort` in
+`params.additional`.
+
+Measured 2026-08-28: a server-side `reasoning_effort` overwrites whatever the
+client puts in `chat_template_kwargs`. The clean proof is the template-invalid
+value `high` — sent to `worker` it returns 200, because the pin replaced it
+before the template ever saw it; sent to `Qwen/Qwen3.8-27B-FP8`, which pins
+nothing, it 400s out of the Jinja. `enable_thinking` is *not* overwritten (the
+pin does not set it), so a client can still turn thinking off on a pinned alias.
+
+So the rule is:
+
+- **Pins no effort** (the passthrough alias) → publish every level the template
+  accepts: `[low, medium, xhigh]`.
+- **Pins an effort** (`worker` low, `reviewer` medium) → publish that one level
+  only. Anything else would advertise a control that silently does nothing,
+  which is the exact failure this key exists to prevent.
 
 ## Adding or changing a model
 
