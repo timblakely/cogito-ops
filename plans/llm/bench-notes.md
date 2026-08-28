@@ -454,3 +454,121 @@ CONVERGED-OK through the proxy, dashboard synchronized.
 - Re-smoke: `K3-OK` streamed through reviewer-escalated on the escalation
   key. The council's second family is live; ladder unchanged (Kimi Code
   sub still promotes to rung 1 when the waitlist clears).
+
+## 2026-08-28 · D4 prep: qwen4exp (Qwen3.8-Flash-Next) on kristeva
+
+Target: `Qwen/Qwen3.8-Flash-Next` (released 2026-08-24), experimental
+`qwen4exp` arch — core LM 125B total / **6B active** MoE (512 experts,
+top-10 + 1 shared, 48 layers, hidden 2560) + a **51B-param n-gram table**
+(20M × 2560, bigram/trigram, layer 2, pure lookup) + 4B MTP head. First
+candidate where the RAM math plausibly clears the 5 tok/s bar (6B active
+at 4-bit ≈ 2.5–3.5 GB streamed/token vs the A3 ceiling).
+
+Verified facts (all 2026-08-28):
+
+- **Runtime in a release.** llama.cpp PR #27742 (qwen4exp + QSA graph)
+  merged 2026-08-27; ancestor of **b10666** (`4e97ac86e`, built 2026-08-28)
+  — no master build needed. The n-gram table is a plain tensor
+  (`per_layer_token_embd`, ~97.7 GiB full-precision) pulled via
+  `ggml_get_rows`; per-token cost is 1–3 rows ≈ 2.5–7.5 KB, so a
+  page-cache miss is a few ms, not a re-fault pathology. **No MTP
+  support in the PR** — watch item (A2: MTP=3 ≈ 2× decode).
+- **Image.** `ghcr.io/ggml-org/llama.cpp:server-intel-b10666` (pin amd64
+  `sha256:394b0fd7a15f527480c6c9e6ed0a75d5bc5861cfc89b4b8cc6628cd14fc52d3f`).
+  Ships `libggml-cpu-ivybridge.so` — the exact ISA match for kristeva
+  (SSE4.2+AVX+F16C; live cpuinfo: `avx`+`f16c` only). No custom build.
+- **Gotcha (reproduced on kristeva via scratch pod):** the image
+  auto-loads `libggml-sycl.so`; its oneAPI runtime throws `can not find
+  preferred GPU platform` on GPU-less hosts, crashing even `--version`
+  (newer oneAPI behavior — D2's older image didn't throw). Fix verified:
+  command preamble `mv /app/libggml-sycl.so{,.disabled}`.
+- **Storage.** kristeva's 2 TB NVMe (`nvme0n1p1` →
+  `/var/mnt/local-hostpath`, XFS, `openebs-hostpath`, ~1.8 TB free) → new
+  ~120 GiB hostpath PVC pinned to kristeva for the
+  `unsloth/Qwen3.8-Flash-Next-GGUF` **UD-Q4_K_XL (103.6 GiB)**. D2's
+  NFS-re-fault failure mode does not apply: only ~5 KB/token of table rows
+  can miss, against NVMe.
+- **RAM / storage split.** Core + table are ONE 103.6 GiB GGUF on the NVMe
+  hostpath, mmap'd; stock llama.cpp has no per-tensor pin/stream flag, so the
+  page cache is the streaming layer: core (~60 GiB, touched across every
+  sequence) stays resident; the table (~40 GiB at this quant; 97.7 GiB
+  full-precision) is looked up ~2–3 rows (~2.5–7.5 KB)/token — hot rows
+  cached, the rest **streams from NVMe** (<1 ms/token, negligible). Best
+  case: ~115 GiB free ≥ file, so the whole thing also warms into cache
+  (bonus, not the assumption). Risk: LRU doesn't protect core pages under
+  pressure — re-fault would be from NVMe (~1–3 GB/s, ms), not D2's NFS
+  stall. Pod req ~100 Gi / limit ~118 Gi.
+- **NUMA verdict: two-arm bench, single socket favored.** llama.cpp has
+  NO CPU TP / layer-parallelism (one global thread pool reads every
+  tensor; `-ngl`/`--tensor-split` are GPU-only). `--numa distribute` is
+  round-robin thread affinity only — confirmed in source, and no
+  `set_mempolicy`/`mbind` symbols in the b10666 binaries → each thread
+  reads ~50% of its bytes over QPI. True per-node sharding = stalled
+  PR #14232 (`GGML_NUMA_MIGRATE`, open since Apr); `--numa mirror`
+  (#16000, draft, +41% TG on Xeon 6238R) needs 2× RAM — fatal at 128 GiB.
+  Measured prior (A3): 70.9 GB/s @ 8 threads vs 52.7 @ 32. Arms: (A)
+  numactl socket-0 bind, 8–10 physical threads; (B) `--numa distribute`,
+  20 threads. Expect A ≈ 1.25× B; B surprises only via MoE scatter.
+- Cross-checked the "no CPU TP" claim with a claude second opinion:
+  agreed, and supplied the PR numbers above (all verified real/open).
+- Second claude cross-check (optimization plan) surfaced 5 fixes, all
+  adopted: (1) strict `--membind=0` is broken for a 103.7 GiB mmap on a
+  64 GiB node → `--membind=0,1`; (2) `--numa` flips the mmap policy to
+  MADV_RANDOM (verified at b10666 `src/llama-mmap.cpp:472,507`) → arms A/C
+  share a no-`--numa` mmap policy, B = as shipped; (3) bandwidth- vs
+  compute-bound is OPEN (no AVX2 → Q4_K dot at a few GB/s/core could make
+  20 cores across both sockets win) → decision rule: effective GB/s =
+  bytes/token × tok/s, <30 ⇒ compute-bound ⇒ favor arm C; (4) my
+  250–1400× table/core per-token ratio was off 1000× (true:
+  2×10⁵–1.4×10⁶ — conclusion unchanged, stronger); (5) KV → f16 (q8_0
+  saves ~1 GiB only), `-tb 20 -t <arm>`, budget corrected to core
+  ~63.6 GiB / ~81 GiB needed / ~47 GiB headroom, pod req 85 / limit 110
+  (file page cache is cgroup-charged, reclaimable), SLO
+  pgmajfault/token ≤ 10. New Q arm: UD-Q3_K_XL (83.8 GiB, verified in the
+  HF repo) for ~25% fewer bytes/token + smaller footprint.
+
+Plan of record: `plans/llm/d4-qwen4exp.md`. Steps: PVC → copy GGUF →
+manifest (SYCL rename + arm-A args) → load check → bench A × 3, B × 3 →
+D4 entry here with the bar verdict. Kill: < 2 tok/s warm both arms →
+delete same hour per D2 precedent.
+
+## 2026-08-28 · D4 results: qwen4exp on kristeva — FAIL (close), 4.0–4.6 t/s warm
+
+Ran ~20:30–21:10 MDT. Image `server-intel-b10666` (digest-pinned), SYCL lib
+renamed (required — see prep entry), 8k ctx, f16 KV (default), `-tb 20`,
+393-token fixed prompt + 128-token gen × 4 rounds/arm (rounds 2–4 reuse
+server prompt cache: only 4 new prompt tokens — decode numbers unaffected,
+warm prompt-eval not measured).
+
+| arm | config | warm gen t/s (r2–r4) | cold gen r1 | notes |
+| --- | --- | --- | --- | --- |
+| A | `taskset 0-9` (socket-0 10 phys), `-t 10` | 3.97 / 4.03 / 3.95 | 3.91 | cold: 47 s load + 70 s r1 (drop_caches) |
+| B | `--numa distribute`, `-t 20`, no taskset | 4.62 / 4.58 / 4.67 | 4.62 | MADV_RANDOM mmap (verified confound) |
+| C | `taskset 0-9,10-19` (20 phys both sockets), `-t 20` | 4.50 / 4.43 / 4.52 | 4.60 | same mmap policy as A |
+| Q | Q3_K_XL (83.8 GiB), C config | 4.47 / 4.25 / 4.42 | 4.22 | 25% fewer bytes/token |
+
+Cold prompt eval (r1): A 10.4 t/s, B 18.3, C 19.0, Q 13.0.
+Memory: RSS(anon) ~3.7→7.4 GB; model pages in page cache
+(75–97 GB buff/cache); pgmajfault warm arms ≈ 0–480. No OOM, no faults
+at the 110 Gi limit. Q4 output quality is good (crontab parser: correct
+semantics + type hints; 17-sheep trap: correct).
+
+**Verdict: FAIL — best warm 4.67 t/s (B) < 5 t/s bar; well above the
+2 t/s kill line.** Config space is exhausted: 20 physical cores over both
+sockets bought only ~15% over 10 local; the mmap-policy confound (arm B)
+mattered not at all; and Q3 — 25% fewer bytes per token — was no faster
+(4.4 vs 4.6). That last point is the tell: decode is **compute-bound in
+the AVX1/F16C Q4_K dot paths** (~15 GB/s effective = compute ceiling,
+not DRAM ceiling), confirming the cross-check's hypothesis. NUMA design
+(arms A/C, membind caution, no-CPU-TP analysis) all validated as planned.
+
+**Why it still matters / what would move it:**
+- MTP is the big lever: A2 showed MTP=3 ≈ 2× decode upstream. Once
+  llama.cpp merges MTP for qwen4exp, expect ~9–10 t/s on this exact
+  hardware → passes with 2× margin. Watch ggml-org/llama.cpp.
+- The Q4_K_XL weights stay on kristeva NVMe
+  (`/var/mnt/local-hostpath/d4-qwen4exp/`, 103.7 GiB + Q3 83.8 GiB) for
+  quality play and the MTP re-run. Delete with
+  `rm -rf /var/mnt/local-hostpath/d4-qwen4exp` (talos exec or helper pod)
+  if not wanted — 187 GiB of 1.7 TB free.
+- All d4 pods deleted (d4-bench, d4-download, d4-download-q3).

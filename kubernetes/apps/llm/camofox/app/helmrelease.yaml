@@ -31,6 +31,9 @@ spec:
               CAMOFOX_CRASH_REPORT_ENABLED: "false"
               MAX_SESSIONS: "10"
               MAX_TABS_PER_SESSION: "5"
+              ENABLE_VNC: "1"
+              VNC_RESOLUTION: "1920x1080"
+              VNC_BIND: "0.0.0.0"
             probes:
               liveness: &probes
                 enabled: true
@@ -52,12 +55,19 @@ spec:
                 memory: 3Gi
     service:
       app:
+        forceRename: camofox
         controller: camofox
         ports:
           http:
             port: *port
+      vnc:
+        controller: camofox
+        ports:
+          vnc:
+            port: 6080
     route:
       app:
+        forceRename: camofox
         hostnames:
           - ${APP_URL}
         parentRefs:
@@ -68,6 +78,17 @@ spec:
           - backendRefs:
               - identifier: app
                 port: *port
+      vnc:
+        hostnames:
+          - camofox-vnc.${DOMAIN_NAME}
+        parentRefs:
+          - name: envoy-internal
+            namespace: envoy-system
+            sectionName: https
+        rules:
+          - backendRefs:
+              - identifier: vnc
+                port: 6080
     persistence:
       data:
         existingClaim: camofox
