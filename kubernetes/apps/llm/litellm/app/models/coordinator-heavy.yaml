@@ -21,6 +21,12 @@ spec:
   info:
     mode: responses
     supportsFunctionCalling: true
+    # GPT-5.6 takes images. Declared here rather than left to each client
+    # because the proxy is the capability authority: pi's llm-proxy-refresh
+    # extension derives a model's input modalities from supports_vision, and
+    # an undeclared flag reads as text-only. It was hardcoded in the harness's
+    # models.json until 2026-08-28; this is the same fact, stated once.
+    supportsVision: true
     maxInputTokens: 272000
     maxOutputTokens: 128000
     extra:
