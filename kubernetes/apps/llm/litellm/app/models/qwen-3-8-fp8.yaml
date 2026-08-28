@@ -37,9 +37,15 @@ spec:
       - reasoning_effort
   info:
     supportsFunctionCalling: true
-    # Mirrors vllmConfig.maxModelLen on the backend (seats-over-ceiling
-    # retune); the validator asserts this pair stays in lockstep.
-    maxInputTokens: 131072
+    # The full backend ceiling. This is the HF-named passthrough alias - the
+    # one a human talks to directly - and it is deliberately the only entry
+    # on this backend that gets the whole window. The role aliases (worker,
+    # reviewer) declare the smaller coordination budget instead.
+    #
+    # Mirrors vllmConfig.maxModelLen in llmkube/resources/inferenceservices.yaml
+    # exactly; the validator asserts this pair stays in lockstep, and asserts
+    # separately that the under-declaring aliases stay at or below it.
+    maxInputTokens: 262144
     maxOutputTokens: 16384
     extra:
       input_cost_per_token: 0

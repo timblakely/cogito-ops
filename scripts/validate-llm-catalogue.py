@@ -9,7 +9,11 @@ that fail silently at runtime (plans/llm/plan.md T0.2):
   2. every routerSettings fallback / context_window_fallback name resolves
   3. every in-cluster apiBase has a matching backend in the rendered output
   4. maxInputTokens on a LiteLLM entry matches its backend's maxModelLen /
-     contextSize (the advertised-context mirror)
+     contextSize (the advertised-context mirror). An entry may advertise LESS
+     than its backend only with cogito.dev/context-budget="deliberate" - that
+     is how worker/reviewer hold a 131k coordination budget on a backend that
+     serves 262k. Advertising MORE is always an error: vLLM rejects the
+     request the client was told it could make.
   5. the `coordinator` alias carries NO fallback (cache-locality rule)
   6. every alias annotated cogito.dev/preemptible="true" HAS a fallback
   7. fallback targets are the SAME underlying model as their primary, and
@@ -97,6 +101,8 @@ def collect(docs):
                 "maxInputTokens": (spec.get("info") or {}).get("maxInputTokens"),
                 "preemptible": (meta.get("annotations") or {}).get(
                     "cogito.dev/preemptible") == "true",
+                "budgeted": (meta.get("annotations") or {}).get(
+                    "cogito.dev/context-budget") == "deliberate",
             }
             state["models"].setdefault(spec.get("modelName"), []).append(entry)
         elif kind == "LiteLLMVirtualKey":
@@ -176,10 +182,21 @@ def check(state):
                 continue
             if svc in state["backends"] and e["maxInputTokens"] is not None:
                 backend_len = state["backends"][svc]
-                if backend_len is not None and e["maxInputTokens"] != backend_len:
-                    errors.append(
-                        f"model '{name}': maxInputTokens {e['maxInputTokens']} "
-                        f"!= backend '{svc}' maxModelLen/contextSize {backend_len}")
+                declared = e["maxInputTokens"]
+                if backend_len is not None and declared != backend_len:
+                    if declared > backend_len:
+                        errors.append(
+                            f"model '{name}': maxInputTokens {declared} EXCEEDS "
+                            f"backend '{svc}' maxModelLen/contextSize "
+                            f"{backend_len} - clients would be told they can "
+                            f"send a prompt vLLM will reject")
+                    elif not e["budgeted"]:
+                        errors.append(
+                            f"model '{name}': maxInputTokens {declared} "
+                            f"!= backend '{svc}' maxModelLen/contextSize "
+                            f"{backend_len}; annotate "
+                            f"cogito.dev/context-budget=deliberate if the "
+                            f"smaller window is intentional")
             elif svc in state["routers"] and e["maxInputTokens"] is not None:
                 warnings.append(
                     f"model '{name}' routes via ModelRouter '{svc}' - context "
@@ -246,6 +263,35 @@ def main():
             errors.append("self-test")
         else:
             print("self-test: broken scope correctly detected")
+
+        # The context mirror has two failure shapes now; assert both fire.
+        for label, mutate, needle in (
+            ("over-declared context",
+             lambda e, backend: e.update(maxInputTokens=backend + 1),
+             "EXCEEDS"),
+            ("unannotated under-declaration",
+             lambda e, backend: (e.update(maxInputTokens=backend // 2),
+                                 e.update(budgeted=False)),
+             "context-budget"),
+        ):
+            broken = deepcopy(state)
+            hit = False
+            for entries in broken["models"].values():
+                for e in entries:
+                    svc = service_of(e["apiBase"])
+                    backend = broken["backends"].get(svc)
+                    if backend:
+                        mutate(e, backend)
+                        hit = True
+                        break
+                if hit:
+                    break
+            st_errors, _ = check(broken) if hit else ([], [])
+            if not any(needle in e for e in st_errors):
+                print(f"FAIL: self-test - {label} not detected")
+                errors.append("self-test")
+            else:
+                print(f"self-test: {label} correctly detected")
 
     print(f"{len(state['models'])} modelNames, {len(state['keys'])} keys, "
           f"{len(state['backends'])} backends, "

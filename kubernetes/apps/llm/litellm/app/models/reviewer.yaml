@@ -7,6 +7,12 @@ apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:
   name: reviewer
+  annotations:
+    # Deliberate under-declaration: the backend serves 262144, this alias
+    # advertises less on purpose, so the validator's context mirror accepts
+    # the gap instead of failing it. Without this annotation any mismatch
+    # against the backend is an error.
+    cogito.dev/context-budget: deliberate
 spec:
   modelName: reviewer
   proxyRef: litellm
@@ -21,7 +27,13 @@ spec:
       - reasoning_effort
   info:
     supportsFunctionCalling: true
-    # Mirrors the backend's maxModelLen; validator asserts lockstep.
+    # NOT the backend ceiling. The backend serves 262144; this alias holds the
+    # coordination budget at 131072 on purpose, so fan-out stays cheap: the KV
+    # pool is ~275k tokens total, and agents that plan against a 262k window
+    # would each try to hold most of it. The full window lives on the
+    # Qwen/Qwen3.8-27B-FP8 passthrough alias, for interactive use.
+    # Gap from the backend is licensed by the cogito.dev/context-budget
+    # annotation above; the validator asserts this never EXCEEDS the backend.
     maxInputTokens: 131072
     maxOutputTokens: 16384
     extra:

@@ -64,12 +64,32 @@ spec:
     - name: shm
       mountPath: /dev/shm
   vllmConfig:
-    # Seats over ceiling (Idle Bench S2 / plan.md T1.1): the coordinator holds
-    # long context in the cloud, worker prompts are short and self-contained,
-    # so the KV pool is spent on concurrent seats. Was 262144 x 2 seats.
-    # maxInputTokens in litellm/app/models/qwen-3-8-fp8.yaml mirrors this
-    # number and MUST move with it (validator asserts).
-    maxModelLen: 131072
+    # Full ceiling, with the seats budget moved up a layer. The earlier
+    # "seats over ceiling" retune (Idle Bench S2 / plan.md T1.1) halved this
+    # to 131072 to buy concurrency, but the A1 sweep showed the two are not
+    # actually traded against each other: the KV pool is sized by weights and
+    # gpuMemoryUtilization, not by maxModelLen (277,007 tokens measured at the
+    # 262144 ceiling, 275,656 at 131072 with 8 seats - unchanged), and at real
+    # worker shapes (<=18k KV/seat) 8 full seats occupy ~144k of that pool.
+    # So the ceiling was free to give back, and it is restored here for the
+    # one caller that wants it: a human talking to the Qwen/Qwen3.8-27B-FP8
+    # alias directly.
+    #
+    # The 131072 budget did not disappear, it moved to the role aliases -
+    # worker and reviewer declare maxInputTokens 131072 against this backend
+    # on purpose, so coordinated agents keep planning against the smaller
+    # window (see their cogito.dev/context-budget annotation). Only the
+    # HF-named passthrough alias mirrors this number exactly, and the
+    # validator asserts that: aliases may declare LESS with the annotation,
+    # never more.
+    #
+    # What a full-length request actually costs, so it is chosen knowingly:
+    # 262144 tokens is ~95% of the pool (vLLM reports 1.05x concurrency at
+    # this ceiling), and prefill runs ~1k tok/s on unique text, so a full
+    # window is ~4 minutes of TTFT and will preempt-and-recompute the worker
+    # seats around it. Fine for an interactive session, which is why the
+    # long-context lane is the direct alias and not worker/reviewer.
+    maxModelLen: 262144
     tensorParallelSize: 2
     gpuMemoryUtilization: 0.90
     maxNumBatchedTokens: 8192

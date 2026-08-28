@@ -68,3 +68,20 @@ config — and `maxInputTokens` in particular must mirror the backend's
 `maxModelLen` (vLLM) or `contextSize` (llama.cpp). Auto-registration is the only
 thing that would collapse that duplication, and it is unusable here, so the
 mirroring is a standing maintenance cost rather than a bug to fix.
+
+The mirror is not strict equality in one direction. An alias may advertise
+**less** than its backend serves, which is how several aliases can share one
+backend at different context budgets: `Qwen/Qwen3.8-27B-FP8` publishes the full
+262144 ceiling for interactive use, while `worker` and `reviewer` publish 131072
+so coordinated fan-out plans against a window the ~275k-token KV pool can
+actually hold several of. That gap has to be declared with
+
+```yaml
+metadata:
+  annotations:
+    cogito.dev/context-budget: deliberate
+```
+
+or the validator treats it as the accident it usually is. Advertising **more**
+than the backend serves is always an error and has no annotation: the client is
+told it may send a prompt vLLM will refuse.

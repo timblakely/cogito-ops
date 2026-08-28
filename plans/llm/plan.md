@@ -24,7 +24,13 @@ pattern, `--language-model-only`, and the MTP token-count warning.
   no tier maps. Cloud coordinator delegates to role-aliased local workers.
 - **FP8 spanning both 3090s** (2026-08-21, by decision). The single-card W4A16
   A/B is deliberately deferred; if ever run, KV dtype must match across arms.
-- **Seats over ceiling:** `max-model-len 131072`, `max-num-seqs 6` (sweep toward 8).
+- **Seats over ceiling:** `max-num-seqs 8` (pinned by the A1 sweep). Amended
+  2026-08-28: the ceiling was not actually what bought the seats — the KV
+  pool is sized by weights and `gpuMemoryUtilization`, not `max-model-len`
+  (277,007 tokens at 262144, 275,656 at 131072), so `max-model-len` is back
+  at **262144** and the 131072 budget moved to the role aliases, which
+  advertise it via `maxInputTokens`. Seats are unchanged; the full window is
+  reachable only through the direct `Qwen/Qwen3.8-27B-FP8` alias.
 - **Role aliases stay in LiteLLM** (and additionally as role names in the harness).
   Jory's alias-layer deletion is the counter-experiment, not the model.
 - **Retrieval floor on kristeva's A380, never on preemptible hardware.**
@@ -106,7 +112,10 @@ workflow / pre-push hook.
 - [x] Assert: any `LiteLLMModel.apiBase` naming an in-cluster Service has a
       matching InferenceService/Deployment in the same rendered output.
 - [x] Assert: `maxInputTokens` on the qwen entry equals the backend's
-      `maxModelLen` (131072/131072 after T1.1).
+      `maxModelLen` (131072/131072 after T1.1; 262144/262144 after the
+      2026-08-28 ceiling restore). Role aliases may advertise **less** than
+      their backend when annotated `cogito.dev/context-budget: deliberate`
+      (worker/reviewer at 131072); advertising **more** is always an error.
 - [x] Assert: `coordinator` has **no** fallback entry (encodes the cache
       argument); every alias whose backend sits on a preemptible node **has** one.
 - [x] Assert: any declared fallback target is the **same underlying model** as
