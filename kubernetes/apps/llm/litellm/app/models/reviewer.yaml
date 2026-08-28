@@ -34,6 +34,12 @@ spec:
     # Qwen/Qwen3.8-27B-FP8 passthrough alias, for interactive use.
     # Gap from the backend is licensed by the cogito.dev/context-budget
     # annotation above; the validator asserts this never EXCEEDS the backend.
+    #
+    # Advisory, not a guard rail - verified 2026-08-28: a 257,600-token prompt
+    # sent to this alias was ACCEPTED and answered. LiteLLM publishes
+    # max_input_tokens as capability metadata for clients to plan against and
+    # enforces only the backend's real ceiling. A client that ignores it gets
+    # a four-minute prefill, not a 400.
     maxInputTokens: 131072
     maxOutputTokens: 16384
     extra:

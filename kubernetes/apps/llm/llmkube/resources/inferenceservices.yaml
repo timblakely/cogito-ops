@@ -83,12 +83,20 @@ spec:
     # validator asserts that: aliases may declare LESS with the annotation,
     # never more.
     #
+    # Measured on the 2026-08-28 restart (manifest-comment convention):
+    #   GPU KV cache size: 273,859 tokens
+    #   Maximum concurrency for 262,144 tokens per request: 1.04x
+    # 273,859 against 275,656 at the old 131072 ceiling - a 0.65% difference,
+    # which is the whole argument: the pool did not move, only the ceiling.
+    #
     # What a full-length request actually costs, so it is chosen knowingly:
-    # 262144 tokens is ~95% of the pool (vLLM reports 1.05x concurrency at
-    # this ceiling), and prefill runs ~1k tok/s on unique text, so a full
-    # window is ~4 minutes of TTFT and will preempt-and-recompute the worker
-    # seats around it. Fine for an interactive session, which is why the
-    # long-context lane is the direct alias and not worker/reviewer.
+    # 262144 tokens is ~96% of the pool, so one of them preempts-and-recomputes
+    # the worker seats around it, and prefill is the real wall. End-to-end
+    # proof on the same restart: a 257,600-token unique-text prompt answered
+    # correctly through the proxy in 390s cold (~660 tok/s prefill), 13s on the
+    # prefix-cache repeat. Four-plus minutes of TTFT is fine for a human in an
+    # interactive session and useless inside a 300s worker turn, which is
+    # exactly why the long-context lane is the direct alias and not the roles.
     maxModelLen: 262144
     tensorParallelSize: 2
     gpuMemoryUtilization: 0.90
