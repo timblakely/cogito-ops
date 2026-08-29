@@ -46,6 +46,10 @@ Notes:
   Gateway handles the WebSocket upgrade transparently.
 - Port 5900 (raw VNC, plaintext) is intentionally **not** exposed. Only the
   noVNC HTTP/WebSocket interface on port 6080 is routed.
+- **Clipboard.** noVNC clipboard works both ways (VNC→X and X→VNC). The
+  `X11VNC_AVOID_WINDOWS=never` env var removes x11vnc's 45s display-manager
+  grace period so the X clipboard is owned as soon as the first viewer
+  connects, rather than 45s after the first connection.
 
 ## Security hardening (future)
 

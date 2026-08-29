@@ -34,6 +34,8 @@ spec:
               ENABLE_VNC: "1"
               VNC_RESOLUTION: "1920x1080"
               VNC_BIND: "0.0.0.0"
+              # Own the X clipboard immediately on first viewer connect (skip x11vnc's 45s DM grace period).
+              X11VNC_AVOID_WINDOWS: "never"
             probes:
               liveness: &probes
                 enabled: true
