@@ -2,7 +2,7 @@
 # Per-role key (plan.md T1.2): the free lane. Scope [worker] plus no
 # cross-model fallbacks (locked decision) means this key literally cannot
 # spend money; the budget is a tripwire, not an allowance. maxParallelRequests
-# sits a notch above the backend's six seats so a runaway coordinator queues
+# matches the backend's eight seats (A1-pinned) so a runaway coordinator queues
 # at the proxy with clean per-key 429s instead of stacking silent timeouts in
 # vLLM's scheduler.
 apiVersion: litellm.home-operations.com/v1alpha1

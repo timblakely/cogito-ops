@@ -5,16 +5,20 @@
 # 32 of its 33 panels are provider-agnostic - they read the litellm_* families
 # the proxy exports once the prometheus callbacks are on - and only the
 # tier-breakdown pie chart encoded a model taxonomy. That panel was retargeted
-# to cogito's, which is two-way and much simpler than his: everything except
-# `planner-*` is free local compute behind the ModelRouter, and `planner-*` is
-# the only tier that spends money.
+# to cogito's, but only partly: it splits on `requested_model=~"planner-.*"`,
+# so its "OpenAI (paid)" slice is the planner aliases alone. Real spending is
+# wider than that slice - reviewer-escalated's K3 meters at $3/$15 per M and
+# still lands in "Local (LLMKube)", alongside the genuinely free local aliases
+# and the subscription seats, which meter at $0. Read the paid slice as
+# "planner-*", not as "everything that costs money"; `Spend by Model in Range`
+# is the panel that answers the money question without a taxonomy.
 #
 # His companion `litellm-economics` dashboard was deliberately NOT ported. It
 # amortises five flat-rate subscriptions into a CAD-denominated cost per token,
 # with dashboard variables for each plan's monthly price and an exchange rate.
-# cogito has no subscriptions - just a metered OpenAI key whose real prices
-# LiteLLM already knows - so that dashboard would be someone else's cost model
-# wearing our labels.
+# cogito's real-money paths are metered keys whose real prices LiteLLM already
+# knows, so that dashboard would be someone else's cost model wearing our
+# labels.
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaDashboard
 metadata:

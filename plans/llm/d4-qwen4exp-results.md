@@ -1,3 +1,13 @@
+> **SUPERSEDED by `d4-qwen4exp-results-v2.md` (2026-08-29).** The measurements
+> below are sound, but the bottleneck attribution is wrong: this document
+> assumes 3.3 GB/token and concludes decode is limited by "per-core random-block
+> DRAM streaming" with 1.5–2× of efficiency left on the table. Decode was
+> actually moving **7.2 GB/token** (measured with the Zen2 DF counters) at 73%
+> of the machine's real 46 GB/s ceiling — because `UD-Q4_K_XL` keeps every
+> dense tensor at Q8_0. Requantizing those locally gives **+44% decode and
+> +79% prefill**. §5's open question, §6's MTP retraction, §8's unattributed
+> 27B restart and §9.4's storage claim are all revised in v2.
+
 # D4 results — Qwen3.8-Flash-Next (qwen4exp) on kristeva and iggy
 
 2026-08-28/29 MDT. Full bench of `Qwen/Qwen3.8-Flash-Next` via unsloth

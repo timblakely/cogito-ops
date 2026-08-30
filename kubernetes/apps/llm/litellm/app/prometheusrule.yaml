@@ -64,8 +64,13 @@ spec:
             severity: warning
 
         # 403/429 from an upstream is the shape a spent quota or a rotated key
-        # takes. For cogito this watches the OpenAI key behind planner-gpt; the
-        # local tier cannot produce it, since the ModelRouter does not
+        # takes. The expression filters on status only, not on model, so it
+        # covers every seat that authenticates upstream: the metered keys
+        # (planner-*'s OpenAI key, reviewer-escalated's Moonshot key) and the
+        # subscription seats on the chatgpt/ provider (coordinator,
+        # coordinator-heavy, worker-escalated), whose OAuth token refreshes
+        # roughly every nine days and whose credit window can be exhausted.
+        # Only the local backend cannot produce it, since it does not
         # authenticate.
         - alert: LiteLLMAuthOrQuotaFailures
           expr: |-
@@ -80,11 +85,9 @@ spec:
           labels:
             severity: warning
 
-        # cogito-specific, with no counterpart in Jory's repo because he has no
-        # swap machinery. The ModelRouter answers 503 + Retry-After when a swap
-        # exceeds the pool's 1800s swapBudget. A few of these are normal during
-        # a cold load of DeepSeek or Laguna; a sustained rate means swaps are
-        # failing rather than merely being slow.
+        # A few 503s are normal during a backend rollout (a config change
+        # reloads the model for ~2-4 min); a sustained rate means the one
+        # always-on backend is down or stuck, not merely slow.
         - alert: LiteLLMLocalTierUnavailable
           expr: |-
             sum by (litellm_model_name) (
@@ -93,7 +96,7 @@ spec:
           for: 15m
           annotations:
             summary: >-
-              LiteLLM {{ $labels.litellm_model_name }} sustained 503s - ModelPool swaps
-              may be exceeding swapBudget rather than just running slow
+              LiteLLM {{ $labels.litellm_model_name }} sustained 503s - the local
+              backend is down or stuck in a rollout
           labels:
             severity: warning

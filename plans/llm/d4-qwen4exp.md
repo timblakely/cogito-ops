@@ -5,9 +5,10 @@ weights stay resident in RAM and whose n-gram table is backed by the local
 NVMe (page cache). D4 is the first candidate where the math plausibly works:
 6B active params at 4-bit ≈ 3–3.6 GB streamed per token.
 
-Status: **planned, not yet run** (2026-08-28). All runtime/storage risks
-verified; only the tok/s number is unknown. Plan of record lives here;
-results go to `bench-notes.md` as a D4 entry.
+Status: **run — PASS on iggy** (2026-08-29, 6.65 t/s decode after local
+requantization; kristeva FAIL at 4.6 t/s). This document is the pre-run plan
+of record; see the Results section at the bottom and
+`d4-qwen4exp-results-v2.md` for what was measured.
 
 ## The model (verified facts)
 
@@ -180,7 +181,22 @@ without the cliff.
   holds even at 6B active; record, delete lane, same-hour cleanup per D2
   precedent.
 
-## Results (2026-08-28) — FAIL, close: best warm 4.67 t/s (bar 5)
+## Results — see `d4-qwen4exp-results-v2.md` (2026-08-29): PASS, 6.65–6.88 t/s
+
+**Current status: PASS on iggy.** Requantizing the stock `UD-Q4_K_XL`'s dense
+Q8_0 tensors down to Q4_K/IQ4_NL (locally, no download) cuts per-token DRAM
+traffic from 7.2 GB to ~4.3 GB and yields **6.65 t/s decode / 52.95 t/s
+prefill** at `-t 8 -tb 12`, versus 4.61 / 29.51 for the stock file measured
+back-to-back. Artifact:
+`/var/mnt/local-hostpath/d4-work/Qwen3.8-Flash-Next-D4X-IQ4.gguf` on iggy
+(93.13 GiB). The RAM design in this plan is confirmed but by a different
+mechanism than assumed — llama.cpp repacks 65.5 GiB of matmul weights into
+*anonymous* memory (hard floor ~68 GiB), while the n-gram table stays
+file-backed and streams from NVMe for ~63 KB/token. A dedicated hot-n-gram RAM
+cache is unnecessary: the page cache already does it (a repeated prompt goes
+from 11,761 major faults to zero) and buys nothing on fresh text.
+
+### Original 2026-08-28 verdict (superseded) — FAIL, close: best warm 4.67 t/s
 
 **Full writeup: `d4-qwen4exp-results.md`** (both machines, all 10+
 experiment arms, bottleneck model, incidents). Bottom line: kristeva

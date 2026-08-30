@@ -61,26 +61,16 @@ spec:
       enabled: true
 
     llmkube:
-      # MUST STAY FALSE. Auto-registration mirrors every InferenceService that
-      # reaches Ready into a LiteLLMModel pointed at that service's own
-      # endpoint, and deletes it again on a terminal phase - which includes
-      # Stopped.
-      #
-      # Stopped is exactly where ten of cogito's eleven InferenceServices sit at
-      # any moment, because ModelPool owns residency and scales non-resident
-      # members to zero. Enabled here it would rewrite the catalogue on every
-      # swap, advertise only whichever model happens to be resident, and route
-      # clients straight past ModelRouter to a backend the pool can scale away
-      # mid-request.
-      #
-      # It would also destroy the client-facing names. Projection names models
-      # after the InferenceService, so the Hugging Face-style aliases Hermes,
-      # Open WebUI and pi are configured against would all change. Jory adopted
+      # MUST STAY FALSE. Projection names models after the InferenceService,
+      # so the Hugging Face-style alias clients are configured against would
+      # change, and one projected entry per backend cannot express the
+      # catalogue's shape - several role aliases over one backend, each with
+      # its own pinned effort, timeout and context budget. Jory adopted
       # projection upstream and recorded the cost in the same commit: "model
       # names are now deployment names, so swapping what backs a lane renames
       # the model and moves every caller with it."
       #
-      # cogito writes its LiteLLMModels by hand instead, pointed at the router.
+      # cogito writes its LiteLLMModels by hand instead (see litellm/app/models).
       autoRegister: false
 
     resources:

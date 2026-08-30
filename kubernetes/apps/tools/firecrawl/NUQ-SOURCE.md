@@ -10,3 +10,9 @@
 The derived file is upstream SQL with only lines beginning `ALTER SYSTEM ` and
 the `SELECT pg_reload_conf();` line removed. CNPG owns equivalent PostgreSQL
 configuration declaratively.
+
+## Update policy
+
+Treat the Firecrawl image digest and NuQ SQL as one versioned unit. Update
+them together, review the upstream schema diff, and test the change against a
+fresh CNPG bootstrap before promoting it.

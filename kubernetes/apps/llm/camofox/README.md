@@ -26,7 +26,7 @@ the same `userId` inherit the authenticated state automatically.
         -d '{"userId":"facebook","sessionKey":"default","url":"https://www.facebook.com"}'
     ```
 
-2. Open the noVNC viewer in a browser: `https://camofox-vnc.timblakely.com/vnc.html`
+2. Open the noVNC viewer in a browser: `https://browser.timblakely.com/vnc.html`
 
 3. Complete the login in the VNC desktop (handle MFA prompts, CAPTCHAs, etc.).
 
@@ -41,6 +41,10 @@ the same `userId` inherit the authenticated state automatically.
 
 Notes:
 
+- **Black desktop.** If the viewer shows a black screen, you likely opened it
+  before step 1 (`POST /tabs`). With no session/tab, the X desktop has no
+  browser window and renders black — create the tab first, then refresh the
+  viewer.
 - `MAX_SESSIONS=10` — close the login session when done to free a slot.
 - The noVNC WebSocket connects via `wss://` to the same 443 route; Envoy
   Gateway handles the WebSocket upgrade transparently.
@@ -50,6 +54,14 @@ Notes:
   `X11VNC_AVOID_WINDOWS=never` env var removes x11vnc's 45s display-manager
   grace period so the X clipboard is owned as soon as the first viewer
   connects, rather than 45s after the first connection.
+- **Viewport & fullscreen.** The desktop is a fixed `1920x1080` framebuffer
+  (`VNC_RESOLUTION`); the Xvfb/Firefox server resolution is **not** made
+  dynamic. noVNC only *scales* that feed client-side to fit the window. For
+  fit-to-viewport, open
+  `https://browser.timblakely.com/vnc.html?autoconnect=true&resize=scale`; for
+  full-screen use noVNC's on-screen fullscreen button (the browser Fullscreen
+  API). These are client-side options and depend on the noVNC build in the
+  image — recommended, not guaranteed.
 
 ## Security hardening (future)
 
@@ -68,4 +80,4 @@ To add a VNC password later:
 
 `unifi-dns` (external-dns unifi-webhook, `sources: [gateway-httproute]`)
 automatically creates CNAME records for both `camofox.timblakely.com` and
-`camofox-vnc.timblakely.com` from the HTTPRoute hostnames.
+`browser.timblakely.com` from the HTTPRoute hostnames.

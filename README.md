@@ -36,7 +36,7 @@ The cluster consists of a heterogeneous mix of hardware, strategically utilized 
 
 | Node | Type | Roles | Storage | Features |
 | :--- | :--- | :--- | :--- | :--- |
-| `iggy` | Control Plane | ML, High-CPU, High-Mem | 970 PRO (512GB) / 970 EVO (1TB) | **RTX 3090** |
+| `iggy` | Control Plane | ML, High-CPU, High-Mem | 970 PRO (512GB) / 970 EVO (1TB) | **2× RTX 3090** |
 | `kristeva` | Control Plane | High-CPU, High-Mem | SSD 850 (Boot) / 990 EVO Plus (2TB) | **Intel A380** |
 | `nuc-1` | Control Plane | Rook-Ceph, Core | PNY (1TB) / Crucial T500 (400GB) | **Thunderbolt Ring** |
 | `nuc-2` | Control Plane | Core | PNY (1TB) / Crucial T500 (400GB) | **Thunderbolt Ring** |

@@ -1,6 +1,6 @@
 # LLM stack research notes
 
-Source HTML for five published Artifacts. Each file redeploys to the URL below
+Source HTML for six published Artifacts. Each file redeploys to the URL below
 it — **pass that URL when republishing**, or a new artifact is created instead of
 the existing one being updated.
 
@@ -11,6 +11,7 @@ the existing one being updated.
 | `foreman-and-toolhive.html` | Foreman and ToolHive | https://claude.ai/code/artifact/3bbe6e0b-d8af-4a5f-a596-7e266605951e |
 | `the-idle-bench.html` | The Idle Bench | https://claude.ai/code/artifact/5a86a824-fbd0-4771-b5bc-cc7c1ff759ac |
 | `the-portable-coordinator.html` | The Portable Coordinator | https://claude.ai/code/artifact/04ec2542-d4ac-4b25-8ffe-9ff428379a73 |
+| `the-punch-list.html` | The Punch List | https://claude.ai/code/artifact/85ac2080-ee4b-4647-a696-315e49cd3023 |
 
 The documents cross-link to each other by those URLs, so a link that changes
 has to be updated in the other files as well.
@@ -44,6 +45,9 @@ deliberately last; nothing on the critical path waits for it).
   the durable workflow layer (approval gates, trusted check registry, bounded
   repair), the same roles mirrored into opencode and Zed, and what cogito's own
   pi setup should lift.
+- **The Punch List** — the glanceable status board over `plan.md`: what
+  shipped, what is parked with triggers, what waits on events. Last updated
+  2026-08-24, so it predates the 262k ceiling restore.
 
 ## Provenance and staleness
 

@@ -101,8 +101,8 @@ spec:
     tensorParallelSize: 2
     gpuMemoryUtilization: 0.90
     maxNumBatchedTokens: 8192
-    # fp8 is in VLLMConfig.quantization's enum, unlike the auto_round/inc
-    # quantizations the sibling Qwens need passed as raw args.
+    # fp8 is in VLLMConfig.quantization's enum, so it is typed here rather
+    # than passed as a raw extraArg.
     quantization: fp8
     kvCacheDtype: fp8_e4m3
     enablePrefixCaching: true
@@ -131,7 +131,6 @@ spec:
     # the KV pool. Flag verified present in vllm 0.25.1.
     - --language-model-only
     - --trust-remote-code
-    # Same parser pair as the other Qwen 3.8 builds.
     - --tool-call-parser
     - qwen3_xml
     - --reasoning-parser
@@ -139,9 +138,7 @@ spec:
     - --enable-auto-tool-choice
     - --default-chat-template-kwargs
     - '{"enable_thinking": true}'
-    # The repo ships mtp.safetensors, so this build does carry an MTP head
-    # after all - same speculative config as the INT8-MTP and AutoRound
-    # siblings.
+    # The repo ships mtp.safetensors, so this build carries an MTP head.
     # MTP=3, PINNED by A2's three arms (2026-08-23, bench-notes): per-seat
     # decode 89/62/44 tok/s (3/2/off) at conc 1; aggregate 122/115/106 at
     # conc 8. The model-card "2" and the vLLM acceptance warning both lose

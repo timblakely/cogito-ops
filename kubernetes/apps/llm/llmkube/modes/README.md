@@ -11,7 +11,7 @@ NORMAL; the modes exist only as something an operator applies on purpose.
 
 | Mode | GPU 0 | GPU 1 | Local serving |
 | --- | --- | --- | --- |
-| NORMAL | Qwen 3.8 FP8, TP=2 | ← same | full, 8 seats, MTP, 131k |
+| NORMAL | Qwen 3.8 FP8, TP=2 | ← same | full, 8 seats, MTP, 262k |
 | SPLIT | single-card 4-bit Qwen | dev pod | degraded, 1-2 seats |
 | DARK | dev pod | dev pod | none |
 
@@ -95,10 +95,10 @@ ignores this model's MTP block entirely (no speculative decoding), and
 
 ## Known consequence of leaving the catalogue alone
 
-LiteLLM keeps advertising `maxInputTokens: 131072` in every mode, because the
-catalogue is not touched. In SPLIT the backend serves 48k (A) or 16k (B), so a
-prompt longer than that fails at the backend instead of being refused by the
-proxy. That is accepted: the alternative is editing the catalogue on every
+LiteLLM keeps advertising its per-alias budgets (262144 on the passthrough
+alias, 131072 on worker/reviewer) in every mode, because the catalogue is not
+touched. In SPLIT the backend serves 48k (A) or 16k (B), so a prompt longer
+than that fails at the backend instead of being refused by the proxy. That is accepted: the alternative is editing the catalogue on every
 switch, which is exactly the drift this design exists to avoid. `worker` and
 `reviewer` carry no fallback by standing decision, so in DARK they simply fail
 and the coordinator escalates after reading the failure.

@@ -5,11 +5,11 @@
 # local storage. A Model CR with a pvc:// source stages nothing on its own -
 # it is a declaration, and the copy to the hot tier happens on first serve.
 #
-# The pair is the A/B the LLM plan left open (plans/llm/plan.md, "the
-# single-card W4A16 A/B is deliberately deferred"): one 4-bit checkpoint that
-# maximises retained intelligence per byte, and one whose weight bits the
-# serving engine consumes through a 4-bit-storage kernel. They are staged by
-# cache-prime-single-card.yaml.
+# The pair was the single-card A/B, decided 2026-08-24 (../modes/README.md):
+# A (the GGUF) cleared both bars and is the degraded SPLIT mode; B loads and
+# then crashes in vLLM 0.25.1's compressed-tensors W8A16-FP8 path on this
+# checkpoint's quantised lm_head. Both stay staged by
+# cache-prime-single-card.yaml so the modes keep a modelRef to point at.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: Model
 metadata:

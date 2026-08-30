@@ -93,17 +93,12 @@ spec:
               QDRANT_URI: http://qdrant.llm.svc.cluster.local:6333
               ENABLE_OPENAI_API: "true"
               OPENAI_API_BASE_URL: https://litellm.${DOMAIN_NAME}/v1
-              # This endpoint is LiteLLM, which enforces auth - the old
-              # llm-proxy ignored it, so an unauthenticated request now gets a
-              # 401. The credential is a LiteLLM virtual key, declared as a
+              # The credential is a LiteLLM virtual key, declared as a
               # LiteLLMVirtualKey in the litellm app: the operator asks the
               # proxy's admin API for it, writes it here, and a PushSecret
               # files it into 1Password so a rebuild recovers the same key.
-              #
-              # That replaces the hand-made `open-webui-litellm` Secret this
-              # used to read, which existed only in the cluster and in the
-              # proxy's database. The $25/30d budget and the local-tier model
-              # scope now live in that CR rather than in the admin UI.
+              # The $25/30d budget and the local-tier model scope live in
+              # that CR.
               OPENAI_API_KEY:
                 secretKeyRef:
                   name: litellm-key-open-webui

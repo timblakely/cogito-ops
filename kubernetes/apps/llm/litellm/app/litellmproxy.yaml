@@ -1,14 +1,5 @@
 ---
-# The proxy. Replaces the berriai HelmRelease that used to own this Deployment,
-# Service and ConfigMap, and with it the 330-line inline model_list - the
-# catalogue now lives as one LiteLLMModel per alias under ./models.
-#
-# It ran as `litellm-next` beside the chart release first, on the same CNPG
-# database, and was renamed here once it had been shown to render a config
-# identical to the chart's (14/14 models, byte-for-byte, the only difference
-# being store_model_in_db below) and to serve real traffic: tool calls
-# dispatching, reasoning_effort reaching vLLM at both low and xhigh, and
-# model_info round-tripping unchanged for every model.
+# The proxy. The catalogue lives as one LiteLLMModel per alias under ./models.
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMProxy
 metadata:
@@ -21,13 +12,10 @@ spec:
   # reason for moving off a hand-written model_list in the first place.
   applyMode: file
 
-  # Same digest the chart resolves today, so this is not also an upgrade. The
-  # -database variant is REQUIRED rather than cosmetic: it runs `prisma migrate
-  # deploy` at boot, and LiteLLMProxy has no migrationJob equivalent - there is
-  # no database or migration field on the CRD at all. The chart's separate
-  # migration Job disappears with the HelmRelease, so migrations have to come
-  # from the image or they stop happening. DISABLE_SCHEMA_UPDATE, which the
-  # chart sets to hand that job to the Job, is deliberately not carried over.
+  # The -database variant is REQUIRED rather than cosmetic: it runs `prisma
+  # migrate deploy` at boot, and LiteLLMProxy has no migrationJob equivalent -
+  # there is no database or migration field on the CRD at all, so migrations
+  # have to come from the image or they stop happening.
   image: ghcr.io/berriai/litellm-database:1.97.0@sha256:4b3226f4ccd7793d7dca6862d3681604d7ab640d8d6285be6061fd48514e6e71
 
   # Unchanged from the chart. One replica is the deliberate position: every

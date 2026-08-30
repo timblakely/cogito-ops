@@ -572,3 +572,113 @@ not DRAM ceiling), confirming the cross-check's hypothesis. NUMA design
   `rm -rf /var/mnt/local-hostpath/d4-qwen4exp` (talos exec or helper pod)
   if not wanted — 187 GiB of 1.7 TB free.
 - All d4 pods deleted (d4-bench, d4-download, d4-download-q3).
+
+## 2026-08-29 · D4 v2: qwen4exp on iggy — PASS, 6.65 t/s decode / 52.95 t/s prefill
+
+Re-ran D4 from scratch on iggy. The 2026-08-28 entry's numbers hold but its
+**bottleneck model was wrong**, and fixing it produced a large speedup.
+Full writeup: `plans/llm/d4-qwen4exp-results-v2.md` (v1 kept, banner added).
+
+**What v1 got wrong.** It assumed 3.3 GB/token, computed 16.5 GB/s effective,
+and concluded "per-core random-block DRAM streaming wall" with 1.5–2× of
+efficiency unaccounted for. Two measurements kill that:
+
+- A purpose-written microbenchmark (`bench/membw.c`, random 6.4 MB blocks =
+  the MoE access shape) sustains **45–46 GB/s** at 4+ threads on iggy and
+  **26.8 GB/s from one thread**. THP makes no difference. No per-core wall.
+- The Zen2 DF counters (`amd_df/dram_channel_data_controller_{0,1}/`, 64 B
+  each, calibrated against the microbenchmark) show decode pulling
+  **34.0 GB/s at ~4.7 t/s = 7.2 GB/token**, i.e. **73% of the real ceiling**.
+  llama.cpp was already near the wall; there was never 2× to recover.
+
+**Why 7.2 and not 3.3 GB/token: the quant mix.** `UD-Q4_K_XL` keeps every
+*dense* tensor at **Q8_0** — `attn_qkv` (36 SSM layers), `attn_gate`,
+`ssm_out`, `attn_q/o/k/v` (12 full-attn layers), the four `hc_*`
+hyper-connection projections, the shared expert and the LM head: 4.2 B active
+params, **4.4 GB/token, 72% of all traffic**. They are only 8.6 GiB of the
+103.7 GiB file (the 512-expert FFNs dominate the file but are read 10/512 at a
+time), so they are invisible if you size by file. This also explains v1's
+"Q3_K_XL was no faster" tell, which v1 read as evidence of a compute bound:
+the whole UD ladder shrinks only the routed experts.
+
+**Fix: requantize locally, no download.** `llama-quantize --allow-requantize
+--pure` copies tensors already at the target type, so only the ~9 GiB of Q8_0
+is re-encoded (from Q8_0, so ≈ quantizing from BF16). Two builds on iggy's
+second NVMe (`/var/mnt/local-hostpath/d4-work/`):
+
+- **D4S** (dense→Q4_K, LM head Q6_K): 100.31 GiB, 4.87 BPW, 2.3 min.
+- **D4X** (+ `ffn_down_exps`→IQ4_NL, LM head→Q4_K, i.e. every hot tensor on a
+  *repacked* kernel): **93.13 GiB, 4.52 BPW**, 16.8 min.
+
+Row length decides what is legal: k-quants need `ne[0] % 256 == 0`, and
+`ffn_down_exps` is `[640,…]` / `hc_*_up` is `[320,…]` — which is why unsloth
+used Q5_1 there. IQ4_NL is the fast legal choice. `ffn_gate_inp` cannot be
+quantized (llama.cpp forces F32 routers) — 252 MB/token floor.
+
+**Result** (paired, same session, back-to-back, `OMP_PROC_BIND=spread`):
+
+| model | pp2048 t8 | tg64 t8 | pp2048 t12 | tg64 t12 |
+| --- | --- | --- | --- | --- |
+| UD-Q4_K_XL | 21.41 | 4.61 | 29.51 | 4.86 |
+| **D4X** | 37.20 | **6.65** | **52.95** | 6.51 |
+
+**+44% decode, +79% prefill.** Best observed 6.88 / 53.14. Quality smoke
+passes (17-sheep → 9; 17×23 → 391; Canberra; valid cron parser).
+
+**RAM — the design is right, the mechanism isn't what the plan assumed.**
+llama.cpp's CPU **repack** buffer type copies every `mul_mat` tensor out of
+the mmap into **anonymous** memory: `CPU_REPACK model buffer size =
+67060 MiB`, `RssAnon 66.3 GiB`. That is pinned and unreclaimable — dropping
+the cgroup limit to 62 GiB **OOM-killed the pod**; ~68 GiB is a hard floor.
+The PLE/n-gram table is never repacked (only `ggml_get_rows` touches it), so
+it stays file-backed and streams from NVMe. Measured: **~12.5 major faults and
+~63 KB of NVMe per token**, and a repeated prompt (`cache_prompt:false`) goes
+from 11,761 major faults to **exactly zero** — the page cache already *is* the
+hot-n-gram cache. But it cannot be usefully pre-warmed (320 M rows): sweeping
+the limit 72/80/88 GiB moved resident file cache 3.8→18.9 GiB and changed the
+fault count by <0.2% and throughput not at all. **Size the pod ~72 Gi request
+/ 80 Gi limit and stop.**
+
+**Negative results worth not repeating:** THP (no effect on raw bandwidth, and
+forcing `enabled=always` converts 43–59 GiB of the repack buffer to 2 MiB
+pages with no throughput change); SMT; `-ub` tuning (default 512 is best);
+b10679 built from source with `GGML_OPENMP=OFF` (decode identical, prefill 11%
+*worse* than the IntelLLVM/libiomp5 image — PR #27880's graph-split reduction
+is not a decode lever here); two models in one `llama-bench` process (OOMs).
+
+**Thread placement reverses with the bottleneck.** On the stock model binding
+hurt (4.11 bound vs 4.93 unbound). On D4X, off the bandwidth wall, it helps and
+cuts variance: pp2048 42.62 ± 3.51 unbound → 49.11 ± 1.91 with
+`OMP_PROC_BIND=close`; `spread` gives the best decode (6.75). Re-test tuning
+knobs after changing the bottleneck.
+
+**Cluster findings.**
+
+- **v1 §8's unattributed 27B restart is Talos's userspace OOM controller.**
+  `dmesg` shows `runtime.OOMController` SIGKILLing whole cgroups under the
+  bench's memory pressure; the four victim UIDs are `llm/qwen-3-8-fp8`,
+  `cluster-infra/dcgm-exporter`, `home-infra/immich-db-3` and
+  `llm/open-webui-db-2` — **all BestEffort**. `qwen-3-8-fp8` has no requests at
+  all, so the most important GPU workload is the first OOM victim. Give it
+  requests/limits. After capping the bench pod at 86 Gi, zero further node OOM
+  events.
+- **v1 §9.4 is wrong**: iggy's `/var/mnt/local-hostpath` exists and is mounted
+  (`/dev/nvme1n1p1`, 931 GB, **475 GB free**); its openebs PVs are live. Put D4
+  artifacts there, not on nvme0n1p4 (the Talos EPHEMERAL partition, 116 GB
+  free — a ~95 GiB write would cross kubelet's `nodefs.available<10%`).
+- `kubectl patch pod … --subresource resize` (k8s 1.34) changes a running
+  pod's memory limit with no restart — the right tool for page-cache sweeps.
+- Do **not** set `LD_LIBRARY_PATH=/app` (clobbers oneAPI → `libsvml.so` not
+  found); prepend instead.
+- 27B co-tenancy at `-t 8`: 27B ran 72–76 t/s before, 65–66 during, **62–63
+  after** — the downward drift is its own, so t8 has no distinguishable cost,
+  while the CPU lane still did 6.42 t/s decode / 51.7 t/s prefill alongside it.
+  v1's t16 ban stands.
+
+**Concurrency reversal.** v1 §E3's "4-way batching → zero aggregate gain" was
+measured at the bandwidth wall and does not survive. `llama-batched-bench` on
+D4X (`-npp 512 -ntg 128 -t 8 -tb 12`): B=1 → 6.78 t/s decode / 54.25 prefill;
+B=2 → 8.99 (+33%); **B=4 → 11.75 t/s aggregate (+73%) / 57.79 prefill**. The
+dense tensors are read once per batch, so they amortise across sequences. Run
+the lane with `-np 4`. This also withdraws v1 §6's MTP retraction, which was
+derived from the E3 result.

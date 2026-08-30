@@ -8,32 +8,22 @@ that used to live in the HelmRelease.
 
 litellm-operator can mirror LLMKube `InferenceService` objects into
 `LiteLLMModel` resources automatically (`llmkube.autoRegister`). It is off, and
-must stay off, for two independent reasons:
-
-1. **The pool.** Projection creates a model when an InferenceService reaches
-   `Ready` and deletes it on a terminal phase, which includes `Stopped`. Ten of
-   the eleven services here are `Stopped` at any moment, because `ModelPool`
-   owns residency and scales non-resident members to zero. Auto-registration
-   would rewrite the catalogue on every swap and advertise only the resident
-   model.
-2. **The addresses.** Projection points `apiBase` at each InferenceService's own
-   Service, bypassing `ModelRouter` — handing clients a backend the pool can
-   scale away mid-request.
-
-There is a third cost, which is what upstream hit: projected models are named
-after the InferenceService, so the client-facing names become deployment names.
-`modelName` here is an arbitrary string, which is what lets the catalogue keep
-advertising the Hugging Face-style identifiers Hermes, Open WebUI and pi are
-already configured against.
+must stay off: projected models are named after the InferenceService, so the
+client-facing names become deployment names, and one projection per backend
+cannot express this catalogue's shape — several aliases over one backend, each
+with its own pinned effort, timeout and context budget. `modelName` here is an
+arbitrary string, which is what lets the catalogue keep advertising the Hugging
+Face-style identifier clients are already configured against.
 
 ## The two tiers
 
-**Local** — every entry points at `cogito-llm-router-router-proxy`, and the
-string after `openai/` is the `RouterBackend` name, which `BackendNameMatch`
-dispatches on. It must stay byte-identical to the backend; a mismatch fails as
-an unmatched route rather than an error. Backend names are constrained to
-`^[a-z0-9][a-z0-9-]{0,62}$`, which is why they are slugs and the client-facing
-`modelName` is not.
+**Local** — every entry points directly at its InferenceService's Service
+(there is no router in between; with one always-on backend there is nothing to
+dispatch across), and the string after `openai/` is the served model name. On
+the vLLM-served Qwen aliases that string must stay byte-identical to the
+backend's `--served-model-name` or the request 404s at the backend. The
+llama.cpp lanes (embedder, reranker, vision) launch without a served-model
+name at all and ignore the model field, so theirs is a label rather than a key.
 
 Local models declare `input_cost_per_token: 0` / `output_cost_per_token: 0`.
 Not cosmetic: LiteLLM raises "This model isn't mapped yet" inside spend
@@ -83,9 +73,8 @@ So the rule is:
 
 ## Adding or changing a model
 
-A new local model is a `Model` + `InferenceService` in `llmkube/resources/`, a
-`RouterBackend` on the `ModelRouter`, a `ModelPool` member, and a file here.
-The catalogue is still declared twice — once as serving config, once as proxy
+A new local model is a `Model` + `InferenceService` in `llmkube/resources/`
+and a file here. The catalogue is still declared twice — once as serving config, once as proxy
 config — and `maxInputTokens` in particular must mirror the backend's
 `maxModelLen` (vLLM) or `contextSize` (llama.cpp). Auto-registration is the only
 thing that would collapse that duplication, and it is unusable here, so the

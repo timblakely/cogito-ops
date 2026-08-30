@@ -6,12 +6,22 @@ model produced a real speedup. Raw context in `bench-notes.md`.
 
 ## TL;DR
 
-| | v1 best (iggy) | v2 best (iggy) | change |
+Controlled paired comparison — same machine state, back-to-back `llama-bench`
+processes, `OMP_PROC_BIND=spread OMP_PLACES=cores`:
+
+| | stock UD-Q4_K_XL | **D4X** | change |
 | --- | --- | --- | --- |
-| decode, warm | 5.06 t/s (t8) | **6.88 t/s (t8)** | **+36%** |
-| prefill (pp2048, t12) | 33.9 t/s | **53.1 t/s** | **+57%** |
-| bytes/token | assumed 3.3 GB | **measured 7.2 GB → 4.3 GB** | −40% |
-| model on disk | 103.7 GiB | 93.1 GiB | −10% |
+| decode tg64 @ t8 | 4.61 t/s | **6.65 t/s** | **+44%** |
+| decode tg64 @ t12 | 4.86 t/s | 6.51 t/s | +34% |
+| prefill pp2048 @ t12 | 29.51 t/s | **52.95 t/s** | **+79%** |
+| prefill pp2048 @ t8 | 21.41 t/s | 37.20 t/s | +74% |
+| bytes/token | **7.2 GB (measured)** | ~4.3 GB | −40% |
+| on disk | 103.68 GiB | 93.13 GiB | −10% |
+
+Best observed across the session: **6.88 t/s** single-stream decode and
+**53–58 t/s** prefill, rising to **11.75 t/s aggregate decode at 4 concurrent
+streams** (§14) — versus v1's reported best of 5.06 t/s. The 5 t/s bar is
+cleared by 38% single-stream and 2.3× under concurrency.
 
 **What v1 got wrong.** v1 assumed 3.3 GB/token (6 B active × 4 bits) and
 therefore computed 16.5 GB/s effective = "32% of a 51 GB/s bus", concluding
@@ -117,8 +127,13 @@ generic `vec_dot`. So moving a tensor to Q4_K/IQ4_NL is a double win.
 
 Recorded so it is not re-litigated:
 
-- **Transparent huge pages** — no effect on raw bandwidth at any thread count
-  (§1). Not TLB-bound; do not build tmpfs/hugetlbfs weight staging.
+- **Transparent huge pages** — tested twice, negative both times. No effect on
+  raw bandwidth at any thread count (§1); and setting the host to
+  `transparent_hugepage/enabled=always`, which does convert 43–59 GiB of the
+  66 GiB repack buffer to 2 MiB pages (`AnonHugePages` in `smaps_rollup`),
+  leaves prefill at 38.9–44.7 t/s and decode at 6.06–6.23 t/s — i.e. inside
+  the noise of the `madvise` default. Not TLB-bound; do not build
+  tmpfs/hugetlbfs weight staging. (Host left on `madvise`.)
 - **Thread affinity / OpenMP tuning** — every variant was worse than the
   default. t12 baseline 4.93 t/s; `OMP_PROC_BIND=close OMP_PLACES=cores`
   4.11; adding `KMP_BLOCKTIME=0` 2.81. The barrier time is threads waiting on
@@ -186,11 +201,25 @@ Recipe notes learned the hard way:
 All numbers `llama-bench`, image `server-intel-b10666`, warm page cache,
 `-r 3` for tg / `-r 2` for pp.
 
+Unbound (default placement), three-way:
+
 | model | on disk | BPW | tg64 t6 | **tg64 t8** | tg64 t12 | pp2048 t12 |
 | --- | --- | --- | --- | --- | --- | --- |
 | UD-Q4_K_XL (stock) | 103.68 GiB | 5.03 | 4.38 | 4.86 | 4.93 | 33.86 |
 | D4S | 100.31 GiB | 4.87 | — | 6.41 | 6.32 | 44.49 |
 | **D4X** | **93.13 GiB** | **4.52** | 6.78 | **6.88** | 6.78 | **53.14** |
+
+Bound (`OMP_PROC_BIND=spread OMP_PLACES=cores`), stock vs D4X back-to-back in
+one session — this is the trustworthy before/after, since it removes the
+cross-run drift discussed in §10:
+
+| model | pp2048 t8 | tg64 t8 | pp2048 t12 | tg64 t12 |
+| --- | --- | --- | --- | --- |
+| UD-Q4_K_XL | 21.41 ± 0.56 | 4.61 ± 0.01 | 29.51 ± 0.12 | 4.86 ± 0.19 |
+| **D4X** | 37.20 ± 0.40 | **6.65 ± 0.44** | **52.95 ± 0.16** | 6.51 ± 0.40 |
+
+(Binding *helps* D4X and *hurts* the stock model — see §10. Stock's unbound
+pp2048 t12 is 33.86; bound it drops to 29.51.)
 
 Prefill thread curve on D4X (pp2048): t8 41.36, **t12 53.14**, t16 48.14,
 t24 46.57. Decode is flat from 6 to 12 threads (6.78–6.88) — it saturates at
@@ -320,3 +349,154 @@ the plan's estimate:
    further Talos OOM events in 2.2 h and the 27B lane has not restarted.
 3. **Cold start is repack-bound, not IO-bound**: ~60–70 s to load, most of it
    spent repacking 65.5 GiB, not reading it.
+
+## 9. The n-gram table: does a hot cache in RAM buy anything?
+
+Direct answer: **the "hot n-grams in RAM" stretch goal already works, needs no
+mechanism, and is worth almost nothing on fresh text.**
+
+Same ~840-token prompt, three times, `cache_prompt: false` so the prompt is
+genuinely re-processed each pass (D4X, t8, `majflt` from `/proc/PID/stat`
+field 12, NVMe bytes from `/proc/diskstats`):
+
+| pass | major faults | NVMe read | prefill | decode |
+| --- | --- | --- | --- | --- |
+| 1 — rows cold | 11,761 | 59.5 MB | 38.26 t/s | 6.06 t/s |
+| 2 — rows now cached | **0** | 0.1 MB | 47.46 t/s | 6.35 t/s |
+| 3 | **0** | 0.0 MB | 40.03 t/s | 6.15 t/s |
+| fresh prompts (q9/q10/q11) | 7.2–9.1 k | 33–41 MB | 38–43 t/s | 6.00–6.08 t/s |
+
+Three conclusions:
+
+1. **The faults really are the PLE table**, and the kernel page cache is
+   already a perfect hot-n-gram cache — a repeated prompt drops from 11,761
+   major faults to exactly zero. Nothing needs to be built.
+2. **Cold streaming is cheap.** ~12.5 faults and ~63 KB of NVMe per token,
+   and the cold→warm throughput difference (38.3 → 47.5/40.0 prefill,
+   6.06 → 6.35/6.15 decode) is inside this machine's run-to-run spread.
+3. **You cannot usefully pre-warm it.** The table is 320 M rows; any text the
+   model has not seen misses regardless of how much RAM you give it. Sweeping
+   the cgroup limit over 72 / 80 / 88 GiB moved the resident file cache from
+   3.8 to 18.9 GiB and changed the fault count by **<0.2%** (p0: 11,193 /
+   11,172 / 11,185) and throughput not at all.
+
+So: give the pod the ~68 GiB floor plus headroom and stop. RAM above that is
+spent on leftover load-time file pages, not on anything the model reads again.
+
+## 10. Thread placement, and this box's run-to-run variance
+
+Prefill on iggy is **bimodal per server process**: identical binary, model and
+prompts give either ~39 t/s or ~52 t/s, stable for the life of that process
+(±0.1 within a `llama-bench` run, ±7 between runs). Decode barely moves
+(6.0 vs 6.6), which points at compute/L3 rather than DRAM. Ruled out by
+measurement: thermal (clocks hold 3.8–4.0 GHz at 78–82 °C throughout, `k10temp`),
+page-cache size (§9), and huge pages (§4).
+
+It is **thread placement**. The default is unbound, so the scheduler is free to
+migrate the 12 workers across four CCXs mid-run. Binding fixes the mean and
+shrinks the spread (D4X, `-t 12`, `-r 3`):
+
+| placement | pp2048 | tg32 |
+| --- | --- | --- |
+| default (unbound) | 42.62 ± **3.51** | 6.12 ± 0.07 |
+| `OMP_PROC_BIND=close OMP_PLACES=cores` | **49.11 ± 1.91** | 6.27 ± 0.01 |
+| `OMP_PROC_BIND=spread OMP_PLACES=cores` | 47.79 ± 4.12 | **6.75 ± 0.11** |
+| `KMP_AFFINITY=granularity=fine,scatter` | 43.72 ± 0.42 | 6.47 ± 0.27 |
+| `taskset -c 0-11` | 46.80 ± 4.55 | 4.84 ± 0.90 |
+
+`close` is best for prefill, `spread` best for decode; `taskset` is actively
+harmful to decode (it constrains the pool without telling OpenMP about it).
+
+**This reverses the §4 finding, and the reversal is the interesting part.** On
+the *stock* model, binding was much worse (decode 4.11 bound vs 4.93 unbound).
+That model was pinned to the DRAM ceiling at 73% utilisation, where threads are
+waiting on memory and placement cannot help. Once bytes/token dropped by 40%
+and the machine came off the bandwidth wall, placement started to matter.
+**Re-test tuning knobs after changing the bottleneck** — the stock-model answer
+did not survive.
+
+## 11. Recommended lane shape
+
+```yaml
+# image: ghcr.io/ggml-org/llama.cpp:server-intel-b10666
+#        @sha256:394b0fd7a15f527480c6c9e6ed0a75d5bc5861cfc89b4b8cc6628cd14fc52d3f
+# preamble (required on GPU-less hosts): mv /app/libggml-sycl.so{,.disabled}
+env:
+  - {name: OMP_PROC_BIND, value: spread}   # 'close' if prefill matters more
+  - {name: OMP_PLACES,    value: cores}
+args: [-m, /models/Qwen3.8-Flash-Next-D4X-IQ4.gguf,
+       -t, "8",          # decode saturates at 6-8 cores
+       -tb, "12",        # prefill peaks at 12; 16/24 are worse
+       -c, "8192",       # -ub default 512 is optimal, do not tune
+       -np, "4"]         # +73% aggregate decode, free - see S14
+resources:
+  requests: {cpu: "8", memory: 72Gi}
+  limits:   {memory: 80Gi}       # NEVER near node total - see §7
+```
+
+Model lives on iggy's second NVMe:
+`/var/mnt/local-hostpath/d4-work/Qwen3.8-Flash-Next-D4X-IQ4.gguf` (93.13 GiB).
+
+Rationale for each number is in §6 (threads), §8 (memory floor), §9 (why not
+more memory), §10 (placement).
+
+## 12. What is left on the table
+
+Ranked by expected value, for whoever picks this up next:
+
+1. **Nothing large.** After the requantization, decode moves ~4.3 GB/token at
+   ~28–31 GB/s against a 46 GB/s ceiling. A perfect implementation would reach
+   perhaps 8–9 t/s; the remaining traffic is irreducible without further
+   quality loss.
+2. **~250 MB/token is the F32 MoE router** (`ffn_gate_inp`), which llama.cpp
+   refuses to quantize. An upstream change allowing Q8_0 routers would be worth
+   ~5%.
+3. **~226 MB/token is SSM state** (36 layers × 6144 × 128 F32, read and
+   written every token). Irreducible without a quantized recurrent state.
+4. **A Q3_K variant** of the experts and dense tensors would reach ~3.5 GB/token
+   (≈8 t/s) at real quality cost. Not attempted; the 5 t/s bar is already
+   cleared by 38%.
+5. **MTP** remains unimplemented for qwen4exp. v1 retracted it as a lever
+   using the E3 batching result; that retraction was made under the wrong
+   bottleneck model and is now **withdrawn** — §14 shows batch width is worth
+   +73% on this machine, so speculative decoding should help if it lands.
+
+## 13. Co-tenancy with the 27B GPU lane
+
+v1 §8 banned `t16` because it cost `qwen-3-8-fp8` 20% (67.4 → 53.4 t/s) and
+left `t8` unmeasured. Measured now, 3 × 256-token completions per phase:
+
+| phase | 27B t/s | llama lane |
+| --- | --- | --- |
+| before (llama idle) | 72.3 / 76.3 / 75.4 | — |
+| **during llama D4X `-t 8 -tb 12`** | 65.3 / 66.3 / 64.7 | gen 6.42 t/s, pp 51.7 t/s |
+| after (llama stopped) | 62.5 / 63.1 / 63.0 | — |
+
+**The "after" numbers are lower than the "during" numbers**, so the 27B lane
+was drifting downward on its own across the window and the ~12% apparent cost
+is not attributable to the CPU lane. The defensible statement is: at `-t 8`
+there is **no impact on the 27B lane distinguishable from its own 62–76 t/s
+run-to-run spread**, and the CPU lane still turns in 6.42 t/s decode / 51.7 t/s
+prefill while the GPU lane is serving. `t16` remains banned on v1's evidence.
+
+## 14. Concurrency: v1's "batching buys nothing" is now false
+
+v1 §E3 ran 4-way continuous batching on the stock model and found zero
+aggregate gain, which it used as the basis for retracting MTP as a lever. That
+was measured at 73% of the DRAM ceiling, where there is no spare bandwidth for
+extra batch width to spend. `llama-batched-bench` on D4X (`-npp 512 -ntg 128`,
+`-t 8 -tb 12`, `OMP_PROC_BIND=spread`):
+
+| batch | prefill t/s | **decode t/s (aggregate)** | end-to-end t/s |
+| --- | --- | --- | --- |
+| 1 | 54.25 | 6.78 | 22.61 |
+| 2 | 56.46 | **8.99** (+33%) | 27.46 |
+| 4 | 57.79 | **11.75** (+73%) | 32.40 |
+
+The dense tensors — still ~55% of per-token traffic even after D4X — are read
+once per *batch*, not once per sequence, so they amortise. This is the largest
+remaining lever on the box and it costs nothing: run the lane with `-np 4`.
+It also means v1's MTP retraction should be reversed.
+
+**So the honest ceiling for this lane is 6.65–6.88 t/s single-stream and
+~11.8 t/s aggregate at 4 concurrent streams, with prefill 53–58 t/s.**
