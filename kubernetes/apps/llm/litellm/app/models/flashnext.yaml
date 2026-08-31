@@ -35,3 +35,14 @@ spec:
     extra:
       input_cost_per_token: 0
       output_cost_per_token: 0
+      # Verified both directions on the live lane: the model emits <think>
+      # blocks by default, and chat_template_kwargs {"enable_thinking": false}
+      # suppresses them (and is ~6% faster - 10.5 vs 9.9 t/s on a code prompt,
+      # since the reasoning tokens are the slower prose-shaped ones).
+      #
+      # No thinking_levels key on purpose: worker/reviewer publish one because
+      # their alias PINS reasoning_effort server-side, and thinking_levels
+      # answers "what can a client actually choose". This alias pins nothing and
+      # no reasoning_effort level has been verified against the qwen4exp chat
+      # template, so the only honest client-side choice here is on or off.
+      supports_reasoning: true

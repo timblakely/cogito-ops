@@ -53,6 +53,17 @@ spec:
     kubernetes.io/hostname: iggy
   resources:
     gpu: 2
+    # CPU/memory requests exist to buy QoS class, not because vLLM needs much
+    # host RAM - the weights live in VRAM and the two TP workers hold ~2.6 GiB
+    # RSS each. Without them this pod is BestEffort, and Talos v1.13's userspace
+    # OOM controller picks BestEffort cgroups FIRST: it SIGKILLed this lane four
+    # times under page-cache pressure during the D4 bench
+    # (d4-qwen4exp-results-v2.md S7). Now that flashnext holds ~69 GiB of
+    # anonymous memory on the same node full time, that pressure is permanent,
+    # so the cluster's most important GPU workload must stop being its first
+    # OOM victim.
+    cpu: "2"
+    memory: 10Gi
   endpoint:
     port: 8000
   extraVolumes:
