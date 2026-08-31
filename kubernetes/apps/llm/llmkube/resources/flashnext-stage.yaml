@@ -1,0 +1,161 @@
+---
+# Stages everything the flashnext lane needs onto iggy's second NVMe
+# (/var/mnt/local-hostpath, nvme1n1p1). Idempotent: every step is skipped when
+# its artifact already exists, so Flux re-applying this Job is a no-op and the
+# ~5 min build never perturbs serving.
+#
+# Why a build Job at all: MTP speculative decoding for qwen4exp is in no
+# published llama.cpp image. It lives in two OPEN DRAFT PRs - ggml-org/llama.cpp
+# #27836 (the NextN/MTP draft head) and #28097 (draft-head-only GGUFs, plus a fix
+# where -md re-loaded the 93 GiB target) - plus one local edit for the tensor
+# layout the draft pack actually ships. Delete this Job and pin an ordinary
+# image the moment that lands in a `server-intel` tag.
+#
+# Measured worth of all this: 6.9 -> 10.9 t/s decode. See
+# plans/llm/d4-qwen4exp-results-v3.md.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flashnext-build-patch
+data:
+  # Same edit as plans/llm/bench/qwen4exp-mtp-trunk-mixer-fallback.patch, applied
+  # as an exact string replacement rather than a unified diff on purpose: a diff
+  # carries significant trailing whitespace on blank context lines, which does
+  # not survive a YAML block scalar. This form fails loudly instead of silently
+  # half-applying.
+  #
+  # What it fixes: #28097's MTP graph accepts a head mixer named
+  # blk.N.nextn.hc_head_* or nextn.shared_head_norm. The dzannotti draft pack
+  # ships it under the TRUNK names output_hc_{norm,down,up} (-> model.hc_head_*),
+  # so the server aborts at qwen4exp.cpp "MTP block missing head mixer tensors".
+  # This adds model.hc_head_* to the fallback chain, ahead of the block's
+  # INTERNAL hc_ffn_* projections - those are not an output mixer and picking
+  # them would quietly produce a bad draft head rather than an error.
+  apply-patch.py: |
+    import sys
+    p = "src/models/qwen4exp.cpp"
+    s = open(p).read()
+    old = (
+        "    ggml_tensor * head_norm = layer.nextn.hc_head_norm ? layer.nextn.hc_head_norm : layer.nextn.shared_head_norm;\n"
+        "    ggml_tensor * head_down = layer.nextn.hc_head_down ? layer.nextn.hc_head_down : layer.hc_ffn_down;\n"
+        "    ggml_tensor * head_up   = layer.nextn.hc_head_up   ? layer.nextn.hc_head_up   : layer.hc_ffn_up;\n"
+    )
+    new = (
+        "    // some draft packs ship the trunk-named mixer (output_hc_*) inside the draft file\n"
+        "    // instead of per-block nextn.hc_head_*; prefer that over the ffn fallback\n"
+        "    ggml_tensor * head_norm = layer.nextn.hc_head_norm ? layer.nextn.hc_head_norm :\n"
+        "                              layer.nextn.shared_head_norm ? layer.nextn.shared_head_norm : model.hc_head_norm;\n"
+        "    ggml_tensor * head_down = layer.nextn.hc_head_down ? layer.nextn.hc_head_down :\n"
+        "                              model.hc_head_down ? model.hc_head_down : layer.hc_ffn_down;\n"
+        "    ggml_tensor * head_up   = layer.nextn.hc_head_up   ? layer.nextn.hc_head_up   :\n"
+        "                              model.hc_head_up   ? model.hc_head_up   : layer.hc_ffn_up;\n"
+    )
+    if new in s:
+        print("patch already applied")
+        sys.exit(0)
+    if old not in s:
+        sys.exit("FATAL: patch anchor not found in %s - upstream moved, re-derive the edit" % p)
+    open(p, "w").write(s.replace(old, new, 1))
+    print("patched", p)
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flashnext-stage-v1
+  annotations:
+    kustomize.toolkit.fluxcd.io/force: Enabled
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 604800
+  template:
+    spec:
+      restartPolicy: Never
+      nodeName: iggy
+      priorityClassName: llmkube-batch
+      automountServiceAccountToken: false
+      containers:
+        - name: stage
+          # The oneAPI image is both the build toolchain (icx/icpx 2025.3) and
+          # the runtime the lane serves from - same compiler, same libiomp5.
+          image: ghcr.io/ggml-org/llama.cpp:server-intel-b10666@sha256:394b0fd7a15f527480c6c9e6ed0a75d5bc5861cfc89b4b8cc6628cd14fc52d3f
+          workingDir: /app
+          env:
+            - {name: NVIDIA_VISIBLE_DEVICES, value: "void"}
+            # PR #28097's branch already contains #27836's three commits, so it
+            # is the only ref to fetch. Pinned by commit: both PRs are drafts and
+            # force-push freely, and a silently different head would build
+            # something we never measured.
+            - {name: MTP_BRANCH, value: "qwen4exp-draft-head-fix"}
+            - {name: MTP_COMMIT, value: "3fb9b9870"}
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              DEST=/work/flashnext
+              mkdir -p "$DEST/bin"
+
+              # 1. Target weights: the D4 v2 local requantization
+              #    (plans/llm/d4-qwen4exp-results-v2.md S5). NOT reproducible
+              #    from this Job - 16.8 min of IQ4_NL search over a 103 GiB
+              #    input - so fail loudly rather than serve nothing.
+              TARGET=/work/d4-work/d4s/Qwen3.8-Flash-Next-D4X-IQ4.gguf
+              if [ ! -f "$TARGET" ]; then
+                echo "FATAL: $TARGET missing - rebuild it per d4-qwen4exp-results-v2.md S5"
+                exit 1
+              fi
+              # Hardlink, not copy: same XFS filesystem, so this is instant and
+              # costs no extra space against the 93.13 GiB file.
+              [ -f "$DEST/Qwen3.8-Flash-Next-D4X-IQ4.gguf" ] || \
+                ln "$TARGET" "$DEST/Qwen3.8-Flash-Next-D4X-IQ4.gguf"
+
+              # 2. MTP draft head (2.44 GiB).
+              DRAFT="$DEST/Qwen3.8-Flash-Next-MTP-Q4_K_M.gguf"
+              [ -f "$DRAFT" ] || curl -sSLf -o "$DRAFT" \
+                https://huggingface.co/dzannotti/Qwen3.8-Flash-Next-MTP-GGUF/resolve/main/Qwen3.8-Flash-Next-MTP-Q4_K_M.gguf
+
+              # 3. Patched llama.cpp, built with the image's own oneAPI compiler.
+              #    GCC costs ~13% of prefill on this box for no decode gain
+              #    (d4-qwen4exp-results-v3.md S1).
+              if [ ! -x "$DEST/bin/llama-server" ]; then
+                export PATH=/opt/intel/oneapi/compiler/2025.3/bin:$PATH
+                SRC=/work/flashnext/src
+                rm -rf "$SRC"
+                git clone --filter=blob:none --no-checkout https://github.com/ggml-org/llama.cpp.git "$SRC"
+                cd "$SRC"
+                git remote add dhfix https://github.com/TheArchitectit/llama.cpp.git
+                git fetch --depth=50 dhfix "$MTP_BRANCH"
+                git checkout -B mtpfix "dhfix/$MTP_BRANCH"
+                HEAD_SHORT="$(git rev-parse --short=9 HEAD)"
+                if [ "$HEAD_SHORT" != "$MTP_COMMIT" ]; then
+                  echo "FATAL: branch head moved; expected $MTP_COMMIT got $HEAD_SHORT"
+                  echo "Re-verify the patch and the benchmark, then bump MTP_COMMIT and this Job's name."
+                  exit 1
+                fi
+                python3 /patch/apply-patch.py
+                cmake -S . -B build \
+                  -DCMAKE_BUILD_TYPE=Release \
+                  -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx \
+                  -DGGML_NATIVE=ON -DGGML_OPENMP=ON \
+                  -DLLAMA_CURL=OFF -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF \
+                  -DGGML_CCACHE=OFF
+                # 12 of 24 threads: this can run while the lane serves.
+                cmake --build build -j 12 --target llama-server llama-bench
+                install -m 0755 build/bin/llama-server build/bin/llama-bench "$DEST/bin/"
+                cp -a build/bin/*.so* "$DEST/bin/"
+                cd / && rm -rf "$SRC"
+              fi
+
+              echo "--- staged ---"
+              ls -la "$DEST" "$DEST/bin"
+          volumeMounts:
+            - {name: hostpath, mountPath: /work}
+            - {name: patch, mountPath: /patch, readOnly: true}
+          resources:
+            requests: {cpu: "8", memory: 4Gi}
+            limits: {memory: 16Gi}
+      volumes:
+        - name: hostpath
+          hostPath: {path: /var/mnt/local-hostpath, type: Directory}
+        - name: patch
+          configMap: {name: flashnext-build-patch}

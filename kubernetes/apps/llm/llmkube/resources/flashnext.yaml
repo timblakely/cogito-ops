@@ -1,0 +1,176 @@
+---
+# Qwen3.8-Flash-Next on iggy's CPU: 125B total / ~6B active, served entirely
+# from system RAM with the 51B n-gram (PLE) table streaming from NVMe.
+#
+# Measured on this exact configuration (plans/llm/d4-qwen4exp-results-v3.md):
+#   10.6-10.9 t/s decode on code, 9.5 on prose, 41 t/s prefill, ~105 s cold start.
+# That is 1.6x the same lane without MTP, and it clears the >10 t/s bar this
+# lane was asked for.
+#
+# Three things here are deliberate and load-bearing:
+#
+#  1. parallelSlots: 1, NOT 4. MTP and continuous batching compete for the same
+#     memory bandwidth rather than composing - one MTP stream (10.47 t/s
+#     aggregate) matches four unspeculated streams (10.52) at 4x the per-stream
+#     rate, and MTP at 4 slots is 12% SLOWER than no speculation at 4 slots
+#     (v3 S4). This lane serves a coordinator that dispatches one job and waits.
+#  2. A hostPath binary, not the image's. See flashnext-stage.yaml: MTP for
+#     qwen4exp exists only in two open draft PRs. The image is still pinned and
+#     still supplies the oneAPI runtime the binary links against.
+#  3. pMin 0.75 is the load-bearing speculation knob, not nDraftMax. Dropping it
+#     to 0 collapses draft acceptance from 0.86 to 0.60 and costs 13%; nDraftMax
+#     2/3/4 are all within noise of each other (v3 S2).
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: flashnext-weights
+spec:
+  capacity:
+    # Nominal. The real contents are a 93.13 GiB target and a 2.44 GiB draft
+    # head on a 932 GB filesystem with no quota.
+    storage: 120Gi
+  accessModes:
+    - ReadWriteOnce
+  # Retain: the target GGUF is a local requantization that costs 16.8 min of
+  # IQ4_NL search to rebuild and cannot be re-downloaded. Deleting the claim
+  # must never delete it.
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  local:
+    path: /var/mnt/local-hostpath/flashnext
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [iggy]
+  claimRef:
+    namespace: llm
+    name: flashnext-weights
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: flashnext-weights
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # Empty string (not unset) opts out of dynamic provisioning so this binds to
+  # the static PV above rather than the default class.
+  storageClassName: ""
+  volumeName: flashnext-weights
+  resources:
+    requests:
+      storage: 120Gi
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: flashnext
+spec:
+  # A prefix, not a single object: files[0] is the target handed to the runtime
+  # and files[1] is the MTP draft head the InferenceService names below. pvc://
+  # sources are mounted read-only at /model-source with no copy, which is why a
+  # 93 GiB model can live here without a second copy in the hot-tier cache.
+  source: pvc://flashnext-weights
+  files:
+    - Qwen3.8-Flash-Next-D4X-IQ4.gguf
+    - Qwen3.8-Flash-Next-MTP-Q4_K_M.gguf
+  format: gguf
+  # D4X: every hot tensor moved onto a repacked kernel. 4.52 BPW overall - the
+  # stock UD-Q4_K_XL kept its dense tensors at Q8_0 and moved 7.2 GB/token
+  # against this box's 46 GB/s ceiling (v2 S2/S5).
+  quantization: IQ4_NL
+  hardware:
+    # cpu is INTENTIONAL. Both of iggy's 3090s are held by qwen-3-8-fp8, and
+    # this model needs ~66 GB of weights resident regardless.
+    accelerator: cpu
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: InferenceService
+metadata:
+  name: flashnext
+spec:
+  modelRef: flashnext
+  runtime: llamacpp
+  # Pinned amd64 digest. Still the newest published server-intel tag as of
+  # 2026-08-31 (b10679/b10690/b10700/b10720 all 404 on GHCR). Used here for its
+  # oneAPI 2025.3 runtime - libiomp5 and libsvml - which the staged binary links
+  # against; the image's own llama-server is not what runs.
+  image: ghcr.io/ggml-org/llama.cpp:server-intel-b10666@sha256:394b0fd7a15f527480c6c9e6ed0a75d5bc5861cfc89b4b8cc6628cd14fc52d3f
+  replicas: 1
+  nodeSelector:
+    kubernetes.io/hostname: iggy
+  # Wrapped in a shell only to prepend to the image's LD_LIBRARY_PATH rather
+  # than replace it - setting LD_LIBRARY_PATH=/opt/flashnext-bin outright breaks
+  # the oneAPI lookup and llama-server dies on libsvml.so (v2 S7). $0 is the
+  # placeholder so the operator's generated args land in "$@".
+  command:
+    - /bin/bash
+    - -c
+    - exec env LD_LIBRARY_PATH=/opt/flashnext-bin:$LD_LIBRARY_PATH /opt/flashnext-bin/llama-server "$@"
+    - llama-server
+  env:
+    # spread is best for decode, close for prefill; unbound is bimodal on this
+    # box (39 vs 52 t/s prefill for the life of a process) because the scheduler
+    # migrates workers across four CCXs mid-run (v2 S10).
+    - name: OMP_PROC_BIND
+      value: spread
+    - name: OMP_PLACES
+      value: cores
+    # Required by the MTP draft head: upstream's quantized-KV rotation conflicts
+    # with qwen4exp attention.
+    - name: LLAMA_ATTN_ROT_DISABLE
+      value: "1"
+    # A CPU lane on a GPU node: do not let the device plugin hand it a 3090.
+    - name: NVIDIA_VISIBLE_DEVICES
+      value: void
+  contextSize: 8192
+  parallelSlots: 1
+  jinja: true
+  # The 512 default is optimal here; 256/1024 lose ~1% and 2048 loses 6% (v2 S4).
+  batchSize: 512
+  uBatchSize: 512
+  speculativeDecoding:
+    type: draft-mtp
+    draftModel: Qwen3.8-Flash-Next-MTP-Q4_K_M.gguf
+    nDraftMax: 3
+    pMin: 0.75
+  extraArgs:
+    # Decode saturates at 6-8 cores and t16 measurably costs the 27B GPU lane;
+    # prefill peaks at 12 and is worse at 16/24 (v2 S6, S13).
+    - --threads
+    - "8"
+    - --threads-batch
+    - "12"
+  extraVolumes:
+    - name: flashnext-bin
+      hostPath:
+        path: /var/mnt/local-hostpath/flashnext/bin
+        type: Directory
+  extraVolumeMounts:
+    - name: flashnext-bin
+      mountPath: /opt/flashnext-bin
+      readOnly: true
+  resources:
+    cpu: "8"
+    # llama.cpp repacks 65.5 GiB of matmul weights out of the mmap into
+    # ANONYMOUS memory, plus ~2.6 GiB for the draft head: a ~69 GiB hard floor,
+    # not a page-cache target. 62 GiB OOM-killed the container outright in v2.
+    # Requests only - llmkube sets no memory limit, which is what we want here:
+    # a cgroup limit turns the reclaimable page-cache half into an OOM kill.
+    memory: 76Gi
+  # This is a serving lane, not a bench pod: the metal-agent watchdog must not
+  # stop it under memory pressure.
+  evictionProtection: true
+  endpoint:
+    port: 8080
+  probeOverrides:
+    startup:
+      httpGet:
+        path: /health
+        port: 8080
+      # ~105 s to load: most of it repacking 65.5 GiB, not reading it.
+      periodSeconds: 10
+      failureThreshold: 60
