@@ -69,14 +69,13 @@ kind: Model
 metadata:
   name: flashnext
 spec:
-  # A prefix, not a single object: files[0] is the target handed to the runtime
-  # and files[1] is the MTP draft head the InferenceService names below. pvc://
-  # sources are mounted read-only at /model-source with no copy, which is why a
-  # 93 GiB model can live here without a second copy in the hot-tier cache.
-  source: pvc://flashnext-weights
-  files:
-    - Qwen3.8-Flash-Next-D4X-IQ4.gguf
-    - Qwen3.8-Flash-Next-MTP-Q4_K_M.gguf
+  # A single object, NOT source-prefix + files[]: the operator rejects the
+  # multi-file form on a pvc:// source ("multi-file staging requires a
+  # HuggingFace repo or s3:// source"), so the draft head is its own Model
+  # below and the InferenceService joins them with draftModelRef. pvc:// sources
+  # are mounted read-only at /model-source with no copy, which is why a 93 GiB
+  # model can live here without a second copy in the hot-tier cache.
+  source: pvc://flashnext-weights/Qwen3.8-Flash-Next-D4X-IQ4.gguf
   format: gguf
   # D4X: every hot tensor moved onto a repacked kernel. 4.52 BPW overall - the
   # stock UD-Q4_K_XL kept its dense tensors at Q8_0 and moved 7.2 GB/token
@@ -85,6 +84,21 @@ spec:
   hardware:
     # cpu is INTENTIONAL. Both of iggy's 3090s are held by qwen-3-8-fp8, and
     # this model needs ~66 GB of weights resident regardless.
+    accelerator: cpu
+---
+# The NextN/MTP draft head: 2.44 GiB, 34 tensors, one nextn block at index 48.
+# A separate Model CR only because pvc:// sources cannot carry a file set; it
+# lives in the same PV beside the target and is joined to it by the
+# InferenceService's speculativeDecoding.draftModelRef.
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: flashnext-mtp
+spec:
+  source: pvc://flashnext-weights/Qwen3.8-Flash-Next-MTP-Q4_K_M.gguf
+  format: gguf
+  quantization: Q4_K_M
+  hardware:
     accelerator: cpu
 ---
 apiVersion: inference.llmkube.dev/v1alpha1
@@ -134,7 +148,7 @@ spec:
   uBatchSize: 512
   speculativeDecoding:
     type: draft-mtp
-    draftModel: Qwen3.8-Flash-Next-MTP-Q4_K_M.gguf
+    draftModelRef: flashnext-mtp
     nDraftMax: 3
     pMin: 0.75
   extraArgs:
