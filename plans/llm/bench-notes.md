@@ -861,6 +861,14 @@ advertises. Prompt-prefix caching is what makes long sessions viable in practice
 - an incrementally-growing conversation only prefills the delta - so the long
 timeout covers the cold-miss case, not the common one.
 
+**End-to-end proof at the depth that failed.** Through LiteLLM, cold prefix:
+streaming ~10.4k prompt -> 141 s to first token, 146 s total, correct answer;
+non-streaming 11,784-token prompt -> 268 s, correct answer. One earlier
+non-streaming attempt returned a gateway 503 ("connection termination"), but
+that was self-inflicted - the litellm pod was being rolled by the operator
+mid-request as my own timeout change reconciled. Envoy is not implicated: its
+BackendTrafficPolicy already sets `requestTimeout: 0s`.
+
 **Rollout papercut.** llmkube's Deployment uses the default RollingUpdate
 (25% surge). With a 76Gi request on a 127.6 GiB node, two copies do not fit, so
 a pod-template change leaves the new pod `Pending` forever. Delete the old pod
