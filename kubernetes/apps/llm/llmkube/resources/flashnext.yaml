@@ -140,7 +140,17 @@ spec:
     # A CPU lane on a GPU node: do not let the device plugin hand it a 3090.
     - name: NVIDIA_VISIBLE_DEVICES
       value: void
-  contextSize: 8192
+  # 131072, not the 8192 this lane shipped with. 8k was the BENCH number - it
+  # is what the throughput arms used - and it is useless for real work: an
+  # agentic repo-overview turn blew past it on its first tool result (8907
+  # tokens) and LiteLLM returned a 400. The backend serves 262144 natively;
+  # 131072 is the practical ceiling here because PREFILL, not KV memory, is the
+  # binding constraint - at ~41 t/s a full 131k window is ~53 min of prompt
+  # processing, and 262k would be nobody's idea of a usable turn.
+  # KV cost is minor by comparison: 12 of 48 layers are full-attention with
+  # head_count_kv 2 and 256-wide k/v, so ~24 KiB/token -> ~3 GiB at 131072
+  # against a ~69 GiB anonymous floor.
+  contextSize: 131072
   parallelSlots: 1
   jinja: true
   # The 512 default is optimal here; 256/1024 lose ~1% and 2048 loses 6% (v2 S4).

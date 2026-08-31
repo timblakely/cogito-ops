@@ -27,10 +27,14 @@ spec:
       # pod spends ~105 s repacking 65.5 GiB of weights before it answers.
       timeout: 900
   info:
-    # Mirrors the backend's contextSize exactly (--ctx-size 8192), so the
+    # Mirrors the backend's contextSize exactly (--ctx-size 131072), so the
     # catalogue validator's context check passes without a
     # cogito.dev/context-budget exemption. Raise both together or not at all.
-    maxInputTokens: 8192
+    #
+    # This is a DIRECT alias, so it advertises the backend ceiling rather than a
+    # reduced coordination budget - the worker/reviewer split does not apply to
+    # a lane that serves one stream at a time.
+    maxInputTokens: 131072
     maxOutputTokens: 4096
     extra:
       input_cost_per_token: 0
