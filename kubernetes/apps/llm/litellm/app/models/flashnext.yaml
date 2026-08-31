@@ -1,0 +1,37 @@
+---
+# Qwen3.8-Flash-Next on iggy's CPU (plans/llm/d4-qwen4exp-results-v3.md).
+# 125B total / ~6B active at 4.52 BPW, weights and KV resident in system RAM,
+# the 51B n-gram table streaming from NVMe, with the NextN/MTP draft head doing
+# the speculation. ~10.9 t/s decode on code, 9.5 on prose, 41 t/s prefill.
+#
+# ONE SEAT, deliberately. The backend runs --parallel 1 because MTP and
+# continuous batching compete for the same memory bandwidth rather than
+# composing (v3 S4). A second concurrent request queues behind the first rather
+# than running beside it, so this alias must NOT back a fan-out role - it is a
+# single-stream lane for one interactive or coordinator-driven job at a time.
+# Zero cost: iggy electrons.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: flashnext
+spec:
+  modelName: flashnext
+  proxyRef: litellm
+  params:
+    model: openai/flashnext
+    apiBase: http://flashnext.llm.svc.cluster.local:8080/v1
+    apiKey: not-needed
+    additional:
+      # A patience lane by construction: 4096 output tokens at ~10 t/s is
+      # ~7 minutes before the first retry should even be considered, and a cold
+      # pod spends ~105 s repacking 65.5 GiB of weights before it answers.
+      timeout: 900
+  info:
+    # Mirrors the backend's contextSize exactly (--ctx-size 8192), so the
+    # catalogue validator's context check passes without a
+    # cogito.dev/context-budget exemption. Raise both together or not at all.
+    maxInputTokens: 8192
+    maxOutputTokens: 4096
+    extra:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
