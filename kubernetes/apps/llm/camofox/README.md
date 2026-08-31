@@ -41,11 +41,15 @@ the same `userId` inherit the authenticated state automatically.
 
 Notes:
 
-- **Black desktop.** If the viewer shows a black screen, you likely opened it
-  before step 1 (`POST /tabs`). With no session/tab, the X desktop has no
-  browser window and renders black — create the tab first, then refresh the
-  viewer.
-- `MAX_SESSIONS=10` — close the login session when done to free a slot.
+- **Black desktop.** With no session/tab the X desktop has no browser window
+  and renders black, which is indistinguishable from a failed connection in
+  the viewer. The `vnc-tab-seeder` container keeps a `vnc-default` tab open
+  whenever `activeTabs` drops to 0, so the desktop should always show
+  *something*. If it is still black, check that the seeder is running
+  (`kubectl logs -n llm deploy/camofox -c vnc-tab-seeder`) and that
+  `curl -s https://camofox.timblakely.com/health` reports `activeTabs >= 1`.
+- `MAX_SESSIONS=11` — ten user slots plus the one permanently held by the
+  seeder. Close the login session when done to free a slot.
 - The noVNC WebSocket connects via `wss://` to the same 443 route; Envoy
   Gateway handles the WebSocket upgrade transparently.
 - Port 5900 (raw VNC, plaintext) is intentionally **not** exposed. Only the
@@ -81,3 +85,28 @@ To add a VNC password later:
 `unifi-dns` (external-dns unifi-webhook, `sources: [gateway-httproute]`)
 automatically creates CNAME records for both `camofox.timblakely.com` and
 `browser.timblakely.com` from the HTTPRoute hostnames.
+
+## Troubleshooting: "can't connect"
+
+A black viewer and a genuinely broken connection look the same in noVNC, so
+confirm which one you have before changing anything. This proves the whole
+path — Envoy → websockify → x11vnc → Xvfb — independently of the browser:
+
+```bash
+curl -sSi --http1.1 --max-time 15 \
+    -H 'Connection: Upgrade' -H 'Upgrade: websocket' \
+    -H 'Sec-WebSocket-Version: 13' -H 'Sec-WebSocket-Protocol: binary' \
+    -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' \
+    https://browser.timblakely.com/websockify
+```
+
+A healthy stack answers `101 Switching Protocols` followed by the RFB banner
+`RFB 003.008`. If you get that, the transport is fine and a black or failed
+viewer is a *desktop* problem (no tab open) — check `/health` for
+`activeTabs`.
+
+Note that `--http1.1` is required: over HTTP/2 the same request is not a
+WebSocket handshake at all, and websockify answers `404`. That 404 is
+expected and is **not** evidence of a broken route. Real browsers are
+unaffected — Envoy advertises `SETTINGS_ENABLE_CONNECT_PROTOCOL = 0`, so they
+fall back to an HTTP/1.1 connection for the WebSocket on their own.

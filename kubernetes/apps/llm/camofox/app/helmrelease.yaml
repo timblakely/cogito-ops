@@ -29,7 +29,8 @@ spec:
               tag: 1.8.0
             env:
               CAMOFOX_CRASH_REPORT_ENABLED: "false"
-              MAX_SESSIONS: "10"
+              # +1 slot permanently occupied by the vnc-default seeder session (see vnc-tab-seeder below).
+              MAX_SESSIONS: "11"
               MAX_TABS_PER_SESSION: "5"
               ENABLE_VNC: "1"
               VNC_RESOLUTION: "1920x1080"
@@ -55,6 +56,39 @@ spec:
                 memory: 1Gi
               limits:
                 memory: 3Gi
+          # With no active session the X desktop has no browser window and renders black,
+          # which looks identical to a failed VNC connection. This container seeds a default
+          # tab via the API whenever activeTabs drops to 0, so it never touches or recycles
+          # user tabs; it restores the visible window after the last session is closed and
+          # after a pod restart. Same image as the app container (already on the node, and
+          # it ships curl); containers share the pod netns, so localhost:9377 reaches the app.
+          vnc-tab-seeder:
+            image:
+              repository: ghcr.io/jo-inc/camofox-browser
+              tag: 1.8.0
+            command:
+              - sh
+              - -c
+              - |
+                until curl -sf http://localhost:9377/health >/dev/null; do sleep 2; done
+                while :; do
+                  if curl -sf http://localhost:9377/health | grep -q '"activeTabs":0,'; then
+                    curl -sf -X POST http://localhost:9377/tabs \
+                      -H 'content-type: application/json' \
+                      -d '{"userId":"vnc-default","sessionKey":"default","url":"https://duckduckgo.com"}' \
+                      >/dev/null 2>&1 || true
+                  fi
+                  sleep 15
+                done
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities: { drop: ["ALL"] }
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 64Mi
     service:
       app:
         forceRename: camofox
@@ -94,5 +128,7 @@ spec:
     persistence:
       data:
         existingClaim: camofox
-        globalMounts:
-          - path: /root/.camofox
+        advancedMounts:
+          camofox:
+            app:
+              - path: /root/.camofox
