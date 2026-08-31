@@ -1,0 +1,22 @@
+diff --git a/src/models/qwen4exp.cpp b/src/models/qwen4exp.cpp
+index 18a6bddca..355736d0a 100644
+--- a/src/models/qwen4exp.cpp
++++ b/src/models/qwen4exp.cpp
+@@ -491,9 +491,14 @@ llama_model_qwen4exp::graph_mtp::graph_mtp(const llama_model & model, const llm_
+ 
+     // files shipped without the head's own mixer use the nextn norm and the
+     // block's ffn projections instead
+-    ggml_tensor * head_norm = layer.nextn.hc_head_norm ? layer.nextn.hc_head_norm : layer.nextn.shared_head_norm;
+-    ggml_tensor * head_down = layer.nextn.hc_head_down ? layer.nextn.hc_head_down : layer.hc_ffn_down;
+-    ggml_tensor * head_up   = layer.nextn.hc_head_up   ? layer.nextn.hc_head_up   : layer.hc_ffn_up;
++    // some draft packs ship the trunk-named mixer (output_hc_*) inside the draft file
++    // instead of per-block nextn.hc_head_*; prefer that over the ffn fallback
++    ggml_tensor * head_norm = layer.nextn.hc_head_norm ? layer.nextn.hc_head_norm :
++                              layer.nextn.shared_head_norm ? layer.nextn.shared_head_norm : model.hc_head_norm;
++    ggml_tensor * head_down = layer.nextn.hc_head_down ? layer.nextn.hc_head_down :
++                              model.hc_head_down ? model.hc_head_down : layer.hc_ffn_down;
++    ggml_tensor * head_up   = layer.nextn.hc_head_up   ? layer.nextn.hc_head_up   :
++                              model.hc_head_up   ? model.hc_head_up   : layer.hc_ffn_up;
+     GGML_ASSERT(head_norm && head_down && head_up && "MTP block missing head mixer tensors");
+ 
+     int sections[4];

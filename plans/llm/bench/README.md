@@ -1,7 +1,8 @@
 # D4 CPU-inference bench tools
 
 Small, reusable tools written for the D4 (`qwen4exp`) CPU-serving work on
-iggy. See `../d4-qwen4exp-results-v2.md` for the measurements they produced.
+iggy. See `../d4-qwen4exp-results-v2.md` and `../d4-qwen4exp-results-v3.md`
+for the measurements they produced.
 
 - **`membw.c`** — DRAM bandwidth under the MoE decode access pattern: N threads
   each read randomly-chosen ~6.4 MB contiguous blocks out of a large anonymous
@@ -28,6 +29,19 @@ iggy. See `../d4-qwen4exp-results-v2.md` for the measurements they produced.
 
   ```
   python3 tensors.py model-0000{1,2,3,4}-of-00004.gguf   # needs bash, not sh
+  ```
+
+- **`qwen4exp-mtp-trunk-mixer-fallback.patch`** — one-hunk patch against
+  llama.cpp PR #28097 (`TheArchitectit/llama.cpp qwen4exp-draft-head-fix`).
+  That PR teaches the qwen4exp MTP graph to accept draft-head-only GGUFs whose
+  head mixer is `blk.N.nextn.hc_head_*` or `nextn.shared_head_norm`; the
+  `dzannotti/Qwen3.8-Flash-Next-MTP-GGUF` pack instead ships it under the trunk
+  names `output_hc_{norm,down,up}` (→ `model.hc_head_*`), so the server aborts
+  at `qwen4exp.cpp:497`. The patch adds `model.hc_head_*` to the fallback chain,
+  ahead of the block's internal `hc_ffn_*` projections. Worth sending upstream.
+
+  ```
+  git apply qwen4exp-mtp-trunk-mixer-fallback.patch
   ```
 
 ## Measuring real DRAM traffic on Zen2

@@ -682,3 +682,84 @@ B=2 → 8.99 (+33%); **B=4 → 11.75 t/s aggregate (+73%) / 57.79 prefill**. The
 dense tensors are read once per batch, so they amortise across sequences. Run
 the lane with `-np 4`. This also withdraws v1 §6's MTP retraction, which was
 derived from the E3 result.
+
+## 2026-08-31 · D4 v3: engine sweep on iggy — MTP lands, 10.9 t/s, vLLM ruled out
+
+Full writeup: `d4-qwen4exp-results-v3.md`. Same box, same D4X model, same
+RAM/NVMe design as v2 — this pass sweeps engines and versions rather than
+quantization. Bench pod `d5-bench` (hostPath `/var/mnt/local-hostpath`, 8 CPU /
+72 Gi req, 80 Gi limit); the 27B GPU lane stayed up with zero restarts and no
+Talos OOM events.
+
+**Mainline moved nothing; the compiler did.** `b10666` is still the newest
+published `server-intel` tag (b10679/b10690/b10700/b10720 all 404 on GHCR).
+`llama-bench` on D4X, `-p 2048 -n 64 -r 3`, `OMP_PROC_BIND=spread`:
+
+| build | pp2048 t8 | tg64 t8 | pp2048 t12 | tg64 t12 |
+| --- | ---: | ---: | ---: | ---: |
+| b10666 image (IntelLLVM) | 41.02 | 7.00 | 53.32 | 6.76 |
+| b10720 release tarball (GCC) | 35.74 | 6.93 | 47.60 | 6.82 |
+| PR #27836+#28097 source, GCC | 36.01 | 6.90 | 47.65 | 6.86 |
+| **same source, `icx`/`icpx`** | **40.94** | 6.88 | **53.14** | 6.71 |
+
+So v2 §4's "stay on the b10666 image" was really "stay on oneAPI" — rebuilding
+any branch with `-DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx` recovers the
+whole prefill gap. Decode is pinned at 6.7–7.0 t/s regardless of build.
+
+**MTP works on CPU — the v2 §12 lever, collected.** PRs #27836 (draft head,
+`--spec-type draft-mtp`) + #28097 (draft-head-only GGUFs, and a fix where `-md`
+loaded the 93 GiB *target* again). Draft pack:
+`dzannotti/Qwen3.8-Flash-Next-MTP-Q4_K_M.gguf` (2.44 GiB), pairs with the
+unmodified D4X. **One patch was needed** — that pack ships the head mixer under
+the trunk names `output_hc_{norm,down,up}` (→ `model.hc_head_*`), which #28097's
+fallback chain does not know, so the server aborted at
+`qwen4exp.cpp:497 GGML_ASSERT(head_norm && head_down && head_up)`. Fix kept as
+`bench/qwen4exp-mtp-trunk-mixer-fallback.patch`; send upstream.
+`LLAMA_ATTN_ROT_DISABLE=1` is mandatory.
+
+Single stream, 256-token completions, oneAPI build, `-t 8 -tb 12 -np 1`:
+no-spec 6.88 → **MTP `n-max 3 p-min 0.75` 10.64–10.75 t/s on code, 9.45–9.48 on
+prose** (+56% / +38%), acceptance 0.89, mean draft length 2.8–3.2. The
+confidence gate is the knob: `p-min 0` drops acceptance to 0.60 and costs 13%;
+`n-max` 2/3/4 are all within noise of each other.
+
+**MTP and batching compete — they do not compose.** Aggregate t/s, 4 fixed
+prompts × 192 tokens with `ignore_eos`:
+
+| slots | no spec | MTP n3 p0.75 |
+| --- | ---: | ---: |
+| `-np 1` | 6.70 | **10.47** (10.90/stream) |
+| `-np 2` | 8.51 | 9.00 |
+| `-np 4` | **10.52** (2.70/stream) | 9.21 |
+
+One MTP stream equals four plain streams in aggregate at 4× the per-stream rate;
+stacking them is 12% *worse* than plain batching at `-np 4`. Acceptance stays
+0.82–0.94 there, so it is bandwidth contention, not draft quality. v2 §14's
+"run with `-np 4`, it's free" is now conditional on genuinely having four
+concurrent agents. **Lane default: `-np 1` + MTP.**
+
+Memory with the draft head: `RssAnon` 68.9 GiB (v2: 66.3), `VmHWM` 89.5 GiB at
+`-c 32768`. Pod sizing moves to **76 Gi request / 84 Gi limit**.
+
+**MTP output is not byte-identical to non-MTP on CPU** (unlike #27836's Metal
+report). Two greedy smoke prompts diverge at a single near-tie token each
+(`riddle:` vs `riddle.`; `(Monday through Friday).**` vs `)**.`) while staying
+correct. Verifying a 3-token draft uses different GEMM shapes than a 1-token
+step, so argmax coin-flips resolve differently. Do not use MTP on/off as a
+regression oracle.
+
+**vLLM: ruled out on iggy, both paths.** Support merged today
+(vllm-project/vllm#53896) but lives only in `vllm/models/qwen4_exp/{nvidia,amd}/`
+— no `cpu/` tree, the package raises `NotImplementedError("Qwen4Exp currently
+supports CUDA and ROCm only")`, the PR ships
+`csrc/libtorch_stable/gdn/fused_gdn_decode_kernel.cu`, and integration is via
+`vllm/v1/worker/gpu/*`. So the all-RAM configuration is not expressible at any
+version or nightly. The GPU fallback fails on size: FP8 172.8 GiB / int4 W4A16
+167.5 GiB on disk, and the int4 card (which explicitly targets 4–8× RTX 3090)
+needs **~66 GB GPU-resident** after `VLLM_PLE_CPU_OFFLOAD=1` moves the 51B PLE
+table to host RAM — against iggy's 48 GiB of VRAM. Reopens only on a CPU backend
+for qwen4_exp or ≥96 GB of VRAM.
+
+Untested and now the largest lever: a GPU-hybrid llama.cpp arm (`--n-cpu-moe`,
+dense/attention on a 3090, experts in RAM). Out of scope here — the brief was
+all-RAM and both 3090s are held by the 27B lane.

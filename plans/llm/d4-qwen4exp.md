@@ -5,9 +5,10 @@ weights stay resident in RAM and whose n-gram table is backed by the local
 NVMe (page cache). D4 is the first candidate where the math plausibly works:
 6B active params at 4-bit ≈ 3–3.6 GB streamed per token.
 
-Status: **run — PASS on iggy** (2026-08-29, 6.65 t/s decode after local
-requantization; kristeva FAIL at 4.6 t/s). This document is the pre-run plan
-of record; see the Results section at the bottom and
+Status: **run — PASS on iggy** (2026-08-31, **10.9 t/s** decode with the MTP
+draft head, up from 6.65 after the v2 requantization; kristeva FAIL at 4.6 t/s).
+This document is the pre-run plan of record; see the Results section at the
+bottom, then `d4-qwen4exp-results-v3.md` (current) and
 `d4-qwen4exp-results-v2.md` for what was measured.
 
 ## The model (verified facts)
@@ -181,9 +182,20 @@ without the cliff.
   holds even at 6B active; record, delete lane, same-hour cleanup per D2
   precedent.
 
-## Results — see `d4-qwen4exp-results-v2.md` (2026-08-29): PASS, 6.65–6.88 t/s
+## Results — current: `d4-qwen4exp-results-v3.md` (2026-08-31): 10.9 t/s with MTP
 
-**Current status: PASS on iggy.** Requantizing the stock `UD-Q4_K_XL`'s dense
+**Current status: PASS on iggy, and the bar is now cleared by 2.2x.** v3 adds
+the NextN/MTP draft head (llama.cpp PRs #27836 + #28097 plus one local patch)
+and rebuilds the branch with oneAPI's `icx`: single-stream decode goes from
+6.88 to **10.90 t/s** on code / 9.48 on prose, prefill unchanged at 53 t/s.
+v3 also rules vLLM out on this box permanently (no CPU implementation for
+`qwen4_exp`; the smallest GPU checkpoint needs ~66 GB against iggy's 48 GiB)
+and finds that MTP and `-np 4` batching compete rather than compose, so the
+lane's default slot count drops to 1. The v2 section below stands as written.
+
+### v2 (2026-08-29): PASS, 6.65–6.88 t/s
+
+**PASS on iggy.** Requantizing the stock `UD-Q4_K_XL`'s dense
 Q8_0 tensors down to Q4_K/IQ4_NL (locally, no download) cuts per-token DRAM
 traffic from 7.2 GB to ~4.3 GB and yields **6.65 t/s decode / 52.95 t/s
 prefill** at `-t 8 -tb 12`, versus 4.61 / 29.51 for the stock file measured
