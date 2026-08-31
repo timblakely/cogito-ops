@@ -22,10 +22,18 @@ spec:
     apiBase: http://flashnext.llm.svc.cluster.local:8080/v1
     apiKey: not-needed
     additional:
-      # A patience lane by construction: 4096 output tokens at ~10 t/s is
-      # ~7 minutes before the first retry should even be considered, and a cold
-      # pod spends ~105 s repacking 65.5 GiB of weights before it answers.
-      timeout: 900
+      # Sized against PREFILL, which is what actually binds this lane. Measured
+      # cold-prompt processing degrades with depth - 52 t/s at 1k, 50 at 4k,
+      # 42 at 16k - so a 16k cold prompt is already 384 s before the first
+      # token, and the advertised 131072 ceiling is roughly an hour. 900 s could
+      # not serve the window this alias advertises; 3600 can.
+      #
+      # In practice sessions rarely pay that: llama.cpp caches the prompt prefix
+      # per slot, so an agentic conversation that grows incrementally only
+      # prefills the delta each turn. The long timeout is for the cold-miss
+      # case, not the common one. A wedged request holds the single slot for the
+      # duration - restart the pod rather than waiting it out.
+      timeout: 3600
   info:
     # Mirrors the backend's contextSize exactly (--ctx-size 131072), so the
     # catalogue validator's context check passes without a

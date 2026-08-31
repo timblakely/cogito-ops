@@ -818,3 +818,51 @@ holding ~69 GiB of anonymous memory on the same node permanently, that pressure
 is no longer transient, so the lane got `cpu: 2 / memory: 10Gi` - enough to buy
 Burstable, honest against its ~5.3 GiB of worker RSS. iggy now sits at 87% of
 memory requests.
+
+## 2026-09-01 · flashnext: 8192 was the wrong ceiling, and what depth costs
+
+The lane shipped with `contextSize: 8192` because that is what the v3 throughput
+arms used. The first real agentic turn against it - "look over my cogito
+repository and give me an overview" - died on its opening tool result:
+
+```
+litellm.ContextWindowExceededError: request (8907 tokens) exceeds the
+available context size (8192 tokens) ... model=flashnext
+```
+
+One `ls -la` plus a `jj log` was already over. **Bench parameters are not
+serving defaults**; re-derive each one against the real workload.
+
+Now `contextSize: 131072` on the backend, mirrored as `maxInputTokens: 131072`
+on the alias, `contextWindow` in `~/.pi/agent/models.json` and its
+`models-store.json` snapshot. KV cost is minor - `RssAnon` went 68.9 -> 71.5 GiB
+(~2.6 GiB), which the existing 76Gi request still covers.
+
+**Depth is what actually costs, and it costs on both axes.** Synthetic prompts,
+`cache_prompt: false`, 128-token generations, single slot:
+
+| prompt depth | prefill t/s | decode t/s | cold prefill wall |
+| ---: | ---: | ---: | ---: |
+| 971 | 51.98 | 9.19 | 18.7 s |
+| 4,043 | 50.47 | 8.88 | 80.1 s |
+| 16,139 | 42.07 | 7.41 | 383.6 s |
+
+Draft acceptance holds across the range (0.80-0.86, mean length 2.9-3.2), so the
+decay is NOT the draft head giving up - it is attention and the QSA indexer
+getting more expensive with depth, the CPU face of ggml-org/llama.cpp#28012.
+
+**So the >10 t/s headline is a short-context number.** At the ~9k depth of the
+failing request, expect ~8.5 t/s and ~3 min of cold prefill. Quote 7-9 t/s for
+real agentic turns and keep 10.7 for what it is: a near-empty context.
+
+Consequence for the alias: the timeout went 900 -> 3600 s. At 42 t/s a 16k cold
+prompt is already 384 s, and 900 s could not serve the 131072 window the alias
+advertises. Prompt-prefix caching is what makes long sessions viable in practice
+- an incrementally-growing conversation only prefills the delta - so the long
+timeout covers the cold-miss case, not the common one.
+
+**Rollout papercut.** llmkube's Deployment uses the default RollingUpdate
+(25% surge). With a 76Gi request on a 127.6 GiB node, two copies do not fit, so
+a pod-template change leaves the new pod `Pending` forever. Delete the old pod
+by hand to let the rollout proceed; `rolloutPolicy` controls idle-waiting, not
+surge.

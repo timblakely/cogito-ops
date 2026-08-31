@@ -316,6 +316,20 @@ Two things the deployment taught that the bench did not:
   mix: `<think>` content is prose-shaped, and prose drafts worse than code
   (acceptance 0.90 vs 0.93). Clients that do not need the reasoning trace should
   send `chat_template_kwargs: {"enable_thinking": false}` and get ~6% back.
+- **Everything above is a near-empty-context number, and depth costs a lot.**
+  The lane shipped at `contextSize: 8192` - the bench value - and a real agentic
+  turn exceeded it on its first tool result. At 131072 now; measured against
+  depth (128-token generations, `cache_prompt: false`):
+
+  | prompt depth | prefill t/s | decode t/s | cold prefill wall |
+  | ---: | ---: | ---: | ---: |
+  | 971 | 51.98 | 9.19 | 18.7 s |
+  | 4,043 | 50.47 | 8.88 | 80.1 s |
+  | 16,139 | 42.07 | 7.41 | 383.6 s |
+
+  Draft acceptance holds (0.80-0.86), so this is attention and the QSA indexer
+  growing with depth, not the draft head failing. **Quote 7-9 t/s for real
+  agentic work**; 10.7 belongs to an empty context.
 
 ### Reproducing the build
 
