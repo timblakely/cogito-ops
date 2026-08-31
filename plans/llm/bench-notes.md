@@ -763,3 +763,58 @@ for qwen4_exp or ≥96 GB of VRAM.
 Untested and now the largest lever: a GPU-hybrid llama.cpp arm (`--n-cpu-moe`,
 dense/attention on a 3090, experts in RAM). Out of scope here — the brief was
 all-RAM and both 3090s are held by the 27B lane.
+
+## 2026-09-01 · flashnext shipped: the D4 lane as a real deployment
+
+`flashnext` is live in the `llm` namespace and published through LiteLLM.
+Manifests: `kubernetes/apps/llm/llmkube/resources/flashnext{,-stage}.yaml`,
+`kubernetes/apps/llm/litellm/app/models/flashnext.yaml`.
+
+**llmkube already models this.** `speculativeDecoding: {type: draft-mtp,
+draftModelRef, nDraftMax, pMin}` renders exactly the flags v3 benchmarked:
+`--spec-type draft-mtp -md <draft> --spec-draft-n-max 3 --spec-draft-p-min 0.75`.
+No extraArgs needed for speculation.
+
+**Gotchas found while deploying (all confirmed live):**
+
+- **`pvc://` sources reject a file set.** `source: <prefix>` + `files: [a, b]`
+  fails the Model with `InvalidFileSet`: "multi-file staging requires a
+  HuggingFace repo or s3:// source". Fix: the draft head is its own `Model` CR
+  on the same PV, joined by `speculativeDecoding.draftModelRef`. The operator
+  mounts the claim once at `/model-source` and both files resolve inside it -
+  and pvc:// is mounted READ-ONLY with no copy, which is the only reason a
+  93 GiB model can be served without a second copy in the hot-tier cache.
+- **A static `local:` PV with node affinity is the right shape** for weights
+  that must stay on one node's NVMe. Same pattern as `llm-model-archive`, but
+  `local:` + `nodeAffinity` instead of `nfs:`.
+- **`resources:` on an InferenceService takes requests only** (cpu/memory, no
+  limits knob). That is what we want here: a memory limit turns the reclaimable
+  page-cache half of a 99 GiB RSS into an OOM kill.
+- **The binary comes from a hostPath**, not the image: MTP for qwen4exp is still
+  two open draft PRs. `command:` is wrapped in `bash -c ... "$@"` purely to
+  PREPEND to the image's `LD_LIBRARY_PATH` - replacing it breaks oneAPI and
+  llama-server dies on `libsvml.so`.
+- The staging Job builds in **2m21s** at `-j 12` and is idempotent, so Flux
+  re-applying it is a no-op.
+
+**As-deployed throughput** (single request, warm, `-np 1`):
+
+| path | code | prose |
+| --- | ---: | ---: |
+| `/completion` | 10.69 / 10.71 | — |
+| `/v1/chat/completions`, thinking on | 9.82 / 9.93 / 9.98 | 7.76 / 7.93 / 7.97 |
+| `/v1/chat/completions`, thinking off | 10.54 | — |
+
+Draft acceptance 0.90-0.93, mean draft length 2.4-3.0. Cold start 82 s. The raw
+path reproduces v3's bench exactly, so the deployment is not leaving anything on
+the table; the chat gap is the `<think>` token mix, which drafts worse than code.
+Clients that do not need the reasoning trace should send
+`chat_template_kwargs: {"enable_thinking": false}`.
+
+**Collateral fix.** `qwen-3-8-fp8` was still BestEffort with only `gpu: 2`
+requested, which made the cluster's most important GPU workload the Talos OOM
+controller's FIRST victim (v2 S7 recorded four such kills). With flashnext now
+holding ~69 GiB of anonymous memory on the same node permanently, that pressure
+is no longer transient, so the lane got `cpu: 2 / memory: 10Gi` - enough to buy
+Burstable, honest against its ~5.3 GiB of worker RSS. iggy now sits at 87% of
+memory requests.

@@ -288,7 +288,36 @@ v2 §8's sizing therefore shifts up one notch: **76 Gi request / 84 Gi limit**
 (the file-backed half is reclaimable; the anon half is not, and 62 GiB OOM-killed
 the container in v2).
 
-## 5. Recommended lane
+## 5. The lane, as shipped
+
+Live since 2026-09-01 as `flashnext` in the `llm` namespace, declared in
+`kubernetes/apps/llm/llmkube/resources/flashnext{,-stage}.yaml` and published
+through LiteLLM as the `flashnext` alias. llmkube turned out to support this
+natively - `speculativeDecoding: {type: draft-mtp, draftModelRef, nDraftMax,
+pMin}` renders exactly the flags benchmarked here - so the only unusual part of
+the manifest is that the binary comes from a hostPath rather than the image.
+
+Two things the deployment taught that the bench did not:
+
+- **`pvc://` sources take no file set.** `source: <prefix>` + `files: [...]`
+  fails with "multi-file staging requires a HuggingFace repo or s3:// source".
+  The draft head is therefore its own `Model` CR on the same PV, joined by
+  `speculativeDecoding.draftModelRef`. The operator mounts the claim once at
+  `/model-source` and both files resolve inside it.
+- **The chat path is slower than raw completion**, measured on the live lane:
+
+  | path | code | prose |
+  | --- | ---: | ---: |
+  | `/completion` (what S2 benched) | 10.69 / 10.71 | — |
+  | `/v1/chat/completions`, thinking on | 9.82 / 9.93 / 9.98 | 7.76 / 7.93 / 7.97 |
+  | `/v1/chat/completions`, thinking off | 10.54 | — |
+
+  The chat template itself is only 93 prompt tokens, so the gap is the token
+  mix: `<think>` content is prose-shaped, and prose drafts worse than code
+  (acceptance 0.90 vs 0.93). Clients that do not need the reasoning trace should
+  send `chat_template_kwargs: {"enable_thinking": false}` and get ~6% back.
+
+### Reproducing the build
 
 Build inside the pinned image (it already carries oneAPI 2025.3), so the
 toolchain that wins prefill and the branch that carries MTP come together:
