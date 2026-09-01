@@ -33,15 +33,25 @@ data:
   # camoufox-js's frozen ESM exports - which is the last point the environment
   # can still be changed.
   #
-  # The target size is read from `screen.*` in the config itself rather than
-  # being configured here, so it tracks VNC_RESOLUTION with no second value to
-  # keep in sync. The result is a self-consistent fingerprint: a window exactly
-  # filling the screen at 0,0 is an ordinary maximised browser.
+  # The target is VNC_RESOLUTION, the same value the VNC plugin hands to Xvfb,
+  # so there is still only one knob. Note it cannot be taken from `screen.*` in
+  # the config: that is itself a random fingerprint draw bounded by the real
+  # display, and came out 1920x1080 on a 2560x1440 framebuffer. `screen.*` is
+  # therefore overridden too, which also keeps the fingerprint self-consistent -
+  # a window exactly filling the screen at 0,0 is an ordinary maximised
+  # browser, whereas a window larger than its screen is not.
   window-patch.cjs: |
     'use strict';
 
     const CHUNK = 32767;   // must match camoufox-js's writer for non-Windows
     const KEY = /^CAMOU_CONFIG_(\d+)$/;
+
+    // VNC_RESOLUTION is what the VNC plugin passes to Xvfb, so it is the real
+    // framebuffer. It may carry a trailing depth ("2560x1440x24").
+    function targetSize() {
+      const m = /^(\d+)x(\d+)/.exec(process.env.VNC_RESOLUTION || '');
+      return m ? [Number(m[1]), Number(m[2])] : null;
+    }
 
     function fillWindowToScreen(env) {
       const chunks = Object.keys(env)
@@ -51,9 +61,9 @@ data:
       if (!chunks.length) return env;
 
       const config = JSON.parse(chunks.map(([k]) => env[k]).join(''));
-      const width = config['screen.width'];
-      const height = config['screen.height'];
-      if (!width || !height) return env;
+      const target = targetSize();
+      if (!target) return env;
+      const [width, height] = target;
 
       const previous = [config['window.outerWidth'], config['window.outerHeight']];
       // innerWidth/innerHeight are usually absent, but if Camoufox did emit
@@ -69,6 +79,13 @@ data:
       config['window.outerHeight'] = height;
       config['window.screenX'] = 0;
       config['window.screenY'] = 0;
+      // Keep the reported screen at least as large as the window.
+      config['screen.width'] = width;
+      config['screen.height'] = height;
+      config['screen.availWidth'] = width;
+      config['screen.availHeight'] = height;
+      if ('screen.availLeft' in config) config['screen.availLeft'] = 0;
+      if ('screen.availTop' in config) config['screen.availTop'] = 0;
 
       const out = Object.assign({}, env);
       for (const [k] of chunks) delete out[k];
