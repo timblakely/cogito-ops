@@ -11,6 +11,10 @@ customization:
     - intel_iommu=on # PCI Passthrough
     - iommu=pt # PCI Passthrough
     - mitigations=off # Less security, faster puter
+    # Covers NVMe APST (device power states PS0-PS4) only. The PCIe *link* L1.1/L1.2
+    # substates are a separate mechanism this does NOT touch, and they dropped nuc-3's
+    # drive off the bus entirely on 2026-09-01; those are disabled at runtime by the
+    # nvme-l1ss DaemonSet (kubernetes/apps/cluster-infra/nvme-l1ss).
     - nvme_core.default_ps_max_latency_us=0 # CT1000T500SSD8 fails to wake cleanly from APST, causing spurious I/O errors
     - security=none # Less security, faster puter
     - sysctl.kernel.kexec_load_disabled=1 # Meteor Lake CPU & Intel iGPU

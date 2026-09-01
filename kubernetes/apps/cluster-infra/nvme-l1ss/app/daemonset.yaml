@@ -1,0 +1,105 @@
+---
+# Disables PCIe L1 substates (L1.1/L1.2) on the Crucial T500 NVMe in nuc-1/2/3.
+#
+# On 2026-09-01T05:21:59 nuc-3's T500 stopped responding on the PCIe bus
+# (CSTS=0xffffffff, PCI_STATUS=0xffff), the controller reset failed, the kernel
+# disabled the device, and XFS on nvme0n1p1 shut down - taking out both the
+# openebs-hostpath volume and Ceph osd.2 on that node.
+#
+# nvme_core.default_ps_max_latency_us=0 (see talos/schematics/nuc-*.yaml.j2) does
+# NOT cover this: that disables NVMe APST, which governs device power states
+# PS0-PS4. L1.2 is a *PCIe link* state negotiated between the root port and the
+# endpoint, one layer below NVMe, and was still fully enabled:
+#
+#   L1SS_CTL1 = 0x407c000f  ->  ASPM L1.2 + L1.1 and PCI-PM L1.2 + L1.1 all on
+#
+# In L1.2 the link's common-mode voltage is removed and the reference clock is
+# gated; coming back requires a full electrical-idle exit and LTSSM retrain.
+# T_POWER_ON is programmed to 60us, which is the value the drive advertises for
+# itself (PortT_POWER_ON = 6 x 10us). If the controller's real wake time ever
+# exceeds the 60us it claims, the root port starts retraining into a device whose
+# PLLs are not up, the link never returns, and config reads come back all-ones -
+# exactly the observed signature. It leaves no AER trace (a device that never
+# responds emits no error packets) and no SMART trace.
+#
+# Supporting evidence: the Samsung NVMe in iggy/kristeva run with ASPM disabled
+# and zero L1 substates enabled under the same kernel and the same
+# pcie_aspm policy=[default]; only the nucs' platform firmware turns L1SS on, and
+# only the nucs have had a drive drop. The Phison also advertises a 15728us LTR
+# latency tolerance against the Samsung's 1048us, so with the L1.2 entry threshold
+# at 127us it invites the link into L1.2 whenever it goes idle.
+#
+# This clears only the four substate enables and leaves ASPM L1 proper alone, so
+# most of the idle power saving is retained. Preferred over the kernel's blunt
+# pcie_aspm=off suggestion, which would disable ASPM machine-wide and - because
+# these nodes boot via SDBoot - would need an Image Factory rebuild and an image
+# upgrade rather than a config change (see commit 383ad799).
+#
+# The loop re-asserts every 5 minutes so the setting survives a link retrain or a
+# device re-enumerating (e.g. nuc-3's drive returning after a power cycle), and
+# only logs when it actually had to change something.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvme-l1ss
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nvme-l1ss
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nvme-l1ss
+    spec:
+      # Exactly nuc-1/2/3 - the only nodes with the Crucial T500.
+      nodeSelector:
+        node-role.kubernetes.io/rook-ceph-core: "true"
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      priorityClassName: system-node-critical
+      volumes:
+        - name: sys
+          hostPath:
+            path: /sys
+      containers:
+        - name: nvme-l1ss
+          image: docker.io/library/busybox:1.37.0
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: sys
+              mountPath: /host/sys
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              # Crucial T500 / Phison E25, as Micron-branded PCI IDs.
+              VENDOR=0xc0a9
+              DEVICE=0x5415
+              while :; do
+                for d in /host/sys/bus/pci/devices/*; do
+                  [ -r "$d/vendor" ] && [ -r "$d/device" ] || continue
+                  [ "$(cat "$d/vendor")" = "$VENDOR" ] || continue
+                  [ "$(cat "$d/device")" = "$DEVICE" ] || continue
+                  [ -d "$d/link" ] || continue
+                  for f in l1_2_aspm l1_1_aspm l1_2_pcipm l1_1_pcipm; do
+                    [ -w "$d/link/$f" ] || continue
+                    cur=$(cat "$d/link/$f" 2>/dev/null) || continue
+                    [ "$cur" = "0" ] && continue
+                    if echo 0 > "$d/link/$f" 2>/dev/null; then
+                      echo "$(date -Iseconds) $(basename "$d") $f: $cur -> 0"
+                    else
+                      echo "$(date -Iseconds) $(basename "$d") $f: write failed"
+                    fi
+                  done
+                done
+                sleep 300
+              done
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 32Mi
