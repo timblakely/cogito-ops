@@ -1,0 +1,103 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: camofox-window
+data:
+  # Node preload (NODE_OPTIONS=--require) that makes the browser window fill
+  # the VNC framebuffer.
+  #
+  # Why this is needed at all: Camoufox randomises the browser window size as
+  # an anti-fingerprinting measure. camoufox-js generates a fingerprint whose
+  # window dimensions are a random draw bounded by the real screen, so on a
+  # 2560x1440 Xvfb display the window came up 1237x1108 on one launch and
+  # 1989x1294 on the next. There is no window manager in the image, so nothing
+  # can maximise it, and the leftover desktop shows as black bands.
+  #
+  # Two other approaches were measured and rejected:
+  #
+  #   * Resizing the X window with XConfigureWindow works at the X level - the
+  #     toplevel and its child both resize - but Firefox keeps rendering at its
+  #     original size even after a full page navigation, so the visible desktop
+  #     does not change.
+  #   * Widening Playwright's context viewport (server.js hardcodes 1280x720)
+  #     does change the page size that page.screenshot() reports, but the
+  #     visible window follows Camoufox's fingerprint, not the viewport. Setting
+  #     the viewport to 2491x1226 left the visible window at 1237x1108.
+  #
+  # The window size is really controlled by `window.outerWidth`/`outerHeight`
+  # in the Camoufox config, which camoufox-js hands to the Firefox process as
+  # the CAMOU_CONFIG_<n> environment chunks. camofox does not expose
+  # camoufox-js's `window` launch option, so this rewrites those chunks at
+  # playwright-core's BrowserType.prototype.launch - a CommonJS module, unlike
+  # camoufox-js's frozen ESM exports - which is the last point the environment
+  # can still be changed.
+  #
+  # The target size is read from `screen.*` in the config itself rather than
+  # being configured here, so it tracks VNC_RESOLUTION with no second value to
+  # keep in sync. The result is a self-consistent fingerprint: a window exactly
+  # filling the screen at 0,0 is an ordinary maximised browser.
+  window-patch.cjs: |
+    'use strict';
+
+    const CHUNK = 32767;   // must match camoufox-js's writer for non-Windows
+    const KEY = /^CAMOU_CONFIG_(\d+)$/;
+
+    function fillWindowToScreen(env) {
+      const chunks = Object.keys(env)
+        .map((k) => [k, KEY.exec(k)])
+        .filter(([, m]) => m)
+        .sort((a, b) => Number(a[1][1]) - Number(b[1][1]));
+      if (!chunks.length) return env;
+
+      const config = JSON.parse(chunks.map(([k]) => env[k]).join(''));
+      const width = config['screen.width'];
+      const height = config['screen.height'];
+      if (!width || !height) return env;
+
+      const previous = [config['window.outerWidth'], config['window.outerHeight']];
+      // innerWidth/innerHeight are usually absent, but if Camoufox did emit
+      // them they describe the content box and have to move by the same delta,
+      // or the page sees a viewport larger than its own window.
+      if (typeof config['window.innerWidth'] === 'number' && previous[0]) {
+        config['window.innerWidth'] += width - previous[0];
+      }
+      if (typeof config['window.innerHeight'] === 'number' && previous[1]) {
+        config['window.innerHeight'] += height - previous[1];
+      }
+      config['window.outerWidth'] = width;
+      config['window.outerHeight'] = height;
+      config['window.screenX'] = 0;
+      config['window.screenY'] = 0;
+
+      const out = Object.assign({}, env);
+      for (const [k] of chunks) delete out[k];
+      const serialized = JSON.stringify(config);
+      for (let i = 0, n = 1; i < serialized.length; i += CHUNK, n++) {
+        out['CAMOU_CONFIG_' + n] = serialized.slice(i, i + CHUNK);
+      }
+      console.log('[window-patch] browser window %sx%s -> %dx%d at 0,0',
+                  previous[0], previous[1], width, height);
+      return out;
+    }
+
+    try {
+      const browserType = require(
+        '/app/node_modules/playwright-core/lib/client/browserType.js');
+      const BrowserType = browserType.BrowserType;
+      const originalLaunch = BrowserType.prototype.launch;
+      BrowserType.prototype.launch = function (options = {}) {
+        if (options && options.env) {
+          try {
+            options = Object.assign({}, options, { env: fillWindowToScreen(options.env) });
+          } catch (err) {
+            // A malformed or restructured config must never block a launch.
+            console.error('[window-patch] leaving window size alone:', err.message);
+          }
+        }
+        return originalLaunch.call(this, options);
+      };
+      console.log('[window-patch] installed');
+    } catch (err) {
+      console.error('[window-patch] not installed:', err.message);
+    }

@@ -39,26 +39,14 @@ spec:
               MAX_SESSIONS: "11"
               MAX_TABS_PER_SESSION: "5"
               ENABLE_VNC: "1"
-              # These two values are a matched pair - changing one without the
-              # other reintroduces the black bands. Playwright sizes the browser
-              # window to its viewport plus a fixed chrome delta, measured on
-              # this image at (69, 214):
-              #
-              #   window = CAMOFOX_VIEWPORT + (69, 214) = VNC_RESOLUTION
-              #
-              # so the single browser window exactly fills the framebuffer and
-              # there is nothing left over to letterbox. 16:9 is deliberate: the
-              # viewer scales the whole desktop into the browser window with the
-              # aspect preserved, so a desktop shaped like an ordinary monitor
-              # is what makes it look maximised. To change the desktop size,
-              # pick the new VNC_RESOLUTION and set CAMOFOX_VIEWPORT to it minus
-              # (69, 214). x11vnc costs ~8m CPU even at this size, so a larger
-              # framebuffer is close to free.
+              # The browser window is pinned to fill this framebuffer by the
+              # camofox-window Node preload, which reads the size back out of
+              # Camoufox's own config - so this is the only knob, with no second
+              # value to keep in sync. x11vnc costs ~8m CPU even at this size,
+              # so a larger desktop is close to free; 16:9 keeps the viewer from
+              # letterboxing on an ordinary monitor.
               VNC_RESOLUTION: "2560x1440"
-              # Widens the Playwright viewport (see the camofox-viewport
-              # ConfigMap for why this needs a Node preload).
-              CAMOFOX_VIEWPORT: "2491x1226"
-              NODE_OPTIONS: "--require /app/viewport-patch.cjs"
+              NODE_OPTIONS: "--require /app/window-patch.cjs"
               VNC_BIND: "0.0.0.0"
               # Own the X clipboard immediately on first viewer connect (skip x11vnc's 45s DM grace period).
               X11VNC_AVOID_WINDOWS: "never"
@@ -151,14 +139,14 @@ spec:
               - identifier: vnc
                 port: 6080
     persistence:
-      viewport:
+      window:
         type: configMap
-        name: camofox-viewport
+        name: camofox-window
         advancedMounts:
           camofox:
             app:
-              - path: /app/viewport-patch.cjs
-                subPath: viewport-patch.cjs
+              - path: /app/window-patch.cjs
+                subPath: window-patch.cjs
                 readOnly: true
       novnc:
         type: configMap
