@@ -72,6 +72,35 @@ Because the ConfigMap is mounted by `subPath`, updates never appear in place —
 `reloader.stakater.com/auto` on the controller rolls the Deployment when the
 ConfigMap changes.
 
+### Checking whether the bridge is actually live
+
+In the viewer, open devtools and select the `vnc.html` frame:
+
+```js
+window.__cogitoBridge
+// {loaded: true, rfbSeen: true, caps: 0, ctrlV: 0, pasteEvents: 0, ...}
+```
+
+That object is the *only* trustworthy signal. The presence of the injected
+`<script id="clipboard-bridge">` tag proves nothing, and this is not a
+hypothetical: the first version of the injector appended the script while the
+iframe still held its initial `about:blank` document, so the fetch was aborted
+(`net::ERR_ABORTED`) the moment `vnc.html` committed — leaving a script tag that
+looked perfectly correct in the final document but had never executed, and no
+console error. The symptom was stock noVNC behaviour: CapsLock did nothing and
+Ctrl+V pasted the *remote* clipboard.
+
+The injector therefore retries on a 250 ms timer until `__cogitoBridge` appears,
+waits for the iframe document to actually be `vnc.html`, discards any stale tag,
+and cache-busts the script URL so a module-map entry poisoned by an aborted
+fetch is not handed back. It logs `[cogito] clipboard bridge never started` if
+it gives up after ~20 s.
+
+The counters are useful on their own: `caps` incrementing means CapsLock is
+being intercepted; `ctrlV` with `pasteEvents` also incrementing means the native
+paste path is working; `readTextFallbacks` climbing instead means the browser
+did not fire a paste event and the async clipboard API is doing the work.
+
 ## Manual VNC login (one-time)
 
 Use this to log into a site that requires visual interaction (e.g. Facebook
