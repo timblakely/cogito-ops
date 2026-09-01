@@ -84,6 +84,12 @@ spec:
                   [ "$(cat "$d/vendor")" = "$VENDOR" ] || continue
                   [ "$(cat "$d/device")" = "$DEVICE" ] || continue
                   [ -d "$d/link" ] || continue
+                  # Skip a device the kernel has disabled (e.g. nuc-3 after its
+                  # controller dropped off the bus). Its config space reads back
+                  # all-ones, so the pcipm bits never appear cleared and we would
+                  # rewrite them on every pass forever. It gets configured for
+                  # real when it re-enumerates after a power cycle.
+                  [ "$(cat "$d/enable" 2>/dev/null)" = "1" ] || continue
                   for f in l1_2_aspm l1_1_aspm l1_2_pcipm l1_1_pcipm; do
                     [ -w "$d/link/$f" ] || continue
                     cur=$(cat "$d/link/$f" 2>/dev/null) || continue
