@@ -34,10 +34,10 @@ The three things the landing page fixes, and why each needs fixing:
 
   True *remote* resize (`resize=remote`, where the desktop actually changes
   resolution) is not available here and is not a config away: Xvfb is started
-  with a single fixed `-screen 0 1920x1080x24` mode, and x11vnc 0.9.16 does not
-  implement client-initiated `SetDesktopSize`. Both halves would have to change
-  to get it, so client-side scaling is the fix. A widescreen window therefore
-  letterboxes the 16:9 feed rather than filling it.
+  with a single fixed `-screen 0 <VNC_RESOLUTION>x24` mode, and x11vnc 0.9.16
+  does not implement client-initiated `SetDesktopSize`. Both halves would have
+  to change to get it, so client-side scaling is the fix. Scaling preserves the
+  aspect ratio, which is why the desktop is 16:9 - see *Window size* below.
 
 - **Ctrl+V pastes the *local* clipboard.** noVNC calls `preventDefault()` on
   every key it forwards, which suppresses the browser's native paste event.
@@ -101,6 +101,55 @@ being intercepted; `ctrlV` with `pasteEvents` also incrementing means the native
 paste path is working; `readTextFallbacks` climbing instead means the browser
 did not fire a paste event and the async clipboard API is doing the work.
 
+## Window size
+
+The desktop is `2560x1440` (`VNC_RESOLUTION`) and the browser window is pinned
+to fill it exactly. That pinning is not optional decoration: without it the
+window occupies an arbitrary fraction of the desktop and the rest shows as
+black bands, with no window manager in the image to maximise anything.
+
+**Camoufox randomises the window size on purpose.** It is an anti-detect
+browser: camoufox-js generates a fingerprint whose window dimensions are a
+random draw bounded by the real screen. Observed on this display across
+launches: 1237x1108, 1536x796, 1989x1294. So there is no fixed number to
+match - the size has to be pinned at launch.
+
+Two other approaches were measured and rejected before landing on that:
+
+- **Resizing the X window** (`XConfigureWindow` on the `Navigator` toplevel)
+  works at the X level - the toplevel and its child window both resize - but
+  Firefox keeps rendering at its original size even after a full page
+  navigation, so the visible desktop does not change.
+- **Widening Playwright's context viewport** (server.js hardcodes
+  `{width: 1280, height: 720}`) does change the page size that
+  `page.screenshot()` reports, but the visible window follows Camoufox's
+  fingerprint rather than the viewport: with the viewport set to 2491x1226 the
+  window still rendered at 1237x1108.
+
+What actually controls it is `window.outerWidth`/`outerHeight` in the Camoufox
+config, which camoufox-js passes to the Firefox process as `CAMOU_CONFIG_<n>`
+environment chunks. camofox does not expose camoufox-js's `window` launch
+option, so the `camofox-window` ConfigMap mounts a Node preload
+(`NODE_OPTIONS=--require`) that rewrites those chunks at playwright-core's
+`BrowserType.prototype.launch` - a CommonJS module, unlike camoufox-js's frozen
+ESM exports, and the last point at which the environment can still be changed.
+It sets the window to `VNC_RESOLUTION` at 0,0 and raises `screen.*` to match,
+so the fingerprint stays self-consistent: a window exactly filling its screen
+is an ordinary maximised browser, whereas a window larger than its screen is
+not.
+
+To change the desktop size, change `VNC_RESOLUTION` alone - the preload reads
+it back and the window follows. Keep it 16:9 unless you want the viewer to
+letterbox, and note x11vnc costs only ~8m CPU even at 2560x1440, so a larger
+framebuffer is close to free. Confirm a change with:
+
+```bash
+kubectl -n llm logs deploy/camofox -c app | grep window-patch
+# [window-patch] browser window 1536x796 -> 2560x1440 at 0,0
+kubectl -n llm exec deploy/camofox -c app -- \
+    sh -c 'DISPLAY=:99 xwininfo -root -tree | grep -i navigator'
+```
+
 ## Manual VNC login (one-time)
 
 Use this to log into a site that requires visual interaction (e.g. Facebook
@@ -150,7 +199,8 @@ Notes:
 - **Viewport & fullscreen.** Use `https://browser.timblakely.com/` (see
   *Viewer* above) — it opens the viewer with `resize=scale` so the desktop
   tracks the window. Bare `/vnc.html` is the stock noVNC viewer with stock
-  defaults and does *not* scale.
+  defaults and does *not* scale. The browser window fills the desktop; see
+  *Window size* above if black bands ever reappear.
 
 ## Security hardening (future)
 
