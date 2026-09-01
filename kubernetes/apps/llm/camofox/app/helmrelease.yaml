@@ -22,6 +22,12 @@ spec:
   values:
     controllers:
       camofox:
+        annotations:
+          # The noVNC landing page and clipboard bridge are mounted from the
+          # camofox-novnc ConfigMap by subPath, and subPath mounts never pick
+          # up ConfigMap updates in place. Reloader rolls the Deployment when
+          # the ConfigMap changes so edits actually reach the served files.
+          reloader.stakater.com/auto: "true"
         containers:
           app:
             image:
@@ -126,6 +132,22 @@ spec:
               - identifier: vnc
                 port: 6080
     persistence:
+      novnc:
+        type: configMap
+        name: camofox-novnc
+        advancedMounts:
+          camofox:
+            app:
+              # Both are *new* files - noVNC 1.3.0 ships no index.html, and
+              # clipboard-bridge.js does not exist upstream - so nothing in the
+              # image is shadowed and an image bump cannot be silently reverted
+              # to a stale copy of a file we replaced.
+              - path: /usr/share/novnc/index.html
+                subPath: index.html
+                readOnly: true
+              - path: /usr/share/novnc/app/clipboard-bridge.js
+                subPath: clipboard-bridge.js
+                readOnly: true
       data:
         existingClaim: camofox
         advancedMounts:

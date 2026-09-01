@@ -1,0 +1,222 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: camofox-novnc
+data:
+  # Landing page for browser.timblakely.com. The image ships noVNC 1.3.0 with
+  # no index.html at all, so `/` used to render websockify's raw directory
+  # listing and every visit had to go to /vnc.html by hand - with the default
+  # settings, which is why the desktop never scaled to the window.
+  #
+  # This page adds the two things the stock viewer cannot do on its own:
+  #
+  #   1. It opens vnc.html with resize=scale, so the 1920x1080 framebuffer is
+  #      scaled to the window and follows window resizes. True remote resize
+  #      (resize=remote) is not available: Xvfb is started with a single fixed
+  #      `-screen 0 1920x1080x24` mode and x11vnc 0.9.16 does not implement
+  #      client-initiated SetDesktopSize, so the server side cannot change
+  #      resolution on request. Client-side scaling is the whole fix.
+  #
+  #   2. It injects app/clipboard-bridge.js into the viewer document. That has
+  #      to happen inside vnc.html's own document, and the only alternative -
+  #      shipping a patched copy of vnc.html - would silently shadow the real
+  #      one on an image bump. Same-origin iframe injection adds files instead
+  #      of replacing them, so nothing here can go stale against the image.
+  #
+  # /vnc.html still works untouched if you want the stock viewer.
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <title>camofox desktop</title>
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; background: #313131; overflow: hidden; }
+      iframe { display: block; border: 0; width: 100vw; height: 100vh; }
+    </style>
+    </head>
+    <body>
+    <iframe id="viewer"
+            title="camofox desktop"
+            allow="fullscreen; clipboard-read; clipboard-write"
+            allowfullscreen
+            src="vnc.html?autoconnect=true&resize=scale&reconnect=true&reconnect_delay=2000&show_dot=true"></iframe>
+    <script>
+      // Same-origin, so we can add our bridge to the viewer's document once it
+      // has loaded. crossorigin="anonymous" matches vnc.html's own module tag.
+      var viewer = document.getElementById('viewer');
+      function inject() {
+        try {
+          var d = viewer.contentDocument;
+          if (!d || d.getElementById('clipboard-bridge')) return;
+          var s = d.createElement('script');
+          s.id = 'clipboard-bridge';
+          s.type = 'module';
+          s.crossOrigin = 'anonymous';
+          s.src = 'app/clipboard-bridge.js';
+          d.head.appendChild(s);
+        } catch (e) {
+          console.error('clipboard bridge injection failed', e);
+        }
+      }
+      viewer.addEventListener('load', inject);
+      inject();
+      // Keyboard input has to land in the iframe, not on this shell page.
+      window.addEventListener('load', function () { viewer.focus(); });
+    </script>
+    </body>
+    </html>
+
+  # Keyboard and clipboard bridge, injected into the vnc.html document.
+  #
+  # Importing './ui.js' hands back the exact module instance vnc.html already
+  # loaded (module maps are keyed by URL), so UI.rfb is the live connection.
+  clipboard-bridge.js: |
+    import UI from './ui.js';
+
+    const XK_Control_L = 0xffe3;
+    const XK_v = 0x76;
+    const XK_V = 0x56;
+
+    // Don't hijack typing in noVNC's own control panels (the clipboard
+    // textarea, the host/port fields).
+    function isFormField(el) {
+      if (!el) return false;
+      const tag = el.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+    }
+
+    // --- CapsLock -> Ctrl --------------------------------------------------
+    // The desktop side of this connection uses the X option
+    // `caps:ctrl_modifier`, which makes CapsLock behave as Control locally but
+    // deliberately keeps the *keysym* as Caps_Lock. noVNC forwards keysyms, so
+    // the remote session receives a Caps_Lock press that does nothing useful.
+    // Swallow the key here and send Control_L in its place. Doing this in the
+    // client rather than with x11vnc's -remap keeps the change scoped to this
+    // page and needs no patch to the image's vnc-watcher.sh.
+    let capsDown = false;
+
+    function sendCaps(down) {
+      if (capsDown === down) return;
+      capsDown = down;
+      if (UI.rfb) UI.rfb.sendKey(XK_Control_L, 'ControlLeft', down);
+    }
+
+    // --- Ctrl+V ------------------------------------------------------------
+    // noVNC calls preventDefault() on every key it forwards, which kills the
+    // browser's native paste event, so the local clipboard never reaches the
+    // remote X CLIPBOARD selection and Ctrl+V pastes whatever the remote
+    // Firefox last copied. Intercept Ctrl+V during the capture phase before
+    // noVNC's canvas listener sees it, let the browser's real paste happen,
+    // push that text over RFB, then replay the keystroke.
+    let pending = null;
+
+    function schedulePaste(shift) {
+      if (pending) clearTimeout(pending.timer);
+      pending = { shift: shift, timer: 0 };
+      // If no paste event arrives (some browsers only fire it for editable
+      // targets), fall back to the async clipboard API. Chrome prompts once
+      // for the clipboard-read permission and is silent afterwards.
+      pending.timer = setTimeout(async () => {
+        pending = null;
+        let text = null;
+        try {
+          text = await navigator.clipboard.readText();
+        } catch (e) {
+          console.warn('clipboard read denied; pasting remote clipboard instead', e);
+        }
+        // The physical modifiers may well be released by now, so synthesize
+        // them around the keystroke.
+        deliver(text, shift, true);
+      }, 150);
+    }
+
+    function onPaste(e) {
+      if (!pending) return;
+      clearTimeout(pending.timer);
+      const shift = pending.shift;
+      pending = null;
+      const text = e.clipboardData ? e.clipboardData.getData('text/plain') : '';
+      e.preventDefault();
+      // Same task as the keypress, so Ctrl (and Shift) are still physically
+      // held and already down on the remote - only the 'v' needs replaying.
+      deliver(text, shift, false);
+    }
+
+    function deliver(text, shift, synthesizeModifiers) {
+      const rfb = UI.rfb;
+      if (!rfb) return;
+      // ClientCutText and KeyEvent travel the same stream in order, and x11vnc
+      // handles messages sequentially, so the selection is owned before the
+      // keystroke is processed. No delay needed.
+      if (text) rfb.clipboardPasteFrom(text);
+      const keysym = shift ? XK_V : XK_v;
+      if (synthesizeModifiers) {
+        rfb.sendKey(XK_Control_L, 'ControlLeft', true);
+        rfb.sendKey(keysym, 'KeyV', true);
+        rfb.sendKey(keysym, 'KeyV', false);
+        rfb.sendKey(XK_Control_L, 'ControlLeft', false);
+        capsDown = false;
+      } else {
+        rfb.sendKey(keysym, 'KeyV', true);
+        rfb.sendKey(keysym, 'KeyV', false);
+      }
+    }
+
+    // --- capture-phase key handling ----------------------------------------
+    // noVNC binds its handlers to the canvas; a capture listener on document
+    // runs first, and stopImmediatePropagation() keeps the event away from it.
+    function onKeyDown(e) {
+      if (isFormField(e.target)) return;
+      if (e.code === 'CapsLock') {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        sendCaps(true);
+        return;
+      }
+      const isV = e.code === 'KeyV' || e.key === 'v' || e.key === 'V';
+      if (isV && e.ctrlKey && !e.altKey && !e.metaKey) {
+        // Deliberately no preventDefault: we want the native paste event.
+        e.stopImmediatePropagation();
+        schedulePaste(e.shiftKey);
+      }
+    }
+
+    function onKeyUp(e) {
+      if (isFormField(e.target)) return;
+      if (e.code === 'CapsLock') {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        sendCaps(false);
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown, true);
+    document.addEventListener('keyup', onKeyUp, true);
+    document.addEventListener('paste', onPaste, true);
+
+    // noVNC releases the keys *it* thinks are down on blur; our synthetic
+    // Control_L is not on that list, so release it ourselves.
+    window.addEventListener('blur', () => sendCaps(false));
+
+    // --- remote copy -> local clipboard ------------------------------------
+    // UI attaches its own 'clipboard' listener (it fills the clipboard panel);
+    // add a second one that writes straight to the local clipboard, so copying
+    // in the remote Firefox lands in the real one. A new RFB object is built on
+    // every connect and reconnect, so watch for it.
+    let seen = null;
+    setInterval(() => {
+      const rfb = UI.rfb;
+      if (!rfb) { seen = null; return; }
+      if (rfb === seen) return;
+      seen = rfb;
+      rfb.addEventListener('clipboard', (ev) => {
+        const text = ev.detail && ev.detail.text;
+        if (!text) return;
+        navigator.clipboard.writeText(text).catch((e) => {
+          console.warn('clipboard write denied', e);
+        });
+      });
+    }, 500);

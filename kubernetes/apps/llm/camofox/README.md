@@ -12,6 +12,66 @@ on the `camofox` PVC (RWO ceph-block). Any new session created with the same
 `userId` auto-restores that state. Live Firefox profiles are ephemeral
 (`/tmp/playwright_firefoxdev_profile-*`).
 
+## Viewer
+
+Open `https://browser.timblakely.com/`. That page is `index.html` from the
+`camofox-novnc` ConfigMap; it is mounted into `/usr/share/novnc/`, which
+otherwise ships **no** index at all, so `/` used to serve websockify's raw
+directory listing. It loads the stock `vnc.html` in a same-origin iframe with
+`?autoconnect=true&resize=scale&reconnect=true&show_dot=true`, and injects
+`app/clipboard-bridge.js` into that document.
+
+Both files are *additions*, never replacements: nothing shipped in the image is
+shadowed, so bumping the camofox image tag cannot silently revert the viewer to
+a stale copy of a file we overwrote. `/vnc.html` remains the untouched stock
+viewer if you need to rule the bridge out.
+
+The three things the landing page fixes, and why each needs fixing:
+
+- **It scales to the window.** noVNC's default `resize=off` pins the canvas at
+  the native framebuffer size, so resizing the browser window did nothing.
+  `resize=scale` scales client-side and follows window resizes.
+
+  True *remote* resize (`resize=remote`, where the desktop actually changes
+  resolution) is not available here and is not a config away: Xvfb is started
+  with a single fixed `-screen 0 1920x1080x24` mode, and x11vnc 0.9.16 does not
+  implement client-initiated `SetDesktopSize`. Both halves would have to change
+  to get it, so client-side scaling is the fix. A widescreen window therefore
+  letterboxes the 16:9 feed rather than filling it.
+
+- **Ctrl+V pastes the *local* clipboard.** noVNC calls `preventDefault()` on
+  every key it forwards, which suppresses the browser's native paste event.
+  The local clipboard therefore never reached the remote X CLIPBOARD selection,
+  and Ctrl+V in the remote Firefox pasted whatever that session last copied.
+  The bridge intercepts Ctrl+V in the capture phase before noVNC's canvas
+  listener sees it, lets the real paste event fire, sends the text over RFB as
+  `ClientCutText`, then replays the keystroke. `ClientCutText` and `KeyEvent`
+  travel the same stream and x11vnc handles messages in order, so the selection
+  is owned before the keystroke is processed — no delay needed. If no paste
+  event arrives within 150 ms the bridge falls back to
+  `navigator.clipboard.readText()` (Chrome prompts once for the permission,
+  then is silent) and synthesizes the modifiers too, since the physical Ctrl
+  may have been released by then.
+
+  The reverse direction is wired up as well: copying in the remote Firefox
+  fires noVNC's `clipboard` event, and the bridge mirrors it into the local
+  clipboard with `navigator.clipboard.writeText()`. The stock noVNC clipboard
+  side-panel keeps working unchanged.
+
+- **CapsLock acts as Ctrl.** This desktop's X config uses the
+  `caps:ctrl_modifier` option, which makes CapsLock a Control *modifier*
+  locally while deliberately leaving the emitted keysym as `Caps_Lock`. noVNC
+  forwards keysyms, so the remote session received a bare `Caps_Lock` press and
+  nothing else. The bridge swallows the key and sends `Control_L` in its place,
+  and releases it on window blur (noVNC only auto-releases keys it believes it
+  sent). Doing this in the client rather than with x11vnc's `-remap` keeps the
+  change scoped to this page and avoids patching the image's
+  `vnc-watcher.sh`, which builds its x11vnc argument list with no env hook.
+
+Because the ConfigMap is mounted by `subPath`, updates never appear in place —
+`reloader.stakater.com/auto` on the controller rolls the Deployment when the
+ConfigMap changes.
+
 ## Manual VNC login (one-time)
 
 Use this to log into a site that requires visual interaction (e.g. Facebook
@@ -26,7 +86,7 @@ the same `userId` inherit the authenticated state automatically.
         -d '{"userId":"facebook","sessionKey":"default","url":"https://www.facebook.com"}'
     ```
 
-2. Open the noVNC viewer in a browser: `https://browser.timblakely.com/vnc.html`
+2. Open the noVNC viewer in a browser: `https://browser.timblakely.com/`
 
 3. Complete the login in the VNC desktop (handle MFA prompts, CAPTCHAs, etc.).
 
@@ -54,18 +114,14 @@ Notes:
   Gateway handles the WebSocket upgrade transparently.
 - Port 5900 (raw VNC, plaintext) is intentionally **not** exposed. Only the
   noVNC HTTP/WebSocket interface on port 6080 is routed.
-- **Clipboard.** noVNC clipboard works both ways (VNC→X and X→VNC). The
-  `X11VNC_AVOID_WINDOWS=never` env var removes x11vnc's 45s display-manager
-  grace period so the X clipboard is owned as soon as the first viewer
-  connects, rather than 45s after the first connection.
-- **Viewport & fullscreen.** The desktop is a fixed `1920x1080` framebuffer
-  (`VNC_RESOLUTION`); the Xvfb/Firefox server resolution is **not** made
-  dynamic. noVNC only *scales* that feed client-side to fit the window. For
-  fit-to-viewport, open
-  `https://browser.timblakely.com/vnc.html?autoconnect=true&resize=scale`; for
-  full-screen use noVNC's on-screen fullscreen button (the browser Fullscreen
-  API). These are client-side options and depend on the noVNC build in the
-  image — recommended, not guaranteed.
+- **Clipboard.** The `X11VNC_AVOID_WINDOWS=never` env var removes x11vnc's
+  45s display-manager grace period so the X clipboard is owned as soon as the
+  first viewer connects, rather than 45s after the first connection. Ctrl+C /
+  Ctrl+V work through the landing page — see *Viewer* above.
+- **Viewport & fullscreen.** Use `https://browser.timblakely.com/` (see
+  *Viewer* above) — it opens the viewer with `resize=scale` so the desktop
+  tracks the window. Bare `/vnc.html` is the stock noVNC viewer with stock
+  defaults and does *not* scale.
 
 ## Security hardening (future)
 
