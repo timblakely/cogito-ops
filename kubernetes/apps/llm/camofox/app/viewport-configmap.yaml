@@ -1,0 +1,55 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: camofox-viewport
+data:
+  # Node preload (NODE_OPTIONS=--require) that widens the Playwright viewport.
+  #
+  # The VNC plugin only overrides the *Xvfb* resolution; it never touches the
+  # browser context, and server.js hardcodes `viewport: {width: 1280, height:
+  # 720}` at both context-creation sites. The result on a 1920x1080 desktop is
+  # a 1371x739 browser window sitting in a much larger screen, with black bands
+  # around it and no window manager to maximise it.
+  #
+  # Resizing the X window does NOT fix this - measured: with the window forced
+  # to 1920x1080 via XConfigureWindow, the page still renders at 1280x720,
+  # because Playwright pins the page size to the context viewport. The viewport
+  # is the only lever, so override it at the one funnel every context goes
+  # through: Browser.prototype.newContext.
+  #
+  # Patching here rather than shadowing server.js keeps us off a 5000-line file
+  # we would have to re-copy on every image bump. playwright-core is a single
+  # CommonJS copy under /app/node_modules (no nested duplicate), and --require
+  # runs before the ESM entrypoint imports it, so the prototype is already
+  # patched by the time any context is created.
+  viewport-patch.cjs: |
+    'use strict';
+
+    const spec = process.env.CAMOFOX_VIEWPORT || '';
+    const m = spec.match(/^(\d+)x(\d+)$/);
+
+    if (!m) {
+      console.warn('[viewport-patch] CAMOFOX_VIEWPORT=%j is unset or malformed; '
+                   + 'leaving the built-in 1280x720 viewport alone', spec);
+    } else {
+      const width = Number(m[1]);
+      const height = Number(m[2]);
+      try {
+        const browserModule = require(
+          '/app/node_modules/playwright-core/lib/client/browser.js');
+        const Browser = browserModule.Browser;
+        const original = Browser.prototype.newContext;
+        Browser.prototype.newContext = function (options = {}) {
+          // Only the viewport is overridden. `screen` is deliberately left
+          // alone: Camoufox derives window.screen from its own fingerprint
+          // profile, and forcing a value here would fight that.
+          return original.call(this, Object.assign({}, options, {
+            viewport: { width, height },
+          }));
+        };
+        console.log('[viewport-patch] browser contexts forced to %dx%d', width, height);
+      } catch (err) {
+        console.error('[viewport-patch] failed, keeping default viewport:', err.message);
+      }
+    }

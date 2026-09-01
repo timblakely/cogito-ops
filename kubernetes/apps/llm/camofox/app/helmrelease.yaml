@@ -39,7 +39,14 @@ spec:
               MAX_SESSIONS: "11"
               MAX_TABS_PER_SESSION: "5"
               ENABLE_VNC: "1"
-              VNC_RESOLUTION: "1920x1080"
+              # Experiment pass: the framebuffer is deliberately larger than the
+              # browser window needs, so the window size can be measured without
+              # Playwright clamping it to the screen. Trimmed to the measured
+              # window size once known.
+              VNC_RESOLUTION: "2560x1440"
+              # Widen the Playwright viewport (see camofox-viewport ConfigMap).
+              CAMOFOX_VIEWPORT: "1920x1080"
+              NODE_OPTIONS: "--require /app/viewport-patch.cjs"
               VNC_BIND: "0.0.0.0"
               # Own the X clipboard immediately on first viewer connect (skip x11vnc's 45s DM grace period).
               X11VNC_AVOID_WINDOWS: "never"
@@ -132,6 +139,15 @@ spec:
               - identifier: vnc
                 port: 6080
     persistence:
+      viewport:
+        type: configMap
+        name: camofox-viewport
+        advancedMounts:
+          camofox:
+            app:
+              - path: /app/viewport-patch.cjs
+                subPath: viewport-patch.cjs
+                readOnly: true
       novnc:
         type: configMap
         name: camofox-novnc
