@@ -41,30 +41,57 @@ data:
     <iframe id="viewer"
             title="camofox desktop"
             allow="fullscreen; clipboard-read; clipboard-write"
-            allowfullscreen
             src="vnc.html?autoconnect=true&resize=scale&reconnect=true&reconnect_delay=2000&show_dot=true"></iframe>
     <script>
-      // Same-origin, so we can add our bridge to the viewer's document once it
-      // has loaded. crossorigin="anonymous" matches vnc.html's own module tag.
-      var viewer = document.getElementById('viewer');
-      function inject() {
-        try {
+      // Inject the bridge into the viewer document (same origin, so this is
+      // allowed). This has to be retried rather than done once: appending the
+      // script while the iframe still holds its initial about:blank document
+      // starts a fetch that the browser aborts the moment vnc.html commits
+      // (net::ERR_ABORTED), and the orphaned <script> tag is left behind
+      // looking perfectly correct. So the only trustworthy signal that the
+      // bridge is live is the global it sets - never the presence of the tag.
+      (function () {
+        var viewer = document.getElementById('viewer');
+
+        function viewerReady() {
+          try {
+            var d = viewer.contentDocument;
+            return !!(d && d.location.href.indexOf('vnc.html') !== -1 &&
+                      d.readyState !== 'loading' && d.head);
+          } catch (e) { return false; }
+        }
+
+        function inject() {
+          if (!viewerReady()) return false;
           var d = viewer.contentDocument;
-          if (!d || d.getElementById('clipboard-bridge')) return;
+          if (viewer.contentWindow.__cogitoBridge) return true;   // running
+          var stale = d.getElementById('clipboard-bridge');
+          if (stale) stale.remove();
           var s = d.createElement('script');
           s.id = 'clipboard-bridge';
           s.type = 'module';
-          s.crossOrigin = 'anonymous';
-          s.src = 'app/clipboard-bridge.js';
+          // Cache-bust so a module-map entry poisoned by an aborted fetch is
+          // not what the retry gets handed back. The relative import inside
+          // the module still resolves against /app/, query string and all.
+          s.src = 'app/clipboard-bridge.js?t=' + Date.now();
           d.head.appendChild(s);
-        } catch (e) {
-          console.error('clipboard bridge injection failed', e);
+          return false;
         }
-      }
-      viewer.addEventListener('load', inject);
-      inject();
-      // Keyboard input has to land in the iframe, not on this shell page.
-      window.addEventListener('load', function () { viewer.focus(); });
+
+        viewer.addEventListener('load', inject);
+        var tries = 0;
+        var timer = setInterval(function () {
+          if (inject() || ++tries > 80) {          // give up after ~20s
+            clearInterval(timer);
+            if (!(viewer.contentWindow && viewer.contentWindow.__cogitoBridge)) {
+              console.error('[cogito] clipboard bridge never started');
+            }
+          }
+        }, 250);
+
+        // Keyboard input has to land in the iframe, not on this shell page.
+        window.addEventListener('load', function () { viewer.focus(); });
+      })();
     </script>
     </body>
     </html>
@@ -73,8 +100,24 @@ data:
   #
   # Importing './ui.js' hands back the exact module instance vnc.html already
   # loaded (module maps are keyed by URL), so UI.rfb is the live connection.
+  # Verified: importing it a second time reports the connected RFB object.
   clipboard-bridge.js: |
     import UI from './ui.js';
+
+    // The injector retries until this global appears, and cache-busts the URL
+    // each attempt, so guard against installing the handlers twice.
+    if (window.__cogitoBridge) {
+      console.log('[cogito] clipboard bridge already active');
+    } else {
+
+    // Troubleshooting handle: `__cogitoBridge` in the viewer frame is the only
+    // reliable evidence the bridge is live. An injected <script> tag proves
+    // nothing - a fetch aborted by the iframe's navigation leaves the tag in
+    // place having never executed.
+    const dbg = { loaded: true, rfbSeen: false, caps: 0, ctrlV: 0,
+                  pasteEvents: 0, readTextFallbacks: 0, lastError: null };
+    window.__cogitoBridge = dbg;
+    console.log('[cogito] clipboard bridge loaded');
 
     const XK_Control_L = 0xffe3;
     const XK_v = 0x76;
@@ -101,6 +144,8 @@ data:
     function sendCaps(down) {
       if (capsDown === down) return;
       capsDown = down;
+      dbg.caps++;
+      dbg.rfbSeen = !!UI.rfb;
       if (UI.rfb) UI.rfb.sendKey(XK_Control_L, 'ControlLeft', down);
     }
 
@@ -121,11 +166,13 @@ data:
       // for the clipboard-read permission and is silent afterwards.
       pending.timer = setTimeout(async () => {
         pending = null;
+        dbg.readTextFallbacks++;
         let text = null;
         try {
           text = await navigator.clipboard.readText();
         } catch (e) {
-          console.warn('clipboard read denied; pasting remote clipboard instead', e);
+          dbg.lastError = String(e);
+          console.warn('[cogito] clipboard read denied; pasting remote clipboard instead', e);
         }
         // The physical modifiers may well be released by now, so synthesize
         // them around the keystroke.
@@ -134,6 +181,7 @@ data:
     }
 
     function onPaste(e) {
+      dbg.pasteEvents++;
       if (!pending) return;
       clearTimeout(pending.timer);
       const shift = pending.shift;
@@ -147,7 +195,8 @@ data:
 
     function deliver(text, shift, synthesizeModifiers) {
       const rfb = UI.rfb;
-      if (!rfb) return;
+      dbg.rfbSeen = !!rfb;
+      if (!rfb) { dbg.lastError = 'UI.rfb undefined at deliver()'; return; }
       // ClientCutText and KeyEvent travel the same stream in order, and x11vnc
       // handles messages sequentially, so the selection is owned before the
       // keystroke is processed. No delay needed.
@@ -166,8 +215,9 @@ data:
     }
 
     // --- capture-phase key handling ----------------------------------------
-    // noVNC binds its handlers to the canvas; a capture listener on document
-    // runs first, and stopImmediatePropagation() keeps the event away from it.
+    // noVNC binds its handlers to the canvas (bubble phase), so a capture
+    // listener on document runs first and stopImmediatePropagation() keeps the
+    // event away from it entirely.
     function onKeyDown(e) {
       if (isFormField(e.target)) return;
       if (e.code === 'CapsLock') {
@@ -179,6 +229,7 @@ data:
       const isV = e.code === 'KeyV' || e.key === 'v' || e.key === 'V';
       if (isV && e.ctrlKey && !e.altKey && !e.metaKey) {
         // Deliberately no preventDefault: we want the native paste event.
+        dbg.ctrlV++;
         e.stopImmediatePropagation();
         schedulePaste(e.shiftKey);
       }
@@ -212,11 +263,15 @@ data:
       if (!rfb) { seen = null; return; }
       if (rfb === seen) return;
       seen = rfb;
+      dbg.rfbSeen = true;
       rfb.addEventListener('clipboard', (ev) => {
         const text = ev.detail && ev.detail.text;
         if (!text) return;
         navigator.clipboard.writeText(text).catch((e) => {
-          console.warn('clipboard write denied', e);
+          dbg.lastError = String(e);
+          console.warn('[cogito] clipboard write denied', e);
         });
       });
     }, 500);
+
+    }
