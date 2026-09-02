@@ -150,44 +150,88 @@ kubectl -n llm exec deploy/camofox -c app -- \
     sh -c 'DISPLAY=:99 xwininfo -root -tree | grep -i navigator'
 ```
 
-## Manual VNC login (one-time)
+## Shared identity: the VNC desktop and the agent are one browser
 
-Use this to log into a site that requires visual interaction (e.g. Facebook
-with MFA or CAPTCHA). After one successful login, all subsequent sessions with
-the same `userId` inherit the authenticated state automatically.
+camofox keys sessions by `userId` **alone** - `sessionKey` is not part of the
+map key (`sessions.get(normalizeUserId(userId))`). Everything that passes the
+same `userId` therefore shares one *live* browser context: the same cookies, in
+memory, right now. No export/import round trip is involved.
 
-1. Create a session pointing at the target site:
+That is what makes the VNC desktop useful: log into a site by hand in the
+window, and the agent is already in that session. It only works if both sides
+use the same `userId`, which here is **`tim`**, set in two places that must not
+drift apart:
+
+| Side | Where |
+| --- | --- |
+| Interactive VNC window | `vnc-tab-seeder` in `app/helmrelease.yaml` |
+| pi.dev agent | `camofox.userId` in `~/.pi/agent/settings.json` |
+
+**The failure this fixes.** The pi.dev `camofox-browser` extension resolves its
+identity as:
+
+```ts
+return envId || configId || "pi_" + randomUUID().replace(/-/g, "").slice(0, 10);
+```
+
+With `camofox.userId` unset, every agent run invented a *new random* userId, so
+it got a brand-new empty profile and saw the login screen no matter how many
+times a human had logged in at the VNC desktop. It also explains the ~86
+accumulated `profiles/` directories, most of them 36-byte empty states. Setting
+`camofox.userId` is what makes the identity stable; `CAMOFOX_USER_ID` still
+overrides it per run if a throwaway identity is ever wanted.
+
+Verified end to end: typing a URL in the VNC window that set a cookie, then
+reading it back through the agent's own API path
+(`POST /tabs` + `GET /tabs/<id>/snapshot` as `userId=tim`), returned
+`{"cookies": {"vncProof": "shared"}}`.
+
+### Logging into a site
+
+1. Open `https://browser.timblakely.com/` and log in in the desktop, handling
+   MFA and CAPTCHAs as usual. The window you see belongs to session `tim`.
+2. That is already enough for the agent while the session lives. To make it
+   survive a pod restart, close the session once so the state is checkpointed:
 
     ```bash
-    curl -s -X POST https://camofox.timblakely.com/tabs \
-        -H 'content-type: application/json' \
-        -d '{"userId":"facebook","sessionKey":"default","url":"https://www.facebook.com"}'
+    curl -s -X DELETE https://camofox.timblakely.com/sessions/tim
     ```
 
-2. Open the noVNC viewer in a browser: `https://browser.timblakely.com/`
+   The seeder recreates the window within ~15s and the new session restores the
+   persisted state.
 
-3. Complete the login in the VNC desktop (handle MFA prompts, CAPTCHAs, etc.).
+**Persistence is checkpoint-based, not continuous.** The persistence plugin
+writes `storage-state.json` only on session close, cookie import, and server
+shutdown - there is no periodic save. A session that simply stays open forever
+is never written to disk, so a hard pod kill (as opposed to a graceful
+`server:shutdown`) loses a login that was never checkpointed. The agent's
+`close` tool and its `session_shutdown` hook both `DELETE /sessions/<userId>`,
+so a normal agent run ends by persisting state as a side effect.
 
-4. Close the session to trigger the persistence checkpoint:
+Profiles live at `profiles/<first 32 hex of sha256(userId)>/storage-state.json`
+on the `camofox` PVC. For `tim` that is
+`c0d19e4483571ff07cb01a4d3f548410`. There is no index mapping hashes back to
+names; recover one with
+`python3 -c 'import hashlib;print(hashlib.sha256(b"tim").hexdigest()[:32])'`.
 
-    ```bash
-    curl -s -X DELETE https://camofox.timblakely.com/sessions/facebook
-    ```
-
-5. Any agent session created with `userId: "facebook"` now inherits the
-   authenticated cookies automatically.
+**Only one window should normally be open.** Without a window manager, and with
+every window pinned to fill the screen (see *Window size*), two sessions
+produce two identical full-screen windows stacked on top of each other with no
+way to tell which one has focus - so a login can silently land in the wrong
+session. `curl -s https://camofox.timblakely.com/health` reporting
+`activeSessions: 1` is the check.
 
 Notes:
 
 - **Black desktop.** With no session/tab the X desktop has no browser window
   and renders black, which is indistinguishable from a failed connection in
-  the viewer. The `vnc-tab-seeder` container keeps a `vnc-default` tab open
+  the viewer. The `vnc-tab-seeder` container keeps a `tim` tab open
   whenever `activeTabs` drops to 0, so the desktop should always show
   *something*. If it is still black, check that the seeder is running
   (`kubectl logs -n llm deploy/camofox -c vnc-tab-seeder`) and that
   `curl -s https://camofox.timblakely.com/health` reports `activeTabs >= 1`.
-- `MAX_SESSIONS=11` — ten user slots plus the one permanently held by the
-  seeder. Close the login session when done to free a slot.
+- `MAX_SESSIONS=11` — ten slots plus the one permanently held by the seeder's
+  `tim` session.
 - The noVNC WebSocket connects via `wss://` to the same 443 route; Envoy
   Gateway handles the WebSocket upgrade transparently.
 - Port 5900 (raw VNC, plaintext) is intentionally **not** exposed. Only the
