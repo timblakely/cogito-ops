@@ -47,6 +47,19 @@ spec:
               # letterboxing on an ordinary monitor.
               VNC_RESOLUTION: "2560x1440"
               NODE_OPTIONS: "--require /app/window-patch.cjs"
+              # Locks the API down. Without these the whole API is open to
+              # anyone on the LAN who can resolve camofox.timblakely.com, which
+              # now means read access to a logged-in browser session's cookies.
+              CAMOFOX_ACCESS_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: camofox-secrets
+                    key: CAMOFOX_ACCESS_KEY
+              CAMOFOX_API_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: camofox-secrets
+                    key: CAMOFOX_API_KEY
               VNC_BIND: "0.0.0.0"
               # Own the X clipboard immediately on first viewer connect (skip x11vnc's 45s DM grace period).
               X11VNC_AVOID_WINDOWS: "never"
@@ -88,6 +101,12 @@ spec:
             image:
               repository: ghcr.io/jo-inc/camofox-browser
               tag: 1.8.0
+            env:
+              CAMOFOX_ACCESS_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: camofox-secrets
+                    key: CAMOFOX_ACCESS_KEY
             command:
               - sh
               - -c
@@ -96,11 +115,60 @@ spec:
                 while :; do
                   if curl -sf http://localhost:9377/health | grep -q '"activeTabs":0,'; then
                     curl -sf -X POST http://localhost:9377/tabs \
+                      -H "authorization: Bearer $${CAMOFOX_ACCESS_KEY}" \
                       -H 'content-type: application/json' \
                       -d '{"userId":"tim","sessionKey":"default","url":"https://duckduckgo.com"}' \
                       >/dev/null 2>&1 || true
                   fi
                   sleep 15
+                done
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities: { drop: ["ALL"] }
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 64Mi
+          # Forces the session's cookies onto the ceph-block PVC on a timer.
+          #
+          # The profile has always been on Ceph (/root/.camofox is /dev/rbd0);
+          # what was missing is *when* it gets written. The persistence plugin
+          # checkpoints only on session close, cookie import, and server
+          # shutdown - there is no periodic save - so a login made in the VNC
+          # desktop and left open survives a graceful pod termination but not
+          # an OOM kill or a node crash.
+          #
+          # POST /sessions/<id>/cookies with an empty array adds nothing
+          # (addCookies([])) but still emits `session:cookies:import`, which is
+          # one of the plugin's checkpoint triggers. So this is a no-op write
+          # whose only effect is flushing the live cookie jar to Ceph.
+          #
+          # The userId must match the seeder's and the agent's - see the
+          # comment on vnc-tab-seeder above.
+          state-checkpointer:
+            image:
+              repository: ghcr.io/jo-inc/camofox-browser
+              tag: 1.8.0
+            env:
+              CAMOFOX_ACCESS_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: camofox-secrets
+                    key: CAMOFOX_ACCESS_KEY
+            command:
+              - sh
+              - -c
+              - |
+                until curl -sf http://localhost:9377/health >/dev/null; do sleep 2; done
+                while :; do
+                  sleep 300
+                  curl -sf -X POST http://localhost:9377/sessions/tim/cookies \
+                    -H "authorization: Bearer $${CAMOFOX_ACCESS_KEY}" \
+                    -H 'content-type: application/json' \
+                    -d '{"cookies":[]}' \
+                    >/dev/null 2>&1 || true
                 done
             securityContext:
               allowPrivilegeEscalation: false
