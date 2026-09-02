@@ -200,13 +200,31 @@ reading it back through the agent's own API path
    The seeder recreates the window within ~15s and the new session restores the
    persisted state.
 
-**Persistence is checkpoint-based, not continuous.** The persistence plugin
-writes `storage-state.json` only on session close, cookie import, and server
-shutdown - there is no periodic save. A session that simply stays open forever
-is never written to disk, so a hard pod kill (as opposed to a graceful
-`server:shutdown`) loses a login that was never checkpointed. The agent's
-`close` tool and its `session_shutdown` hook both `DELETE /sessions/<userId>`,
-so a normal agent run ends by persisting state as a side effect.
+**Persistence is checkpoint-based, and the checkpoints are on a timer.** The
+storage state has always lived on Ceph - `/root/.camofox` is `/dev/rbd0`, the
+`camofox` PVC (5Gi RWO `ceph-block`, hourly kopiur snapshots). What was missing
+was *when* it got written: the persistence plugin checkpoints only on session
+close, cookie import, and server shutdown, so a login left open survived a
+graceful termination but not an OOM kill or node crash.
+
+The `state-checkpointer` sidecar closes that window by POSTing an empty cookie
+array to `/sessions/tim/cookies` every 5 minutes. `addCookies([])` adds nothing
+but still emits `session:cookies:import`, one of the plugin's checkpoint
+triggers - a no-op write whose only effect is flushing the live cookie jar to
+Ceph. Confirm it with:
+
+```bash
+kubectl -n llm logs deploy/camofox -c app | grep "storage state persisted"
+# ... "reason":"cookie_import" ... every ~5 minutes
+```
+
+Note this cannot be solved by moving a mount. Firefox does write cookies
+continuously, but to `/tmp/playwright_firefoxdev_profile-<random>/cookies.sqlite`
+on the container overlay, and Playwright creates a fresh randomly-named profile
+per launch and deletes it on close - so putting the PVC there would gain
+nothing. Making the *live* profile persistent means `launchPersistentContext`,
+which is one profile per browser process; camofox is one browser with N
+contexts keyed by userId, so that would be one Firefox per identity.
 
 Profiles live at `profiles/<first 32 hex of sha256(userId)>/storage-state.json`
 on the `camofox` PVC. For `tim` that is
@@ -246,18 +264,52 @@ Notes:
   defaults and does *not* scale. The browser window fills the desktop; see
   *Window size* above if black bands ever reappear.
 
-## Security hardening (future)
+## API authentication
 
-This run ships without a VNC password: the camofox API is already
-unauthenticated on the internal-only gateway (`POST /tabs` grants full browser
-control), so noVNC adds no new threat surface.
+The API is gated by a bearer token. camofox has two independent gates and they
+are not interchangeable:
 
-To add a VNC password later:
+| Env var | Covers | Accepts |
+| --- | --- | --- |
+| `CAMOFOX_ACCESS_KEY` | every route except `/health` and cookie import | only the access key |
+| `CAMOFOX_API_KEY` | cookie import, `/sessions/:userId/storage_state` | access key **or** API key |
 
-1. Create a 1Password item (e.g. `camofox-vnc`) with a `VNC_PASSWORD` field.
-2. Add an ExternalSecret (pattern: `kubernetes/apps/llm/litellm/app/externalsecret.yaml`)
-   to project the secret into the `llm` namespace.
-3. Add `VNC_PASSWORD` to `containers.app.env` sourced from the secret.
+Both are projected from a single value in the 1Password item `camofox`
+(Kubernetes vault, field `CAMOFOX_ACCESS_KEY`) via `app/externalsecret.yaml`,
+so one bearer token satisfies every endpoint. `CAMOFOX_API_KEY` alone is not
+enough to secure the service - it leaves `POST /tabs` open, which is full
+browser control.
+
+Clients that must carry the token:
+
+- the pi.dev extension — `camofox.apiKey` in `~/.pi/agent/settings.json`
+- `vnc-tab-seeder` and `state-checkpointer` — from the same Secret
+
+In manifests the header is written `$${CAMOFOX_ACCESS_KEY}`. The `$$` is the
+Flux escape: this Kustomization runs `postBuild.substituteFrom`, and a bare
+`$VAR` would be substituted away to an empty string before the container ever
+sees it.
+
+This matters more than it did when the browser was disposable: a persistent
+logged-in session now lives behind this API, so an unauthenticated
+`GET /sessions/tim/storage_state` would hand over live session cookies.
+
+### Still open: the VNC desktop itself
+
+`browser.timblakely.com` is **not** covered by any of the above. It is
+websockify on port 6080, a separate process from the Express API, so the bearer
+token does not apply to it — anyone on the LAN who can resolve that name can
+drive the logged-in browser. Two ways to close it, neither done yet:
+
+- **OIDC at the gateway** (preferred, and the pattern already used by eight
+  apps here). The stock `components/kustomize/pocket-id` component cannot be
+  dropped in as-is: its SecurityPolicy targets the HTTPRoute named `${APP}`,
+  which is the *API* route, and the API must stay bearer-token because the
+  agent cannot complete an interactive OIDC flow. It needs a SecurityPolicy
+  targeting the `vnc` route specifically, plus its own pocket-id client and
+  redirect URL.
+- **`VNC_PASSWORD`** (supported by the VNC plugin, wired to `x11vnc -rfbauth`).
+  Much weaker: the VNC auth scheme truncates passwords to 8 characters.
 
 ## DNS
 
