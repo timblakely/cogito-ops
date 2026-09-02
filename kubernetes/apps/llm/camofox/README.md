@@ -294,22 +294,48 @@ This matters more than it did when the browser was disposable: a persistent
 logged-in session now lives behind this API, so an unauthenticated
 `GET /sessions/tim/storage_state` would hand over live session cookies.
 
-### Still open: the VNC desktop itself
+### The VNC desktop: pocket-id OIDC at the gateway
 
-`browser.timblakely.com` is **not** covered by any of the above. It is
-websockify on port 6080, a separate process from the Express API, so the bearer
-token does not apply to it — anyone on the LAN who can resolve that name can
-drive the logged-in browser. Two ways to close it, neither done yet:
+`browser.${DOMAIN_NAME}` is **not** covered by the bearer token above. It is
+websockify on port 6080 - a static-file and WebSocket proxy with no notion of
+users, and a separate process from the Express API - so it is gated at the
+gateway instead, by `app/oidc.yaml`:
 
-- **OIDC at the gateway** (preferred, and the pattern already used by eight
-  apps here). The stock `components/kustomize/pocket-id` component cannot be
-  dropped in as-is: its SecurityPolicy targets the HTTPRoute named `${APP}`,
-  which is the *API* route, and the API must stay bearer-token because the
-  agent cannot complete an interactive OIDC flow. It needs a SecurityPolicy
-  targeting the `vnc` route specifically, plus its own pocket-id client and
-  redirect URL.
-- **`VNC_PASSWORD`** (supported by the VNC plugin, wired to `x11vnc -rfbauth`).
-  Much weaker: the VNC auth scheme truncates passwords to 8 characters.
+- a `PocketIDUserGroup` `camofox-browser` (members: `tim`),
+- a `PocketIDOIDCClient` `camofox-browser` restricted to that group, and
+- a `SecurityPolicy` targeting the **`camofox-vnc`** HTTPRoute.
+
+Two things about this are deliberate and worth not "fixing" later:
+
+- **It does not use `components/envoy-gateway-oidc`.** That component's
+  SecurityPolicy targets the HTTPRoute named `${APP}`, which is the *API* route.
+  The API has to keep bearer-token auth, because the pi.dev agent cannot
+  complete an interactive login. Only the `camofox-vnc` route is gated.
+- **The operator writes the secret keys Envoy Gateway expects.** EG looks for
+  exactly `client-id` and `client-secret`; the pocket-id operator defaults to
+  `client_id`/`client_secret`. Rather than adapting between them,
+  `spec.secret.keys` on the client overrides the operator's names. This is a
+  confidential client (EG performs the code exchange), unlike hermes which is
+  public + PKCE.
+
+This is the first `SecurityPolicy` in the cluster - every other OIDC app here
+authenticates natively - so there was no in-repo precedent to copy.
+
+Verified: unauthenticated `GET /` returns 302 to
+`pid.${DOMAIN_NAME}/authorize?client_id=camofox-browser...`, an unauthenticated
+`/websockify` upgrade returns 302 rather than 101, and the API route is
+unaffected. Following the authorize URL returns pocket-id's login page with no
+OIDC error, so the client and EG's PKCE challenge agree.
+
+To revert in a hurry (e.g. locked out):
+
+```bash
+kubectl -n llm delete securitypolicy camofox-browser-oidc
+```
+
+Access is then immediately unauthenticated again; Flux will recreate the policy
+on its next reconcile, so remove `./oidc.yaml` from `app/kustomization.yaml` if
+the change needs to stick.
 
 ## DNS
 
@@ -323,18 +349,26 @@ A black viewer and a genuinely broken connection look the same in noVNC, so
 confirm which one you have before changing anything. This proves the whole
 path — Envoy → websockify → x11vnc → Xvfb — independently of the browser:
 
+Since the desktop went behind OIDC this has to bypass the gateway, or it just
+returns the 302 to pocket-id. Port-forward the service and probe that:
+
 ```bash
+kubectl -n llm port-forward svc/camofox-vnc 16080:6080 &
 curl -sSi --http1.1 --max-time 15 \
     -H 'Connection: Upgrade' -H 'Upgrade: websocket' \
     -H 'Sec-WebSocket-Version: 13' -H 'Sec-WebSocket-Protocol: binary' \
     -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' \
-    https://browser.timblakely.com/websockify
+    http://127.0.0.1:16080/websockify
 ```
+
+(curl will appear to hang after the handshake - that is the upgraded connection
+staying open, and means it worked.)
 
 A healthy stack answers `101 Switching Protocols` followed by the RFB banner
 `RFB 003.008`. If you get that, the transport is fine and a black or failed
 viewer is a *desktop* problem (no tab open) — check `/health` for
-`activeTabs`.
+`activeTabs`. A 302 from the public hostname is the OIDC gate doing its job,
+not a broken route.
 
 Note that `--http1.1` is required: over HTTP/2 the same request is not a
 WebSocket handshake at all, and websockify answers `404`. That 404 is
