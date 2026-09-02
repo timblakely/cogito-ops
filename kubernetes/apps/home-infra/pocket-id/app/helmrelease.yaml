@@ -77,3 +77,21 @@ spec:
             value: Tim
           lastName:
             value: Test
+      # Deliberately NOT an admin, unlike the two above. A pocket-id admin can
+      # edit groups and OIDC clients in the UI, which would let this account add
+      # itself to any allowedUserGroups - including camofox-browser, which is
+      # the only thing keeping the VNC desktop at browser.${DOMAIN_NAME}
+      # restricted to one person. Access is granted per app by group membership
+      # instead; see the immich usergroup.
+      - name: keaton
+        spec:
+          admin: false
+          # Kept out of git via cluster-settings: this repo is public, which is
+          # why tim's address is ${EMAIL} rather than a literal. (timtest's
+          # literal address is a throwaway.)
+          email:
+            value: ${KEATON_EMAIL}
+          firstName:
+            value: Keaton
+          lastName:
+            value: Eaton
