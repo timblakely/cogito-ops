@@ -12,4 +12,7 @@ configMapGenerator:
       - VOLSYNC_PGID=0
 components:
   - ../../../components/ks/app
+  # Ordering only: waits on the pocket-id instance and the envoy gateway before
+  # the OIDC client and SecurityPolicy in app/oidc.yaml are applied.
+  - ../../../components/kustomize/pocket-id/deps
   - ../../../components/kustomize/volsync

@@ -1,0 +1,76 @@
+---
+# Access control for the VNC desktop at browser.${DOMAIN_NAME}.
+#
+# The desktop cannot authenticate itself: it is websockify serving noVNC on
+# port 6080, a plain static-file and WebSocket proxy with no notion of users,
+# and it is a completely separate process from the Express API (which is gated
+# by CAMOFOX_ACCESS_KEY). So the bearer token that protects the API does
+# nothing here, and until this policy existed anyone on the LAN who could
+# resolve browser.${DOMAIN_NAME} could drive a logged-in browser session.
+#
+# Enforcement therefore has to happen at the gateway, in front of the app.
+# Every other OIDC app in this repo authenticates natively - immich, hermes and
+# friends take a client ID/secret and run the flow themselves - which is why
+# this is the first SecurityPolicy in the cluster.
+#
+# Note this deliberately does NOT use components/envoy-gateway-oidc: that
+# component's SecurityPolicy targets the HTTPRoute named ${APP}, which is the
+# *API* route (camofox.${DOMAIN_NAME}). The API must keep bearer-token auth,
+# because the pi.dev agent cannot complete an interactive login. Only the
+# camofox-vnc route is gated here.
+apiVersion: pocketid.internal/v1alpha1
+kind: PocketIDUserGroup
+metadata:
+  name: camofox-browser
+spec:
+  users:
+    usernames:
+      - tim
+---
+apiVersion: pocketid.internal/v1alpha1
+kind: PocketIDOIDCClient
+metadata:
+  name: camofox-browser
+spec:
+  clientID: camofox-browser
+  launchUrl: https://browser.${DOMAIN_NAME}
+  # Must match the SecurityPolicy's redirectURL below, or pocket-id rejects the
+  # callback. /oauth2/callback is Envoy Gateway's own endpoint - it is
+  # intercepted at the gateway and never reaches websockify.
+  callbackUrls:
+    - https://browser.${DOMAIN_NAME}/oauth2/callback
+  allowedUserGroups:
+    - name: camofox-browser
+      namespace: ${NS}
+  # A confidential client: Envoy Gateway performs the code exchange, so unlike
+  # hermes (public + PKCE) a client secret is required. The key names are
+  # overridden because Envoy Gateway looks for exactly "client-id" and
+  # "client-secret", while the operator defaults to client_id/client_secret.
+  secret:
+    name: camofox-browser-oidc
+    keys:
+      clientID: client-id
+      clientSecret: client-secret
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: camofox-browser-oidc
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      # The VNC route only. bjw-s names it <release>-<route key>; the API route
+      # is plain "camofox" via forceRename and is intentionally left alone.
+      name: camofox-vnc
+  oidc:
+    provider:
+      issuer: https://pid.${DOMAIN_NAME}
+    clientIDRef:
+      name: camofox-browser-oidc
+    clientSecret:
+      name: camofox-browser-oidc
+    refreshToken: true
+    redirectURL: https://browser.${DOMAIN_NAME}/oauth2/callback
+    logoutPath: /logout
+    scopes: ["openid", "profile", "email"]
