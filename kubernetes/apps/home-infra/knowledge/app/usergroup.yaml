@@ -1,0 +1,23 @@
+---
+# Both groups are referenced by allowedUserGroups in ./oidc-client.yaml. The
+# knowledge-mcp client cannot reconcile until they exist, which is what kept
+# the knowledge Kustomization's health check failing.
+apiVersion: pocketid.internal/v1alpha1
+kind: PocketIDUserGroup
+metadata:
+  name: knowledge-readers
+spec:
+  users:
+    userRefs:
+      - name: tim
+        namespace: home-infra
+---
+apiVersion: pocketid.internal/v1alpha1
+kind: PocketIDUserGroup
+metadata:
+  name: knowledge-admins
+spec:
+  users:
+    userRefs:
+      - name: tim
+        namespace: home-infra

@@ -8,4 +8,11 @@ configMapGenerator:
       - APP=unifi-dns
 components:
   - ../../../components/ks/app
-  - ../../../components/kustomize/external-secret
+  # Deliberately no components/kustomize/external-secret here. That component
+  # generates a ClusterExternalSecret named ${APP}, which collides with the
+  # hand-written ExternalSecret in app/externalsecret.yaml and leaves the CES
+  # permanently NotReady ("external secret already exists in namespace"),
+  # failing this Kustomization's health check on every reconcile. The bespoke
+  # ExternalSecret is also not interchangeable with the generated one: it
+  # extracts the 1Password item "unifi", not "unifi-dns", and templates it
+  # into a secret named unifi-dns-secret with a UNIFI_API_KEY key.

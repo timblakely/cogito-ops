@@ -1,0 +1,15 @@
+---
+# Required by components/kustomize/pocket-id, which generates a
+# PocketIDOIDCClient named ${APP} whose allowedUserGroups points at a
+# PocketIDUserGroup of the same name. Without this the client never
+# reconciles ("get user group syncthing: ... not found") and the syncthing
+# Kustomization's health check fails on every pass.
+apiVersion: pocketid.internal/v1alpha1
+kind: PocketIDUserGroup
+metadata:
+  name: syncthing
+spec:
+  users:
+    userRefs:
+      - name: tim
+        namespace: home-infra
