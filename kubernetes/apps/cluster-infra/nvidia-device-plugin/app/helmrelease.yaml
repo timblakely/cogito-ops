@@ -22,6 +22,26 @@ spec:
     runtimeClassName: nvidia
     gfd:
       enabled: true
+    # This chart bundles node-feature-discovery as a subchart and turns it on by
+    # default alongside gfd, but cluster-infra already runs a standalone NFD
+    # HelmRelease. Leaving both enabled installed two complete NFD stacks (two
+    # masters, two gcs, ten workers across five nodes) with two consequences:
+    #
+    #   1. The NFD chart names the *master* ServiceAccount after the chart
+    #      rather than the release, so both releases rendered an identical
+    #      ServiceAccount/cluster-infra/node-feature-discovery. Each release's
+    #      drift detection saw the other's meta.helm.sh/release-name annotation
+    #      and app.kubernetes.io/instance label and stamped them back, so both
+    #      HelmReleases reported DriftDetected on every reconcile, forever.
+    #
+    #   2. More seriously, both worker DaemonSets wrote the same per-node
+    #      NodeFeature object, overwriting each other every few seconds with
+    #      different label sources.
+    #
+    # gfd publishes GPU labels through NodeFeature objects that the standalone
+    # NFD master consumes, so it does not need this subchart.
+    nfd:
+      enabled: false
     config:
       name: nvidia-plugin-configs
       default: config.yaml
