@@ -15,12 +15,27 @@ spec:
   upgrade:
     timeout: 2m
   values:
+    master:
+      config:
+        # gpu-feature-discovery emits labels in the nvidia.com namespace, and
+        # nfd-master drops anything outside feature.node.kubernetes.io unless
+        # the namespace is allowed here.
+        extraLabelNs: ["nvidia.com"]
     worker:
       tolerations:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
       config:
         core:
-          labelSources: ["pci", "system", "usb"]
+          # "local" is what feeds the GPU labels. gpu-feature-discovery does not
+          # publish a NodeFeature object of its own: its container writes a
+          # feature file into the host's
+          # /etc/kubernetes/node-feature-discovery/features.d, which this
+          # worker already mounts, and the local source is what reads that
+          # directory. Until nvidia-device-plugin's bundled NFD subchart was
+          # disabled, that subchart's workers ran with the default source list
+          # and were the ones publishing every nvidia.com/* label; with only
+          # pci/system/usb here, disabling it silently dropped them all.
+          labelSources: ["local", "pci", "system", "usb"]
     prometheus:
       enable: true
