@@ -294,6 +294,42 @@ This matters more than it did when the browser was disposable: a persistent
 logged-in session now lives behind this API, so an unauthenticated
 `GET /sessions/tim/storage_state` would hand over live session cookies.
 
+### Reading and writing these secrets from a shell
+
+Reading does **not** need the `op` CLI. External Secrets already projects every
+1Password value into a Kubernetes Secret, so the fast path is `kubectl` and it
+needs no approval from anyone:
+
+```sh
+kubectl -n llm get secret camofox-secrets -o jsonpath='{.data.CAMOFOX_ACCESS_KEY}' | base64 -d
+```
+
+Writing back to 1Password is the case that used to stall. `op` was configured
+against the desktop app, so every invocation needed a human to approve a dialog
+on that specific machine - unattended runs just hung until they timed out. It
+now runs headless through the `cogito-agent` service account, exported from
+`~/.bashrc` above the `[ -z "$PS1" ] && return` guard so non-interactive shells
+get it too:
+
+```sh
+op item edit cluster-secrets --vault kubernetes "SOME_FIELD[text]=value"
+```
+
+The service account can only see the `kubernetes` vault - 1Password refuses to
+grant Private/Personal to a service account at all - so it cannot reach
+personal logins. For anything outside that vault, or for vault administration,
+`op-me` re-runs the command as the human account and brings the approval prompt
+back.
+
+After a write, ESO will not pick it up promptly on its own: the generated
+`cluster-settings` ExternalSecret has `refreshInterval: 1h`, and the
+ClusterExternalSecret's `refreshTime: 1m` governs only child propagation, not
+data. Force it:
+
+```sh
+kubectl -n llm annotate externalsecret cluster-settings force-sync=$(date +%s) --overwrite
+```
+
 ### The VNC desktop: pocket-id OIDC at the gateway
 
 `browser.${DOMAIN_NAME}` is **not** covered by the bearer token above. It is
