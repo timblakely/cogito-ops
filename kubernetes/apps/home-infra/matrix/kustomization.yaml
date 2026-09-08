@@ -1,0 +1,45 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: APP-app-vars
+    literals:
+      - APP=matrix
+      - SUBDOMAIN=matrix
+      - CNPG_CAPACITY=10Gi
+      - CNPG_REPLICAS=1
+      - VOLSYNC_CAPACITY=10Gi
+      - VOLSYNC_PUID=991
+      - VOLSYNC_PGID=991
+patches:
+  - patch: |-
+      - op: add
+        path: /spec/dependsOn/-
+        value:
+          name: ntfy
+          namespace: observability
+      - op: add
+        path: /spec/patches
+        value:
+          - patch: |-
+              - op: add
+                path: /spec/bootstrap
+                value:
+                  initdb:
+                    database: app
+                    owner: app
+                    encoding: UTF8
+                    localeCollate: C
+                    localeCType: C
+            target:
+              kind: Cluster
+              name: matrix-db
+    target:
+      group: kustomize.toolkit.fluxcd.io
+      kind: Kustomization
+components:
+  - ../../../components/ks/app/subdomain
+  - ../../../components/kustomize/cnpg/init
+  - ../../../components/kustomize/pocket-id/deps
+  - ../../../components/kustomize/volsync

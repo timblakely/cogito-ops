@@ -1,0 +1,107 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/refs/tags/app-template-4.6.0/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: ntfy
+spec:
+  interval: 1h
+  maxHistory: 1
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+    namespace: flux-system
+  install:
+    timeout: 3m
+    remediation:
+      retries: 3
+  upgrade:
+    timeout: 3m
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      ntfy:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        pod:
+          automountServiceAccountToken: false
+          hostUsers: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile: { type: RuntimeDefault }
+        containers:
+          main:
+            image:
+              repository: docker.io/binwiederhier/ntfy
+              tag: v2.27.0@sha256:f2419f405127afa868f10985c1a41449e673477cee1eb19994339a5ae8b592e7
+            args: [serve]
+            env:
+              NTFY_BASE_URL: https://${APP_URL}
+              NTFY_LISTEN_HTTP: ":8080"
+              NTFY_BEHIND_PROXY: "true"
+              NTFY_CACHE_FILE: /var/cache/ntfy/cache.db
+              NTFY_CACHE_DURATION: 168h
+              NTFY_AUTH_FILE: /var/cache/ntfy/auth.db
+              NTFY_AUTH_DEFAULT_ACCESS: deny-all
+              # Synapse must publish anonymously to random UnifiedPush topics.
+              # Direct agent topics remain protected by the two native users.
+              NTFY_AUTH_ACCESS: "*:up*:write-only,tim:tim-agent-*:read-write,agent:tim-agent-*:write-only"
+              NTFY_AUTH_USERS:
+                valueFrom:
+                  secretKeyRef:
+                    name: ntfy-credentials
+                    key: auth_users
+              NTFY_ENABLE_LOGIN: "true"
+              NTFY_ENABLE_SIGNUP: "false"
+              NTFY_ENABLE_METRICS: "true"
+            probes:
+              readiness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    port: &port 8080
+                    path: /v1/health
+                  periodSeconds: 10
+                  timeoutSeconds: 3
+                  failureThreshold: 3
+              liveness: *probes
+            resources:
+              requests:
+                cpu: 10m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
+    service:
+      main:
+        controller: ntfy
+        ports:
+          http:
+            port: *port
+    route:
+      main:
+        hostnames:
+          - ${APP_URL}
+        parentRefs:
+          - name: envoy-internal
+            namespace: envoy-system
+            sectionName: https
+        rules:
+          - backendRefs:
+              - identifier: main
+                port: *port
+    persistence:
+      cache:
+        existingClaim: ntfy
+        globalMounts:
+          - path: /var/cache/ntfy

@@ -1,0 +1,64 @@
+server_name: matrix.${DOMAIN_NAME}
+public_baseurl: https://${APP_URL}/
+pid_file: /data/homeserver.pid
+
+report_stats: false
+enable_metrics: true
+suppress_key_server_warning: true
+
+listeners:
+  - port: 8008
+    type: http
+    tls: false
+    x_forwarded: true
+    resources:
+      - names: [client]
+        compress: true
+  - port: 9000
+    type: metrics
+    tls: false
+
+database:
+  name: psycopg2
+  txn_limit: 10000
+  args:
+    user: app
+    dbname: app
+    host: matrix-pooler-rw.home-infra.svc.cluster.local
+    port: 5432
+    cp_min: 2
+    cp_max: 10
+    keepalives_idle: 10
+    keepalives_interval: 10
+    keepalives_count: 3
+
+media_store_path: /data/media_store
+signing_key_path: /data/matrix.signing.key
+registration_shared_secret_path: /data/registration_shared_secret
+macaroon_secret_key_path: /data/macaroon_secret_key
+form_secret_path: /data/form_secret
+
+enable_registration: false
+password_config:
+  enabled: false
+
+oidc_providers:
+  - idp_id: pocket_id
+    idp_name: Pocket ID
+    issuer: https://pid.${DOMAIN_NAME}/
+    client_id: synapse
+    client_secret_path: /run/secrets/matrix-oidc/client_secret
+    scopes: [openid, profile, email]
+    backchannel_logout_enabled: true
+    user_mapping_provider:
+      config:
+        localpart_template: "{{ user.preferred_username }}"
+        display_name_template: "{{ user.name }}"
+
+# Synapse protects outbound requests to private addresses. This single address
+# is Cogito's internal Envoy gateway, where the private ntfy hostname resolves.
+ip_range_whitelist:
+  - ${GATEWAY_INTERNAL_LB_IP}/32
+
+url_preview_enabled: false
+trusted_key_servers: []
