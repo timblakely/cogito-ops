@@ -1,0 +1,33 @@
+---
+apiVersion: infra.contrib.fluxcd.io/v1alpha2
+kind: Terraform
+metadata:
+  name: matrix-rooms
+spec:
+  approvePlan: auto
+  alwaysCleanupRunnerPod: true
+  destroyResourcesOnDeletion: false
+  interval: 15m
+  path: ./kubernetes/apps/home-infra/matrix/terraform
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  upgradeOnInit: false
+  varsFrom:
+    - kind: Secret
+      name: matrix-gitops-credentials
+      varsKeys:
+        - access_token
+  runnerPodTemplate:
+    spec:
+      env:
+        - name: TF_IN_AUTOMATION
+          value: "true"
+      resources:
+        requests:
+          cpu: 25m
+          memory: 64Mi
+        limits:
+          memory: 256Mi

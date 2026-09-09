@@ -19,6 +19,11 @@ patches:
           name: ntfy
           namespace: observability
       - op: add
+        path: /spec/dependsOn/-
+        value:
+          name: tofu-controller
+          namespace: flux-system
+      - op: add
         path: /spec/patches
         value:
           - patch: |-

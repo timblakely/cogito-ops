@@ -22,6 +22,29 @@ The ntfy hostname resolves through Cogito's internal Envoy address. That one
 address is in Synapse's outbound IP whitelist so it can call ntfy's Matrix push
 gateway without allowing arbitrary private-network URL fetches.
 
+## Room GitOps
+
+Tofu Controller reconciles room and space state declared under `terraform/`
+through `raspbeguy/matrix`. The provider runs as the non-admin Matrix account
+`@agent-gitops:matrix.${DOMAIN_NAME}`. Its password and long-lived access token
+live in the `matrix-gitops` item in the 1Password `Kubernetes` vault; External
+Secrets exposes only the access token to the short-lived runner pod.
+
+The existing encrypted `Hermes Agent` room is imported by room ID, then managed
+for its name, topic, alias, membership, join rule, and power levels. New agent
+rooms and spaces belong in the same module. Agent harnesses remain ordinary
+Matrix members and need no Terraform awareness.
+
+`prevent_destroy` blocks destructive replacement while an adopted room remains
+declared, and the Terraform custom resource sets
+`destroyResourcesOnDeletion: false` so deleting the controller object does not
+tear down Matrix resources. Matrix cannot delete rooms through the client API;
+removing a room resource from HCL can still make the service account leave it,
+so review those diffs with the same care as any other stateful GitOps change.
+Provider and controller versions, chart, and controller images are pinned. The
+Matrix provider is young, so its scope is deliberately limited to durable room
+state rather than messages or agent runtime behavior.
+
 ## Android setup and acceptance
 
 1. Install the ntfy Android distributor and set its default server to

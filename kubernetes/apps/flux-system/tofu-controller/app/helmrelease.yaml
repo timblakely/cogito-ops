@@ -1,0 +1,46 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/fluxcd-community/flux2-schemas/main/helmrelease-helm-v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: tofu-controller
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: tofu-controller
+  install:
+    crds: Create
+    remediation:
+      retries: -1
+  upgrade:
+    cleanupOnFail: true
+    crds: CreateReplace
+    remediation:
+      strategy: rollback
+      retries: 3
+  values:
+    allowCrossNamespaceRefs: true
+    awsPackage:
+      install: false
+    image:
+      tag: v0.16.5@sha256:1d6ee0e34ee56a22827541b1ef44e5a3d65ff21bdb870f79103c4c5d5e6d4cba
+    runner:
+      image:
+        tag: v0.16.5@sha256:7209171093907ec1d0559c682949fcee4b625205a6a058c16fe0ce0017af5f41
+      serviceAccount:
+        allowedNamespaces:
+          - flux-system
+          - home-infra
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+        labels:
+          prometheus: kube-prometheus-stack
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 512Mi
