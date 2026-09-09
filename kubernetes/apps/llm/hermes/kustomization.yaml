@@ -8,6 +8,16 @@ configMapGenerator:
       - APP=hermes
       - SUBDOMAIN=hermes
       - VOLSYNC_CAPACITY=2Gi
+patches:
+  - patch: |-
+      - op: add
+        path: /spec/dependsOn/-
+        value:
+          name: matrix
+          namespace: home-infra
+    target:
+      group: kustomize.toolkit.fluxcd.io
+      kind: Kustomization
 components:
   - ../../../components/ks/app/subdomain
   - ../../../components/kustomize/external-secret
