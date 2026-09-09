@@ -1,6 +1,6 @@
 # Android notifications and chat for agentic processes
 
-Research date: 2026-09-07. Implementation started: 2026-09-08.
+Research date: 2026-09-07. Implemented and cluster-verified: 2026-09-09.
 
 Review convention: lines starting with `>>` are Tim's inline comments. Responses
 appear immediately below as **Reply:**. The first review has been incorporated;
@@ -29,8 +29,9 @@ dependent work. Notification delivery must not be a prerequisite for execution.
 
 ## Repository findings
 
-This investigation inspected repository configuration and current upstream
-documentation. It did not inspect live cluster state or change deployments.
+The initial investigation inspected repository configuration and current
+upstream documentation. Implementation subsequently reconciled and verified the
+live cluster as recorded below.
 
 - [Hermes](../../kubernetes/apps/llm/hermes/app/helmrelease.yaml) already runs its
   gateway/dashboard with internal Envoy routing and persistent state. Its image
@@ -196,9 +197,10 @@ Two configuration details need explicit checks:
 
 ### 1. Deploy ntfy using existing Cogito patterns
 
-Implementation status: manifests, persistent cache/backup integration, native
-credentials, topic ACLs, internal route, and metrics scraping are present under
-`kubernetes/apps/observability/ntfy`. Source and phone acceptance remain.
+Implementation status: live. Manifests, persistent cache/backup integration,
+native credentials, topic ACLs, internal route, and metrics scraping are present
+under `kubernetes/apps/observability/ntfy`. Authenticated direct publishing and
+cached retrieval passed; Android acceptance remains.
 
 Proposed location: `kubernetes/apps/observability/ntfy`.
 
@@ -328,9 +330,11 @@ a new general workflow engine as part of this notification deployment.
 
 ### 4. Add a small Synapse deployment if mobile conversation is wanted
 
-Implementation status: the Synapse, CNPG, Pocket ID, internal route, persistent
-state/backup, and metrics manifests are present under
-`kubernetes/apps/home-infra/matrix`. Source and phone acceptance remain.
+Implementation status: live. Synapse, three-instance CNPG, Pocket ID, the
+internal route, persistent state/backup, and metrics are deployed from
+`kubernetes/apps/home-infra/matrix`. Health, the client versions API, Pocket ID
+SSO discovery, database encoding/locale, and HTTPS routing passed. Android
+acceptance remains.
 
 >> Again, what's the difference between synapse and matrix? I'm peripherally familiar with Matrix, but no clue what Synapse is.
 
@@ -353,6 +357,12 @@ encoding with `C` collation/ctype.
 [Synapse PostgreSQL instructions](https://element-hq.github.io/synapse/latest/postgres.html)
 
 ### 5. Connect the current harness through its maintained Matrix adapter
+
+Implementation status: live for Hermes. The non-admin
+`@hermes:matrix.${DOMAIN_NAME}` account uses a generated immutable credential,
+required E2EE, persistent crypto state, a stable device ID, and a strict Tim-only
+user allowlist. Hermes reports the Matrix platform connected. A permanent room
+allowlist and proactive home room wait on phone-side room creation.
 
 Current Hermes documentation describes native Matrix support, including threads,
 approvals, and configurable E2EE. Cogito pins `v2026.7.7.2`; verify those
@@ -392,15 +402,24 @@ adapter explicitly supports them.
 - Workflows can span many turns and hours; routine decisions must not introduce
   additional human approval gates.
 
-## Decisions to settle during review
+## Live validation
 
-- Is the initial objective notifications with links, or full mobile conversation?
+On 2026-09-09, Flux applied the implementation to Cogito. ntfy and Synapse Helm
+releases became Ready; both internal HTTPS health endpoints returned success.
+The Matrix CNPG cluster reached three of three healthy instances, and its `app`
+database reported `UTF8|C|C`. Synapse advertised Pocket ID SSO and password login
+for explicitly provisioned service accounts. Hermes reported its Matrix platform
+`connected`. A direct ntfy event published through `scripts/agent-notify.sh` was
+then read back from the cache with the expected event and workflow identifiers.
+
+## Decisions remaining after implementation
+
 - Is the proposed seven-day push cache sufficient for expected offline periods?
 - Which Android device/build will be used for acceptance testing?
 - Should Commet remain the preferred client subject to passing the trial?
-- Should agent conversations require E2EE from the start?
 - What should alert audibly versus quietly, especially for short successful runs?
-- Which harness should be integrated first?
+- Which private room should become Hermes' `MATRIX_HOME_ROOM` and initial
+  `MATRIX_ALLOWED_ROOMS` entry?
 
 These decisions refine the implementation; none requires building a new general
 agent backend or notification platform.

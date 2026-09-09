@@ -36,6 +36,10 @@ require_env() {
 
 require_env NTFY_URL
 require_env NTFY_TOPIC
+if [[ ! $NTFY_TOPIC =~ ^[A-Za-z0-9_-]+$ ]]; then
+  printf 'agent-notify: NTFY_TOPIC contains unsafe characters\n' >&2
+  exit 2
+fi
 
 state_root=${COGITO_NOTIFY_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/cogito-agent-notify}
 outbox=${state_root}/outbox
@@ -53,12 +57,29 @@ fi
 
 send_file() {
   local event_file=$1
+  local topic title message priority tags click
+  topic=$(jq -er '.topic | strings | select(test("^[A-Za-z0-9_-]+$"))' "$event_file")
+  title=$(jq -er '.title | strings' "$event_file")
+  message=$(jq -er '.message | strings' "$event_file")
+  priority=$(jq -er '.priority | strings' "$event_file")
+  tags=$(jq -er '.tags | map(tostring) | join(",")' "$event_file")
+  click=$(jq -er '.click // "" | strings' "$event_file")
+
+  local publish_args=(
+    --header "Title: ${title}"
+    --header "Priority: ${priority}"
+    --header "Tags: ${tags}"
+  )
+  if [[ -n $click ]]; then
+    publish_args+=(--header "Click: ${click}")
+  fi
+
   curl --fail-with-body --silent --show-error \
     --retry 2 --retry-all-errors --connect-timeout 5 --max-time 20 \
     "${auth_args[@]}" \
-    --header 'Content-Type: application/json' \
-    --data-binary "@${event_file}" \
-    "${NTFY_URL%/}"
+    "${publish_args[@]}" \
+    --data-binary "$message" \
+    "${NTFY_URL%/}/${topic}"
 }
 
 flush_outbox() {

@@ -43,3 +43,8 @@ The default outbox is
 Use a stable `AGENT_EVENT_ID` when a harness may invoke the same hook more than
 once. ntfy delivery is at least once from this adapter, so recipients should use
 the displayed event ID to recognize a duplicate.
+
+The outbox stores structured JSON, while delivery uses ntfy's standard
+authenticated topic endpoint and message headers. Topic names are restricted to
+letters, digits, underscores, and hyphens so a hook cannot alter the request
+path.
