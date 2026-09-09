@@ -5,10 +5,11 @@ gateway. It is available at `https://ntfy.${DOMAIN_NAME}` through the internal
 Envoy gateway, so the Android distributor needs LAN or WireGuard connectivity.
 
 The server denies access by default. Anonymous callers may only write random
-`up*` UnifiedPush topics, as required by the protocol. Two generated native
-accounts support direct agent alerts:
+`up*` UnifiedPush topics, as required by the protocol; the authenticated `tim`
+distributor account may read them. Two generated native accounts support direct
+agent alerts:
 
-- `tim` can read and write `tim-agent-*` topics.
+- `tim` can read UnifiedPush `up*` topics and read/write `tim-agent-*` topics.
 - `agent` can only write `tim-agent-*` topics.
 
 The generated passwords live in the immutable `ntfy-credentials` Secret. They

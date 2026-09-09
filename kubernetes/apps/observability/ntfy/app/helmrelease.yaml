@@ -51,7 +51,7 @@ spec:
               NTFY_AUTH_DEFAULT_ACCESS: deny-all
               # Synapse must publish anonymously to random UnifiedPush topics.
               # Direct agent topics remain protected by the two native users.
-              NTFY_AUTH_ACCESS: "*:up*:write-only,tim:tim-agent-*:read-write,agent:tim-agent-*:write-only"
+              NTFY_AUTH_ACCESS: "*:up*:write-only,tim:up*:read-only,tim:tim-agent-*:read-write,agent:tim-agent-*:write-only"
               NTFY_AUTH_USERS:
                 valueFrom:
                   secretKeyRef:
