@@ -12,10 +12,12 @@ agent alerts:
 - `tim` can read UnifiedPush `up*` topics and read/write `tim-agent-*` topics.
 - `agent` can only write `tim-agent-*` topics.
 
-The generated passwords live in the immutable `ntfy-credentials` Secret. They
-are intentionally separate from Pocket ID because ntfy does not support native
-OIDC. Retrieve a password when configuring a client without printing it into
-shared logs:
+The passwords live in the `ntfy` item in the 1Password `Kubernetes` vault as
+`NTFY_TIM_PASSWORD` and `NTFY_AGENT_PASSWORD`. External Secrets syncs them into
+the `ntfy-credentials` Secret and derives ntfy's bcrypt user configuration. They
+remain separate from Pocket ID because ntfy does not support native OIDC.
+Retrieve a password when configuring a client without printing it into shared
+logs:
 
 ```shell
 KUBECONFIG=/home/tim/git/cogito/kubeconfig kubectl get secret \

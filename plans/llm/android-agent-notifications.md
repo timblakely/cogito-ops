@@ -359,7 +359,7 @@ encoding with `C` collation/ctype.
 ### 5. Connect the current harness through its maintained Matrix adapter
 
 Implementation status: live for Hermes. The non-admin
-`@hermes:matrix.${DOMAIN_NAME}` account uses a generated immutable credential,
+`@hermes:matrix.${DOMAIN_NAME}` account uses a 1Password-backed credential,
 required E2EE, persistent crypto state, a stable device ID, and a strict Tim-only
 user allowlist. Hermes reports the Matrix platform connected. A permanent room
 allowlist and proactive home room wait on phone-side room creation.
