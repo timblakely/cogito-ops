@@ -56,6 +56,16 @@ spec:
               HERMES_DASHBOARD_BASIC_AUTH_SECRET: ""
               HERMES_UID: "1000"
               HERMES_GID: "1000"
+              MATRIX_HOMESERVER: https://matrix.${DOMAIN_NAME}
+              MATRIX_USER_ID: "@hermes:matrix.${DOMAIN_NAME}"
+              MATRIX_PASSWORD:
+                valueFrom:
+                  secretKeyRef:
+                    name: hermes-matrix
+                    key: MATRIX_PASSWORD
+              MATRIX_ALLOWED_USERS: "@tim:matrix.${DOMAIN_NAME}"
+              MATRIX_E2EE_MODE: required
+              MATRIX_DEVICE_ID: HERMES_BOT
             envFrom:
               - secretRef:
                   name: hermes

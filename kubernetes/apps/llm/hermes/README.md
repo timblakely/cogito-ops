@@ -14,6 +14,14 @@ provider. Access is limited to the `hermes` PocketID user group, which currently
 contains `tim`. The former `HERMES_DASHBOARD_BASIC_AUTH_*` fields are explicitly
 masked so they cannot enable a second login method if they remain in 1Password.
 
+The gateway connects to the private Matrix homeserver as
+`@hermes:matrix.${DOMAIN_NAME}`. External Secrets generates its password once in
+the immutable `hermes-matrix` Secret. Matrix E2EE is required and uses the
+stable `HERMES_BOT` device ID, with crypto state retained on the backed-up Hermes
+PVC. Only `@tim:matrix.${DOMAIN_NAME}` may invoke the bot. Hermes automatically
+accepts room invitations; set `MATRIX_ALLOWED_ROOMS` after choosing permanent
+rooms if access should be narrower than the user allowlist.
+
 Hermes no longer bootstraps its provider automatically. The
 `bootstrap-llm-proxy` initContainer was removed with the M7 decommission,
 because it seeded the provider by querying the retired `llm-proxy` and would

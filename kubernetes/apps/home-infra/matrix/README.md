@@ -7,11 +7,12 @@ Changing that name later is a migration, not a normal hostname edit.
 
 Human login uses Synapse's native OIDC support and the generated Pocket ID
 client. Only members of the `matrix` Pocket ID group may authenticate; it starts
-with `tim`. Password login and open registration are disabled. The service is
-only exposed through the internal Envoy gateway, which also prevents public
-federation even though Synapse implements the Matrix protocol.
+with `tim`. Open registration is disabled. Password login remains available for
+explicitly provisioned service accounts such as the non-admin Hermes bot. The
+service is only exposed through the internal Envoy gateway, which also prevents
+public federation even though Synapse implements the Matrix protocol.
 
-The single-node Synapse process uses a single-instance CNPG cluster. CNPG is
+The single-node Synapse process uses a three-instance CNPG cluster. CNPG is
 explicitly bootstrapped with UTF-8 encoding and `C` collation/ctype, which
 Synapse requires. Database backups use Cogito's CNPG component. Media, server
 signing keys, and other stable Synapse secrets live on the backed-up `matrix`
