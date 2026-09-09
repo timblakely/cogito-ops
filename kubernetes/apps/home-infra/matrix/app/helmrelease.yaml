@@ -35,6 +35,16 @@ spec:
             fsGroup: 991
             fsGroupChangePolicy: OnRootMismatch
             seccompProfile: { type: RuntimeDefault }
+        initContainers:
+          bootstrap:
+            image:
+              repository: ghcr.io/element-hq/synapse
+              tag: v1.160.0@sha256:78de1d10bef02e375f861d1cc99f8bedd9381d4f9083ea8b2c22a053477b205f
+            command: ["python", "/bootstrap/bootstrap.py"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
         containers:
           main:
             image:
@@ -107,6 +117,13 @@ spec:
         globalMounts:
           - path: /config/homeserver.yaml
             subPath: homeserver.yaml
+            readOnly: true
+      bootstrap:
+        type: configMap
+        name: matrix-bootstrap
+        globalMounts:
+          - path: /bootstrap/bootstrap.py
+            subPath: bootstrap.py
             readOnly: true
       oidc:
         type: secret

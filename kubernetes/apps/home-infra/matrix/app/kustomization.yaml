@@ -8,6 +8,11 @@ configMapGenerator:
       disableNameSuffixHash: true
     files:
       - homeserver.yaml=./homeserver.yaml
+  - name: matrix-bootstrap
+    options:
+      disableNameSuffixHash: true
+    files:
+      - bootstrap.py=./bootstrap.py
 resources:
   - helmrelease.yaml
   - oidc-client.yaml
