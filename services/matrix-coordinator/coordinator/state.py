@@ -65,6 +65,14 @@ CREATE TABLE IF NOT EXISTS runs (
   request_json TEXT NOT NULL,
   result_json TEXT
 );
+CREATE TABLE IF NOT EXISTS external_actions (
+  action_key TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,
+  request_json TEXT NOT NULL,
+  state TEXT NOT NULL,
+  result_json TEXT,
+  last_error TEXT
+);
 CREATE TABLE IF NOT EXISTS audit_events (
   sequence INTEGER PRIMARY KEY AUTOINCREMENT,
   occurred_at INTEGER NOT NULL,
@@ -118,6 +126,34 @@ class StateStore:
                 (int(time.time()), actor, action, subject, json.dumps(payload, sort_keys=True)),
             ).fetchone()
             return int(row[0])
+
+    def begin_action(self, key: str, kind: str, request: dict[str, Any]) -> dict[str, Any] | None:
+        with self.transaction() as db:
+            row = db.execute(
+                "SELECT state,result_json FROM external_actions WHERE action_key=?", (key,)
+            ).fetchone()
+            if row and row["state"] == "complete":
+                return json.loads(row["result_json"])
+            db.execute(
+                "INSERT INTO external_actions VALUES (?, ?, ?, 'pending', NULL, NULL) "
+                "ON CONFLICT(action_key) DO UPDATE SET last_error=NULL",
+                (key, kind, json.dumps(request, sort_keys=True)),
+            )
+            return None
+
+    def complete_action(self, key: str, result: dict[str, Any]) -> None:
+        with self.transaction() as db:
+            db.execute(
+                "UPDATE external_actions SET state='complete',result_json=?,last_error=NULL WHERE action_key=?",
+                (json.dumps(result, sort_keys=True), key),
+            )
+
+    def fail_action(self, key: str, error: str) -> None:
+        with self.transaction() as db:
+            db.execute(
+                "UPDATE external_actions SET state='pending',last_error=? WHERE action_key=?",
+                (error[-2000:], key),
+            )
 
     def close(self) -> None:
         self.db.close()

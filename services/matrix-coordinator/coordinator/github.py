@@ -72,17 +72,28 @@ class GitHubIssues:
             f"<!-- cogito-plan-hash: {plan.hash} -->\n"
             f"Matrix review: {permalink}\n\n{plan.markdown}"
         )
-        parent = self._request("POST", f"/repos/{slug}/issues", {
-            "title": f"[plan] {title_line}", "body": body,
-            "labels": ["workflow/plan", "workflow/accepted"],
-        })
+        marker = f"<!-- cogito-plan-id: {plan.plan_id} -->"
+        existing = self._request(
+            "GET", f"/repos/{slug}/issues?state=all&labels=workflow%2Fplan&per_page=100")
+        parent = next((issue for issue in existing if marker in (issue.get("body") or "")), None)
+        if parent is None:
+            parent = self._request("POST", f"/repos/{slug}/issues", {
+                "title": f"[plan] {title_line}", "body": body,
+                "labels": ["workflow/plan", "workflow/accepted"],
+            })
         children = []
         for index, item in enumerate(deliverables(plan.markdown), 1):
+            child_marker = f"<!-- cogito-plan-deliverable: {plan.plan_id}:{index} -->"
+            child_body = (f"{child_marker}\nParent plan: {parent['html_url']}\n\n"
+                          f"Accepted plan hash: `{plan.hash}`\n\n"
+                          "## Acceptance criteria\n\n- [ ] Deliverable implemented\n- [ ] Checks recorded\n")
+            child = next((issue for issue in existing if child_marker in (issue.get("body") or "")), None)
+            if child is not None:
+                children.append(child["html_url"])
+                continue
             child = self._request("POST", f"/repos/{slug}/issues", {
                 "title": item,
-                "body": (f"Parent plan: {parent['html_url']}\n\n"
-                         f"Accepted plan hash: `{plan.hash}`\n\n"
-                         "## Acceptance criteria\n\n- [ ] Deliverable implemented\n- [ ] Checks recorded\n"),
+                "body": child_body,
                 "labels": ["workflow/deliverable"],
                 "parent_issue_id": parent["id"],
             })

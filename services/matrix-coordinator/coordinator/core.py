@@ -61,21 +61,34 @@ class Coordinator:
                 "SELECT content_hash FROM approvals WHERE plan_id=?", (approval.plan_id,)
             ).fetchone()
             if existing:
+                if existing["content_hash"] == approval.plan_hash and plan_row["github_issue_url"]:
+                    return plan_row["github_issue_url"], []
                 if existing["content_hash"] == approval.plan_hash:
-                    issue = plan_row["github_issue_url"]
-                    return issue or "", []
-                raise ValidationError("plan already approved at another hash")
-            db.execute(
+                    pass
+                else:
+                    raise ValidationError("plan already approved at another hash")
+            else:
+                db.execute(
                 "INSERT INTO approvals VALUES (?,?,?,?,?)",
                 (approval.plan_id, approval.plan_hash, approval.matrix_event_id,
                  approval.approver, approval.approved_at),
-            )
+                )
             db.execute("UPDATE plans SET state='accepted' WHERE plan_id=?", (approval.plan_id,))
             plan = PlanVersion(
                 approval.plan_id, plan_row["current_version"], version["markdown"],
                 plan_row["matrix_room_id"], version["matrix_event_id"], plan_row["repository"],
             )
-        issue_url, children = self.issues.create_plan(plan)
+        action_key = f"github-plan:{approval.plan_id}:{approval.plan_hash}"
+        completed = self.state.begin_action(action_key, "github.create-plan", {"plan_id": approval.plan_id})
+        if completed:
+            issue_url, children = completed["parent"], completed["children"]
+        else:
+            try:
+                issue_url, children = self.issues.create_plan(plan)
+            except Exception as exc:
+                self.state.fail_action(action_key, str(exc))
+                raise
+            self.state.complete_action(action_key, {"parent": issue_url, "children": children})
         with self.state.transaction() as db:
             db.execute(
                 "UPDATE plans SET state='decomposed', github_issue_url=? WHERE plan_id=?",
