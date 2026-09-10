@@ -42,6 +42,18 @@ enable_registration: false
 password_config:
   enabled: true
 
+# Room GitOps can legitimately invite the same user to several rooms in one
+# reconciliation. Synapse's defaults replenish that receiver bucket only once
+# every several minutes, so give this small private homeserver enough burst for
+# a complete room-set rollout while retaining steady-state throttling.
+rc_invites:
+  per_user:
+    per_second: 1
+    burst_count: 50
+  per_issuer:
+    per_second: 1
+    burst_count: 50
+
 oidc_providers:
   - idp_id: pocket_id
     idp_name: Pocket ID
