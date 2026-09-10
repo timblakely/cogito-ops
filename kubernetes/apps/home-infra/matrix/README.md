@@ -35,6 +35,12 @@ for its name, topic, alias, membership, join rule, and power levels. New agent
 rooms and spaces belong in the same module. Agent harnesses remain ordinary
 Matrix members and need no Terraform awareness.
 
+The private `Agents` space contains `Agent Control`, `Agent Alerts`, `Agent
+Plans`, `Agent Runs`, and `Cogito`. The adopted Hermes room is now `Agent
+Control`; `#agent-control` is canonical and `#hermes-agent` remains a working
+alternate alias. Plans should use one Matrix thread per plan in the applicable
+project room, falling back to `Agent Plans` when no project room exists.
+
 `prevent_destroy` blocks destructive replacement while an adopted room remains
 declared, and the Terraform custom resource sets
 `destroyResourcesOnDeletion: false` so deleting the controller object does not
