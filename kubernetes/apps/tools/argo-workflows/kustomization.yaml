@@ -1,0 +1,26 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: APP-app-vars
+    literals:
+      - APP=argo-workflows
+      - SUBDOMAIN=argo
+patches:
+  - patch: |-
+      - op: add
+        path: /spec/dependsOn/-
+        value:
+          name: garage
+          namespace: storage
+      - op: add
+        path: /spec/dependsOn/-
+        value:
+          name: pocket-id
+          namespace: home-infra
+    target:
+      group: kustomize.toolkit.fluxcd.io
+      kind: Kustomization
+components:
+  - ../../../components/ks/app/subdomain

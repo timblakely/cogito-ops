@@ -1,0 +1,132 @@
+---
+# Chart 2.0.5 packages Argo Workflows 4.1.2. The chart archive digest in the
+# official index is 1c70d5ea9a0296c7cc9c292e685759b2a1a2465b7447bff33ade7d4541913a2c.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: argo-workflows
+spec:
+  interval: 1h
+  maxHistory: 2
+  chart:
+    spec:
+      chart: argo-workflows
+      version: 2.0.5
+      sourceRef:
+        kind: HelmRepository
+        name: argo
+      interval: 1h
+  install:
+    timeout: 10m
+    remediation:
+      retries: 3
+  upgrade:
+    timeout: 10m
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    crds:
+      install: true
+      keep: true
+      full: true
+    singleNamespace: true
+    createAggregateRoles: false
+    workflow:
+      serviceAccount:
+        create: true
+        name: argo-workflow
+        annotations:
+          workflows.argoproj.io/rbac-rule: "true"
+          workflows.argoproj.io/rbac-rule-precedence: "0"
+      rbac:
+        create: true
+        artifactGC: true
+    controller:
+      parallelism: 4
+      namespaceParallelism: 4
+      resourceRateLimit:
+        limit: 5
+        burst: 2
+      workflowNamespaces:
+        - ${NS}
+      workflowRestrictions:
+        templateReferencing: Secure
+      workflowDefaults:
+        spec:
+          serviceAccountName: argo-workflow
+          activeDeadlineSeconds: 7200
+          ttlStrategy:
+            secondsAfterCompletion: 604800
+            secondsAfterSuccess: 86400
+            secondsAfterFailure: 604800
+          podGC:
+            strategy: OnWorkflowCompletion
+            deleteDelayDuration: 10m
+          artifactGC:
+            strategy: OnWorkflowDeletion
+      metricsConfig:
+        enabled: true
+        secure: false
+      serviceMonitor:
+        enabled: true
+      podSecurityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          memory: 1Gi
+    server:
+      enabled: true
+      authModes:
+        - sso
+      sso:
+        enabled: true
+        issuer: https://pid.${DOMAIN_NAME}
+        clientId:
+          name: argo-workflows-oidc
+          key: client-id
+        clientSecret:
+          name: argo-workflows-oidc
+          key: client-secret
+        redirectUrl: https://${APP_URL}/oauth2/callback
+        scopes:
+          - openid
+          - profile
+          - email
+        rbac:
+          enabled: true
+        secretWhitelist:
+          - argo-workflow.service-account-token
+      secure: false
+      clusterWorkflowTemplates:
+        enabled: false
+      replicas: 1
+      podSecurityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          memory: 512Mi
+    useStaticCredentials: true
+    artifactRepository:
+      archiveLogs: true
+      s3:
+        bucket: argo-workflows
+        endpoint: garage.storage.svc.cluster.local:3900
+        insecure: true
+        addressingStyle: path
+        accessKeySecret:
+          name: argo-artifacts
+          key: accessKey
+        secretKeySecret:
+          name: argo-artifacts
+          key: secretKey

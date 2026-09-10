@@ -1,0 +1,176 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: agent-run
+spec:
+  entrypoint: delivery
+  onExit: exit-report
+  arguments:
+    parameters:
+      - name: run-id
+      - name: harness
+        value: contract
+      - name: request
+  templates:
+    - name: delivery
+      dag:
+        tasks:
+          - name: prepare
+            template: validate-request
+          - name: execute
+            dependencies: [prepare]
+            template: execute
+          - name: verify
+            dependencies: [execute]
+            template: verify-result
+            arguments:
+              artifacts:
+                - name: result
+                  from: '{{tasks.execute.outputs.artifacts.result}}'
+          - name: publish
+            dependencies: [verify]
+            template: publish
+            arguments:
+              artifacts:
+                - name: result
+                  from: '{{tasks.execute.outputs.artifacts.result}}'
+    - name: validate-request
+      inputs:
+        parameters:
+          - name: request
+            value: '{{workflow.parameters.request}}'
+      container:
+        image: docker.io/library/python:3.13-slim@sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285
+        command: [python, -c]
+        args:
+          - |
+            import json, os
+            request = json.loads(os.environ['REQUEST'])
+            required = {'api_version', 'run_id', 'work_item', 'role', 'repository', 'base_ref', 'objective'}
+            missing = required - request.keys()
+            assert not missing, f'missing fields: {sorted(missing)}'
+            assert request['run_id'] == os.environ['RUN_ID']
+            print('request valid')
+        env:
+          - name: REQUEST
+            value: '{{inputs.parameters.request}}'
+          - name: RUN_ID
+            value: '{{workflow.parameters.run-id}}'
+        securityContext: &containerSecurity
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: [ALL]
+          runAsNonRoot: true
+          runAsUser: 65532
+          seccompProfile:
+            type: RuntimeDefault
+    - name: execute
+      container:
+        image: docker.io/library/python:3.13-slim@sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285
+        command: [python, -c]
+        args:
+          - |
+            import json, os, pathlib
+            result = {
+              'run_id': os.environ['RUN_ID'],
+              'status': 'succeeded',
+              'summary': 'Contract adapter completed',
+              'checks': [{'name': 'contract-smoke', 'status': 'passed'}],
+              'artifacts': [],
+              'usage': {'role': 'worker', 'input_tokens': 0, 'output_tokens': 0},
+            }
+            pathlib.Path('/tmp/result.json').write_text(json.dumps(result, sort_keys=True))
+        env:
+          - name: RUN_ID
+            value: '{{workflow.parameters.run-id}}'
+        securityContext: *containerSecurity
+      outputs:
+        artifacts:
+          - name: result
+            path: /tmp/result.json
+            archive:
+              none: {}
+    - name: verify-result
+      inputs:
+        artifacts:
+          - name: result
+            path: /tmp/result.json
+      container:
+        image: docker.io/library/python:3.13-slim@sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285
+        command: [python, -c]
+        args:
+          - |
+            import json
+            result = json.load(open('/tmp/result.json'))
+            assert result['status'] == 'succeeded'
+            assert result['run_id']
+            print('result valid')
+        securityContext: *containerSecurity
+    - name: publish
+      inputs:
+        artifacts:
+          - name: result
+            path: /tmp/result.json
+      container:
+        image: docker.io/library/python:3.13-slim@sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285
+        command: [python, -c]
+        args: ["import json; print(json.load(open('/tmp/result.json'))['summary'])"]
+        securityContext: *containerSecurity
+    - name: exit-report
+      container:
+        image: docker.io/library/python:3.13-slim@sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285
+        command: [python, -c]
+        args:
+          - "print('workflow={{workflow.name}} status={{workflow.status}}')"
+        securityContext: *containerSecurity
+---
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: approval-gate
+spec:
+  entrypoint: wait
+  templates:
+    - name: wait
+      suspend: {}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: workflow-smoke
+spec:
+  entrypoint: smoke
+  onExit: exit
+  templates:
+    - name: smoke
+      retryStrategy:
+        limit: "2"
+        retryPolicy: OnError
+      script:
+        image: docker.io/library/python:3.13-slim@sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285
+        command: [python]
+        source: |
+          from pathlib import Path
+          Path('/tmp/smoke.txt').write_text('argo-workflows-smoke\n')
+          print('smoke complete')
+        securityContext: &smokeContainerSecurity
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: [ALL]
+          runAsNonRoot: true
+          runAsUser: 65532
+          seccompProfile:
+            type: RuntimeDefault
+      outputs:
+        artifacts:
+          - name: smoke
+            path: /tmp/smoke.txt
+            archive:
+              none: {}
+    - name: exit
+      container:
+        image: docker.io/library/python:3.13-slim
+        command: [python, -c]
+        args: ["print('exit status={{workflow.status}}')"]
+        securityContext: *smokeContainerSecurity

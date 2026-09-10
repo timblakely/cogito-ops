@@ -1,0 +1,27 @@
+---
+apiVersion: pocketid.internal/v1alpha1
+kind: PocketIDUserGroup
+metadata:
+  name: argo-workflows
+spec:
+  users:
+    usernames:
+      - tim
+---
+apiVersion: pocketid.internal/v1alpha1
+kind: PocketIDOIDCClient
+metadata:
+  name: argo-workflows
+spec:
+  clientID: argo-workflows
+  launchUrl: https://${APP_URL}
+  callbackUrls:
+    - https://${APP_URL}/oauth2/callback
+  allowedUserGroups:
+    - name: argo-workflows
+      namespace: ${NS}
+  secret:
+    name: argo-workflows-oidc
+    keys:
+      clientID: client-id
+      clientSecret: client-secret

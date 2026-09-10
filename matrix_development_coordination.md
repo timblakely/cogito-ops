@@ -384,16 +384,16 @@ model requires no coordinator or adapter code change.
 
 ### M2 — Durable workflow foundation
 
-- [ ] **M2.1** Add a pinned Argo Workflows deployment with namespace, controller,
+- [x] **M2.1** Add a pinned Argo Workflows deployment with namespace, controller,
   server, CRDs, and restrictive defaults using established home-ops patterns.
-- [ ] **M2.2** Configure artifact storage in Garage via External Secrets and a
+- [x] **M2.2** Configure artifact storage in Garage via External Secrets and a
   dedicated least-privilege bucket identity.
-- [ ] **M2.3** Configure service accounts, RBAC, NetworkPolicies, pod security,
+- [x] **M2.3** Configure service accounts, RBAC, NetworkPolicies, pod security,
   resource limits, retention, and workflow garbage collection.
-- [ ] **M2.4** Add internal ingress and Pocket ID OIDC for the Argo UI/API where
+- [x] **M2.4** Add internal ingress and Pocket ID OIDC for the Argo UI/API where
   operational access requires it.
-- [ ] **M2.5** Add ServiceMonitor/PrometheusRule and controller/server dashboards.
-- [ ] **M2.6** Add reusable templates for workspace initialization, agent run,
+- [x] **M2.5** Add ServiceMonitor/PrometheusRule and controller/server dashboards.
+- [x] **M2.6** Add reusable templates for workspace initialization, agent run,
   verification, PR publication, suspension, and exit notification.
 - [ ] **M2.7** Reconcile and complete a smoke workflow with retained artifact,
   retry, suspend/resume, cancellation, and exit-handler evidence.
@@ -522,7 +522,8 @@ coordination behavior.
 | M0.3 | `2c366c235731f2289211ffc7abf32319e8f0993f` on `origin/main` | Complete |
 | M1.1–M1.2, M1.4 | Planner alias/key, exact-scope validator, and dashboard commit | Complete |
 | M1.3, M1.5–M1.6 | Pending | Pending |
-| M2 | Pending | Pending |
+| M2.1–M2.6 | Argo chart, Garage key/item, SSO, policy, monitoring, templates commit | Complete |
+| M2.7 | Pending live acceptance | Pending |
 | M3 | Pending | Pending |
 | M4 | Pending | Pending |
 | M5 | Pending | Pending |

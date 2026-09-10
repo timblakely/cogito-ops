@@ -1,0 +1,22 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: argo-workflows
+spec:
+  groups:
+    - name: argo-workflows.rules
+      rules:
+        - alert: ArgoWorkflowControllerUnavailable
+          expr: absent(up{namespace="tools",service=~"argo-workflows.*metrics"} == 1)
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: Argo Workflows controller metrics are unavailable
+        - alert: ArgoWorkflowFailed
+          expr: increase(argo_workflows_count{status="Failed"}[15m]) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: An Argo workflow failed in the last 15 minutes
