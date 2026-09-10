@@ -7,6 +7,7 @@ configMapGenerator:
     literals:
       - APP=argo-workflows
       - SUBDOMAIN=argo
+      - RESOURCES=resources
 patches:
   - patch: |-
       - op: add
@@ -23,4 +24,4 @@ patches:
       group: kustomize.toolkit.fluxcd.io
       kind: Kustomization
 components:
-  - ../../../components/ks/app/subdomain
+  - ../../../components/ks/app-resources/subdomain
