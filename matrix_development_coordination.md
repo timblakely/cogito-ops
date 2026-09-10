@@ -422,18 +422,18 @@ one encrypted, threaded Matrix update and one Android push when appropriate.
 
 ### M4 — Coordinator core
 
-- [ ] **M4.1** Define and validate versioned Plan, WorkItem, Approval, AgentRun,
+- [x] **M4.1** Define and validate versioned Plan, WorkItem, Approval, AgentRun,
   AgentResult, and AuditEvent schemas.
-- [ ] **M4.2** Add durable coordinator state, migrations, unique external-event
+- [x] **M4.2** Add durable coordinator state, migrations, unique external-event
   constraints, and append-only audit records.
 - [ ] **M4.3** Implement the event loop and periodic reconciliation for Matrix,
   GitHub, and Argo with idempotent transitions.
-- [ ] **M4.4** Implement plan versioning, canonical serialization, hashing,
+- [x] **M4.4** Implement plan versioning, canonical serialization, hashing,
   revision summaries, and exact-version approval.
 - [ ] **M4.5** Implement GitHub parent issue and native sub-issue creation,
   linking, update, and completion reconciliation.
 - [ ] **M4.6** Implement Argo submit/status/cancel/resume/result collection.
-- [ ] **M4.7** Implement deterministic risk, permission, concurrency, retry,
+- [x] **M4.7** Implement deterministic risk, permission, concurrency, retry,
   time, token, spend, and repair policies.
 - [ ] **M4.8** Add unit, contract, integration, replay, and restart tests.
 
@@ -442,7 +442,7 @@ state, and an obsolete approval cannot launch work.
 
 ### M5 — Harness adapters
 
-- [ ] **M5.1** Publish the versioned adapter protocol, JSON Schema, fixtures,
+- [x] **M5.1** Publish the versioned adapter protocol, JSON Schema, fixtures,
   conformance runner, and normalized result format.
 - [ ] **M5.2** Implement the shared Git/Jujutsu workspace initializer and safe
   explicit-ref publication.
@@ -525,8 +525,10 @@ coordination behavior.
 | M2.1–M2.6 | Argo chart, Garage key/item, SSO, policy, monitoring, templates commit | Complete |
 | M2.7 | Flux `daa83362e9a7`; `coordination-smoke-h4fj4` retried and succeeded with Garage artifacts/exit hook; `coordination-suspend-44c7r` resumed and succeeded; `coordination-cancel-6mkd4` terminated | Complete |
 | M3 | Pending | Pending |
-| M4 | Pending | Pending |
-| M5 | Pending | Pending |
+| M4.1–M4.2, M4.4, M4.7 | Coordinator domain/state/policy commit; replay, hash, actor, and budget tests | Complete |
+| M4.3, M4.5–M4.6, M4.8 | Pending service and integration acceptance | Pending |
+| M5.1 | Versioned JSON schemas, command boundary, fixture and conformance runner | Complete |
+| M5.2–M5.6 | Pending | Pending |
 | M6 | Pending | Pending |
 | M7 | Pending | Pending |
 | M8 | Pending | Pending |
