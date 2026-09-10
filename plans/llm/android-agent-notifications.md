@@ -402,6 +402,73 @@ adapter explicitly supports them.
 - Workflows can span many turns and hours; routine decisions must not introduce
   additional human approval gates.
 
+## Plan review and implementation queue
+
+Implementation status: the GitHub and Pi path is implemented locally. Plan-only
+pull requests under `plans/review/` are governed by
+`.github/workflows/plan-review.yaml`. The workflow ties approval to the exact
+head SHA, revokes it after any revision, and exposes approved work through
+repository labels. Pi's `deliver-approved-plan` profile verifies that approval,
+claims the request, implements it in an isolated jj workspace, reviews it, opens
+an implementation pull request, and stops at the merge boundary.
+
+The intended interaction is:
+
+1. A planning agent opens a draft pull request changing one
+   `plans/review/*.md` file.
+2. Tim reviews Markdown through GitHub's rendered view and line-comment review
+   threads. The planning agent responds and pushes revisions.
+3. Tim marks the pull request ready and applies `workflow/plan-approved`.
+4. The GitHub workflow attests the exact SHA and adds
+   `workflow/implementation-queued`.
+5. A compatible runner claims the request. For Pi, run
+   `/workflow start deliver-approved-plan <PR number or URL>` from the Cogito
+   root. No second plan or mutation approval is requested.
+6. Pi uses `worker`, then `reviewer`, permits one bounded repair, opens a second
+   pull request, waits for checks, marks the plan complete, and waits at its
+   existing merge boundary.
+
+This is deliberately pull-based today. A future always-on coordinator can poll
+the same label without changing the plan format or execution roles. Polling is
+also compatible with private cluster access; GitHub-hosted Actions cannot call
+the private Matrix homeserver, and GitHub cannot deliver Hookshot webhooks to an
+internal-only route.
+
+Use one queue dispatcher per repository. GitHub labels do not provide an atomic
+claim operation, so allowing Pi, Hermes, and OpenCode to poll independently
+could start duplicate runs. The dispatcher can route each claimed request to
+whichever harness and LiteLLM role is current.
+
+Matrix Hookshot remains the preferred established bridge when a suitable
+inbound webhook path exists. It can mirror GitHub pull request, review, comment,
+label, and workflow events into `#project-cogito`. GitHub remains authoritative:
+Hookshot is a notification bridge, not a transactional queue, and its GitHub
+connection does not promise that every event for one pull request will land in
+one Matrix thread. Exact automatic per-plan threads would require a small
+adapter or an upstream Hookshot feature, so it is deferred until that extra
+maintenance is justified.
+
+### LiteLLM roles in this flow
+
+The LiteLLM entries are not redundant. They are model aliases plus scoped keys,
+rate limits, and cost boundaries. Pi supplies the durable workflow and creates
+actual child-agent processes; GitHub supplies review and queue state; Matrix
+supplies conversation and notification delivery.
+
+| Current name | Meaning in this flow | Disposition |
+| --- | --- | --- |
+| `coordinator` | Long-lived harness seat that chooses work and delegates | Keep; correctly named as a role, though it is not a daemon by itself |
+| `coordinator-heavy` | Explicit higher-cost coordinator choice | Keep as an exceptional seat |
+| `worker` | Local Qwen implementation seat | Keep; used by `deliver-approved-plan` |
+| `reviewer` | Local Qwen read-only review seat with different prompting/reasoning | Keep; separate role even though it currently shares the worker backend |
+| `worker-escalated` | Cloud implementation fallback after demonstrated local failure | Keep; the coordinator selects it, not the queue |
+| `reviewer-escalated` | Paid, different-family review/council fallback | Keep; valuable specifically because it is independent of local Qwen |
+| cost accounting | LiteLLM budgets, spend attribution, and dashboards | Keep as policy/telemetry; there is no separate `cost` agent in the current configuration |
+
+Calling these all “agents” can imply that LiteLLM runs autonomous workers. It
+does not. “Execution roles” or “model seats” is more precise in documentation;
+the existing alias names themselves are useful and do not need migration.
+
 ## Live validation
 
 On 2026-09-09, Flux applied the implementation to Cogito. ntfy and Synapse Helm

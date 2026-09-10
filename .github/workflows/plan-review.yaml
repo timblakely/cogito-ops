@@ -1,0 +1,155 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: "Plan Review"
+
+on:
+  pull_request_target:
+    branches: ["main"]
+    types: [opened, reopened, synchronize, converted_to_draft, ready_for_review, labeled]
+
+concurrency:
+  group: plan-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  govern:
+    name: Govern Plan Revision
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_ACTION: ${{ github.event.action }}
+      PR_ACTOR: ${{ github.event.sender.login }}
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_IS_DRAFT: ${{ github.event.pull_request.draft }}
+      PR_LABEL: ${{ github.event.label.name }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      REPOSITORY: ${{ github.repository }}
+    steps:
+      - name: Validate and govern plan
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          readonly review_label="workflow/plan-review"
+          readonly approved_label="workflow/plan-approved"
+          readonly queued_label="workflow/implementation-queued"
+          readonly running_label="workflow/implementation-running"
+          readonly failed_label="workflow/implementation-failed"
+          readonly complete_label="workflow/implementation-complete"
+
+          mapfile -t files < <(
+            gh api --paginate \
+              "repos/${REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" \
+              --jq '.[].filename'
+          )
+          plan_files=()
+          for file in "${files[@]}"; do
+            if [[ "$file" =~ ^plans/review/.+\.md$ ]]; then
+              plan_files+=("$file")
+            fi
+          done
+
+          # Ordinary pull requests do not participate in this protocol.
+          if (( ${#plan_files[@]} == 0 )); then
+            exit 0
+          fi
+
+          add_labels() {
+            local label
+            for label in "$@"; do
+              gh api --method POST "repos/${REPOSITORY}/issues/${PR_NUMBER}/labels" \
+                -f "labels[]=${label}" >/dev/null
+            done
+          }
+
+          remove_labels() {
+            local current label encoded
+            current="$(gh api "repos/${REPOSITORY}/issues/${PR_NUMBER}/labels" --jq '.[].name')"
+            for label in "$@"; do
+              if grep -Fqx "$label" <<<"$current"; then
+                encoded="${label//\//%2F}"
+                gh api --method DELETE \
+                  "repos/${REPOSITORY}/issues/${PR_NUMBER}/labels/${encoded}" >/dev/null
+              fi
+            done
+          }
+
+          comment() {
+            gh api --method POST "repos/${REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              -f "body=$1" >/dev/null
+          }
+
+          if (( ${#files[@]} != 1 || ${#plan_files[@]} != 1 )); then
+            remove_labels "$approved_label" "$queued_label" "$running_label" "$failed_label" "$complete_label"
+            add_labels "$review_label"
+            comment "<!-- cogito-plan-invalid:${PR_HEAD_SHA} -->
+          This plan cannot enter the implementation queue. A plan-review pull request must change exactly one Markdown file under \`plans/review/\`; this revision changes ${#files[@]} files."
+            echo "Plan-review pull requests must change exactly one plans/review/*.md file." >&2
+            exit 1
+          fi
+
+          readonly plan_path="${plan_files[0]}"
+
+          # Labels added by this workflow also emit a labeled event. Ignore all
+          # labels except the one that represents Tim's explicit approval.
+          if [[ "$PR_ACTION" == "labeled" && "$PR_LABEL" != "$approved_label" ]]; then
+            exit 0
+          fi
+
+          if [[ "$PR_ACTION" == "labeled" && "$PR_LABEL" == "$approved_label" ]]; then
+            if [[ "$PR_ACTOR" != "timblakely" ]]; then
+              remove_labels "$approved_label"
+              comment "<!-- cogito-plan-approval-rejected:${PR_HEAD_SHA} -->
+          Plan approval was rejected because \`@${PR_ACTOR}\` is not the configured approver."
+              echo "Only timblakely may approve an implementation plan." >&2
+              exit 1
+            fi
+            if [[ "$PR_IS_DRAFT" == "true" ]]; then
+              remove_labels "$approved_label"
+              comment "<!-- cogito-plan-approval-rejected:${PR_HEAD_SHA} -->
+          Mark the plan ready for review before approving it."
+              echo "Draft plans cannot be approved." >&2
+              exit 1
+            fi
+
+            remove_labels "$review_label" "$running_label" "$failed_label" "$complete_label"
+            add_labels "$approved_label" "$queued_label"
+            comment "<!-- cogito-plan-approved:${PR_HEAD_SHA} -->
+          ### Approved implementation request
+
+          This exact plan revision is queued for a compatible agent harness.
+
+          \`request_id\`: \`github:${REPOSITORY}:pull:${PR_NUMBER}:${PR_HEAD_SHA}\`<br>
+          \`plan_path\`: \`${plan_path}\`<br>
+          \`approved_sha\`: \`${PR_HEAD_SHA}\`<br>
+          \`approved_by\`: \`@${PR_ACTOR}\`<br>
+          \`matrix_room\`: \`#project-cogito:matrix.timblakely.com\`
+
+          Any new commit revokes this approval. The implementation agent must pin and re-check \`${PR_HEAD_SHA}\` before it starts mutation."
+            exit 0
+          fi
+
+          current_labels="$(gh api "repos/${REPOSITORY}/issues/${PR_NUMBER}/labels" --jq '.[].name')"
+          had_approval=false
+          for label in "$approved_label" "$queued_label" "$running_label" "$failed_label" "$complete_label"; do
+            if grep -Fqx "$label" <<<"$current_labels"; then
+              had_approval=true
+            fi
+          done
+
+          remove_labels "$approved_label" "$queued_label" "$running_label" "$failed_label" "$complete_label"
+          add_labels "$review_label"
+
+          if [[ "$PR_ACTION" == "opened" || "$PR_ACTION" == "reopened" ]]; then
+            comment "<!-- cogito-plan-review:${PR_HEAD_SHA} -->
+          ### Plan review
+
+          Review \`${plan_path}\` with GitHub line comments. Resolve the discussion, mark this pull request ready, then apply \`workflow/plan-approved\` to authorize implementation of this exact revision."
+          elif [[ "$had_approval" == "true" ]]; then
+            comment "<!-- cogito-plan-approval-revoked:${PR_HEAD_SHA} -->
+          The plan changed, so its previous approval and implementation state were revoked. Review the new revision and apply \`workflow/plan-approved\` again when it is ready."
+          fi
