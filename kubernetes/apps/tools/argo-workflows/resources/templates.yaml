@@ -140,20 +140,31 @@ kind: WorkflowTemplate
 metadata:
   name: workflow-smoke
 spec:
-  entrypoint: smoke
+  entrypoint: acceptance
   onExit: exit
   templates:
-    - name: smoke
+    - name: acceptance
+      steps:
+        - - name: retry-once
+            template: retry-once
+        - - name: artifact
+            template: smoke
+    - name: retry-once
       retryStrategy:
         limit: "2"
-        retryPolicy: OnError
+        retryPolicy: Always
       script:
         image: docker.io/library/python:3.13-slim@sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285
         command: [python]
+        env:
+          - name: RETRIES
+            value: '{{retries}}'
         source: |
-          from pathlib import Path
-          Path('/tmp/smoke.txt').write_text('argo-workflows-smoke\n')
-          print('smoke complete')
+          import os
+          attempt = int(os.environ.get('RETRIES') or '0')
+          print(f'attempt={attempt}')
+          if attempt == 0:
+              raise SystemExit('intentional first-attempt failure')
         securityContext: &smokeContainerSecurity
           allowPrivilegeEscalation: false
           capabilities:
@@ -162,6 +173,15 @@ spec:
           runAsUser: 65532
           seccompProfile:
             type: RuntimeDefault
+    - name: smoke
+      script:
+        image: docker.io/library/python:3.13-slim@sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285
+        command: [python]
+        source: |
+          from pathlib import Path
+          Path('/tmp/smoke.txt').write_text('argo-workflows-smoke\n')
+          print('smoke complete')
+        securityContext: *smokeContainerSecurity
       outputs:
         artifacts:
           - name: smoke
