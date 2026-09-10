@@ -46,22 +46,16 @@ components:
 patches:
   # The catalogue is now custom resources, so this Kustomization cannot be
   # applied at all until litellm.home-operations.com exists. The HelmRelease
-  # this replaced carried its own dependsOn: [llmkube]; that is gone with it,
-  # and the router the models point at is only a URL to LiteLLM, so llmkube is
-  # no longer an apply-time dependency of the proxy - a model whose backend is
-  # down is a failed request, not a failed reconcile.
+  # this replaced carried its own dependsOn: [llmkube]; that is gone with it.
+  # A model backend is only a URL in a LiteLLMModel and therefore is not an
+  # apply-time dependency: an unavailable model is a failed request, not a
+  # failed catalogue reconcile. In particular, experimental model-staging Jobs
+  # in llmkube-resources must not block an unrelated credential or role update.
   - patch: |-
       - op: add
         path: /spec/dependsOn/-
         value:
           name: litellm-operator
-      # Backends before the catalogue (Phor's ordering, plan.md T1.3): the
-      # role aliases point straight at InferenceService Services now, so the
-      # serving CRs must exist before the catalogue names them.
-      - op: add
-        path: /spec/dependsOn/-
-        value:
-          name: llmkube-resources
     target:
       group: kustomize.toolkit.fluxcd.io
       kind: Kustomization
