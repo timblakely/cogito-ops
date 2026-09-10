@@ -57,6 +57,29 @@ Provider and controller versions, chart, and controller images are pinned. The
 Matrix provider is young, so its scope is deliberately limited to durable room
 state rather than messages or agent runtime behavior.
 
+## Client enrollment
+
+Matrix distinguishes `invite` from `join`: the controller sends the
+invitations, but only the invited account can accept them. The private
+`Agents` and `Personal` spaces, their child rooms, aliases, hierarchy, and
+invitations are all declared and reconciled through GitOps; none of that
+accepts a membership on an account's behalf. Tim accepts each outstanding
+invitation once in a Matrix client: the space invitation and, separately,
+every private child-room invitation.
+
+Space membership does not imply membership in its private child rooms. Each
+room holds its own membership, so the child-room invitations must be accepted
+on their own. In Commet an unaccepted invitation does not appear as a joined
+room in the space hierarchy, which made the first enrollment confusing; if
+the hierarchy still does not redraw after accepting, refresh or restart the
+client.
+
+After the one-time joins, membership persists: later changes to room names,
+topics, aliases, and space hierarchy continue to reconcile through GitOps
+without further client action. The canonical aliases (`#agent-control`,
+`#personal-watches`, `#personal-money-making`) confirm that the intended
+rooms were joined.
+
 ## Android setup and acceptance
 
 1. Install the ntfy Android distributor and set its default server to
