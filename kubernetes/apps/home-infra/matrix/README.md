@@ -41,6 +41,12 @@ Control`; `#agent-control` is canonical and `#hermes-agent` remains a working
 alternate alias. Plans should use one Matrix thread per plan in the applicable
 project room, falling back to `Agent Plans` when no project room exists.
 
+The separate private `Personal` space contains `Watches` and `Money Making`.
+These rooms hold durable topic context that may span many agent runs; operational
+progress and failures still belong in the `Agents` space. Tim and Hermes are
+invited to each personal room. Their canonical aliases are `#personal-watches`
+and `#personal-money-making` on this homeserver.
+
 `prevent_destroy` blocks destructive replacement while an adopted room remains
 declared, and the Terraform custom resource sets
 `destroyResourcesOnDeletion: false` so deleting the controller object does not

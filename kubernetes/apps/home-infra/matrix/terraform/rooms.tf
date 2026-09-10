@@ -34,8 +34,33 @@ locals {
     }
   }
 
+  personal_rooms = {
+    watches = {
+      name  = "Watches"
+      topic = "Watch collecting, research, maintenance, purchases, and projects."
+      alias = "personal-watches"
+      order = "10"
+    }
+    money_making = {
+      name  = "Money Making"
+      topic = "Ideas, experiments, research, and active projects intended to earn money."
+      alias = "personal-money-making"
+      order = "20"
+    }
+  }
+
   agent_room_members = merge([
     for room_key, room in local.agent_rooms : {
+      for user_key, user_id in local.users : "${room_key}:${user_key}" => {
+        room_key = room_key
+        user_key = user_key
+        user_id  = user_id
+      }
+    }
+  ]...)
+
+  personal_room_members = merge([
+    for room_key, room in local.personal_rooms : {
       for user_key, user_id in local.users : "${room_key}:${user_key}" => {
         room_key = room_key
         user_key = user_key
@@ -118,6 +143,40 @@ resource "matrix_room_power_levels" "agents_space" {
   }
 }
 
+resource "matrix_space" "personal" {
+  name               = "Personal"
+  topic              = "Long-lived personal interests, research, and projects."
+  preset             = "private_chat"
+  room_alias_name    = "personal"
+  room_version       = "12"
+  history_visibility = "shared"
+  visibility         = "private"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "matrix_room_member" "personal_space" {
+  room_id    = matrix_space.personal.id
+  user_id    = local.users.tim
+  membership = "invite"
+}
+
+resource "matrix_room_join_rules" "personal_space" {
+  room_id   = matrix_space.personal.id
+  join_rule = "invite"
+}
+
+resource "matrix_room_power_levels" "personal_space" {
+  room_id = matrix_space.personal.id
+
+  # Room v12 creators retain intrinsic control and must not appear here.
+  users = {
+    (local.users.tim) = 100
+  }
+}
+
 resource "matrix_room" "agent" {
   for_each = local.agent_rooms
 
@@ -182,6 +241,70 @@ resource "matrix_room_power_levels" "agent" {
   depends_on = [matrix_room_member.agent]
 }
 
+resource "matrix_room" "personal" {
+  for_each = local.personal_rooms
+
+  name               = each.value.name
+  topic              = each.value.topic
+  preset             = "private_chat"
+  room_alias_name    = each.value.alias
+  room_version       = "12"
+  encryption_enabled = true
+  history_visibility = "shared"
+  visibility         = "private"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "matrix_room_member" "personal" {
+  for_each = local.personal_room_members
+
+  room_id    = matrix_room.personal[each.value.room_key].id
+  user_id    = each.value.user_id
+  membership = each.value.user_key == "gitops" ? "join" : "invite"
+}
+
+resource "matrix_room_join_rules" "personal" {
+  for_each = local.personal_rooms
+
+  room_id   = matrix_room.personal[each.key].id
+  join_rule = "invite"
+}
+
+resource "matrix_room_power_levels" "personal" {
+  for_each = local.personal_rooms
+
+  room_id        = matrix_room.personal[each.key].id
+  users_default  = 0
+  events_default = 0
+  state_default  = 50
+  invite         = 0
+  kick           = 50
+  ban            = 50
+  redact         = 50
+
+  # agent-gitops creates these v12 rooms and therefore has intrinsic control.
+  users = {
+    (local.users.hermes) = 0
+    (local.users.tim)    = 100
+  }
+
+  events = {
+    "m.room.avatar"             = 50
+    "m.room.canonical_alias"    = 50
+    "m.room.encryption"         = 100
+    "m.room.history_visibility" = 100
+    "m.room.name"               = 50
+    "m.room.power_levels"       = 100
+    "m.room.server_acl"         = 100
+    "m.room.tombstone"          = 100
+  }
+
+  depends_on = [matrix_room_member.personal]
+}
+
 resource "matrix_space_child" "agent_control" {
   parent_space_id = matrix_space.agents.id
   child_room_id   = matrix_room.hermes_agent.id
@@ -195,6 +318,16 @@ resource "matrix_space_child" "agent" {
 
   parent_space_id = matrix_space.agents.id
   child_room_id   = matrix_room.agent[each.key].id
+  suggested       = true
+  order           = each.value.order
+  via             = [local.server_name]
+}
+
+resource "matrix_space_child" "personal" {
+  for_each = local.personal_rooms
+
+  parent_space_id = matrix_space.personal.id
+  child_room_id   = matrix_room.personal[each.key].id
   suggested       = true
   order           = each.value.order
   via             = [local.server_name]
