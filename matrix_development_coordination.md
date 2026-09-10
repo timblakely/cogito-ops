@@ -395,7 +395,7 @@ model requires no coordinator or adapter code change.
 - [x] **M2.5** Add ServiceMonitor/PrometheusRule and controller/server dashboards.
 - [x] **M2.6** Add reusable templates for workspace initialization, agent run,
   verification, PR publication, suspension, and exit notification.
-- [ ] **M2.7** Reconcile and complete a smoke workflow with retained artifact,
+- [x] **M2.7** Reconcile and complete a smoke workflow with retained artifact,
   retry, suspend/resume, cancellation, and exit-handler evidence.
 
 Acceptance: a workflow survives controller restart, exposes usable status, and
@@ -523,7 +523,7 @@ coordination behavior.
 | M1.1–M1.2, M1.4 | Planner alias/key, exact-scope validator, and dashboard commit | Complete |
 | M1.3, M1.5–M1.6 | Pending | Pending |
 | M2.1–M2.6 | Argo chart, Garage key/item, SSO, policy, monitoring, templates commit | Complete |
-| M2.7 | Pending live acceptance | Pending |
+| M2.7 | Flux `daa83362e9a7`; `coordination-smoke-h4fj4` retried and succeeded with Garage artifacts/exit hook; `coordination-suspend-44c7r` resumed and succeeded; `coordination-cancel-6mkd4` terminated | Complete |
 | M3 | Pending | Pending |
 | M4 | Pending | Pending |
 | M5 | Pending | Pending |
