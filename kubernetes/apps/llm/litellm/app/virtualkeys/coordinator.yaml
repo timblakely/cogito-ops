@@ -1,8 +1,7 @@
 ---
-# Per-role key: the coordinator's seat. Both aliases in scope are
-# subscription-backed (Luna/Terra via OAuth) and meter at $0, so a dollar
-# budget can never trip — the guardrail here is RATE, protecting the 5h
-# credit window from a runaway loop. Human-driven traffic never nears it.
+# Per-role key for routine workflow coordination. It cannot invoke the planner
+# or either metered planning escape hatch. The guardrail here is RATE because
+# the subscription-backed Luna seat meters at $0.
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMVirtualKey
 metadata:
@@ -16,9 +15,6 @@ spec:
   maxParallelRequests: 4
   models:
     - coordinator
-    # Explicit-choice Terra splurge shares the key (and its rate caps); REMEMBER
-    # the operator gap - scope changes need a manual /key/update push.
-    - coordinator-heavy
 ---
 apiVersion: external-secrets.io/v1alpha1
 kind: PushSecret

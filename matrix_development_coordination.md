@@ -360,20 +360,20 @@ Flux applied revision, and live-state agreement.
   migration strategy in this document.
 - [x] **M0.2** Inventory the existing Matrix rooms, ntfy path, Pi prototype,
   LiteLLM roles, GitHub workflow, and GitOps conventions reflected here.
-- [ ] **M0.3** Push this document to `main` and verify the remote SHA.
+- [x] **M0.3** Push this document to `main` and verify the remote SHA.
 
 Acceptance: the document is committed independently before implementation and
 is usable as the controlling checklist.
 
 ### M1 — Stable role catalogue and credentials
 
-- [ ] **M1.1** Add `planner` as a stable LiteLLM model alias; retain
+- [x] **M1.1** Add `planner` as a stable LiteLLM model alias; retain
   `coordinator-heavy` only as a documented compatibility alias.
-- [ ] **M1.2** Add a planner virtual key and 1Password `PushSecret`; restrict it
+- [x] **M1.2** Add a planner virtual key and 1Password `PushSecret`; restrict it
   to planner aliases with explicit budget and rate limits.
 - [ ] **M1.3** Narrow coordinator credentials to coordinator duties and replace
   unscoped Pi/Hermes access used by this workflow.
-- [ ] **M1.4** Extend catalogue validation, metrics, dashboards, and role docs.
+- [x] **M1.4** Extend catalogue validation, metrics, dashboards, and role docs.
 - [ ] **M1.5** Add planner/coordinator consumer configuration for supported
   harnesses without embedding provider model names.
 - [ ] **M1.6** Reconcile LiteLLM and prove authenticated planner, coordinator,
@@ -519,8 +519,9 @@ coordination behavior.
 | Milestone | Commit or runtime evidence | Result |
 | --- | --- | --- |
 | M0.1–M0.2 | Initial commit of this document | Complete |
-| M0.3 | Pending remote verification | Pending |
-| M1 | Pending | Pending |
+| M0.3 | `2c366c235731f2289211ffc7abf32319e8f0993f` on `origin/main` | Complete |
+| M1.1–M1.2, M1.4 | Planner alias/key, exact-scope validator, and dashboard commit | Complete |
+| M1.3, M1.5–M1.6 | Pending | Pending |
 | M2 | Pending | Pending |
 | M3 | Pending | Pending |
 | M4 | Pending | Pending |

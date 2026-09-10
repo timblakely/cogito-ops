@@ -30,11 +30,17 @@ Not cosmetic: LiteLLM raises "This model isn't mapped yet" inside spend
 calculation for any `openai/<slug>` missing from its cost map, so the choice is
 between an asserted zero and a per-request error with no ledger entry.
 
-**Frontier** — `planner-gpt` and `planner-gpt-pro`, deliberately under names no
-local model shares. A shared `modelName` would make LiteLLM's router
+**Role seats** — `coordinator` is the routine Luna workflow manager and
+`planner` is the high-reasoning Terra planning seat. `coordinator-heavy` is a
+temporary compatibility alias for `planner`; new consumers must not use it.
+Each workflow component uses its own scoped virtual key.
+
+**Metered frontier** — `planner-gpt` and `planner-gpt-pro`, deliberately under
+names no local model shares. A shared `modelName` would make LiteLLM's router
 load-balance between free local compute and paid API calls. They declare no
 cost or capability metadata because LiteLLM already ships accurate values for
-both `gpt-5.5` models.
+both `gpt-5.5` models. Only the planner key can reach these escape hatches; its
+budget limits their combined spend.
 
 ## Where the escape hatches are
 

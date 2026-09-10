@@ -1,0 +1,43 @@
+---
+# The planner has a distinct identity, rate limit, and spend boundary. The
+# primary `planner` seat uses the subscription. The two metered aliases are
+# explicit escape hatches and share this small budget rather than being
+# reachable through the coordinator key.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: planner
+spec:
+  proxyRef: litellm
+  keyAlias: role-planner
+  secretName: litellm-key-planner
+  secretKey: api-key
+  maxBudget: "10"
+  budgetDuration: 30d
+  rpmLimit: 10
+  maxParallelRequests: 2
+  models:
+    - planner
+    - planner-gpt
+    - planner-gpt-pro
+---
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: litellm-key-planner
+spec:
+  refreshInterval: 1h
+  secretStoreRefs:
+    - kind: ClusterSecretStore
+      name: onepassword
+  selector:
+    secret:
+      name: litellm-key-planner
+  updatePolicy: Replace
+  deletionPolicy: None
+  data:
+    - match:
+        secretKey: api-key
+        remoteRef:
+          remoteKey: litellm
+          property: LITELLM_PLANNER_API_KEY

@@ -20,6 +20,7 @@ that fail silently at runtime (plans/llm/plan.md T0.2):
      every key's scope contains the fallback closure of its aliases
      (LiteLLM does not re-check key scope on the fallback path)
   8. consumer env vars naming models resolve
+  9. workflow role keys have exact, least-privilege model scopes
 
 Run from the repo root: scripts/validate-llm-catalogue.py
 Exits non-zero on any failure. --self-test additionally verifies the checks
@@ -237,6 +238,26 @@ def check(state):
         for m in [v.strip() for v in value.split(",") if v.strip()]:
             if m not in names:
                 errors.append(f"consumer env {env_key} names unknown model '{m}'")
+
+    # 9. Workflow services must not regain broad or cross-role credentials.
+    expected_role_scopes = {
+        "planner": {"planner", "planner-gpt", "planner-gpt-pro"},
+        "coordinator": {"coordinator"},
+        "worker": {"worker"},
+        "reviewer": {"reviewer"},
+        "escalation": {"worker-escalated", "reviewer-escalated"},
+    }
+    for key, expected in expected_role_scopes.items():
+        if key not in state["keys"]:
+            errors.append(f"required workflow role key '{key}' is missing")
+            continue
+        actual = state["keys"][key]
+        if actual is None:
+            errors.append(f"workflow role key '{key}' must have a model scope")
+        elif set(actual) != expected:
+            errors.append(
+                f"workflow role key '{key}' scope is {sorted(actual)}, "
+                f"expected {sorted(expected)}")
 
     return errors, warnings
 

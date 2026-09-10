@@ -5,12 +5,13 @@
 # 32 of its 33 panels are provider-agnostic - they read the litellm_* families
 # the proxy exports once the prometheus callbacks are on - and only the
 # tier-breakdown pie chart encoded a model taxonomy. That panel was retargeted
-# to cogito's, but only partly: it splits on `requested_model=~"planner-.*"`,
-# so its "OpenAI (paid)" slice is the planner aliases alone. Real spending is
+# to cogito's, but only partly: it splits on planner role/escape-hatch names,
+# so its "Planning" slice contains the planner aliases alone. Real spending is
 # wider than that slice - reviewer-escalated's K3 meters at $3/$15 per M and
 # still lands in "Local (LLMKube)", alongside the genuinely free local aliases
 # and the subscription seats, which meter at $0. Read the paid slice as
-# "planner-*", not as "everything that costs money"; `Spend by Model in Range`
+# the metered `planner-*` subset, not everything in the planning slice;
+# `Spend by Model in Range`
 # is the panel that answers the money question without a taxonomy.
 #
 # His companion `litellm-economics` dashboard was deliberately NOT ported. It

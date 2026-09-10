@@ -793,7 +793,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "label_replace((sum(increase(litellm_total_tokens_metric_total{requested_model!~\"planner-.*\"})) or vector(0)), \"provider\", \"Local (LLMKube)\", \"\", \"\")",
+          "expr": "label_replace((sum(increase(litellm_total_tokens_metric_total{requested_model!~\"planner(|-.*)\"})) or vector(0)), \"provider\", \"Other roles\", \"\", \"\")",
           "legendFormat": "{{provider}}",
           "refId": "A"
         },
@@ -802,7 +802,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "label_replace((sum(increase(litellm_total_tokens_metric_total{requested_model=~\"planner-.*\"})) or vector(0)), \"provider\", \"OpenAI (paid)\", \"\", \"\")",
+          "expr": "label_replace((sum(increase(litellm_total_tokens_metric_total{requested_model=~\"planner(|-.*)\"})) or vector(0)), \"provider\", \"Planning roles\", \"\", \"\")",
           "legendFormat": "{{provider}}",
           "refId": "B"
         }
