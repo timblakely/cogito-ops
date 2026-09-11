@@ -10,6 +10,11 @@ configMapGenerator:
       - maubot.yaml=./maubot.yaml
       - base-config.yaml=./base-config.yaml
       - cogito_bot.py=./cogito_bot.py
+  - name: matrix-coordinator-dashboard
+    options:
+      disableNameSuffixHash: true
+    files:
+      - matrix-coordinator.json=./dashboard/matrix-coordinator.json
 resources:
   - ./bot-secret.yaml
   - ./externalsecret.yaml
@@ -17,3 +22,5 @@ resources:
   - ./helmrelease.yaml
   - ./httproute.yaml
   - ./servicemonitor.yaml
+  - ./grafanadashboard.yaml
+  - ./prometheusrule.yaml

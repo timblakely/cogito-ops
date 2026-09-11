@@ -1,0 +1,47 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: matrix-coordinator
+spec:
+  groups:
+    - name: matrix-coordinator.rules
+      rules:
+        - alert: MatrixCoordinatorAbsent
+          expr: absent(cogito_coordinator_up{namespace="home-infra"})
+          for: 10m
+          annotations:
+            summary: Matrix development coordinator scrape target is absent
+          labels:
+            severity: critical
+        - alert: MatrixCoordinatorDown
+          expr: cogito_coordinator_up{namespace="home-infra"} == 0
+          for: 5m
+          annotations:
+            summary: Matrix development coordinator is down
+          labels:
+            severity: critical
+        - alert: MatrixCoordinatorOutboxBacklog
+          expr: >-
+            cogito_coordinator_objects{namespace="home-infra",kind="matrix_outbox",state="pending"} > 0
+          for: 10m
+          annotations:
+            summary: Matrix coordinator notifications have remained pending for ten minutes
+          labels:
+            severity: warning
+        - alert: MatrixCoordinatorExternalActionError
+          expr: cogito_coordinator_external_action_errors{namespace="home-infra"} > 0
+          for: 5m
+          annotations:
+            summary: Matrix coordinator has an external action awaiting retry after an error
+          labels:
+            severity: warning
+        - alert: MatrixCoordinatorRunQueueStalled
+          expr: >-
+            cogito_coordinator_objects{namespace="home-infra",kind="run",state="queued"} > 0
+          for: 30m
+          annotations:
+            summary: Matrix coordinator run queue has remained nonempty for thirty minutes
+          labels:
+            severity: warning

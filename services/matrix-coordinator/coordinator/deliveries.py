@@ -116,7 +116,15 @@ class DeliveryCoordinator:
                     changed += 1
                 elif review_state == "succeeded" and review_result:
                     if review_result.usage.get("review_verdict") != "approve":
-                        raise ValidationError("successful review has no approval verdict")
+                        reason = review_result.summary or "review produced no approval verdict"
+                        if not self._repair(delivery, worker, reason):
+                            self.state.update_delivery(work_item, state="failed")
+                            self._notify(
+                                work_item, "review-failed",
+                                f"Review repair budget exhausted for "
+                                f"{delivery['pull_request_url']}: {reason[:1000]}")
+                        changed += 1
+                        continue
                     self.github.add_review_evidence(
                         delivery["pull_request_url"], delivery["reviewer_run_id"], review_result.summary)
                     worker_head = worker_result.head_sha

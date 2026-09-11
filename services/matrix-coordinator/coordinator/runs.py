@@ -32,6 +32,19 @@ class RunCoordinator:
         dependency = run.context.get("depends_on")
         return not dependency or self.state.work_item_state(dependency) == "closed"
 
+    def _queue(self, run: AgentRun, reason: str, created: bool) -> str:
+        self.state.update_run(run.run_id, "queued")
+        if created:
+            self.state.audit("coordinator", "run.queued", run.run_id, {"reason": reason})
+            context = self.state.work_item_context(run.work_item)
+            if context:
+                self.state.enqueue_matrix(
+                    f"run:{run.run_id}:queued:{reason}", context["matrix_room_id"],
+                    context["root_event_id"],
+                    f"Run `{run.run_id}` is queued: **{reason.replace('_', ' ')}**.",
+                )
+        return "queued"
+
     def submit(self, run: AgentRun, harness: str) -> str:
         request = {**run.as_dict(), "harness": harness}
         created = self.state.register_run(run.run_id, run.work_item, request)
@@ -39,13 +52,13 @@ class RunCoordinator:
         if row["argo_name"]:
             return row["argo_name"]
         if self.state.control("emergency_stop", "false") == "true":
-            self.state.update_run(run.run_id, "queued")
-            return "queued"
-        if (not self._dependency_ready(run) or
-                self.state.active_run_count() > self.max_active or
-                self.state.total_usage_tokens() >= self.max_aggregate_tokens):
-            self.state.update_run(run.run_id, "queued")
-            return "queued"
+            return self._queue(run, "emergency_stop", created)
+        if not self._dependency_ready(run):
+            return self._queue(run, "dependency", created)
+        if self.state.active_run_count() > self.max_active:
+            return self._queue(run, "concurrency_limit", created)
+        if self.state.total_usage_tokens() >= self.max_aggregate_tokens:
+            return self._queue(run, "aggregate_token_budget", created)
         # Recover a submission that reached Kubernetes before a process crash.
         name = self.argo.find_run(run.run_id)
         if name is None:

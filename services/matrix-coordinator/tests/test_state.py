@@ -1,6 +1,7 @@
 import sqlite3
 import tempfile
 import unittest
+import json
 from concurrent.futures import ThreadPoolExecutor
 
 from coordinator.state import StateStore
@@ -49,6 +50,27 @@ class StateTests(unittest.TestCase):
         self.state = StateStore(path)
         self.assertIsNotNone(self.state.work_item_context("https://github.com/o/r/issues/1"))
         self.assertIsNotNone(self.state.work_item_context("https://github.com/o/r/issues/2"))
+
+    def test_prometheus_metrics_report_state_usage_and_artifacts(self):
+        with self.state.transaction() as db:
+            db.execute(
+                "INSERT INTO plans(plan_id,state,repository,matrix_room_id,root_event_id,current_version) "
+                "VALUES (?,?,?,?,?,?)", ("metrics-plan", "complete", "https://github.com/o/r.git",
+                "!room:x", "$root", 1),
+            )
+            db.execute(
+                "INSERT INTO runs(run_id,work_item_external_id,state,request_json,result_json) "
+                "VALUES (?,?,?,?,?)", ("metrics-run-0001", "https://github.com/o/r/issues/1",
+                "succeeded", json.dumps({"role": "reviewer", "harness": "opencode"}),
+                json.dumps({"usage": {"input_tokens": 12, "output_tokens": 3},
+                            "artifacts": [{"name": "log", "digest": "sha256:a"}]})),
+            )
+        metrics = self.state.prometheus_metrics()
+        self.assertIn('cogito_coordinator_objects{kind="plan",state="complete"} 1', metrics)
+        self.assertIn(
+            'cogito_coordinator_run_usage_tokens_total{role="reviewer",harness="opencode",'
+            'direction="input"} 12', metrics)
+        self.assertIn("cogito_coordinator_artifacts_total 1", metrics)
 
 
 if __name__ == "__main__":

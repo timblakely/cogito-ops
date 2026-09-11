@@ -103,6 +103,8 @@ class App:
                 run_id, operation = parts[2:]
                 if operation == "cancel":
                     self.runs.cancel(run_id)
+                elif operation == "pause":
+                    self.runs.pause(run_id)
                 elif operation == "resume":
                     self.runs.resume(run_id)
                 elif operation == "reconcile":
@@ -135,7 +137,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/healthz":
             self.reply(200, {"status": "ok"})
         elif self.path == "/metrics":
-            payload = b"cogito_coordinator_up 1\n"
+            payload = APP.state.prometheus_metrics().encode()
             self.send_response(200); self.send_header("Content-Type", "text/plain")
             self.send_header("Content-Length", str(len(payload))); self.end_headers(); self.wfile.write(payload)
         else:

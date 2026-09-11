@@ -468,5 +468,65 @@ class StateStore:
             ).fetchall()
             return [row[0] for row in rows]
 
+    def prometheus_metrics(self) -> str:
+        """Render bounded-cardinality operational metrics from durable state."""
+        lines = [
+            "# HELP cogito_coordinator_up Whether the coordinator process is serving.",
+            "# TYPE cogito_coordinator_up gauge",
+            "cogito_coordinator_up 1",
+            "# HELP cogito_coordinator_objects Durable objects by kind and state.",
+            "# TYPE cogito_coordinator_objects gauge",
+        ]
+        tables = {
+            "plan": "plans", "work_item": "work_items", "run": "runs",
+            "delivery": "deliveries", "matrix_outbox": "matrix_outbox",
+            "external_action": "external_actions",
+        }
+        with self.lock:
+            for kind, table in tables.items():
+                rows = self.db.execute(
+                    f"SELECT state,count(*) AS count FROM {table} GROUP BY state ORDER BY state"
+                ).fetchall()
+                for row in rows:
+                    lines.append(
+                        f'cogito_coordinator_objects{{kind="{kind}",state="{row["state"]}"}} '
+                        f'{row["count"]}')
+            failed_actions = self.db.execute(
+                "SELECT count(*) FROM external_actions WHERE last_error IS NOT NULL"
+            ).fetchone()[0]
+            audit_count = self.db.execute("SELECT count(*) FROM audit_events").fetchone()[0]
+            results = self.db.execute(
+                "SELECT request_json,result_json FROM runs WHERE result_json IS NOT NULL"
+            ).fetchall()
+        usage: dict[tuple[str, str, str], int] = {}
+        artifacts = 0
+        for row in results:
+            request, result = json.loads(row["request_json"]), json.loads(row["result_json"])
+            role, harness = request.get("role", "unknown"), request.get("harness", "unknown")
+            for direction, key in (("input", "input_tokens"), ("output", "output_tokens"),
+                                   ("reasoning", "reasoning_tokens")):
+                value = result.get("usage", {}).get(key, 0)
+                if isinstance(value, int):
+                    usage[(role, harness, direction)] = usage.get((role, harness, direction), 0) + value
+            artifacts += len(result.get("artifacts", []))
+        lines.extend([
+            "# HELP cogito_coordinator_external_action_errors Durable external actions awaiting retry after an error.",
+            "# TYPE cogito_coordinator_external_action_errors gauge",
+            f"cogito_coordinator_external_action_errors {failed_actions}",
+            "# HELP cogito_coordinator_audit_events_total Append-only coordinator audit records.",
+            "# TYPE cogito_coordinator_audit_events_total counter",
+            f"cogito_coordinator_audit_events_total {audit_count}",
+            "# HELP cogito_coordinator_artifacts_total Result artifacts referenced by durable run manifests.",
+            "# TYPE cogito_coordinator_artifacts_total gauge",
+            f"cogito_coordinator_artifacts_total {artifacts}",
+            "# HELP cogito_coordinator_run_usage_tokens_total Recorded model tokens by role and harness.",
+            "# TYPE cogito_coordinator_run_usage_tokens_total counter",
+        ])
+        for (role, harness, direction), value in sorted(usage.items()):
+            lines.append(
+                f'cogito_coordinator_run_usage_tokens_total{{role="{role}",harness="{harness}",'
+                f'direction="{direction}"}} {value}')
+        return "\n".join(lines) + "\n"
+
     def close(self) -> None:
         self.db.close()

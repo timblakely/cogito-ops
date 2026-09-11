@@ -84,5 +84,30 @@ class DeliveryTests(unittest.TestCase):
         self.assertEqual(rows[0]["repair_attempts"], 1)
         self.assertTrue(rows[0]["worker_run_id"].startswith("repair-"))
 
+    def test_missing_review_verdict_gets_bounded_repair(self):
+        original = AgentRun(**{**self.run.__dict__, "limits": {"attempts": 2}})
+        with self.state.transaction() as db:
+            db.execute("UPDATE runs SET request_json=? WHERE run_id=?", (
+                json.dumps({**original.as_dict(), "harness": "pi"}, sort_keys=True), self.run.run_id))
+        self.finish(self.run.run_id, {
+            "run_id": self.run.run_id, "status": "succeeded", "summary": "done",
+            "head_sha": "a" * 40, "usage": {
+                "published_ref": "refs/heads/agent/worker-run-0001",
+                "changed_paths": ["docs/example.md"]},
+        })
+        self.delivery.reconcile_once()
+        row = self.state.delivery_for_run(self.run.run_id)
+        self.finish(row["reviewer_run_id"], {
+            "run_id": row["reviewer_run_id"], "status": "succeeded",
+            "summary": "review omitted its verdict", "head_sha": "a" * 40,
+            "usage": {},
+        })
+        self.assertEqual(self.delivery.reconcile_once(), 1)
+        repaired = self.state.deliveries()[0]
+        self.assertEqual(repaired["state"], "worker_running")
+        self.assertEqual(repaired["repair_attempts"], 1)
+        self.assertTrue(repaired["worker_run_id"].startswith("repair-"))
+        self.assertEqual(self.github.closed, ["https://github.com/o/r/pull/3"])
+
 
 if __name__ == "__main__": unittest.main()

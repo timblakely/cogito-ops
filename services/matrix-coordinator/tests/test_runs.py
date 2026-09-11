@@ -158,6 +158,27 @@ class RunTests(unittest.TestCase):
             self.runs.reconcile_once()
         self.assertEqual(self.state.run(dependent.run_id)["state"], "submitted")
 
+    def test_exhausted_budget_queues_once_and_alerts(self):
+        with self.state.transaction() as db:
+            db.execute(
+                "INSERT INTO plans(plan_id,state,repository,matrix_room_id,root_event_id,current_version) "
+                "VALUES (?,?,?,?,?,?)",
+                ("plan-budget", "decomposed", self.run.repository, "!room:x", "$root", 1),
+            )
+        self.state.register_work_items("plan-budget", self.run.work_item, [])
+        with self.state.transaction() as db:
+            db.execute(
+                "INSERT INTO runs(run_id,work_item_external_id,state,request_json,result_json) "
+                "VALUES (?,?,?,?,?)", ("spent-run-0001", self.run.work_item, "succeeded", "{}",
+                json.dumps({"usage": {"input_tokens": 2, "output_tokens": 0}})),
+            )
+        limited = RunCoordinator(self.state, self.argo, max_aggregate_tokens=1)
+        self.assertEqual(limited.submit(self.run, "contract"), "queued")
+        self.assertEqual(limited.submit(self.run, "contract"), "queued")
+        alerts = [row for row in self.state.pending_matrix()
+                  if "aggregate token budget" in row["body"]]
+        self.assertEqual(len(alerts), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
