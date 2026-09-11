@@ -112,6 +112,16 @@ class RunTests(unittest.TestCase):
         self.assertEqual(self.state.run(self.run.run_id)["state"], "cancelled")
         self.runs.cancel(self.run.run_id)
 
+    def test_cancellation_intent_survives_running_phase(self):
+        name = self.runs.submit(self.run, "contract")
+        self.state.update_run(self.run.run_id, "cancelling")
+        self.argo.workflows[name]["status"] = {"phase": "Running"}
+        self.runs.reconcile_once()
+        self.assertEqual(self.state.run(self.run.run_id)["state"], "cancelling")
+        self.argo.workflows[name]["status"] = {"phase": "Failed", "message": "terminated"}
+        self.runs.reconcile_once()
+        self.assertEqual(self.state.run(self.run.run_id)["state"], "cancelled")
+
     def test_pause_and_resume(self):
         self.runs.submit(self.run, "contract")
         self.runs.pause(self.run.run_id)

@@ -128,7 +128,8 @@ class RunCoordinator:
                 self.state.update_run(row["run_id"], state, result.as_dict())
                 self.state.audit("argo", "run.completed", row["run_id"], result.as_dict())
             else:
-                state = "running" if phase == "Running" else row["state"]
+                state = (row["state"] if row["state"] in {"cancelling", "paused"}
+                         else "running" if phase == "Running" else row["state"])
                 if state != row["state"]:
                     self.state.update_run(row["run_id"], state)
             if state in {"succeeded", "failed", "cancelled", "needs_input"} and state != row["state"]:
@@ -148,8 +149,12 @@ class RunCoordinator:
             raise ValidationError("unknown run")
         if row["state"] in {"succeeded", "failed", "cancelled"}:
             return
+        if row["state"] == "cancelling":
+            return
         self.argo.cancel(row["argo_name"])
         self.state.update_run(run_id, "cancelling")
+        self.state.audit("coordinator", "run.cancel_requested", run_id,
+                         {"workflow": row["argo_name"]})
 
     def resume(self, run_id: str) -> None:
         row = self.state.run(run_id)
@@ -157,6 +162,8 @@ class RunCoordinator:
             raise ValidationError("unknown run")
         self.argo.resume(row["argo_name"])
         self.state.update_run(run_id, "submitted")
+        self.state.audit("coordinator", "run.resume_requested", run_id,
+                         {"workflow": row["argo_name"]})
 
     def pause(self, run_id: str) -> None:
         row = self.state.run(run_id)
@@ -166,3 +173,5 @@ class RunCoordinator:
             raise ValidationError("completed run cannot be paused")
         self.argo.pause(row["argo_name"])
         self.state.update_run(run_id, "paused")
+        self.state.audit("coordinator", "run.pause_requested", run_id,
+                         {"workflow": row["argo_name"]})
