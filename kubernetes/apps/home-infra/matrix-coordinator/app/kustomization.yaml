@@ -2,7 +2,16 @@
 # yaml-language-server: $schema=https://json.schemastore.org/kustomization
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+configMapGenerator:
+  - name: matrix-coordinator-bot-plugin
+    options:
+      disableNameSuffixHash: true
+    files:
+      - maubot.yaml=./maubot.yaml
+      - base-config.yaml=./base-config.yaml
+      - cogito_bot.py=./cogito_bot.py
 resources:
+  - ./bot-secret.yaml
   - ./externalsecret.yaml
   - ./helmrelease.yaml
   - ./servicemonitor.yaml

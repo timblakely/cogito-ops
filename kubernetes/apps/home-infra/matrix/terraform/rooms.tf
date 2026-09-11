@@ -2,6 +2,7 @@ locals {
   server_name = "matrix.timblakely.com"
 
   users = {
+    coordinator = "@coordinator:${local.server_name}"
     gitops = "@agent-gitops:${local.server_name}"
     hermes = "@hermes:${local.server_name}"
     tim    = "@tim:${local.server_name}"
@@ -352,7 +353,7 @@ resource "matrix_room_member" "hermes_agent" {
 }
 
 import {
-  for_each = local.users
+  for_each = { for key, value in local.users : key => value if key != "coordinator" }
   to       = matrix_room_member.hermes_agent[each.key]
   id       = "!rADbfOpOlzoprqhGdz:${local.server_name}|${each.value}"
 }

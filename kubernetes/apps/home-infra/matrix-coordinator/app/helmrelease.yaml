@@ -35,6 +35,16 @@ spec:
             runAsGroup: 65532
             seccompProfile:
               type: RuntimeDefault
+        initContainers:
+          prepare-bot-data:
+            image:
+              repository: dock.mau.dev/maubot/maubot
+              tag: v0.6.0@sha256:6968ddea1e08aa7f8ac70ac7a706663fe8d7b4d6f96cd7a6bb8548637fb8cd17
+            command: [mkdir, -p, /data/maubot]
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop: [ALL]
         containers:
           main:
             image:
@@ -71,6 +81,22 @@ spec:
                 memory: 64Mi
               limits:
                 memory: 256Mi
+          bot:
+            image:
+              repository: dock.mau.dev/maubot/maubot
+              tag: v0.6.0@sha256:6968ddea1e08aa7f8ac70ac7a706663fe8d7b4d6f96cd7a6bb8548637fb8cd17
+            command: [python, -m, maubot.standalone]
+            workingDir: /plugin
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop: [ALL]
+            resources:
+              requests:
+                cpu: 25m
+                memory: 128Mi
+              limits:
+                memory: 512Mi
     serviceAccount:
       coordinator: {}
     service:
@@ -88,3 +114,27 @@ spec:
         type: emptyDir
         globalMounts:
           - path: /tmp
+      bot-plugin:
+        type: configMap
+        name: matrix-coordinator-bot-plugin
+        advancedMounts:
+          coordinator:
+            bot:
+              - path: /plugin/maubot.yaml
+                subPath: maubot.yaml
+                readOnly: true
+              - path: /plugin/base-config.yaml
+                subPath: base-config.yaml
+                readOnly: true
+              - path: /plugin/cogito_bot.py
+                subPath: cogito_bot.py
+                readOnly: true
+      bot-config:
+        type: secret
+        name: matrix-coordinator-bot
+        advancedMounts:
+          coordinator:
+            bot:
+              - path: /plugin/config.yaml
+                subPath: config.yaml
+                readOnly: true
