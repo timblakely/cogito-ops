@@ -9,7 +9,7 @@ import json
 from maubot import MessageEvent, Plugin
 from maubot.handlers import event
 from mautrix.errors import MUnknown
-from mautrix.types import EventID, EventType, MessageType, RelationType, RoomID, TextMessageEventContent
+from mautrix.types import Event, EventID, EventType, MessageType, RelationType, RoomID, TextMessageEventContent
 from mautrix.util.config import BaseProxyConfig, ConfigUpdateHelper
 
 
@@ -22,6 +22,10 @@ class Config(BaseProxyConfig):
 
 class CogitoBot(Plugin):
     async def start(self) -> None:
+        self.log.info(
+            "Matrix command receiver started for %d allowed sender(s)",
+            len(self.config["allowed_senders"]),
+        )
         self._outbox_task = asyncio.create_task(self._deliver_outbox())
 
     async def stop(self) -> None:
@@ -85,31 +89,41 @@ class CogitoBot(Plugin):
     def get_config_class(cls):
         return Config
 
-    @event.on(EventType.ROOM_MESSAGE)
+    @event.on(EventType.ALL)
+    async def on_event(self, evt: Event) -> None:
+        # A global handler receives both the encrypted envelope and the decrypted
+        # message emitted by mautrix's DecryptionDispatcher. Explicitly select the
+        # latter here rather than depending on maubot's per-type handler routing.
+        if not isinstance(evt, MessageEvent) or evt.type != EventType.ROOM_MESSAGE:
+            return
+        await self.on_message(evt)
+
     async def on_message(self, evt: MessageEvent) -> None:
         if evt.sender == self.client.mxid or evt.sender not in self.config["allowed_senders"]:
             return
         body = getattr(evt.content, "body", "").strip()
         if not (body.startswith("!cogito") or body.startswith(">>")):
             return
-        relation = getattr(evt.content, "relates_to", None)
-        thread_root = None
-        if relation and relation.rel_type == RelationType.THREAD:
-            thread_root = str(relation.event_id)
-        value = {
-            "event_id": str(evt.event_id),
-            "room_id": str(evt.room_id),
-            "sender": str(evt.sender),
-            "body": body,
-            "timestamp": datetime.fromtimestamp(evt.timestamp / 1000, timezone.utc).isoformat(),
-        }
-        if thread_root:
-            value["thread_root"] = thread_root
+        self.log.info("Forwarding Matrix command event %s", evt.event_id)
         try:
+            relation = getattr(evt.content, "relates_to", None)
+            thread_root = None
+            if relation and relation.rel_type == RelationType.THREAD:
+                thread_root = str(relation.event_id)
+            value = {
+                "event_id": str(evt.event_id),
+                "room_id": str(evt.room_id),
+                "sender": str(evt.sender),
+                "body": body,
+                "timestamp": datetime.fromtimestamp(evt.timestamp / 1000, timezone.utc).isoformat(),
+            }
+            if thread_root:
+                value["thread_root"] = thread_root
             result = await self._request("/v1/matrix/events", value)
             for action in result.get("actions", []):
                 if action.get("kind") == "message":
                     await evt.respond(action["body"], markdown=True, allow_html=False, in_thread=True)
+            self.log.info("Completed Matrix command event %s", evt.event_id)
         except Exception as exc:
             self.log.exception("coordinator event failed")
             await evt.respond(f"⚠️ Coordinator error: `{type(exc).__name__}`", in_thread=True)
