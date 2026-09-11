@@ -8,6 +8,7 @@ import json
 
 from maubot import MessageEvent, Plugin
 from maubot.handlers import event
+from mautrix.errors import MUnknown
 from mautrix.types import EventID, EventType, MessageType, RelationType, RoomID, TextMessageEventContent
 from mautrix.util.config import BaseProxyConfig, ConfigUpdateHelper
 
@@ -51,10 +52,25 @@ class CogitoBot(Plugin):
                         body=item["body"],
                     )
                     content.set_thread_parent(EventID(item["thread_root"]), reply_fallback=True)
-                    event_id = await self.client.send_message_event(
-                        RoomID(item["room_id"]), EventType.ROOM_MESSAGE, content,
-                        txn_id=item["notification_id"],
-                    )
+                    try:
+                        event_id = await self.client.send_message_event(
+                            RoomID(item["room_id"]), EventType.ROOM_MESSAGE, content,
+                            txn_id=item["notification_id"],
+                        )
+                    except MUnknown as exc:
+                        if "unknown event" not in str(exc).lower():
+                            raise
+                        # Imported or synthetic legacy plans can reference a root
+                        # the bot never saw. Preserve the notification at room level;
+                        # newly created plans always retain their real thread root.
+                        fallback = TextMessageEventContent(
+                            msgtype=MessageType.TEXT,
+                            body="[Original plan thread unavailable] " + item["body"],
+                        )
+                        event_id = await self.client.send_message_event(
+                            RoomID(item["room_id"]), EventType.ROOM_MESSAGE, fallback,
+                            txn_id=item["notification_id"] + "-fallback",
+                        )
                     await self._request("/v1/matrix/outbox", {
                         "operation": "ack", "notification_id": item["notification_id"],
                         "event_id": str(event_id),
