@@ -142,7 +142,7 @@ The submilestones are intentionally short. Each ends in a usable state and
 moves ownership directly to Foreman.
 
 Implementation evidence (2026-09-11): LLMKube and Foreman 0.9.25 reconciled
-Ready; all four Cogito Agents validated; a FleetNode registered on `iggy`; and
+Ready; all three Cogito Agent CRs validated; a FleetNode registered on `iggy`; and
 documentation issue #21 completed as Workload `foreman-acceptance-21-v5` with
 coder `GO`, deterministic `GATE-PASS`, reviewer `GO`, and draft PR #22. The
 retired Argo Flux applications and their managed workloads were removed. The
