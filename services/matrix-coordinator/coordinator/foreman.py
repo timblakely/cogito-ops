@@ -53,9 +53,12 @@ class ForemanClient:
     api_server: str = "https://kubernetes.default.svc"
     token_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/token"
     ca_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+    # Foreman's gate template clones to /work. Its upstream Debian Go image
+    # runs as root and can create that directory; the non-root coder image
+    # cannot. The tag is retained for readability and the digest is authority.
     gate_image: str = (
-        "ghcr.io/defilantech/llmkube-foreman-agent-coder@"
-        "sha256:70622d517f626d8e25cb6a5c1d4a70dc5803ceaddf4615ef6d0e371fb8a68ba9"
+        "docker.io/library/golang:1.26@"
+        "sha256:3c3e25a4da13fd0478eed2df1eb35a0e667094a7124d3993a6a1d30f71c17e79"
     )
 
     @property
