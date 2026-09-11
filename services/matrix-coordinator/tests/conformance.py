@@ -28,7 +28,8 @@ with tempfile.TemporaryDirectory() as directory:
     fake = Path(directory) / "harness"
     fake.write_text("#!/bin/sh\nprintf 'fixture harness completed\\n'\n")
     fake.chmod(0o700)
-    env = dict(os.environ, PI_COMMAND=str(fake), OPENCODE_COMMAND=str(fake))
+    env = dict(os.environ, PI_COMMAND=str(fake), OPENCODE_COMMAND=str(fake),
+               COGITO_SKIP_WORKSPACE="1")
     completed = subprocess.run([adapter, "start"], input=json.dumps(request.as_dict()),
                                text=True, capture_output=True, env=env, timeout=30)
     if completed.returncode:

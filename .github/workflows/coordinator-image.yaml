@@ -45,3 +45,11 @@ jobs:
         run: |
           docker build --pull --label "org.opencontainers.image.revision=$REVISION" --tag "$IMAGE:$REVISION" services/matrix-coordinator
           docker push "$IMAGE:$REVISION"
+
+      - name: Build and publish immutable agent runtime
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/cogito-agent-runtime
+          REVISION: ${{ github.sha }}
+        run: |
+          docker build --pull --file services/matrix-coordinator/Dockerfile.agent --label "org.opencontainers.image.revision=$REVISION" --tag "$IMAGE:$REVISION" services/matrix-coordinator
+          docker push "$IMAGE:$REVISION"

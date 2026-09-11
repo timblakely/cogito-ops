@@ -1,20 +1,5 @@
 #!/usr/bin/python3
-"""Translate AgentRun into Pi's stable print-mode boundary."""
-import json
-import os
-import subprocess
-import sys
+"""Pi adapter entrypoint."""
+from coordinator.harness_runtime import main
 
-if len(sys.argv) != 2 or sys.argv[1] != "start":
-    raise SystemExit("usage: pi-adapter start")
-request = json.load(sys.stdin)
-command = os.environ.get("PI_COMMAND", "pi")
-prompt = request["objective"] + "\n\nAcceptance checks:\n" + "\n".join(
-    f"- {v}" for v in request.get("acceptance_checks", []))
-run = subprocess.run([command, "--print", prompt], text=True, capture_output=True)
-print(json.dumps({
-    "api_version": request["api_version"], "run_id": request["run_id"],
-    "status": "succeeded" if run.returncode == 0 else "failed",
-    "summary": run.stdout[-4000:] or run.stderr[-4000:] or f"Pi exited {run.returncode}",
-    "checks": [], "artifacts": [], "usage": {"role": request["role"]},
-}, sort_keys=True))
+main("pi")
