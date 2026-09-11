@@ -103,6 +103,14 @@ class RunTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.runs.submit(changed, "contract")
 
+    def test_unknown_harness_fails_closed(self):
+        # The real Argo boundary validates before creating a Workflow; keep the
+        # run coordinator's fake port contract explicit here.
+        from coordinator.argo import ArgoClient
+        client = ArgoClient()
+        with self.assertRaises(ValidationError):
+            client.submit(self.run, "shell; id")
+
 
 if __name__ == "__main__":
     unittest.main()

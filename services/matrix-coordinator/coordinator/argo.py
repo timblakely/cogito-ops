@@ -10,7 +10,7 @@ from urllib.request import Request, urlopen
 import json
 import ssl
 
-from .models import AgentRun
+from .models import AgentRun, ValidationError
 
 
 @dataclass
@@ -32,6 +32,8 @@ class ArgoClient:
             return json.load(response)
 
     def submit(self, run: AgentRun, harness: str) -> str:
+        if harness not in {"contract", "pi", "opencode"}:
+            raise ValidationError("unsupported harness")
         workflow = {
             "apiVersion": "argoproj.io/v1alpha1", "kind": "Workflow",
             "metadata": {
@@ -39,7 +41,7 @@ class ArgoClient:
                 "labels": {"cogito.dev/run-id": run.run_id, "cogito.dev/harness": harness},
             },
             "spec": {
-                "workflowTemplateRef": {"name": "agent-run-v1alpha3"},
+                "workflowTemplateRef": {"name": "agent-run-v1alpha4"},
                 "arguments": {"parameters": [
                     {"name": "run-id", "value": run.run_id},
                     {"name": "harness", "value": harness},
