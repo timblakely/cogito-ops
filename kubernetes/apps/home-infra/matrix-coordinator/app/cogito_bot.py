@@ -51,14 +51,12 @@ class CogitoBot(Plugin):
             try:
                 result = await self._request("/v1/matrix/outbox", {"operation": "poll", "limit": 20})
                 for item in result.get("notifications", []):
-                    content = TextMessageEventContent(
-                        msgtype=MessageType.TEXT,
-                        body=item["body"],
-                    )
-                    content.set_thread_parent(EventID(item["thread_root"]), reply_fallback=True)
+                    relation = TextMessageEventContent(msgtype=MessageType.TEXT, body="")
+                    relation.set_thread_parent(EventID(item["thread_root"]), reply_fallback=True)
                     try:
-                        event_id = await self.client.send_message_event(
-                            RoomID(item["room_id"]), EventType.ROOM_MESSAGE, content,
+                        event_id = await self.client.send_markdown(
+                            RoomID(item["room_id"]), item["body"], allow_html=False,
+                            relates_to=relation.relates_to,
                             txn_id=item["notification_id"],
                         )
                     except MUnknown as exc:
@@ -67,12 +65,10 @@ class CogitoBot(Plugin):
                         # Imported or synthetic legacy plans can reference a root
                         # the bot never saw. Preserve the notification at room level;
                         # newly created plans always retain their real thread root.
-                        fallback = TextMessageEventContent(
-                            msgtype=MessageType.TEXT,
-                            body="[Original plan thread unavailable] " + item["body"],
-                        )
-                        event_id = await self.client.send_message_event(
-                            RoomID(item["room_id"]), EventType.ROOM_MESSAGE, fallback,
+                        event_id = await self.client.send_markdown(
+                            RoomID(item["room_id"]),
+                            "[Original plan thread unavailable] " + item["body"],
+                            allow_html=False,
                             txn_id=item["notification_id"] + "-fallback",
                         )
                     await self._request("/v1/matrix/outbox", {
@@ -106,6 +102,11 @@ class CogitoBot(Plugin):
             return
         self.log.info("Forwarding Matrix command event %s", evt.event_id)
         try:
+            if body.startswith("!cogito plan "):
+                await evt.respond(
+                    "⏳ Plan request received. I’ll post the draft here when planning completes.",
+                    in_thread=True,
+                )
             relation = getattr(evt.content, "relates_to", None)
             thread_root = None
             if relation and relation.rel_type == RelationType.THREAD:
