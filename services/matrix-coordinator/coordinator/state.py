@@ -5,6 +5,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from pathlib import Path
 from sqlite3 import Connection, connect
+from threading import RLock
 from typing import Any, Iterator
 import json
 import time
@@ -91,7 +92,8 @@ BEFORE DELETE ON audit_events BEGIN SELECT RAISE(ABORT, 'audit is append-only');
 class StateStore:
     def __init__(self, path: str | Path):
         self.path = str(path)
-        self.db = connect(self.path, isolation_level=None)
+        self.lock = RLock()
+        self.db = connect(self.path, isolation_level=None, check_same_thread=False)
         self.db.row_factory = __import__("sqlite3").Row
         self.db.executescript(DDL)
         self.db.execute(
@@ -101,14 +103,15 @@ class StateStore:
 
     @contextmanager
     def transaction(self) -> Iterator[Connection]:
-        self.db.execute("BEGIN IMMEDIATE")
-        try:
-            yield self.db
-        except Exception:
-            self.db.rollback()
-            raise
-        else:
-            self.db.commit()
+        with self.lock:
+            self.db.execute("BEGIN IMMEDIATE")
+            try:
+                yield self.db
+            except Exception:
+                self.db.rollback()
+                raise
+            else:
+                self.db.commit()
 
     def accept_event(self, source: str, external_id: str, payload_hash: str) -> bool:
         with self.transaction() as db:
