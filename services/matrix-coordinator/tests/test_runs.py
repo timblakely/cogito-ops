@@ -132,6 +132,20 @@ class RunTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             client.submit(self.run, "shell; id")
 
+    def test_concurrency_queues_and_later_dispatches(self):
+        limited = RunCoordinator(self.state, self.argo, max_active=1)
+        first = limited.submit(self.run, "contract")
+        second_run = AgentRun(**{**self.run.__dict__, "run_id": "fixture-run-0002"})
+        self.assertEqual(limited.submit(second_run, "contract"), "queued")
+        self.assertEqual(self.state.run(second_run.run_id)["state"], "queued")
+        result = {"run_id": self.run.run_id, "status": "succeeded", "summary": "done"}
+        self.argo.workflows[first]["metadata"]["name"] = first
+        self.argo.workflows[first]["status"] = {"phase": "Succeeded", "outputs": {
+            "parameters": [{"name": "result-json", "value": json.dumps(result)}]}}
+        limited.reconcile_once()
+        limited.reconcile_once()
+        self.assertEqual(self.state.run(second_run.run_id)["state"], "submitted")
+
 
 if __name__ == "__main__":
     unittest.main()

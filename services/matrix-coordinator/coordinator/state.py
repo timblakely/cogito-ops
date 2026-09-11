@@ -243,6 +243,28 @@ class StateStore:
                 "ORDER BY run_id"
             ).fetchall()
 
+    def queued_runs(self):
+        with self.lock:
+            return self.db.execute(
+                "SELECT * FROM runs WHERE state='queued' ORDER BY run_id"
+            ).fetchall()
+
+    def active_run_count(self) -> int:
+        with self.lock:
+            return int(self.db.execute(
+                "SELECT count(*) FROM runs WHERE state IN ('submitting','submitted','running','cancelling')"
+            ).fetchone()[0])
+
+    def total_usage_tokens(self) -> int:
+        total = 0
+        with self.lock:
+            rows = self.db.execute("SELECT result_json FROM runs WHERE result_json IS NOT NULL").fetchall()
+        for row in rows:
+            usage = json.loads(row[0]).get("usage", {})
+            total += sum(usage.get(key, 0) for key in ("input_tokens", "output_tokens")
+                         if isinstance(usage.get(key, 0), int))
+        return total
+
     def update_run(self, run_id: str, state: str, result: dict[str, Any] | None = None) -> None:
         encoded = None if result is None else json.dumps(result, sort_keys=True)
         with self.transaction() as db:

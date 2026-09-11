@@ -19,9 +19,14 @@ class ArgoPort(Protocol):
 
 
 class RunCoordinator:
-    def __init__(self, state: StateStore, argo: ArgoPort):
+    def __init__(self, state: StateStore, argo: ArgoPort, max_active: int = 4,
+                 max_aggregate_tokens: int = 1_000_000):
         self.state = state
         self.argo = argo
+        if max_active < 1 or max_aggregate_tokens < 1:
+            raise ValueError("run limits must be positive")
+        self.max_active = max_active
+        self.max_aggregate_tokens = max_aggregate_tokens
 
     def submit(self, run: AgentRun, harness: str) -> str:
         request = {**run.as_dict(), "harness": harness}
@@ -29,6 +34,13 @@ class RunCoordinator:
         row = self.state.run(run.run_id)
         if row["argo_name"]:
             return row["argo_name"]
+        if self.state.control("emergency_stop", "false") == "true":
+            self.state.update_run(run.run_id, "queued")
+            return "queued"
+        if (self.state.active_run_count() > self.max_active or
+                self.state.total_usage_tokens() >= self.max_aggregate_tokens):
+            self.state.update_run(run.run_id, "queued")
+            return "queued"
         # Recover a submission that reached Kubernetes before a process crash.
         name = self.argo.find_run(run.run_id)
         if name is None:
@@ -61,6 +73,21 @@ class RunCoordinator:
 
     def reconcile_once(self) -> int:
         changed = 0
+        for row in self.state.queued_runs():
+            if self.state.control("emergency_stop", "false") == "true":
+                break
+            if self.state.active_run_count() >= self.max_active:
+                break
+            if self.state.total_usage_tokens() >= self.max_aggregate_tokens:
+                break
+            request = json.loads(row["request_json"])
+            harness = request.pop("harness")
+            run = AgentRun.from_dict(request)
+            name = self.argo.find_run(run.run_id) or self.argo.submit(run, harness)
+            self.state.attach_workflow(run.run_id, name)
+            self.state.audit("coordinator", "run.dequeued", run.run_id,
+                             {"workflow": name, "harness": harness})
+            changed += 1
         for row in self.state.active_runs():
             if not row["argo_name"]:
                 request = json.loads(row["request_json"])

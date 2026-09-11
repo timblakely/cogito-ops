@@ -55,6 +55,9 @@ spec:
               ARGO_NAMESPACE: tools
               MATRIX_APPROVERS: "@tim:matrix.${DOMAIN_NAME}"
               COGITO_WORKER_HARNESSES: pi,opencode
+              COGITO_REVIEW_HARNESSES: opencode,pi
+              COGITO_MAX_ACTIVE_RUNS: "4"
+              COGITO_MAX_AGGREGATE_TOKENS: "1000000"
             envFrom:
               - secretRef:
                   name: matrix-coordinator

@@ -29,7 +29,11 @@ class App:
         self.github_secret = os.environ["GITHUB_WEBHOOK_SECRET"].encode()
         self.state = StateStore(os.environ.get("COORDINATOR_STATE_PATH", "/data/coordinator.sqlite3"))
         self.argo = ArgoClient(namespace=os.environ.get("ARGO_NAMESPACE", "tools"))
-        self.runs = RunCoordinator(self.state, self.argo)
+        self.runs = RunCoordinator(
+            self.state, self.argo,
+            int(os.environ.get("COGITO_MAX_ACTIVE_RUNS", "4")),
+            int(os.environ.get("COGITO_MAX_AGGREGATE_TOKENS", "1000000")),
+        )
         self.github = GitHubIssues(os.environ["GITHUB_TOKEN"])
         self.coordinator = Coordinator(
             self.state, self.github,
