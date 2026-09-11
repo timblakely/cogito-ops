@@ -241,7 +241,7 @@ def check(state):
 
     # 9. Workflow services must not regain broad or cross-role credentials.
     expected_role_scopes = {
-        "planner": {"planner", "planner-gpt", "planner-gpt-pro"},
+        "planner": {"planner", "planner-gpt", "planner-gpt-pro", "planner-local"},
         "coordinator": {"coordinator"},
         "worker": {"worker"},
         "reviewer": {"reviewer"},

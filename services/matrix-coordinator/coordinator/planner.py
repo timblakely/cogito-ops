@@ -18,7 +18,7 @@ class PlannerClient:
     api_key: str
     base_url: str = "https://litellm.timblakely.com/v1"
     model: str = "planner"
-    fallback_models: tuple[str, ...] = ("planner-gpt",)
+    fallback_models: tuple[str, ...] = ("planner-gpt", "planner-gpt-pro", "planner-local")
 
     def plan(self, objective: str, prior: str = "", comments: list[str] | None = None) -> str:
         content = f"Objective:\n{objective.strip()}"

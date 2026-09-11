@@ -33,6 +33,8 @@ between an asserted zero and a per-request error with no ledger entry.
 **Role seats** — `coordinator` is the routine Luna workflow manager and
 `planner` is the high-reasoning Terra planning seat. `coordinator-heavy` is a
 temporary compatibility alias for `planner`; new consumers must not use it.
+`planner-local` is the explicit zero-cost continuity seat on Qwen at xhigh
+reasoning when the subscription and metered provider paths are unavailable.
 Each workflow component uses its own scoped virtual key.
 
 **Metered frontier** — `planner-gpt` and `planner-gpt-pro`, deliberately under

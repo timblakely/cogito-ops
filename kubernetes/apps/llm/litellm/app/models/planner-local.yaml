@@ -1,0 +1,31 @@
+---
+# Zero-cost continuity seat for planning when both cloud paths are unavailable.
+# It retains the stable planning contract while making the quality downgrade
+# explicit in metrics and audit output.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: planner-local
+  annotations:
+    cogito.dev/context-budget: deliberate
+spec:
+  modelName: planner-local
+  proxyRef: litellm
+  params:
+    model: openai/qwen-3-8-fp8
+    apiBase: http://qwen-3-8-fp8.llm.svc.cluster.local:8000/v1
+    apiKey: not-needed
+    additional:
+      reasoning_effort: xhigh
+      timeout: 1800
+      allowed_openai_params:
+        - reasoning_effort
+  info:
+    supportsFunctionCalling: true
+    maxInputTokens: 131072
+    maxOutputTokens: 16384
+    extra:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+      supports_reasoning: true
+      thinking_levels: [xhigh]
