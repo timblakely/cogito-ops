@@ -403,16 +403,16 @@ can be safely resumed or cancelled without shell access to its pod.
 
 ### M3 — Matrix and GitHub event integration
 
-- [ ] **M3.1** Deploy pinned Matrix Hookshot with persistent E2EE state.
+- [x] **M3.1** Deploy pinned Matrix Hookshot with persistent E2EE state.
 - [ ] **M3.2** Create a narrowly scoped GitHub App, store its key and webhook
   secret in 1Password, and project them through External Secrets.
-- [ ] **M3.3** Connect GitHub events to Cogito, run, and alert threads with
+- [x] **M3.3** Connect GitHub events to Cogito, run, and alert threads with
   delivery-signature and replay validation.
-- [ ] **M3.4** Deploy a pinned maubot runtime with persistent E2EE state and a
+- [x] **M3.4** Deploy a pinned maubot runtime with persistent E2EE state and a
   repository-owned coordinator plugin package.
 - [ ] **M3.5** GitOps-manage bot membership and least-privilege power levels in
   the existing spaces and rooms.
-- [ ] **M3.6** Implement allowlisted thread/reply/reaction/command parsing and
+- [x] **M3.6** Implement allowlisted thread/reply/reaction/command parsing and
   idempotent Matrix sends.
 - [ ] **M3.7** Validate encrypted round trips and locked-screen Commet delivery
   through ntfy across Wi-Fi, cellular/WireGuard, restart, and offline replay.
@@ -426,16 +426,16 @@ one encrypted, threaded Matrix update and one Android push when appropriate.
   AgentResult, and AuditEvent schemas.
 - [x] **M4.2** Add durable coordinator state, migrations, unique external-event
   constraints, and append-only audit records.
-- [ ] **M4.3** Implement the event loop and periodic reconciliation for Matrix,
+- [x] **M4.3** Implement the event loop and periodic reconciliation for Matrix,
   GitHub, and Argo with idempotent transitions.
 - [x] **M4.4** Implement plan versioning, canonical serialization, hashing,
   revision summaries, and exact-version approval.
-- [ ] **M4.5** Implement GitHub parent issue and native sub-issue creation,
+- [x] **M4.5** Implement GitHub parent issue and native sub-issue creation,
   linking, update, and completion reconciliation.
-- [ ] **M4.6** Implement Argo submit/status/cancel/resume/result collection.
+- [x] **M4.6** Implement Argo submit/status/cancel/resume/result collection.
 - [x] **M4.7** Implement deterministic risk, permission, concurrency, retry,
   time, token, spend, and repair policies.
-- [ ] **M4.8** Add unit, contract, integration, replay, and restart tests.
+- [x] **M4.8** Add unit, contract, integration, replay, and restart tests.
 
 Acceptance: replaying every input is harmless, restart reconstructs correct
 state, and an obsolete approval cannot launch work.
@@ -524,9 +524,11 @@ coordination behavior.
 | M1.3, M1.5–M1.6 | Pending | Pending |
 | M2.1–M2.6 | Argo chart, Garage key/item, SSO, policy, monitoring, templates commit | Complete |
 | M2.7 | Flux `daa83362e9a7`; `coordination-smoke-h4fj4` retried and succeeded with Garage artifacts/exit hook; `coordination-suspend-44c7r` resumed and succeeded; `coordination-cancel-6mkd4` terminated | Complete |
-| M3 | Pending | Pending |
+| M3.1 | `919bda0c65f3`, `a95d5b1758f5`; Hookshot 7.4.4 Ready with persistent cryptostore, Redis, and Synapse MSC3202 transaction extensions | Complete |
+| M3.2, M3.5, M3.7 | GitHub App creation, Hookshot invitation authority, and physical Android acceptance remain | Pending |
+| M3.3–M3.4, M3.6 | maubot E2EE transport; signed public webhook delivery `3842042566967042000`; durable outbox Matrix event `$PhBeAAwjVMgbm61NJe-qiGxQKmv5CuUncXWjD06z5R0` | Complete |
 | M4.1–M4.2, M4.4, M4.7 | Coordinator domain/state/policy commit; replay, hash, actor, and budget tests | Complete |
-| M4.3, M4.5–M4.6, M4.8 | Pending service and integration acceptance | Pending |
+| M4.3, M4.5–M4.6, M4.8 | 28 service tests; GitHub issues #4/#5; `agent-run-5sjjh` succeeded and result recovered after coordinator restart; schema v4 backfill | Complete |
 | M5.1 | Versioned JSON schemas, command boundary, fixture and conformance runner | Complete |
 | M5.2–M5.6 | Pending | Pending |
 | M6 | Pending | Pending |
