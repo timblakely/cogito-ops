@@ -1,0 +1,90 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/refs/tags/app-template-4.6.0/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: matrix-coordinator
+spec:
+  interval: 1h
+  maxHistory: 2
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+    namespace: flux-system
+  install:
+    timeout: 5m
+    remediation:
+      retries: 3
+  upgrade:
+    timeout: 5m
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      coordinator:
+        serviceAccount:
+          identifier: coordinator
+        pod:
+          automountServiceAccountToken: true
+          securityContext:
+            fsGroup: 65532
+            fsGroupChangePolicy: OnRootMismatch
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+        containers:
+          main:
+            image:
+              repository: ghcr.io/timblakely/cogito-matrix-coordinator
+              tag: ca595072167794a025565fdecef5cc235b35e68b@sha256:9072a2f67f99fc5ad9b39a3ff4e2a1df31f2bf2940974bb595474535d830fcb3
+            env:
+              COORDINATOR_STATE_PATH: /data/coordinator.sqlite3
+              ARGO_NAMESPACE: tools
+              MATRIX_APPROVERS: "@tim:matrix.${DOMAIN_NAME}"
+            envFrom:
+              - secretRef:
+                  name: matrix-coordinator
+            probes:
+              liveness: &probe
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /healthz
+                    port: &port 8080
+                  initialDelaySeconds: 3
+                  periodSeconds: 15
+                  timeoutSeconds: 3
+                  failureThreshold: 3
+              readiness: *probe
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop: [ALL]
+              readOnlyRootFilesystem: true
+            resources:
+              requests:
+                cpu: 25m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+    serviceAccount:
+      coordinator: {}
+    service:
+      main:
+        controller: coordinator
+        ports:
+          http:
+            port: *port
+    persistence:
+      data:
+        existingClaim: matrix-coordinator
+        globalMounts:
+          - path: /data
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp

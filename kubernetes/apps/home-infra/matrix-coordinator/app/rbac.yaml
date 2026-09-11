@@ -1,0 +1,27 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: matrix-coordinator-workflows
+  namespace: tools
+rules:
+  - apiGroups: [argoproj.io]
+    resources: [workflows]
+    verbs: [create, get, list, watch, patch]
+  - apiGroups: [argoproj.io]
+    resources: [workflowtemplates]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: matrix-coordinator-workflows
+  namespace: tools
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: matrix-coordinator-workflows
+subjects:
+  - kind: ServiceAccount
+    name: matrix-coordinator
+    namespace: home-infra

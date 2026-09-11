@@ -1,0 +1,14 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: matrix-coordinator
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/service: matrix-coordinator
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
