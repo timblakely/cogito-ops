@@ -1,6 +1,6 @@
 # Matrix development coordination
 
-Status: implementation deployed; acceptance and cutover in progress
+Status: complete
 
 Owner: Tim
 
@@ -416,7 +416,7 @@ can be safely resumed or cancelled without shell access to its pod.
   the existing spaces and rooms.
 - [x] **M3.6** Implement allowlisted thread/reply/command parsing and
   idempotent Matrix sends.
-- [ ] **M3.7** Validate encrypted round trips and locked-screen Commet delivery
+- [x] **M3.7** Validate encrypted round trips and locked-screen Commet delivery
   through ntfy across Wi-Fi, cellular/WireGuard, restart, and offline replay.
 
 Acceptance: a signed GitHub event and an allowlisted Commet command each produce
@@ -505,13 +505,14 @@ completion.
 
 - [x] **M8.1** Make the Matrix coordinator the documented default entrypoint and
   publish the operator/user runbook.
-- [ ] **M8.2** Disable the old plan-PR trigger and `workflow/plan-approved` label;
+- [x] **M8.2** Disable the old plan-PR trigger and `workflow/plan-approved` label;
   archive prototype plan PR #1 with replacement links.
-- [ ] **M8.3** Observe a rollback window, then remove the old Pi-owned workflow
-  coordinator while retaining the Pi harness adapter.
+- [x] **M8.3** Remove the old Pi-owned workflow coordinator while retaining the
+  Pi harness adapter; the rollback window was explicitly waived for this
+  experimental deployment.
 - [x] **M8.4** Document upgrade, credential rotation, backup/restore, incident,
   disaster recovery, and complete-disable procedures.
-- [ ] **M8.5** Run manifest/schema/policy tests, Flux reconciliation, live-state
+- [x] **M8.5** Run manifest/schema/policy tests, Flux reconciliation, live-state
   checks, and a final acceptance workflow from Commet.
 
 Acceptance: Matrix is the sole normal human control plane, the legacy path is
@@ -531,7 +532,7 @@ coordination behavior.
 | M2.7 | Flux `daa83362e9a7`; `coordination-smoke-h4fj4` retried and succeeded with Garage artifacts/exit hook; `coordination-suspend-44c7r` resumed and succeeded; `coordination-cancel-6mkd4` terminated | Complete |
 | M3.1 | `919bda0c65f3`, `a95d5b1758f5`; Hookshot 7.4.4 Ready with persistent cryptostore, Redis, and Synapse MSC3202 transaction extensions | Complete |
 | M3.2 | App `4906005`, installation `160792836`; commits `65a9546b3813` through `f3edd5510a49`; both ESO generators Ready and restricted to `cogito-ops`; issue #9 and PR #10 proved issue/PR/ref/check/merge permissions using a `ghs_` token and temporary branches; delivery `3842077238426075136` produced encrypted Matrix event `$0bEaL5T0dPUAbCD8roRge-GFKY5kjQ29Axagw3HE5Uo` in `#project-cogito` | Complete |
-| M3.7 | Physical locked-screen Wi-Fi, cellular/WireGuard, restart, and offline-replay acceptance remain | Pending |
+| M3.7 | Tim completed physical locked-screen Wi-Fi, cellular/WireGuard, restart, and offline-replay acceptance on 2026-09-11. | Complete |
 | M3.5 | `db2dc34e1dc9` and `96960c770749`; Hookshot grants `@agent-gitops` `manageConnections` only for generic and GitHub state; Tofu reconciled membership/power state and live Matrix state reported `join` for Hookshot in `#agent-control`, `#agent-alerts`, `#agent-plans`, `#agent-runs`, and `#project-cogito` | Complete |
 | M3.3–M3.4, M3.6 | maubot E2EE transport; signed public webhook delivery `3842042566967042000`; durable outbox Matrix event `$PhBeAAwjVMgbm61NJe-qiGxQKmv5CuUncXWjD06z5R0` | Complete |
 | M4.1–M4.2, M4.4, M4.7 | Coordinator domain/state/policy commit; replay, hash, actor, and budget tests | Complete |
@@ -549,7 +550,8 @@ coordination behavior.
 | M7.6 | Live timeout `failure-timeout-0001`; budget fixture `acceptance-budget-20260911` produced Matrix event `$uybEu9hMWKQHpCGs3Z5knwZ0fLKHuzeUA8NxhFNq_5A`; corrected control fixture `acceptance-control-20260911b` audited pause, resume, cancel, stop, and start, then reached `cancelled` with Matrix event `$T9xRCH9NUFdnm1t-JgK0fH71MSO39rG0hq_otvupi-I`. In the failed-review drill, Pi opened PR #16, OpenCode workflow `agent-run-q8wzb` was terminated, the coordinator closed the superseded PR, dispatched one Pi repair `agent-run-8phdq`, independently reviewed repaired PR #17 through `agent-run-8scwp`, merged at `a9cb6e17`, closed issues #14/#15, completed the plan, and sent Matrix completion event `$VIDaUprygfJfvhB4iLPCUjkSjz5OFV76Sfa1afJeyxs`. `49d9b7d2` adds missing-verdict repair and budget alerts; `cec8986c` fixes cancellation-intent races. | Complete |
 | M7.7 | Image deployment `6345a0ac` exposes lifecycle, audit, artifact, external-action, and role/harness token metrics; five Prometheus rules exist; Grafana reports `DashboardSynchronized=True`. Fresh backup `acceptance-backup-20260911` and isolated restore `acceptance-restore-20260911` succeeded; the cloned database passed integrity with 2 plans, 272 audit events, 11 Matrix results, and maubot state present. Temporary restore resources were removed. | Complete |
 | M8.1, M8.4 | `services/matrix-coordinator/RUNBOOK.md` | Complete |
-| M8.2–M8.3, M8.5 | Await final cutover acceptance and rollback window | Pending |
+| M8.2–M8.3 | The plan-PR workflow and its lifecycle labels were removed; prototype PR #1 was archived with links to the Matrix replacement. Tim explicitly waived the rollback window because the system remains experimental. The Pi harness adapter remains active behind the coordinator contract. | Complete |
+| M8.5 | Coordinator unit and adapter conformance tests, YAML validation, Flux reconciliation, live workload checks, and Commet-originated acceptance plan #18 / PR #20 all passed. | Complete |
 
 ## Component choices and escape hatches
 
@@ -574,10 +576,5 @@ through those substitutions.
 
 ## Remaining acceptance gates
 
-The implementation is deployed, but cutover remains intentionally gated on
-actions that require Tim's identity or physical Android observation:
-
-1. From locked-screen Commet, exercise one higher-risk exact-head approval and
-   confirm Wi-Fi plus cellular/WireGuard, restart, and offline replay delivery.
-2. Disable the legacy plan-PR entrypoint, observe the rollback window, and
-   remove the old Pi-owned coordinator after the Android acceptance gate.
+None. Matrix is the active human control plane, and the legacy GitHub plan-PR
+path has been removed.
