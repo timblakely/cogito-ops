@@ -51,10 +51,9 @@ spec:
       workflowNamespaces:
         - ${NS}
       workflowRestrictions:
-        # Template definitions are GitOps-owned. Strict keeps submissions on the
-        # allowlisted WorkflowTemplate boundary without wedging in-flight runs
-        # whenever Flux rolls out a new template resourceVersion.
-        templateReferencing: Strict
+        # Template definitions are GitOps-owned and immutable by name. Secure
+        # rejects inline workflows and detects mutation beneath an active run.
+        templateReferencing: Secure
       workflowDefaults:
         spec:
           serviceAccountName: argo-workflow

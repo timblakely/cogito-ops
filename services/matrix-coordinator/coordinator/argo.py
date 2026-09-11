@@ -39,7 +39,7 @@ class ArgoClient:
                 "labels": {"cogito.dev/run-id": run.run_id, "cogito.dev/harness": harness},
             },
             "spec": {
-                "workflowTemplateRef": {"name": "agent-run"},
+                "workflowTemplateRef": {"name": "agent-run-v1alpha1"},
                 "arguments": {"parameters": [
                     {"name": "run-id", "value": run.run_id},
                     {"name": "harness", "value": harness},
