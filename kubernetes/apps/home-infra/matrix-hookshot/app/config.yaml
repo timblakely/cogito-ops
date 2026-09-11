@@ -25,6 +25,10 @@ permissions:
     services:
       - service: "*"
         level: admin
+  - actor: "@agent-gitops:matrix.${DOMAIN_NAME}"
+    services:
+      - service: generic
+        level: manageConnections
 generic:
   enabled: true
   outbound: false
