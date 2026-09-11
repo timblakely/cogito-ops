@@ -80,7 +80,9 @@ spec:
               'artifacts': [],
               'usage': {'role': 'worker', 'input_tokens': 0, 'output_tokens': 0},
             }
-            pathlib.Path('/tmp/result.json').write_text(json.dumps(result, sort_keys=True))
+            path = pathlib.Path('/tmp/result.json')
+            path.write_text(json.dumps(result, sort_keys=True))
+            path.chmod(0o644)
         env:
           - name: RUN_ID
             value: '{{workflow.parameters.run-id}}'
