@@ -15,6 +15,8 @@ from .argo import ArgoClient
 from .core import Coordinator
 from .github import GitHubIssues
 from .models import AgentRun, Approval, PlanVersion, ValidationError
+from .matrix import MatrixCoordinator
+from .planner import PlannerClient
 from .state import StateStore
 from .runs import RunCoordinator
 from .webhooks import verify_github, verify_internal
@@ -29,6 +31,15 @@ class App:
         self.runs = RunCoordinator(self.state, self.argo)
         self.coordinator = Coordinator(
             self.state, GitHubIssues(os.environ["GITHUB_TOKEN"]),
+            set(filter(None, os.environ.get("MATRIX_APPROVERS", "").split(","))),
+        )
+        planner_fallbacks = tuple(filter(None, os.environ.get(
+            "PLANNER_FALLBACK_MODELS", "planner-gpt").split(",")))
+        self.matrix = MatrixCoordinator(
+            self.state, self.coordinator, self.runs,
+            PlannerClient(os.environ["LITELLM_PLANNER_API_KEY"],
+                          os.environ.get("LITELLM_BASE_URL", "https://litellm.timblakely.com/v1"),
+                          os.environ.get("PLANNER_MODEL", "planner"), planner_fallbacks),
             set(filter(None, os.environ.get("MATRIX_APPROVERS", "").split(","))),
         )
 
@@ -47,6 +58,8 @@ class App:
         if not verify_internal(self.internal_secret, body, headers.get("X-Cogito-Signature-256")):
             return 401, {"error": "invalid signature"}
         value = json.loads(body)
+        if path == "/v1/matrix/events":
+            return 200, self.matrix.handle(value)
         if path == "/v1/plans":
             plan = PlanVersion(**value)
             return 201, {"created": self.coordinator.record_plan(plan), "hash": plan.hash}

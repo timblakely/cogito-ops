@@ -10,7 +10,7 @@ from typing import Any, Iterator
 import json
 import time
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 DDL = """
 PRAGMA journal_mode=WAL;
@@ -25,6 +25,17 @@ CREATE TABLE IF NOT EXISTS inbound_events (
   payload_hash TEXT NOT NULL,
   received_at INTEGER NOT NULL,
   PRIMARY KEY (source, external_id)
+);
+CREATE TABLE IF NOT EXISTS matrix_event_results (
+  event_id TEXT PRIMARY KEY,
+  response_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS plan_comments (
+  matrix_event_id TEXT PRIMARY KEY,
+  plan_id TEXT NOT NULL REFERENCES plans(plan_id),
+  sender TEXT NOT NULL,
+  body TEXT NOT NULL,
+  created_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS plans (
   plan_id TEXT PRIMARY KEY,
@@ -200,6 +211,50 @@ class StateStore:
                 "UPDATE runs SET state=?,result_json=COALESCE(?,result_json) WHERE run_id=?",
                 (state, encoded, run_id),
             )
+
+    def matrix_result(self, event_id: str) -> dict[str, Any] | None:
+        with self.lock:
+            row = self.db.execute(
+                "SELECT response_json FROM matrix_event_results WHERE event_id=?", (event_id,)
+            ).fetchone()
+            return json.loads(row[0]) if row else None
+
+    def save_matrix_result(self, event_id: str, result: dict[str, Any]) -> None:
+        with self.transaction() as db:
+            db.execute(
+                "INSERT OR IGNORE INTO matrix_event_results VALUES (?,?)",
+                (event_id, json.dumps(result, sort_keys=True)),
+            )
+
+    def plan_for_thread(self, room_id: str, root_event_id: str):
+        with self.lock:
+            return self.db.execute(
+                "SELECT * FROM plans WHERE matrix_room_id=? AND root_event_id=?",
+                (room_id, root_event_id),
+            ).fetchone()
+
+    def current_plan_version(self, plan_id: str):
+        with self.lock:
+            return self.db.execute(
+                "SELECT v.* FROM plan_versions v JOIN plans p ON p.plan_id=v.plan_id "
+                "AND p.current_version=v.version WHERE p.plan_id=?", (plan_id,)
+            ).fetchone()
+
+    def add_plan_comment(self, event_id: str, plan_id: str, sender: str, body: str) -> bool:
+        with self.transaction() as db:
+            result = db.execute(
+                "INSERT OR IGNORE INTO plan_comments VALUES (?,?,?,?,?)",
+                (event_id, plan_id, sender, body, int(time.time())),
+            )
+            return result.rowcount == 1
+
+    def plan_comments(self, plan_id: str) -> list[str]:
+        with self.lock:
+            rows = self.db.execute(
+                "SELECT body FROM plan_comments WHERE plan_id=? ORDER BY created_at,matrix_event_id",
+                (plan_id,),
+            ).fetchall()
+            return [row[0] for row in rows]
 
     def close(self) -> None:
         self.db.close()
