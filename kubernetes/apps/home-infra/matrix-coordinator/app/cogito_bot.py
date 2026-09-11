@@ -99,6 +99,7 @@ class CogitoBot(Plugin):
             return
         if getattr(evt.content, "msgtype", None) not in {MessageType.TEXT, MessageType.NOTICE}:
             return
+        evt.content.trim_reply_fallback()
         body = getattr(evt.content, "body", "").strip()
         relation = getattr(evt.content, "relates_to", None)
         is_thread_reply = bool(relation and relation.rel_type == RelationType.THREAD)
@@ -130,4 +131,4 @@ class CogitoBot(Plugin):
             self.log.info("Completed Matrix command event %s", evt.event_id)
         except Exception as exc:
             self.log.exception("coordinator event failed")
-            await evt.respond(f"⚠️ Coordinator error: `{type(exc).__name__}`", in_thread=True)
+            await evt.respond(f"⚠️ Coordinator error: {exc}", in_thread=True)
