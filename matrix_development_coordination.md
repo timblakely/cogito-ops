@@ -377,7 +377,7 @@ is usable as the controlling checklist.
 - [x] **M1.4** Extend catalogue validation, metrics, dashboards, and role docs.
 - [x] **M1.5** Add planner/coordinator consumer configuration for supported
   harnesses without embedding provider model names.
-- [ ] **M1.6** Reconcile LiteLLM and prove authenticated planner, coordinator,
+- [x] **M1.6** Reconcile LiteLLM and prove authenticated planner, coordinator,
   worker, and reviewer smoke calls plus spend attribution.
 
 Acceptance: each role works only through its scoped key; changing a backing
@@ -523,7 +523,7 @@ coordination behavior.
 | M0.3 | `2c366c235731f2289211ffc7abf32319e8f0993f` on `origin/main` | Complete |
 | M1.1–M1.2, M1.4 | Planner alias/key, exact-scope validator, and dashboard commit | Complete |
 | M1.3, M1.5 | Dedicated planner/worker/reviewer keys; deterministic coordinator; role-only Pi/OpenCode consumer configuration | Complete |
-| M1.6 | Coordinator key rotated: new CR/Secret identities, PushSecret synced to 1Password, `/v1/models` exposed only `coordinator`, and the completion attempt reached the `coordinator` route and spend tracking. A successful completion remains blocked by the expired shared ChatGPT OAuth token. | Partial |
+| M1.6 | Coordinator key rotated: new CR/Secret identities, PushSecret synced to 1Password, and `/v1/models` exposed only `coordinator`; after LiteLLM's device flow refreshed `auth.json` on the RWX token volume, `litellm-coordinator-oauth-smoke` returned HTTP 200 and streamed exactly `OAUTH-OK` through the scoped `coordinator` key. Earlier role tests cover planner, worker, reviewer, and spend attribution. | Complete |
 | M2.1–M2.6 | Argo chart, Garage key/item, SSO, policy, monitoring, templates commit | Complete |
 | M2.7 | Flux `daa83362e9a7`; `coordination-smoke-h4fj4` retried and succeeded with Garage artifacts/exit hook; `coordination-suspend-44c7r` resumed and succeeded; `coordination-cancel-6mkd4` terminated | Complete |
 | M3.1 | `919bda0c65f3`, `a95d5b1758f5`; Hookshot 7.4.4 Ready with persistent cryptostore, Redis, and Synapse MSC3202 transaction extensions | Complete |
@@ -571,13 +571,9 @@ through those substitutions.
 The implementation is deployed, but cutover remains intentionally gated on
 actions that require Tim's identity or physical Android observation:
 
-1. Refresh the shared ChatGPT OAuth login on the LiteLLM token PVC, then rerun
-   the successful coordinator completion. The replacement coordinator key is
-   authenticated, limited to `coordinator`, synchronized to 1Password, and
-   attributed; its upstream Luna request currently returns `token_expired`.
-2. From locked-screen Commet, start a real plan, add `>>` review comments,
+1. From locked-screen Commet, start a real plan, add `>>` review comments,
    revise, approve the exact hash, exercise one higher-risk exact-head approval,
    and confirm Wi-Fi plus cellular/WireGuard push delivery.
-3. Complete a coordinator/maubot backup restore and the remaining failure-path
+2. Complete a coordinator/maubot backup restore and the remaining failure-path
    drills, then observe the rollback window before removing the legacy plan-PR
    workflow.
