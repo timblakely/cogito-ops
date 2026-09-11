@@ -1,27 +1,15 @@
 # Matrix coordinator
 
-This service owns deterministic plan and delivery state between Matrix, GitHub,
-and Argo Workflows. Matrix decryption is delegated to the maubot plugin; the
-coordinator receives authenticated normalized events. Harnesses implement the
-versioned JSON contract in `schema/` and never own workflow state.
+This is a deliberately narrow planning gateway. It accepts authenticated,
+decrypted Matrix events from the maubot sidecar, versions plans, records exact
+approvals, creates a GitHub parent issue plus native sub-issues, and submits one
+Foreman `Workload` for the approved plan. Foreman owns coding, verification,
+review, retries, branch publication, and draft pull requests.
 
-The package intentionally uses the Python standard library. This keeps its
-runtime image small and makes replay, policy, and adapter tests independent of
-network services.
-
-Run the local checks from this directory:
+The service uses only the Python standard library. Run its checks with:
 
 ```sh
 python -m unittest discover -s tests -v
-python tests/conformance.py adapters/contract-adapter
-python tests/conformance.py adapters/pi-adapter
-python tests/conformance.py adapters/opencode-adapter
 ```
 
-The Pi and OpenCode conformance tests substitute a fixture executable for the
-real harness. Production provides `PI_COMMAND` or `OPENCODE_COMMAND` and a
-role-scoped LiteLLM credential. Adapter input is JSON on stdin and output is one
-JSON result on stdout; prompt content is never evaluated as shell code.
-
-Matrix/Commet usage, operational recovery, credential rotation, and shutdown
-procedures are in [RUNBOOK.md](RUNBOOK.md).
+See [RUNBOOK.md](RUNBOOK.md) for the remaining commands and failure boundaries.

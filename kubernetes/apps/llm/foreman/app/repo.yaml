@@ -1,0 +1,15 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/source.toolkit.fluxcd.io/ocirepository_v1.json
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: foreman
+spec:
+  interval: 1h
+  layerSelector:
+    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+    operation: copy
+  ref:
+    # Foreman v0.9.25, selected alongside the LLMKube core v0.9.25 chart.
+    digest: sha256:dfbd3a90a009732adf3ae68884833a216e759e41c4aeb5a793995155ccbc7f66
+  url: oci://ghcr.io/defilantech/charts/foreman

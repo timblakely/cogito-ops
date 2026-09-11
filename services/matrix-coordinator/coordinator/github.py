@@ -10,7 +10,7 @@ import json
 import re
 import time
 
-from .models import AgentResult, AgentRun, PlanVersion, ValidationError
+from .models import PlanVersion, ValidationError
 
 API_VERSION = "2026-03-10"
 DELIVERABLE = re.compile(r"^\s*[-*]\s+\[[ xX]\]\s+(.+?)\s*$")
@@ -126,100 +126,3 @@ class GitHubIssues:
                     "POST", f"/repos/{slug}/issues/{blocked['number']}/dependencies/blocked_by",
                     {"issue_id": blocker["id"]})
         return parent["html_url"], children
-
-    def get_issue(self, url: str) -> dict:
-        slug = repository_slug("https://github.com/" + "/".join(urlparse(url).path.strip("/").split("/")[:2]))
-        parts = urlparse(url).path.strip("/").split("/")
-        if len(parts) != 4 or parts[2] != "issues" or not parts[3].isdigit():
-            raise ValidationError("work item is not a GitHub issue URL")
-        return self._request("GET", f"/repos/{slug}/issues/{parts[3]}")
-
-    def close_issue(self, url: str) -> dict:
-        slug, number = self._issue_parts(url)
-        issue = self._request("GET", f"/repos/{slug}/issues/{number}")
-        if issue.get("state") == "closed":
-            return issue
-        return self._request(
-            "PATCH", f"/repos/{slug}/issues/{number}",
-            {"state": "closed", "state_reason": "completed"},
-        )
-
-    @staticmethod
-    def _issue_parts(url: str) -> tuple[str, int]:
-        parts = urlparse(url).path.strip("/").split("/")
-        if len(parts) != 4 or parts[2] != "issues" or not parts[3].isdigit():
-            raise ValidationError("work item is not a GitHub issue URL")
-        return "/".join(parts[:2]), int(parts[3])
-
-    @staticmethod
-    def _pull_parts(url: str) -> tuple[str, int]:
-        parts = urlparse(url).path.strip("/").split("/")
-        if len(parts) != 4 or parts[2] != "pull" or not parts[3].isdigit():
-            raise ValidationError("value is not a GitHub pull request URL")
-        return "/".join(parts[:2]), int(parts[3])
-
-    def create_pull_request(self, run: AgentRun, result: AgentResult) -> str:
-        slug, issue_number = self._issue_parts(run.work_item)
-        ref = result.usage.get("published_ref")
-        if not isinstance(ref, str) or not ref.startswith("refs/heads/agent/"):
-            raise ValidationError("agent result has no safe published ref")
-        branch = ref.removeprefix("refs/heads/")
-        owner = slug.split("/", 1)[0]
-        existing = self._request(
-            "GET", f"/repos/{slug}/pulls?state=all&head={owner}%3A{branch}&per_page=10")
-        if existing:
-            return existing[0]["html_url"]
-        issue = self._request("GET", f"/repos/{slug}/issues/{issue_number}")
-        body = (f"<!-- cogito-run-id: {run.run_id} -->\n"
-                f"Closes #{issue_number}\n\n"
-                f"Automated delivery for {run.work_item}.\n\n"
-                f"Agent result: {result.summary[:2000]}")
-        pull = self._request("POST", f"/repos/{slug}/pulls", {
-            "title": issue.get("title") or f"Complete #{issue_number}",
-            "head": branch, "base": run.base_ref, "body": body,
-        })
-        return pull["html_url"]
-
-    def add_review_evidence(self, pull_url: str, run_id: str, summary: str) -> None:
-        slug, number = self._pull_parts(pull_url)
-        marker = f"<!-- cogito-review-run: {run_id} -->"
-        comments = self._request("GET", f"/repos/{slug}/issues/{number}/comments?per_page=100")
-        if any(marker in (comment.get("body") or "") for comment in comments):
-            return
-        self._request("POST", f"/repos/{slug}/issues/{number}/comments", {
-            "body": f"{marker}\nIndependent agent review: **approved**\n\n{summary[:4000]}"
-        })
-
-    def close_superseded_pull(self, pull_url: str, reason: str) -> None:
-        slug, number = self._pull_parts(pull_url)
-        self._request("POST", f"/repos/{slug}/issues/{number}/comments", {
-            "body": "Superseded by a bounded automated repair.\n\n" + reason[:2000]
-        })
-        self._request("PATCH", f"/repos/{slug}/pulls/{number}", {"state": "closed"})
-
-    def pull_status(self, pull_url: str) -> dict:
-        slug, number = self._pull_parts(pull_url)
-        pull = self._request("GET", f"/repos/{slug}/pulls/{number}")
-        checks = self._request("GET", f"/repos/{slug}/commits/{pull['head']['sha']}/check-runs?per_page=100")
-        runs = checks.get("check_runs", [])
-        blocked = [run for run in runs if run.get("status") != "completed" or
-                   run.get("conclusion") not in {"success", "neutral", "skipped"}]
-        return {"head_sha": pull["head"]["sha"], "merged": pull.get("merged", False),
-                "mergeable": pull.get("mergeable"), "checks": len(runs), "blocked_checks": len(blocked)}
-
-    def merge_pull_request(self, pull_url: str, expected_head: str) -> str:
-        slug, number = self._pull_parts(pull_url)
-        status = self.pull_status(pull_url)
-        if status["merged"]:
-            pull = self._request("GET", f"/repos/{slug}/pulls/{number}")
-            return pull["merge_commit_sha"]
-        if status["head_sha"] != expected_head:
-            raise ValidationError("pull request head changed after review")
-        if status["mergeable"] is not True or status["blocked_checks"]:
-            raise ValidationError("pull request is not ready to merge")
-        merged = self._request("PUT", f"/repos/{slug}/pulls/{number}/merge", {
-            "sha": expected_head, "merge_method": "squash",
-        })
-        if not merged.get("merged"):
-            raise ValidationError(merged.get("message") or "GitHub refused merge")
-        return merged["sha"]

@@ -37,11 +37,11 @@ spec:
             summary: Matrix coordinator has an external action awaiting retry after an error
           labels:
             severity: warning
-        - alert: MatrixCoordinatorRunQueueStalled
+        - alert: MatrixCoordinatorWorkloadStalled
           expr: >-
-            cogito_coordinator_objects{namespace="home-infra",kind="run",state="queued"} > 0
+            cogito_coordinator_objects{namespace="home-infra",kind="workload",state=~"Pending|Planning"} > 0
           for: 30m
           annotations:
-            summary: Matrix coordinator run queue has remained nonempty for thirty minutes
+            summary: A Foreman workload has remained pending or planning for thirty minutes
           labels:
             severity: warning

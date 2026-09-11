@@ -2,10 +2,8 @@ import tempfile
 import unittest
 
 from coordinator.core import Coordinator
-from coordinator.deliveries import DeliveryCoordinator
 from coordinator.matrix import MatrixCoordinator
 from coordinator.models import ValidationError
-from coordinator.runs import RunCoordinator
 from coordinator.state import StateStore
 
 
@@ -24,25 +22,33 @@ class FakeIssues:
         return "https://github.com/t/c/issues/1", ["https://github.com/t/c/issues/2"]
 
 
-class FakeArgo:
-    def find_run(self, run_id): return None
-    def submit(self, run, harness): return "agent-run-1"
-    def status(self, name): return {"status": {"phase": "Pending"}}
-    def cancel(self, name): return {}
-    def resume(self, name): return {}
-    def pause(self, name): return {}
+class FakeForeman:
+    def __init__(self): self.created = []
+    def ensure_workload(self, **values):
+        self.created.append(values)
+        return {"metadata": {"name": "plan-test-abc123"}, "status": {"phase": "Planning"}}
+    def get(self, name):
+        return {"metadata": {"name": name}, "status": {
+            "phase": "Dispatched", "succeededTasks": 1,
+        }}
+    @staticmethod
+    def summary(value):
+        status = value.get("status", {})
+        return {"phase": status.get("phase", "Pending"),
+                "succeeded": status.get("succeededTasks", 0),
+                "failed": status.get("failedTasks", 0),
+                "incomplete": status.get("incompleteTasks", 0),
+                "contradicted": 0, "review_iterations": 0, "conditions": []}
 
 
 class MatrixTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.NamedTemporaryFile()
         self.state = StateStore(self.tmp.name)
-        self.planner, self.issues, self.argo = FakePlanner(), FakeIssues(), FakeArgo()
+        self.planner, self.issues, self.foreman = FakePlanner(), FakeIssues(), FakeForeman()
         core = Coordinator(self.state, self.issues, {"@tim:matrix.example"})
-        runs = RunCoordinator(self.state, self.argo)
         self.matrix = MatrixCoordinator(
-            self.state, core, runs, DeliveryCoordinator(self.state, runs, self.issues), self.planner,
-            {"@tim:matrix.example"},
+            self.state, core, self.foreman, self.planner, {"@tim:matrix.example"},
         )
         self.base = {
             "room_id": "!room:matrix.example", "sender": "@tim:matrix.example",
@@ -69,9 +75,8 @@ class MatrixTests(unittest.TestCase):
         accepted = self.matrix.handle(
             self.event("$accepted", f"!cogito approve {revised_hash}", "$root"))
         self.assertIn("Parent issue", accepted["actions"][0]["body"])
-        self.assertIn("Dispatched runs", accepted["actions"][0]["body"])
-        self.assertEqual(len(self.state.active_runs()), 1)
-        self.assertEqual(self.state.active_runs()[0]["request_json"].count('"harness": "pi"'), 1)
+        self.assertIn("Foreman Workload", accepted["actions"][0]["body"])
+        self.assertEqual(len(self.foreman.created), 1)
         self.assertEqual(self.planner.calls, 2)
         self.assertEqual(self.issues.calls, 1)
 
@@ -92,24 +97,14 @@ class MatrixTests(unittest.TestCase):
         with self.assertRaisesRegex(ValidationError, "plan changed"):
             self.matrix.handle(self.event("$approve", "!cogito approve", "$root"))
 
-    def test_thread_merge_resolves_pending_delivery_and_reviewed_head(self):
+    def test_status_reads_foreman_workload(self):
         self.matrix.handle(self.event("$root", "!cogito plan Build it"))
         approval = self.event("$approve", "!cogito approve", "$root")
         approval["timestamp"] = "2099-01-01T00:00:00Z"
         self.matrix.handle(approval)
-        run_id = self.state.active_runs()[0]["run_id"]
-        head_sha = "a" * 40
-        delivery = self.state.delivery_for_run(run_id)
-        self.state.update_delivery(
-            delivery["work_item_external_id"],
-            state="awaiting_approval",
-            approved_head_sha=head_sha,
-        )
-
-        result = self.matrix.handle(self.event("$merge", "!cogito merge", "$root"))
-
-        self.assertEqual(result["actions"][0]["body"], "Merge approved.")
-        self.assertEqual(self.state.delivery_for_run(run_id)["state"], "ready_to_merge")
+        result = self.matrix.handle(self.event("$status", "!cogito status", "$root"))
+        self.assertIn("**Dispatched**", result["actions"][0]["body"])
+        self.assertIn("1 succeeded", result["actions"][0]["body"])
 
     def test_non_command_outside_plan_thread_is_ignored(self):
         self.assertEqual(self.matrix.handle(self.event("$chat", "ordinary chat")), {"actions": []})
@@ -122,13 +117,5 @@ class MatrixTests(unittest.TestCase):
         value = self.event("$root", "!cogito help")
         value["sender"] = "@mallory:matrix.example"
         with self.assertRaises(ValidationError): self.matrix.handle(value)
-
-    def test_emergency_stop_is_durable(self):
-        result = self.matrix.handle(self.event("$stop", "!cogito stop"))
-        self.assertIn("Emergency stop active", result["actions"][0]["body"])
-        self.assertEqual(self.state.control("emergency_stop"), "true")
-        self.matrix.handle(self.event("$start", "!cogito start"))
-        self.assertEqual(self.state.control("emergency_stop"), "false")
-
 
 if __name__ == "__main__": unittest.main()

@@ -10,10 +10,9 @@ from typing import Any
 import re
 
 from .core import Coordinator
-from .deliveries import DeliveryCoordinator
-from .models import AgentRun, Approval, PlanVersion, ValidationError, canonical_json
+from .foreman import ForemanClient
+from .models import Approval, PlanVersion, ValidationError, canonical_json
 from .planner import PlannerClient
-from .runs import RunCoordinator
 from .state import StateStore
 
 
@@ -44,15 +43,10 @@ class MatrixEvent:
 
 
 class MatrixCoordinator:
-    def __init__(self, state: StateStore, core: Coordinator, runs: RunCoordinator,
-                 deliveries: DeliveryCoordinator, planner: PlannerClient, allowed_senders: set[str],
-                 worker_harnesses: tuple[str, ...] = ("pi", "opencode")):
-        self.state, self.core, self.runs, self.deliveries, self.planner = (
-            state, core, runs, deliveries, planner)
+    def __init__(self, state: StateStore, core: Coordinator, foreman: ForemanClient,
+                 planner: PlannerClient, allowed_senders: set[str]):
+        self.state, self.core, self.foreman, self.planner = state, core, foreman, planner
         self.allowed_senders = frozenset(allowed_senders)
-        self.worker_harnesses = worker_harnesses
-        if not worker_harnesses or set(worker_harnesses) - {"pi", "opencode", "contract"}:
-            raise ValidationError("invalid worker harness list")
         self.lock = RLock()
 
     @staticmethod
@@ -120,8 +114,6 @@ class MatrixCoordinator:
                 f"Plan hash: `{plan.hash}`\n\nApprove the current version with "
                 f"`!cogito approve`.", root)
         if command == "approve":
-            if self.state.control("emergency_stop", "false") == "true":
-                raise ValidationError("coordinator emergency stop is active")
             row = self._thread_plan(event)
             digest = argument.strip()
             if digest:
@@ -142,75 +134,36 @@ class MatrixCoordinator:
                 digest = version["content_hash"]
             parent, children = self.core.approve(Approval(
                 row["plan_id"], digest, event.event_id, event.sender, event.timestamp))
-            dispatched = []
-            for index, child in enumerate(children):
-                run_id = "delivery-" + sha256(f"{digest}:{child}".encode()).hexdigest()[:20]
-                harness = self.worker_harnesses[index % len(self.worker_harnesses)]
-                run = AgentRun(
-                    run_id=run_id, work_item=child, role="worker", repository=row["repository"],
-                    base_ref="main",
-                    objective=f"Implement and verify the accepted deliverable tracked by {child}.",
-                    acceptance_checks=("Deliverable acceptance checklist is satisfied",
-                                       "Relevant repository checks pass"),
-                    context={"plan_hash": digest, "matrix_thread": root,
-                             "parent_issue": parent,
-                             **({"depends_on": children[index - 1]} if index else {})},
-                    limits={"attempts": 2, "wall_seconds": 3600, "token_budget": 200000},
-                )
-                name = self.runs.submit(run, harness)
-                self.deliveries.register(run, harness)
-                dispatched.append((run_id, name, harness))
+            version = self.state.current_plan_version(row["plan_id"])
+            workload = self.foreman.ensure_workload(
+                plan_id=row["plan_id"], plan_hash=digest, intent=version["markdown"],
+                repository=row["repository"], issue_urls=children,
+                room_id=event.room_id, thread_root=root,
+            )
+            name = workload["metadata"]["name"]
+            status = self.foreman.summary(workload)
+            self.state.register_workload(name, row["plan_id"], status)
             links = "\n".join(f"- {child}" for child in children)
-            run_links = "\n".join(
-                f"- `{run_id}` via **{harness}** (Argo `{name}`)" for run_id, name, harness in dispatched)
             return self._message(
                 f"Plan accepted at `{digest}`.\n\nParent issue: {parent}\n\nDeliverables:\n{links}"
-                f"\n\nDispatched runs:\n{run_links}", root)
-        if command in {"cancel", "pause", "resume"}:
-            run_id = argument.strip()
-            getattr(self.runs, command)(run_id)
-            return self._message(f"Run `{run_id}` {command} requested.", root)
-        if command == "stop":
-            self.state.set_control("emergency_stop", "true")
-            cancelled = 0
-            for row in self.state.active_runs():
-                self.runs.cancel(row["run_id"])
-                cancelled += 1
-            self.state.audit(event.sender, "coordinator.stopped", "global", {"cancelled": cancelled})
-            return self._message(f"Emergency stop active; cancellation requested for {cancelled} runs.", root)
-        if command == "start":
-            self.state.set_control("emergency_stop", "false")
-            self.state.audit(event.sender, "coordinator.started", "global", {})
-            return self._message("Emergency stop cleared; reconciliation resumed.", root)
-        if command == "merge":
-            explicit = argument.strip()
-            if explicit:
-                run_id, separator, head_sha = explicit.partition(" ")
-                if not separator:
-                    raise ValidationError("usage: !cogito merge")
-                head_sha = head_sha.strip()
-            else:
-                pending = self.state.awaiting_merges_for_thread(event.room_id, root)
-                if not pending:
-                    raise ValidationError("this thread has no change awaiting merge approval")
-                if len(pending) > 1:
-                    raise ValidationError(
-                        "multiple changes await approval in this thread; use the approval card"
-                    )
-                run_id = pending[0]["worker_run_id"]
-                head_sha = pending[0]["approved_head_sha"]
-            self.deliveries.approve_merge(run_id, head_sha.strip())
-            return self._message("Merge approved.", root)
+                f"\n\nForeman Workload: `{name}` · **{status['phase']}**", root)
         if command == "status":
-            run_id = argument.strip()
-            row = self.state.run(run_id)
-            if not row:
-                raise ValidationError("unknown run")
+            name = argument.strip()
+            if not name:
+                row = self._thread_plan(event)
+                saved = self.state.workload_for_plan(row["plan_id"])
+                if not saved:
+                    raise ValidationError("this plan has no Foreman Workload")
+                name = saved["name"]
+            workload = self.foreman.get(name)
+            status = self.foreman.summary(workload)
+            self.state.update_workload(name, status)
             return self._message(
-                f"Run `{run_id}` is **{row['state']}** (Argo `{row['argo_name'] or 'pending'}`).", root)
+                f"Workload `{name}` is **{status['phase']}**: "
+                f"{status['succeeded']} succeeded, {status['failed']} failed, "
+                f"{status['incomplete']} incomplete.", root)
         if command in {"help", ""}:
             return self._message(
-                "Commands: `plan <objective>`, `revise`, `approve [hash]`, "
-                "`status <run>`, `cancel|pause|resume <run>`, `merge`, `stop`, `start`. "
+                "Commands: `plan <objective>`, `revise`, `approve [hash]`, `status [workload]`. "
                 "Ordinary replies in a plan thread are review comments.", root)
         raise ValidationError("unknown !cogito command")

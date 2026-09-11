@@ -2,14 +2,14 @@
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
-  name: agent-runtime-github-app-auth
+  name: foreman-github-app-auth
 spec:
   refreshInterval: 1h
   secretStoreRef:
     kind: ClusterSecretStore
     name: onepassword
   target:
-    name: agent-runtime-github-app-auth
+    name: foreman-github-app-auth
     creationPolicy: Owner
     deletionPolicy: Retain
   data:
@@ -21,14 +21,14 @@ spec:
 apiVersion: generators.external-secrets.io/v1alpha1
 kind: GithubAccessToken
 metadata:
-  name: agent-runtime
+  name: foreman
 spec:
   appID: "4906005"
   installID: "160792836"
   auth:
     privateKey:
       secretRef:
-        name: agent-runtime-github-app-auth
+        name: foreman-github-app-auth
         key: private-key.pem
   repositories:
     - cogito-ops
@@ -42,11 +42,11 @@ spec:
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
-  name: agent-runtime-github-token
+  name: foreman-github-token
 spec:
   refreshInterval: 30m
   target:
-    name: agent-runtime-github-token
+    name: foreman-github-token
     creationPolicy: Owner
     deletionPolicy: Delete
   dataFrom:
@@ -54,4 +54,4 @@ spec:
         generatorRef:
           apiVersion: generators.external-secrets.io/v1alpha1
           kind: GithubAccessToken
-          name: agent-runtime
+          name: foreman

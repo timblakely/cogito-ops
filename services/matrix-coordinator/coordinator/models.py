@@ -2,19 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from hashlib import sha256
-from typing import Any, Literal
+from typing import Any
 from urllib.parse import urlparse
 import json
 import re
-
-API_VERSION = "cogito.dev/v1alpha1"
-RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{7,127}$")
-ROLES = {
-    "planner", "coordinator", "worker", "reviewer",
-    "worker-escalated", "reviewer-escalated",
-}
 
 
 class ValidationError(ValueError):
@@ -85,97 +78,3 @@ class Approval:
             raise ValidationError("plan_hash must be a SHA-256 digest")
         if not self.approver.startswith("@") or ":" not in self.approver:
             raise ValidationError("approver must be a full Matrix user ID")
-
-
-@dataclass(frozen=True)
-class AgentRun:
-    run_id: str
-    work_item: str
-    role: str
-    repository: str
-    base_ref: str
-    objective: str
-    api_version: str = API_VERSION
-    constraints: tuple[str, ...] = ()
-    allowed_paths: tuple[str, ...] = ()
-    acceptance_checks: tuple[str, ...] = ()
-    callback: dict[str, Any] = field(default_factory=dict)
-    context: dict[str, Any] = field(default_factory=dict)
-    limits: dict[str, int] = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        if self.api_version != API_VERSION:
-            raise ValidationError(f"unsupported api_version {self.api_version!r}")
-        if not RUN_ID.fullmatch(self.run_id):
-            raise ValidationError("run_id contains unsafe characters or has invalid length")
-        _url("work_item", self.work_item, {"https"})
-        if self.role not in ROLES:
-            raise ValidationError(f"unknown role {self.role!r}")
-        _url("repository", self.repository, {"https", "ssh"})
-        for name in ("base_ref", "objective"):
-            _nonempty(name, getattr(self, name))
-        if self.base_ref.startswith("-") or any(c.isspace() for c in self.base_ref):
-            raise ValidationError("base_ref is not a safe explicit ref")
-        for path in self.allowed_paths:
-            if path.startswith("/") or ".." in path.split("/"):
-                raise ValidationError(f"unsafe allowed path {path!r}")
-        allowed_limits = {"attempts", "wall_seconds", "token_budget"}
-        if set(self.limits) - allowed_limits:
-            raise ValidationError("unknown run limit")
-        if any(not isinstance(v, int) or v <= 0 for v in self.limits.values()):
-            raise ValidationError("run limits must be positive integers")
-
-    @classmethod
-    def from_dict(cls, value: dict[str, Any]) -> "AgentRun":
-        allowed = {f.name for f in cls.__dataclass_fields__.values()}
-        unknown = set(value) - allowed
-        if unknown:
-            raise ValidationError(f"unknown AgentRun fields: {sorted(unknown)}")
-        converted = dict(value)
-        for key in ("constraints", "allowed_paths", "acceptance_checks"):
-            converted[key] = tuple(converted.get(key, ()))
-        return cls(**converted)
-
-    def as_dict(self) -> dict[str, Any]:
-        value = asdict(self)
-        for key in ("constraints", "allowed_paths", "acceptance_checks"):
-            value[key] = list(value[key])
-        return value
-
-
-@dataclass(frozen=True)
-class AgentResult:
-    run_id: str
-    status: Literal["succeeded", "failed", "cancelled", "needs_input"]
-    summary: str
-    head_sha: str | None = None
-    pull_request: str | None = None
-    checks: tuple[dict[str, str], ...] = ()
-    artifacts: tuple[dict[str, str], ...] = ()
-    usage: dict[str, Any] = field(default_factory=dict)
-    api_version: str = API_VERSION
-
-    def __post_init__(self) -> None:
-        if self.api_version != API_VERSION or not RUN_ID.fullmatch(self.run_id):
-            raise ValidationError("invalid result identity")
-        _nonempty("summary", self.summary)
-        if self.head_sha is not None and not re.fullmatch(r"[0-9a-f]{7,64}", self.head_sha):
-            raise ValidationError("head_sha is invalid")
-        if self.pull_request is not None:
-            _url("pull_request", self.pull_request, {"https"})
-        for check in self.checks:
-            if set(check) != {"name", "status"} or check["status"] not in {"passed", "failed", "skipped"}:
-                raise ValidationError("invalid check result")
-
-    @classmethod
-    def from_dict(cls, value: dict[str, Any]) -> "AgentResult":
-        converted = dict(value)
-        converted["checks"] = tuple(converted.get("checks", ()))
-        converted["artifacts"] = tuple(converted.get("artifacts", ()))
-        return cls(**converted)
-
-    def as_dict(self) -> dict[str, Any]:
-        value = asdict(self)
-        value["checks"] = list(value["checks"])
-        value["artifacts"] = list(value["artifacts"])
-        return value

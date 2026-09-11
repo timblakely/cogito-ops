@@ -1,0 +1,77 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: foreman
+spec:
+  interval: 1h
+  maxHistory: 1
+  chartRef:
+    kind: OCIRepository
+    name: foreman
+  install:
+    crds: CreateReplace
+    timeout: 5m
+    remediation:
+      retries: 1
+  upgrade:
+    crds: CreateReplace
+    timeout: 5m
+    remediation:
+      retries: 1
+  values:
+    operator:
+      image:
+        repository: ghcr.io/defilantech/llmkube-foreman-operator
+        digest: sha256:34496a65cc4318257ab0affc9b91d8a6acda9825165348ed8792a89523ffeac8
+
+    webhook:
+      # One replica is intentional for this experiment. Do not block all
+      # Agent writes during its brief upgrade window.
+      failurePolicy: Ignore
+
+    foreman:
+      allowCloudProviders: false
+      crs:
+        enabled: false
+      archive:
+        enabled: false
+
+    agent:
+      mode: native
+      replicaCount: 1
+      image:
+        repository: ghcr.io/defilantech/llmkube-foreman-agent-coder
+        digest: sha256:70622d517f626d8e25cb6a5c1d4a70dc5803ceaddf4615ef6d0e371fb8a68ba9
+      roles:
+        - worker
+        - coder
+        - verifier
+        - reviewer
+      taskNamespace: llm
+      foremanNamespace: llm
+      maxSupervisedTasks: 1
+      accelerator: cuda
+      installedModels:
+        - qwen-3-8-fp8
+      commitAuthorName: Cogito Foreman
+      commitAuthorEmail: foreman@cogito.invalid
+      githubToken:
+        secretName: foreman-github-token
+        secretKey: token
+      gateCache:
+        enabled: true
+        size: 20Gi
+        storageClass: openebs-hostpath
+        annotations:
+          volume.kubernetes.io/selected-node: iggy
+      nodeSelector:
+        kubernetes.io/hostname: iggy
+      coderGitSecret: foreman-github-token
+      coderGitSecretKey: token
+
+    coder:
+      enabled: true
+      gitCredentialsSecret: foreman-github-token
+      gitCredentialsSecretKey: token

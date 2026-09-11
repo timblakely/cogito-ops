@@ -1,0 +1,22 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: matrix-coordinator-workloads
+rules:
+  - apiGroups: [foreman.llmkube.dev]
+    resources: [workloads]
+    verbs: [create, get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: matrix-coordinator-workloads
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: matrix-coordinator-workloads
+subjects:
+  - kind: ServiceAccount
+    name: matrix-coordinator
+    namespace: home-infra

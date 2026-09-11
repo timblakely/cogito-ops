@@ -5,23 +5,18 @@ kind: Kustomization
 configMapGenerator:
   - name: APP-app-vars
     literals:
-      - APP=argo-workflows
-      - SUBDOMAIN=argo
+      - APP=foreman
       - RESOURCES=resources
 patches:
   - patch: |-
       - op: add
         path: /spec/dependsOn/-
         value:
-          name: garage
-          namespace: storage
-      - op: add
-        path: /spec/dependsOn/-
-        value:
-          name: pocket-id
-          namespace: home-infra
+          name: llmkube
+          namespace: llm
     target:
       group: kustomize.toolkit.fluxcd.io
       kind: Kustomization
+      labelSelector: components.autoreiv/ks=app
 components:
-  - ../../../components/ks/app-resources/subdomain
+  - ../../../components/ks/app-resources

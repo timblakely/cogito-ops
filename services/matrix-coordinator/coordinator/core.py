@@ -1,4 +1,4 @@
-"""Plan state transitions independent of Matrix, GitHub, and Argo clients."""
+"""Plan state transitions independent of Matrix and GitHub clients."""
 
 from __future__ import annotations
 
@@ -11,10 +11,6 @@ from .state import StateStore
 
 class IssuePort(Protocol):
     def create_plan(self, plan: PlanVersion) -> tuple[str, list[str]]: ...
-
-    def get_issue(self, url: str) -> dict: ...
-
-    def close_issue(self, url: str) -> dict: ...
 
 
 class Coordinator:
@@ -96,75 +92,6 @@ class Coordinator:
                 "UPDATE plans SET state='decomposed', github_issue_url=? WHERE plan_id=?",
                 (issue_url, approval.plan_id),
             )
-        self.state.register_work_items(approval.plan_id, issue_url, children)
         self.state.audit(approval.approver, "plan.approved", approval.plan_id,
                          {**asdict(approval), "github_issue": issue_url, "sub_issues": children})
         return issue_url, children
-
-    def github_event(self, delivery: str, event: str, payload: dict) -> bool:
-        """Reconcile a relevant GitHub issue/PR event and queue one Matrix update."""
-        issue = payload.get("issue") or payload.get("pull_request")
-        if not isinstance(issue, dict) or not issue.get("html_url"):
-            return False
-        url = issue["html_url"]
-        context = self.state.work_item_context(url)
-        if not context:
-            return False
-        state = issue.get("state", "open")
-        changed = self.state.update_work_item(url, state, {
-            "kind": event, "action": payload.get("action"), "url": url,
-            "title": issue.get("title", ""), "state": state,
-        })
-        if changed:
-            action = payload.get("action") or "updated"
-            body = f"GitHub **{event} {action}**: [{issue.get('title') or url}]({url}) · `{state}`"
-            self.state.enqueue_matrix(
-                f"github:{delivery}", context["matrix_room_id"], context["root_event_id"], body)
-            self.state.audit("github", f"{event}.{action}", url, {"delivery": delivery, "state": state})
-            self.reconcile_completed_plans()
-        return changed
-
-    def reconcile_completed_plans(self) -> int:
-        """Close parent issues only after every child has an accepted merge."""
-        completed = 0
-        for plan in self.state.completable_plans():
-            plan_id, parent = plan["plan_id"], plan["github_issue_url"]
-            action_key = f"github-close-plan:{plan_id}"
-            result = self.state.begin_action(
-                action_key, "github.close-plan", {"plan_id": plan_id, "parent": parent})
-            if result is None:
-                try:
-                    issue = self.issues.close_issue(parent)
-                except Exception as exc:
-                    self.state.fail_action(action_key, str(exc))
-                    raise
-                result = {
-                    "kind": "issue", "url": issue.get("html_url", parent),
-                    "title": issue.get("title", ""), "state": issue.get("state", "closed"),
-                }
-                self.state.complete_action(action_key, result)
-            if self.state.complete_plan(plan_id, parent, result):
-                completed += 1
-                self.state.enqueue_matrix(
-                    f"plan-complete:{plan_id}", plan["matrix_room_id"], plan["root_event_id"],
-                    f"Plan complete: every deliverable merged and [{parent}]({parent}) is closed.")
-                self.state.audit("coordinator", "plan.completed", plan_id, result)
-        return completed
-
-    def reconcile_github(self) -> int:
-        changed = 0
-        for row in self.state.work_items():
-            issue = self.issues.get_issue(row["external_id"])
-            state = issue.get("state", "open")
-            payload = {"kind": "issue", "url": row["external_id"],
-                       "title": issue.get("title", ""), "state": state}
-            if self.state.update_work_item(row["external_id"], state, payload):
-                changed += 1
-                self.state.enqueue_matrix(
-                    "reconcile:" + __import__("hashlib").sha256(
-                        (row["external_id"] + ":" + state).encode()).hexdigest(),
-                    row["matrix_room_id"], row["root_event_id"],
-                    f"GitHub reconciled: [{issue.get('title') or row['external_id']}]"
-                    f"({row['external_id']}) · `{state}`",
-                )
-        return changed + self.reconcile_completed_plans()

@@ -111,8 +111,7 @@ class CogitoBot(Plugin):
             progress = {
                 "plan": "⏳ Plan request received. I’ll post the draft here when planning completes.",
                 "revise": "⏳ Revision request received. I’ll post the updated plan here when ready.",
-                "approve": "⏳ Approval received. I’m creating and dispatching the deliverables now.",
-                "merge": "⏳ Merge approval received. I’m validating and merging the reviewed change now.",
+                "approve": "⏳ Approval received. I’m creating the issues and Foreman Workload now.",
             }.get(command)
             if body.startswith("!cogito") and progress:
                 await evt.respond(progress, in_thread=True)

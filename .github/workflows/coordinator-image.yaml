@@ -25,13 +25,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
-      - name: Unit and adapter contract tests
+      - name: Unit tests
         working-directory: services/matrix-coordinator
-        run: |
-          python -m unittest discover -s tests -v
-          python tests/conformance.py adapters/contract-adapter
-          python tests/conformance.py adapters/pi-adapter
-          python tests/conformance.py adapters/opencode-adapter
+        run: python -m unittest discover -s tests -v
 
       - name: Authenticate to GHCR
         env:
@@ -44,12 +40,4 @@ jobs:
           REVISION: ${{ github.sha }}
         run: |
           docker build --pull --label "org.opencontainers.image.revision=$REVISION" --tag "$IMAGE:$REVISION" services/matrix-coordinator
-          docker push "$IMAGE:$REVISION"
-
-      - name: Build and publish immutable agent runtime
-        env:
-          IMAGE: ghcr.io/${{ github.repository_owner }}/cogito-agent-runtime
-          REVISION: ${{ github.sha }}
-        run: |
-          docker build --pull --file services/matrix-coordinator/Dockerfile.agent --label "org.opencontainers.image.revision=$REVISION" --tag "$IMAGE:$REVISION" services/matrix-coordinator
           docker push "$IMAGE:$REVISION"

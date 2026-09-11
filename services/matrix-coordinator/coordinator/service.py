@@ -1,39 +1,29 @@
-"""Authenticated HTTP boundary for Matrix, GitHub, and workflow clients."""
+"""Authenticated HTTP boundary for Matrix planning and Foreman correlation."""
 
 from __future__ import annotations
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 from urllib.parse import urlparse
-import hashlib
 import json
 import os
 import threading
 import time
 
-from .argo import ArgoClient
 from .core import Coordinator
-from .deliveries import DeliveryCoordinator
+from .foreman import ForemanClient
 from .github import GitHubIssues
-from .models import AgentRun, Approval, PlanVersion, ValidationError
+from .models import Approval, PlanVersion, ValidationError
 from .matrix import MatrixCoordinator
 from .planner import PlannerClient
 from .state import StateStore
-from .runs import RunCoordinator
-from .webhooks import verify_github, verify_internal
+from .webhooks import verify_internal
 
 
 class App:
     def __init__(self):
         self.internal_secret = os.environ["COORDINATOR_INTERNAL_SECRET"].encode()
-        self.github_secret = os.environ["GITHUB_WEBHOOK_SECRET"].encode()
         self.state = StateStore(os.environ.get("COORDINATOR_STATE_PATH", "/data/coordinator.sqlite3"))
-        self.argo = ArgoClient(namespace=os.environ.get("ARGO_NAMESPACE", "tools"))
-        self.runs = RunCoordinator(
-            self.state, self.argo,
-            int(os.environ.get("COGITO_MAX_ACTIVE_RUNS", "4")),
-            int(os.environ.get("COGITO_MAX_AGGREGATE_TOKENS", "1000000")),
-        )
+        self.foreman = ForemanClient(namespace=os.environ.get("FOREMAN_NAMESPACE", "llm"))
         self.github = GitHubIssues(
             token=os.environ.get("GITHUB_TOKEN"),
             token_file=os.environ.get("GITHUB_TOKEN_FILE"),
@@ -42,36 +32,17 @@ class App:
             self.state, self.github,
             set(filter(None, os.environ.get("MATRIX_APPROVERS", "").split(","))),
         )
-        self.deliveries = DeliveryCoordinator(
-            self.state, self.runs, self.github,
-            tuple(filter(None, os.environ.get("COGITO_REVIEW_HARNESSES", "opencode,pi").split(","))))
         planner_fallbacks = tuple(filter(None, os.environ.get(
             "PLANNER_FALLBACK_MODELS", "planner-gpt,planner-gpt-pro,planner-local").split(",")))
         self.matrix = MatrixCoordinator(
-            self.state, self.coordinator, self.runs, self.deliveries,
+            self.state, self.coordinator, self.foreman,
             PlannerClient(os.environ["LITELLM_PLANNER_API_KEY"],
                           os.environ.get("LITELLM_BASE_URL", "https://litellm.timblakely.com/v1"),
                           os.environ.get("PLANNER_MODEL", "planner"), planner_fallbacks),
             set(filter(None, os.environ.get("MATRIX_APPROVERS", "").split(","))),
-            tuple(filter(None, os.environ.get("COGITO_WORKER_HARNESSES", "pi,opencode").split(","))),
         )
 
     def handle(self, path: str, headers, body: bytes) -> tuple[int, dict]:
-        if path == "/events/github":
-            if not verify_github(self.github_secret, body, headers.get("X-Hub-Signature-256")):
-                return 401, {"error": "invalid signature"}
-            delivery = headers.get("X-GitHub-Delivery", "")
-            if not delivery:
-                return 400, {"error": "missing delivery ID"}
-            fresh = self.state.accept_event("github", delivery, hashlib.sha256(body).hexdigest())
-            if fresh:
-                payload = json.loads(body)
-                changed = self.coordinator.github_event(
-                    delivery, headers.get("X-GitHub-Event", "unknown"), payload)
-                self.state.audit("github", "webhook.received", delivery,
-                                 {"event": headers.get("X-GitHub-Event", "unknown"),
-                                  "changed": changed})
-            return 202, {"accepted": fresh}
         if not verify_internal(self.internal_secret, body, headers.get("X-Cogito-Signature-256")):
             return 401, {"error": "invalid signature"}
         value = json.loads(body)
@@ -92,35 +63,22 @@ class App:
         if path == "/v1/approvals":
             parent, children = self.coordinator.approve(Approval(**value))
             return 201, {"parent": parent, "children": children}
-        if path == "/v1/runs":
-            harness = value.pop("harness")
-            run = AgentRun.from_dict(value)
-            name = self.runs.submit(run, harness)
-            return 201, {"workflow": name, "run_id": run.run_id}
-        if path.startswith("/v1/runs/"):
-            parts = path.strip("/").split("/")
-            if len(parts) == 4 and parts[:2] == ["v1", "runs"]:
-                run_id, operation = parts[2:]
-                if operation == "cancel":
-                    self.runs.cancel(run_id)
-                elif operation == "pause":
-                    self.runs.pause(run_id)
-                elif operation == "resume":
-                    self.runs.resume(run_id)
-                elif operation == "reconcile":
-                    self.runs.reconcile_once()
-                else:
-                    return 404, {"error": "not found"}
-                return 202, {"run_id": run_id, "operation": operation}
         return 404, {"error": "not found"}
 
     def reconcile_forever(self) -> None:
         interval = int(os.environ.get("COORDINATOR_RECONCILE_SECONDS", "15"))
         while True:
             try:
-                self.runs.reconcile_once()
-                self.deliveries.reconcile_once()
-                self.coordinator.reconcile_github()
+                for row in self.state.active_workloads():
+                    status = self.foreman.summary(self.foreman.get(row["name"]))
+                    if self.state.update_workload(row["name"], status):
+                        body = (f"Foreman Workload `{row['name']}` is **{status['phase']}**: "
+                                f"{status['succeeded']} succeeded, {status['failed']} failed, "
+                                f"{status['incomplete']} incomplete.")
+                        self.state.enqueue_matrix(
+                            f"foreman:{row['name']}:{status['phase']}:"
+                            f"{status['succeeded']}:{status['failed']}:{status['incomplete']}",
+                            row["matrix_room_id"], row["root_event_id"], body)
             except Exception as exc:
                 print(json.dumps({"component": "reconciler", "error": type(exc).__name__,
                                   "message": str(exc)[:500]}))

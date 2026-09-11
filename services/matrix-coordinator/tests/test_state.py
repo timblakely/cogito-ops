@@ -1,7 +1,6 @@
 import sqlite3
 import tempfile
 import unittest
-import json
 from concurrent.futures import ThreadPoolExecutor
 
 from coordinator.state import StateStore
@@ -33,23 +32,35 @@ class StateTests(unittest.TestCase):
         with self.assertRaises(sqlite3.IntegrityError):
             self.state.db.execute("DELETE FROM audit_events WHERE sequence=?", (sequence,))
 
-    def test_restart_backfills_legacy_issue_hierarchy(self):
+    def test_v6_migration_drops_retired_executor_tables(self):
+        path = self.tmp.name
+        self.state.close()
+        db = sqlite3.connect(path)
+        db.executescript("""
+            DELETE FROM migrations;
+            INSERT INTO migrations VALUES (5, 0);
+            CREATE TABLE runs (run_id TEXT);
+            CREATE TABLE deliveries (run_id TEXT);
+            CREATE TABLE work_items (external_id TEXT);
+            CREATE TABLE controls (key TEXT);
+        """)
+        db.close()
+        self.state = StateStore(path)
+        names = {row[0] for row in self.state.db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")}
+        self.assertTrue({"runs", "deliveries", "work_items", "controls"}.isdisjoint(names))
+
+    def test_workload_status_is_correlated_to_plan(self):
         with self.state.transaction() as db:
             db.execute(
                 "INSERT INTO plans(plan_id,state,repository,matrix_room_id,root_event_id,current_version) "
                 "VALUES (?,?,?,?,?,?)",
-                ("legacy-plan", "review", "https://github.com/o/r.git", "!r:x", "$root", 1),
+                ("plan-workload", "decomposed", "https://github.com/o/r.git", "!r:x", "$root", 1),
             )
-        self.state.begin_action("legacy", "github.create-plan", {"plan_id": "legacy-plan"})
-        self.state.complete_action("legacy", {
-            "parent": "https://github.com/o/r/issues/1",
-            "children": ["https://github.com/o/r/issues/2"],
-        })
-        path = self.tmp.name
-        self.state.close()
-        self.state = StateStore(path)
-        self.assertIsNotNone(self.state.work_item_context("https://github.com/o/r/issues/1"))
-        self.assertIsNotNone(self.state.work_item_context("https://github.com/o/r/issues/2"))
+        self.state.register_workload("workload-1", "plan-workload", {"phase": "Planning"})
+        self.assertEqual(self.state.workload_for_plan("plan-workload")["name"], "workload-1")
+        self.assertTrue(self.state.update_workload("workload-1", {"phase": "Completed", "succeeded": 3}))
+        self.assertEqual(self.state.plan_for_thread("!r:x", "$root")["state"], "completed")
 
     def test_prometheus_metrics_report_state_usage_and_artifacts(self):
         with self.state.transaction() as db:
@@ -58,19 +69,9 @@ class StateTests(unittest.TestCase):
                 "VALUES (?,?,?,?,?,?)", ("metrics-plan", "complete", "https://github.com/o/r.git",
                 "!room:x", "$root", 1),
             )
-            db.execute(
-                "INSERT INTO runs(run_id,work_item_external_id,state,request_json,result_json) "
-                "VALUES (?,?,?,?,?)", ("metrics-run-0001", "https://github.com/o/r/issues/1",
-                "succeeded", json.dumps({"role": "reviewer", "harness": "opencode"}),
-                json.dumps({"usage": {"input_tokens": 12, "output_tokens": 3},
-                            "artifacts": [{"name": "log", "digest": "sha256:a"}]})),
-            )
         metrics = self.state.prometheus_metrics()
         self.assertIn('cogito_coordinator_objects{kind="plan",state="complete"} 1', metrics)
-        self.assertIn(
-            'cogito_coordinator_run_usage_tokens_total{role="reviewer",harness="opencode",'
-            'direction="input"} 12', metrics)
-        self.assertIn("cogito_coordinator_artifacts_total 1", metrics)
+        self.assertNotIn("run_usage", metrics)
 
 
 if __name__ == "__main__":

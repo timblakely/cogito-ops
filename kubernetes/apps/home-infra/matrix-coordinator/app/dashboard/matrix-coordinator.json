@@ -14,10 +14,10 @@
     },
     {
       "type": "stat",
-      "title": "Queued runs",
+      "title": "Active workloads",
       "id": 2,
       "gridPos": {"h": 4, "w": 4, "x": 4, "y": 0},
-      "targets": [{"expr": "sum(cogito_coordinator_objects{namespace=\"home-infra\",kind=\"run\",state=\"queued\"}) or vector(0)", "refId": "A"}],
+      "targets": [{"expr": "sum(cogito_coordinator_objects{namespace=\"home-infra\",kind=\"workload\",state!~\"Completed|Failed\"}) or vector(0)", "refId": "A"}],
       "options": {"reduceOptions": {"calcs": ["lastNotNull"], "values": false}}
     },
     {
@@ -46,10 +46,10 @@
     },
     {
       "type": "stat",
-      "title": "Retained artifacts",
+      "title": "Completed workloads",
       "id": 6,
       "gridPos": {"h": 4, "w": 4, "x": 20, "y": 0},
-      "targets": [{"expr": "max(cogito_coordinator_artifacts_total{namespace=\"home-infra\"})", "refId": "A"}],
+      "targets": [{"expr": "sum(cogito_coordinator_objects{namespace=\"home-infra\",kind=\"workload\",state=\"Completed\"}) or vector(0)", "refId": "A"}],
       "options": {"reduceOptions": {"calcs": ["lastNotNull"], "values": false}}
     },
     {
@@ -63,10 +63,10 @@
     },
     {
       "type": "timeseries",
-      "title": "Recorded token usage by role and harness",
+      "title": "Foreman workload lifecycle",
       "id": 8,
       "gridPos": {"h": 9, "w": 12, "x": 12, "y": 4},
-      "targets": [{"expr": "sum by (role, harness, direction) (cogito_coordinator_run_usage_tokens_total{namespace=\"home-infra\"})", "legendFormat": "{{role}} / {{harness}} / {{direction}}", "refId": "A"}],
+      "targets": [{"expr": "sum by (state) (cogito_coordinator_objects{namespace=\"home-infra\",kind=\"workload\"})", "legendFormat": "{{state}}", "refId": "A"}],
       "fieldConfig": {"defaults": {}, "overrides": []},
       "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
     }

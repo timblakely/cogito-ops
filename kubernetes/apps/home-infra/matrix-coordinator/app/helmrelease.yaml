@@ -52,12 +52,8 @@ spec:
               tag: fbbb26a22c5ab2a67b6ee729babce647b62b7a69@sha256:af9a71de06ecf14cf9ce65160370b613b8053245c51fcd5f3984ae608c9dcd45
             env:
               COORDINATOR_STATE_PATH: /data/coordinator.sqlite3
-              ARGO_NAMESPACE: tools
+              FOREMAN_NAMESPACE: llm
               MATRIX_APPROVERS: "@tim:matrix.${DOMAIN_NAME}"
-              COGITO_WORKER_HARNESSES: pi,opencode
-              COGITO_REVIEW_HARNESSES: opencode,pi
-              COGITO_MAX_ACTIVE_RUNS: "4"
-              COGITO_MAX_AGGREGATE_TOKENS: "1000000"
               GITHUB_TOKEN_FILE: /run/secrets/github-app/token
               GITHUB_TOKEN:
                 valueFrom:

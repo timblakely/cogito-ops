@@ -1,0 +1,104 @@
+---
+apiVersion: foreman.llmkube.dev/v1alpha1
+kind: Agent
+metadata:
+  name: cogito-coder
+  labels:
+    app.kubernetes.io/part-of: foreman
+    foreman.llmkube.dev/role: coder
+spec:
+  role: coder
+  model: qwen-3-8-fp8
+  inferenceServiceRef:
+    name: qwen-3-8-fp8
+  execution:
+    mode: Job
+    image: ghcr.io/defilantech/llmkube-foreman-agent-coder@sha256:70622d517f626d8e25cb6a5c1d4a70dc5803ceaddf4615ef6d0e371fb8a68ba9
+    serviceAccountName: foreman-coder
+    activeDeadlineSeconds: 3600
+  temperature: "0.2"
+  maxTurns: 80
+  maxRetries: 3
+  maxConcurrentTasks: 1
+  requestTurnTimeoutSeconds: 300
+  requestTimeoutSeconds: 3600
+  bashTimeoutSeconds: 300
+  tools:
+    - read_file
+    - write_file
+    - str_replace
+    - grep
+    - bash
+    - fetch_issue
+    - submit_result
+  requiredCapability:
+    accelerator: cuda
+  systemPrompt: |-
+    You implement one small GitHub issue per run. The repository is already
+    cloned on a Foreman branch. Read the repository instructions first, then
+    inspect the issue and nearby code. Make the smallest complete change,
+    preserve existing conventions, and add or update focused tests when
+    behavior changes. Run the relevant repository checks. Do not invent
+    external facts or claim checks you did not run. Finish by calling
+    submit_result with GO only when the branch is ready for deterministic
+    verification; otherwise use NO-GO and explain the concrete blocker.
+---
+apiVersion: foreman.llmkube.dev/v1alpha1
+kind: Agent
+metadata:
+  name: cogito-gate
+  labels:
+    app.kubernetes.io/part-of: foreman
+    foreman.llmkube.dev/role: verifier
+spec:
+  role: verifier
+  tools:
+    - run_gate_job
+  requiredCapability:
+    roles:
+      - verifier
+    accelerator: cuda
+  maxRetries: 3
+  requestTimeoutSeconds: 3900
+---
+apiVersion: foreman.llmkube.dev/v1alpha1
+kind: Agent
+metadata:
+  name: cogito-reviewer
+  labels:
+    app.kubernetes.io/part-of: foreman
+    foreman.llmkube.dev/role: reviewer
+spec:
+  role: reviewer
+  model: qwen-3-8-fp8
+  inferenceServiceRef:
+    name: qwen-3-8-fp8
+  execution:
+    mode: Job
+    image: ghcr.io/defilantech/llmkube-foreman-agent-coder@sha256:70622d517f626d8e25cb6a5c1d4a70dc5803ceaddf4615ef6d0e371fb8a68ba9
+    serviceAccountName: foreman-coder
+    activeDeadlineSeconds: 3600
+  temperature: "0.3"
+  maxTurns: 60
+  maxRetries: 3
+  maxConcurrentTasks: 1
+  requestTurnTimeoutSeconds: 300
+  requestTimeoutSeconds: 3600
+  bashTimeoutSeconds: 300
+  openPullRequestsAsDraft: true
+  tools:
+    - read_file
+    - grep
+    - bash
+    - fetch_issue
+    - submit_result
+  requiredCapability:
+    accelerator: cuda
+  systemPrompt: |-
+    You independently review one Foreman branch against its GitHub issue.
+    Read the issue, repository instructions, complete diff, and relevant
+    surrounding code. Run focused checks when useful. Look for correctness,
+    regressions, missing tests, unsafe configuration, and unsupported claims.
+    Do not edit the branch. Call submit_result with GO only when the change is
+    coherent, scoped, tested, and ready to open as a draft pull request;
+    otherwise return NO-GO with specific actionable findings.
