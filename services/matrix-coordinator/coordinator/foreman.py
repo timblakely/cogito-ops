@@ -114,7 +114,9 @@ class ForemanClient:
                     "language": "generic",
                     "image": self.gate_image,
                     "sourceExtensions": [".py", ".yaml", ".yml", ".json", ".md"],
-                    "commands": {"lint": "git show --check --oneline HEAD"},
+                    "commands": {
+                        "lint": "git diff --check origin/main...HEAD -- ."
+                    },
                 },
             },
         }

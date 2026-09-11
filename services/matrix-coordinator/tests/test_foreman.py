@@ -21,6 +21,10 @@ class ForemanTests(unittest.TestCase):
         self.assertEqual(manifest["spec"]["maxReviewIterations"], 1)
         self.assertEqual(manifest["spec"]["gateProfile"]["language"], "generic")
         self.assertIn("@sha256:", manifest["spec"]["gateProfile"]["image"])
+        self.assertEqual(
+            manifest["spec"]["gateProfile"]["commands"]["lint"],
+            "git diff --check origin/main...HEAD -- .",
+        )
 
     def test_repository_and_issue_must_match(self):
         self.assertEqual(_repo_slug("https://github.com/O/R.git"), "O/R")
