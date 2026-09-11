@@ -527,9 +527,9 @@ coordination behavior.
 | M2.1–M2.6 | Argo chart, Garage key/item, SSO, policy, monitoring, templates commit | Complete |
 | M2.7 | Flux `daa83362e9a7`; `coordination-smoke-h4fj4` retried and succeeded with Garage artifacts/exit hook; `coordination-suspend-44c7r` resumed and succeeded; `coordination-cancel-6mkd4` terminated | Complete |
 | M3.1 | `919bda0c65f3`, `a95d5b1758f5`; Hookshot 7.4.4 Ready with persistent cryptostore, Redis, and Synapse MSC3202 transaction extensions | Complete |
-| M3.2 | App `4906005`, installation `160792836`; commits `65a9546b3813`, `5e555005aef7`, `28b42556afc6`, `77a1cbfe99d9`, and `96960c770749`; both ESO generators Ready and restricted to `cogito-ops`; issue #9 and PR #10 proved issue/PR/ref/check/merge permissions using a `ghs_` token and temporary branches; delivery `3842077238426075136` produced encrypted Matrix event `$0bEaL5T0dPUAbCD8roRge-GFKY5kjQ29Axagw3HE5Uo` in `#project-cogito` | Complete |
+| M3.2 | App `4906005`, installation `160792836`; commits `65a9546b3813` through `f3edd5510a49`; both ESO generators Ready and restricted to `cogito-ops`; issue #9 and PR #10 proved issue/PR/ref/check/merge permissions using a `ghs_` token and temporary branches; delivery `3842077238426075136` produced encrypted Matrix event `$0bEaL5T0dPUAbCD8roRge-GFKY5kjQ29Axagw3HE5Uo` in `#project-cogito` | Complete |
 | M3.7 | Physical locked-screen Wi-Fi, cellular/WireGuard, restart, and offline-replay acceptance remain | Pending |
-| M3.5 | `db2dc34e1dc9`; Hookshot grants `@agent-gitops` only `generic: manageConnections`; Tofu reconciled at the same revision and live Matrix state reported `join` for Hookshot in `#agent-control`, `#agent-alerts`, `#agent-plans`, `#agent-runs`, and `#project-cogito` | Complete |
+| M3.5 | `db2dc34e1dc9` and `96960c770749`; Hookshot grants `@agent-gitops` `manageConnections` only for generic and GitHub state; Tofu reconciled membership/power state and live Matrix state reported `join` for Hookshot in `#agent-control`, `#agent-alerts`, `#agent-plans`, `#agent-runs`, and `#project-cogito` | Complete |
 | M3.3–M3.4, M3.6 | maubot E2EE transport; signed public webhook delivery `3842042566967042000`; durable outbox Matrix event `$PhBeAAwjVMgbm61NJe-qiGxQKmv5CuUncXWjD06z5R0` | Complete |
 | M4.1–M4.2, M4.4, M4.7 | Coordinator domain/state/policy commit; replay, hash, actor, and budget tests | Complete |
 | M4.3, M4.5–M4.6, M4.8 | 28 service tests; GitHub issues #4/#5; `agent-run-5sjjh` succeeded and result recovered after coordinator restart; schema v4 backfill | Complete |
@@ -537,7 +537,7 @@ coordination behavior.
 | M5.2–M5.4 | Pi workflow `pi-production-ccxlr` at `2033197b`; OpenCode workflow `opencode-production-nr2dk` at `baf29363`; explicit refs and allowlists verified | Complete |
 | M5.5 | No DeepSeek-class seat is currently configured; provider-seat swap acceptance remains | Pending |
 | M5.6 | `artifact-manifest-smoke-29tds`: normalized verdict, path evidence, and SHA-256 log/patch artifacts survived controller restart with no artifact-GC finalizer | Complete |
-| M6.1–M6.7 | Durable delivery schema, native dependency API, queued bounded runs, PR/check/review/repair/merge reconciliation, exact-head approval, Matrix updates, and emergency stop; 40 tests | Complete |
+| M6.1–M6.7 | Durable delivery schema, native dependency API, queued bounded runs, PR/check/review/repair/merge reconciliation, exact-head approval, Matrix updates, and emergency stop; 42 tests | Complete |
 | M7.2–M7.3 | Parent issue #4; native sub-issues #5/#6 with dependency; Pi PR #7 and OpenCode PR #8 independently cross-reviewed, green, and merged | Complete |
 | M7.1, M7.4–M7.7 | Physical Commet acceptance, higher-risk approval, recovery/failure exercises, and restore audit remain | Pending |
 | M7.5 partial | Coordinator schema v5 survived rollouts with one plan/two work items; Argo controller restart retained `artifact-manifest-smoke-29tds`; live webhook redelivery is blocked by the current CLI token lacking `admin:repo_hook` | Partial |
