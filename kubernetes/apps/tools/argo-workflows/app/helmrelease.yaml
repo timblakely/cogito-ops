@@ -41,7 +41,7 @@ spec:
           workflows.argoproj.io/rbac-rule-precedence: "0"
       rbac:
         create: true
-        artifactGC: true
+        artifactGC: false
     controller:
       parallelism: 4
       namespaceParallelism: 4
@@ -66,8 +66,10 @@ spec:
             strategy: OnWorkflowCompletion
             deleteDelayDuration: 10m
           artifactGC:
-            strategy: OnWorkflowDeletion
-            serviceAccountName: argo-workflow
+            # Preserve digest-addressed run evidence in Garage. The prior
+            # OnWorkflowDeletion policy left artifact-GC finalizers that made
+            # fulfilled workflows consume the controller parallelism budget.
+            strategy: Never
       metricsConfig:
         enabled: true
         secure: false

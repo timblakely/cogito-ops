@@ -2,6 +2,7 @@ import tempfile
 import unittest
 
 from coordinator.core import Coordinator
+from coordinator.deliveries import DeliveryCoordinator
 from coordinator.matrix import MatrixCoordinator
 from coordinator.models import ValidationError
 from coordinator.runs import RunCoordinator
@@ -29,6 +30,7 @@ class FakeArgo:
     def status(self, name): return {"status": {"phase": "Pending"}}
     def cancel(self, name): return {}
     def resume(self, name): return {}
+    def pause(self, name): return {}
 
 
 class MatrixTests(unittest.TestCase):
@@ -37,8 +39,9 @@ class MatrixTests(unittest.TestCase):
         self.state = StateStore(self.tmp.name)
         self.planner, self.issues, self.argo = FakePlanner(), FakeIssues(), FakeArgo()
         core = Coordinator(self.state, self.issues, {"@tim:matrix.example"})
+        runs = RunCoordinator(self.state, self.argo)
         self.matrix = MatrixCoordinator(
-            self.state, core, RunCoordinator(self.state, self.argo), self.planner,
+            self.state, core, runs, DeliveryCoordinator(self.state, runs, self.issues), self.planner,
             {"@tim:matrix.example"},
         )
         self.base = {
@@ -79,6 +82,13 @@ class MatrixTests(unittest.TestCase):
         value = self.event("$root", "!cogito help")
         value["sender"] = "@mallory:matrix.example"
         with self.assertRaises(ValidationError): self.matrix.handle(value)
+
+    def test_emergency_stop_is_durable(self):
+        result = self.matrix.handle(self.event("$stop", "!cogito stop"))
+        self.assertIn("Emergency stop active", result["actions"][0]["body"])
+        self.assertEqual(self.state.control("emergency_stop"), "true")
+        self.matrix.handle(self.event("$start", "!cogito start"))
+        self.assertEqual(self.state.control("emergency_stop"), "false")
 
 
 if __name__ == "__main__": unittest.main()

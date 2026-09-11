@@ -34,6 +34,9 @@ class FakeArgo:
     def resume(self, name):
         self.workflows[name]["status"] = {"phase": "Running"}
 
+    def pause(self, name):
+        self.workflows[name]["status"] = {"phase": "Pending", "message": "suspended"}
+
 
 class RunTests(unittest.TestCase):
     def setUp(self):
@@ -107,6 +110,13 @@ class RunTests(unittest.TestCase):
         self.runs.reconcile_once()
         self.assertEqual(self.state.run(self.run.run_id)["state"], "cancelled")
         self.runs.cancel(self.run.run_id)
+
+    def test_pause_and_resume(self):
+        self.runs.submit(self.run, "contract")
+        self.runs.pause(self.run.run_id)
+        self.assertEqual(self.state.run(self.run.run_id)["state"], "paused")
+        self.runs.resume(self.run.run_id)
+        self.assertEqual(self.state.run(self.run.run_id)["state"], "submitted")
 
     def test_reusing_run_id_with_changed_request_fails(self):
         self.runs.submit(self.run, "contract")

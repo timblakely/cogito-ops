@@ -10,7 +10,7 @@ from typing import Any, Iterator
 import json
 import time
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 DDL = """
 PRAGMA journal_mode=WAL;
@@ -85,6 +85,23 @@ CREATE TABLE IF NOT EXISTS runs (
   state TEXT NOT NULL,
   request_json TEXT NOT NULL,
   result_json TEXT
+);
+CREATE TABLE IF NOT EXISTS deliveries (
+  work_item_external_id TEXT PRIMARY KEY,
+  worker_run_id TEXT NOT NULL UNIQUE REFERENCES runs(run_id),
+  worker_harness TEXT NOT NULL,
+  state TEXT NOT NULL,
+  pull_request_url TEXT,
+  reviewer_run_id TEXT UNIQUE,
+  review_harness TEXT,
+  risk TEXT,
+  approved_head_sha TEXT,
+  merge_sha TEXT,
+  repair_attempts INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS controls (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS external_actions (
   action_key TEXT PRIMARY KEY,
@@ -233,6 +250,51 @@ class StateStore:
                 "UPDATE runs SET state=?,result_json=COALESCE(?,result_json) WHERE run_id=?",
                 (state, encoded, run_id),
             )
+
+    def register_delivery(self, work_item: str, run_id: str, harness: str) -> bool:
+        with self.transaction() as db:
+            result = db.execute(
+                "INSERT OR IGNORE INTO deliveries(work_item_external_id,worker_run_id,worker_harness,state) "
+                "VALUES (?,?,?,'worker_running')", (work_item, run_id, harness),
+            )
+            return result.rowcount == 1
+
+    def deliveries(self):
+        with self.lock:
+            return self.db.execute(
+                "SELECT * FROM deliveries WHERE state NOT IN ('merged','cancelled','failed') "
+                "ORDER BY work_item_external_id"
+            ).fetchall()
+
+    def delivery_for_run(self, run_id: str):
+        with self.lock:
+            return self.db.execute(
+                "SELECT * FROM deliveries WHERE worker_run_id=? OR reviewer_run_id=?",
+                (run_id, run_id),
+            ).fetchone()
+
+    def update_delivery(self, work_item: str, **values: Any) -> None:
+        allowed = {"state", "worker_run_id", "worker_harness", "pull_request_url",
+                   "reviewer_run_id", "review_harness",
+                   "risk", "approved_head_sha", "merge_sha", "repair_attempts"}
+        if not values or set(values) - allowed:
+            raise ValueError("invalid delivery update")
+        assignments = ",".join(f"{key}=?" for key in values)
+        with self.transaction() as db:
+            db.execute(f"UPDATE deliveries SET {assignments} WHERE work_item_external_id=?",
+                       (*values.values(), work_item))
+
+    def set_control(self, key: str, value: str) -> None:
+        if key not in {"emergency_stop"}:
+            raise ValueError("unknown control")
+        with self.transaction() as db:
+            db.execute("INSERT INTO controls VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                       (key, value))
+
+    def control(self, key: str, default: str = "") -> str:
+        with self.lock:
+            row = self.db.execute("SELECT value FROM controls WHERE key=?", (key,)).fetchone()
+            return row[0] if row else default
 
     def register_work_items(self, plan_id: str, parent: str, children: list[str]) -> None:
         with self.transaction() as db:

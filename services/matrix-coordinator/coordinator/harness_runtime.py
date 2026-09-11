@@ -146,6 +146,26 @@ def harness_argv(kind: str, run: AgentRun) -> tuple[list[str], dict[str, str]]:
     raise ValueError(f"unknown harness {kind}")
 
 
+def normalized_output(kind: str, output: str) -> tuple[str, dict]:
+    """Extract a concise summary and usage from supported harness output."""
+    if kind != "opencode":
+        return output[-4000:], {}
+    texts, usage = [], {}
+    for line in output.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        part = event.get("part", {})
+        if event.get("type") == "text" and isinstance(part.get("text"), str):
+            texts.append(part["text"].strip())
+        tokens = part.get("tokens")
+        if event.get("type") == "step_finish" and isinstance(tokens, dict):
+            usage = {f"{key}_tokens": value for key, value in tokens.items()
+                     if key in {"input", "output", "reasoning"} and isinstance(value, int)}
+    return (texts[-1] if texts else output[-4000:]), usage
+
+
 def start(kind: str, request: dict) -> dict:
     run = AgentRun.from_dict(request)
     skip_workspace = os.environ.get("COGITO_SKIP_WORKSPACE") == "1"
@@ -159,24 +179,51 @@ def start(kind: str, request: dict) -> dict:
     log = completed.stdout + ("\n[stderr]\n" + completed.stderr if completed.stderr else "")
     digest = "sha256:" + sha256(log.encode()).hexdigest()
     head, branch = (None, None)
+    changed_paths: list[str] = []
     error = None
     if completed.returncode == 0 and not skip_workspace:
         try:
-            head, branch = workspace.publish()
+            changed_paths = workspace.verify_paths()
+            if run.role.startswith("reviewer"):
+                if changed_paths:
+                    raise RuntimeError("reviewer modified the workspace")
+                head = workspace.base_sha
+            else:
+                head, branch = workspace.publish()
         except Exception as exc:
             error = str(exc)
     status = "succeeded" if completed.returncode == 0 and error is None else "failed"
+    summary, harness_usage = normalized_output(kind, completed.stdout)
+    review_verdict = None
+    if run.role.startswith("reviewer") and status == "succeeded":
+        match = re.search(r"COGITO_REVIEW:\s*(APPROVE|REQUEST_CHANGES)\b", summary, re.IGNORECASE)
+        if not match:
+            status, error = "failed", "reviewer did not emit a COGITO_REVIEW verdict"
+        else:
+            review_verdict = match.group(1).lower()
+            if review_verdict == "request_changes":
+                status = "failed"
     if not skip_workspace:
         (workspace.artifacts / "harness.log").write_text(log)
+        if head:
+            patch = _run(["git", "diff", "--binary", workspace.base_sha, head], workspace.repo,
+                         capture_output=True).stdout
+            (workspace.artifacts / "changes.patch").write_text(patch)
         result_path = workspace.artifacts / "result.json"
-    summary = error or completed.stdout[-4000:] or completed.stderr[-4000:] or f"{kind} exited {completed.returncode}"
+    summary = error or summary or completed.stderr[-4000:] or f"{kind} exited {completed.returncode}"
+    artifacts = [{"name": "harness.log", "digest": digest}]
+    if not skip_workspace and head:
+        artifacts.append({"name": "changes.patch", "digest": "sha256:" + sha256(patch.encode()).hexdigest()})
+    usage = {"role": run.role, "harness": kind, "changed_paths": changed_paths, **harness_usage}
+    if review_verdict:
+        usage["review_verdict"] = review_verdict
     result = {
         "api_version": run.api_version, "run_id": run.run_id, "status": status,
         "summary": summary, "head_sha": head,
         "checks": [{"name": "harness exit", "status": "passed" if completed.returncode == 0 else "failed"},
                    {"name": "allowed paths", "status": "passed" if error is None else "failed"}],
-        "artifacts": [{"name": "harness.log", "digest": digest}],
-        "usage": {"role": run.role, "harness": kind},
+        "artifacts": artifacts,
+        "usage": usage,
     }
     if branch:
         result["usage"]["published_ref"] = f"refs/heads/{branch}"

@@ -82,3 +82,6 @@ class ArgoClient:
 
     def resume(self, name: str) -> dict:
         return self.patch(name, {"spec": {"suspend": False}})
+
+    def pause(self, name: str) -> dict:
+        return self.patch(name, {"spec": {"suspend": True}})

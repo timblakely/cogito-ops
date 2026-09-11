@@ -13,6 +13,7 @@ import time
 
 from .argo import ArgoClient
 from .core import Coordinator
+from .deliveries import DeliveryCoordinator
 from .github import GitHubIssues
 from .models import AgentRun, Approval, PlanVersion, ValidationError
 from .matrix import MatrixCoordinator
@@ -29,14 +30,18 @@ class App:
         self.state = StateStore(os.environ.get("COORDINATOR_STATE_PATH", "/data/coordinator.sqlite3"))
         self.argo = ArgoClient(namespace=os.environ.get("ARGO_NAMESPACE", "tools"))
         self.runs = RunCoordinator(self.state, self.argo)
+        self.github = GitHubIssues(os.environ["GITHUB_TOKEN"])
         self.coordinator = Coordinator(
-            self.state, GitHubIssues(os.environ["GITHUB_TOKEN"]),
+            self.state, self.github,
             set(filter(None, os.environ.get("MATRIX_APPROVERS", "").split(","))),
         )
+        self.deliveries = DeliveryCoordinator(
+            self.state, self.runs, self.github,
+            tuple(filter(None, os.environ.get("COGITO_REVIEW_HARNESSES", "opencode,pi").split(","))))
         planner_fallbacks = tuple(filter(None, os.environ.get(
             "PLANNER_FALLBACK_MODELS", "planner-gpt,planner-gpt-pro,planner-local").split(",")))
         self.matrix = MatrixCoordinator(
-            self.state, self.coordinator, self.runs,
+            self.state, self.coordinator, self.runs, self.deliveries,
             PlannerClient(os.environ["LITELLM_PLANNER_API_KEY"],
                           os.environ.get("LITELLM_BASE_URL", "https://litellm.timblakely.com/v1"),
                           os.environ.get("PLANNER_MODEL", "planner"), planner_fallbacks),
@@ -105,6 +110,7 @@ class App:
         while True:
             try:
                 self.runs.reconcile_once()
+                self.deliveries.reconcile_once()
                 self.coordinator.reconcile_github()
             except Exception as exc:
                 print(json.dumps({"component": "reconciler", "error": type(exc).__name__,

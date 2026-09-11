@@ -14,6 +14,7 @@ class ArgoPort(Protocol):
     def find_run(self, run_id: str) -> str | None: ...
     def status(self, name: str) -> dict: ...
     def cancel(self, name: str) -> dict: ...
+    def pause(self, name: str) -> dict: ...
     def resume(self, name: str) -> dict: ...
 
 
@@ -83,7 +84,7 @@ class RunCoordinator:
                 state = "running" if phase == "Running" else row["state"]
                 if state != row["state"]:
                     self.state.update_run(row["run_id"], state)
-            if state in {"succeeded", "failed", "cancelled"} and state != row["state"]:
+            if state in {"succeeded", "failed", "cancelled", "needs_input"} and state != row["state"]:
                 context = self.state.work_item_context(row["work_item_external_id"])
                 if context:
                     self.state.enqueue_matrix(
@@ -109,3 +110,12 @@ class RunCoordinator:
             raise ValidationError("unknown run")
         self.argo.resume(row["argo_name"])
         self.state.update_run(run_id, "submitted")
+
+    def pause(self, run_id: str) -> None:
+        row = self.state.run(run_id)
+        if not row or not row["argo_name"]:
+            raise ValidationError("unknown run")
+        if row["state"] in {"succeeded", "failed", "cancelled", "needs_input"}:
+            raise ValidationError("completed run cannot be paused")
+        self.argo.pause(row["argo_name"])
+        self.state.update_run(run_id, "paused")

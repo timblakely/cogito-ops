@@ -9,6 +9,7 @@ from typing import Any
 import re
 
 from .core import Coordinator
+from .deliveries import DeliveryCoordinator
 from .models import AgentRun, Approval, PlanVersion, ValidationError, canonical_json
 from .planner import PlannerClient
 from .runs import RunCoordinator
@@ -43,9 +44,10 @@ class MatrixEvent:
 
 class MatrixCoordinator:
     def __init__(self, state: StateStore, core: Coordinator, runs: RunCoordinator,
-                 planner: PlannerClient, allowed_senders: set[str],
+                 deliveries: DeliveryCoordinator, planner: PlannerClient, allowed_senders: set[str],
                  worker_harnesses: tuple[str, ...] = ("pi", "opencode")):
-        self.state, self.core, self.runs, self.planner = state, core, runs, planner
+        self.state, self.core, self.runs, self.deliveries, self.planner = (
+            state, core, runs, deliveries, planner)
         self.allowed_senders = frozenset(allowed_senders)
         self.worker_harnesses = worker_harnesses
         if not worker_harnesses or set(worker_harnesses) - {"pi", "opencode", "contract"}:
@@ -117,6 +119,8 @@ class MatrixCoordinator:
                 f"Plan hash: `{plan.hash}`\n\nApprove this exact version with "
                 f"`!cogito approve {plan.hash}`.", root)
         if command == "approve":
+            if self.state.control("emergency_stop", "false") == "true":
+                raise ValidationError("coordinator emergency stop is active")
             row = self._thread_plan(event)
             digest = argument.strip()
             if not HASH.fullmatch(digest):
@@ -127,7 +131,7 @@ class MatrixCoordinator:
             for index, child in enumerate(children):
                 run_id = "delivery-" + sha256(f"{digest}:{child}".encode()).hexdigest()[:20]
                 harness = self.worker_harnesses[index % len(self.worker_harnesses)]
-                name = self.runs.submit(AgentRun(
+                run = AgentRun(
                     run_id=run_id, work_item=child, role="worker", repository=row["repository"],
                     base_ref="main",
                     objective=f"Implement and verify the accepted deliverable tracked by {child}.",
@@ -136,7 +140,9 @@ class MatrixCoordinator:
                     context={"plan_hash": digest, "matrix_thread": root,
                              "parent_issue": parent},
                     limits={"attempts": 2, "wall_seconds": 3600, "token_budget": 200000},
-                ), harness)
+                )
+                name = self.runs.submit(run, harness)
+                self.deliveries.register(run, harness)
                 dispatched.append((run_id, name, harness))
             links = "\n".join(f"- {child}" for child in children)
             run_links = "\n".join(
@@ -144,10 +150,28 @@ class MatrixCoordinator:
             return self._message(
                 f"Plan accepted at `{digest}`.\n\nParent issue: {parent}\n\nDeliverables:\n{links}"
                 f"\n\nDispatched runs:\n{run_links}", root)
-        if command in {"cancel", "resume"}:
+        if command in {"cancel", "pause", "resume"}:
             run_id = argument.strip()
             getattr(self.runs, command)(run_id)
             return self._message(f"Run `{run_id}` {command} requested.", root)
+        if command == "stop":
+            self.state.set_control("emergency_stop", "true")
+            cancelled = 0
+            for row in self.state.active_runs():
+                self.runs.cancel(row["run_id"])
+                cancelled += 1
+            self.state.audit(event.sender, "coordinator.stopped", "global", {"cancelled": cancelled})
+            return self._message(f"Emergency stop active; cancellation requested for {cancelled} runs.", root)
+        if command == "start":
+            self.state.set_control("emergency_stop", "false")
+            self.state.audit(event.sender, "coordinator.started", "global", {})
+            return self._message("Emergency stop cleared; reconciliation resumed.", root)
+        if command == "merge":
+            run_id, separator, head_sha = argument.strip().partition(" ")
+            if not separator:
+                raise ValidationError("usage: !cogito merge <worker-run-id> <head-sha>")
+            self.deliveries.approve_merge(run_id, head_sha.strip())
+            return self._message(f"Merge approved for `{run_id}` at `{head_sha.strip()}`.", root)
         if command == "status":
             run_id = argument.strip()
             row = self.state.run(run_id)
@@ -158,6 +182,6 @@ class MatrixCoordinator:
         if command in {"help", ""}:
             return self._message(
                 "Commands: `plan <objective>`, `revise`, `approve <hash>`, "
-                "`status <run>`, `cancel <run>`, `resume <run>`. "
+                "`status <run>`, `cancel|pause|resume <run>`, `merge <run> <sha>`, `stop`, `start`. "
                 "Review comments begin with `>>`.", root)
         raise ValidationError("unknown !cogito command")

@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 import json
 
-from coordinator.harness_runtime import Workspace, harness_argv
+from coordinator.harness_runtime import Workspace, harness_argv, normalized_output
 from coordinator.models import AgentRun
 
 
@@ -70,6 +70,16 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(provider["baseUrl"], "http://litellm.test/v1")
         self.assertEqual(provider["apiKey"], "OPENAI_API_KEY")
         self.assertNotIn("do-not-write-me", json.dumps(config))
+
+    def test_opencode_output_is_reduced_to_final_text_and_usage(self):
+        output = "\n".join((
+            json.dumps({"type": "text", "part": {"text": "done"}}),
+            json.dumps({"type": "step_finish", "part": {
+                "tokens": {"input": 12, "output": 3, "reasoning": 1, "total": 16}}}),
+        ))
+        summary, usage = normalized_output("opencode", output)
+        self.assertEqual(summary, "done")
+        self.assertEqual(usage, {"input_tokens": 12, "output_tokens": 3, "reasoning_tokens": 1})
 
 
 if __name__ == "__main__":
