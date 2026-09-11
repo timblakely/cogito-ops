@@ -275,9 +275,10 @@ The coordinator submits a versioned JSON document. The first schema is:
 }
 ```
 
-Every adapter implements `capabilities`, `start`, `status`, `cancel`, `resume`,
-and `collect-result`. It accepts the same request on stdin or at a mounted path
-and emits a normalized result:
+Every adapter implements `capabilities` and `start`, accepts the same request on
+stdin or at a mounted path, and emits a normalized result. Argo implements
+`status`, `cancel`, `pause`, `resume`, retry, and result collection so harnesses
+do not duplicate durable lifecycle behavior:
 
 ```json
 {
@@ -371,10 +372,10 @@ is usable as the controlling checklist.
   `coordinator-heavy` only as a documented compatibility alias.
 - [x] **M1.2** Add a planner virtual key and 1Password `PushSecret`; restrict it
   to planner aliases with explicit budget and rate limits.
-- [ ] **M1.3** Narrow coordinator credentials to coordinator duties and replace
+- [x] **M1.3** Narrow coordinator credentials to coordinator duties and replace
   unscoped Pi/Hermes access used by this workflow.
 - [x] **M1.4** Extend catalogue validation, metrics, dashboards, and role docs.
-- [ ] **M1.5** Add planner/coordinator consumer configuration for supported
+- [x] **M1.5** Add planner/coordinator consumer configuration for supported
   harnesses without embedding provider model names.
 - [ ] **M1.6** Reconcile LiteLLM and prove authenticated planner, coordinator,
   worker, and reviewer smoke calls plus spend attribution.
@@ -444,10 +445,10 @@ state, and an obsolete approval cannot launch work.
 
 - [x] **M5.1** Publish the versioned adapter protocol, JSON Schema, fixtures,
   conformance runner, and normalized result format.
-- [ ] **M5.2** Implement the shared Git/Jujutsu workspace initializer and safe
+- [x] **M5.2** Implement the shared Git/Jujutsu workspace initializer and safe
   explicit-ref publication.
-- [ ] **M5.3** Implement and pass conformance for the Pi adapter.
-- [ ] **M5.4** Implement and pass conformance for the OpenCode adapter.
+- [x] **M5.3** Implement and pass conformance for the Pi adapter.
+- [x] **M5.4** Implement and pass conformance for the OpenCode adapter.
 - [ ] **M5.5** Prove a backing-model/provider swap, including a DeepSeek-class
   model where available, without changing the run contract.
 - [ ] **M5.6** Store logs, patches, checks, usage, and result manifests as
@@ -458,19 +459,19 @@ change requires only LiteLLM configuration.
 
 ### M6 — Autonomous delivery loop
 
-- [ ] **M6.1** Decompose an approved issue into dependency-linked sub-issues and
+- [x] **M6.1** Decompose an approved issue into dependency-linked sub-issues and
   bounded parallel runs.
-- [ ] **M6.2** Dispatch workers, observe progress, classify failures, and retry
+- [x] **M6.2** Dispatch workers, observe progress, classify failures, and retry
   transient errors without human action.
-- [ ] **M6.3** Require independent review, escalate only with evidence, and run
+- [x] **M6.3** Require independent review, escalate only with evidence, and run
   bounded repair cycles.
-- [ ] **M6.4** Create/link PRs, collect CI and review state, and reconcile issue
+- [x] **M6.4** Create/link PRs, collect CI and review state, and reconcile issue
   acceptance criteria.
-- [ ] **M6.5** Implement autonomous low-risk merge and revision-bound Matrix
+- [x] **M6.5** Implement autonomous low-risk merge and revision-bound Matrix
   approval for higher-risk merges.
-- [ ] **M6.6** Post concise plan/work/run/PR status, intervention cards, and final
+- [x] **M6.6** Post concise plan/work/run/PR status, intervention cards, and final
   reports in their correct Matrix threads.
-- [ ] **M6.7** Enforce cancellation, emergency stop, concurrency, and aggregate
+- [x] **M6.7** Enforce cancellation, emergency stop, concurrency, and aggregate
   spend limits across active workflows.
 
 Acceptance: routine delivery proceeds from plan approval to merged PRs and
@@ -480,9 +481,9 @@ closed sub-issues without manual relay between systems.
 
 - [ ] **M7.1** Start a real request in Commet, review inline, revise the plan,
   and approve its exact Matrix version.
-- [ ] **M7.2** Verify creation of the parent issue, native sub-issues,
+- [x] **M7.2** Verify creation of the parent issue, native sub-issues,
   dependencies, accepted-plan hash, and Matrix backlinks.
-- [ ] **M7.3** Deliver multiple PRs using at least one Pi run and one OpenCode
+- [x] **M7.3** Deliver multiple PRs using at least one Pi run and one OpenCode
   run, with independent reviews and recorded checks.
 - [ ] **M7.4** Exercise autonomous low-risk merge and a higher-risk Android
   approval while the phone is locked and remote through WireGuard.
@@ -499,13 +500,13 @@ completion.
 
 ### M8 — Cutover and operations
 
-- [ ] **M8.1** Make the Matrix coordinator the documented default entrypoint and
+- [x] **M8.1** Make the Matrix coordinator the documented default entrypoint and
   publish the operator/user runbook.
 - [ ] **M8.2** Disable the old plan-PR trigger and `workflow/plan-approved` label;
   archive prototype plan PR #1 with replacement links.
 - [ ] **M8.3** Observe a rollback window, then remove the old Pi-owned workflow
   coordinator while retaining the Pi harness adapter.
-- [ ] **M8.4** Document upgrade, credential rotation, backup/restore, incident,
+- [x] **M8.4** Document upgrade, credential rotation, backup/restore, incident,
   disaster recovery, and complete-disable procedures.
 - [ ] **M8.5** Run manifest/schema/policy tests, Flux reconciliation, live-state
   checks, and a final acceptance workflow from Commet.
@@ -521,7 +522,8 @@ coordination behavior.
 | M0.1–M0.2 | Initial commit of this document | Complete |
 | M0.3 | `2c366c235731f2289211ffc7abf32319e8f0993f` on `origin/main` | Complete |
 | M1.1–M1.2, M1.4 | Planner alias/key, exact-scope validator, and dashboard commit | Complete |
-| M1.3, M1.5–M1.6 | Pending | Pending |
+| M1.3, M1.5 | Dedicated planner/worker/reviewer keys; deterministic coordinator; role-only Pi/OpenCode consumer configuration | Complete |
+| M1.6 | Coordinator-role smoke and complete spend-attribution audit remain | Pending |
 | M2.1–M2.6 | Argo chart, Garage key/item, SSO, policy, monitoring, templates commit | Complete |
 | M2.7 | Flux `daa83362e9a7`; `coordination-smoke-h4fj4` retried and succeeded with Garage artifacts/exit hook; `coordination-suspend-44c7r` resumed and succeeded; `coordination-cancel-6mkd4` terminated | Complete |
 | M3.1 | `919bda0c65f3`, `a95d5b1758f5`; Hookshot 7.4.4 Ready with persistent cryptostore, Redis, and Synapse MSC3202 transaction extensions | Complete |
@@ -530,10 +532,13 @@ coordination behavior.
 | M4.1–M4.2, M4.4, M4.7 | Coordinator domain/state/policy commit; replay, hash, actor, and budget tests | Complete |
 | M4.3, M4.5–M4.6, M4.8 | 28 service tests; GitHub issues #4/#5; `agent-run-5sjjh` succeeded and result recovered after coordinator restart; schema v4 backfill | Complete |
 | M5.1 | Versioned JSON schemas, command boundary, fixture and conformance runner | Complete |
-| M5.2–M5.6 | Pending | Pending |
-| M6 | Pending | Pending |
-| M7 | Pending | Pending |
-| M8 | Pending | Pending |
+| M5.2–M5.4 | Pi workflow `pi-production-ccxlr` at `2033197b`; OpenCode workflow `opencode-production-nr2dk` at `baf29363`; explicit refs and allowlists verified | Complete |
+| M5.5–M5.6 | Provider-seat swap and final artifact-manifest smoke remain | Pending |
+| M6.1–M6.7 | Durable delivery schema, native dependency API, queued bounded runs, PR/check/review/repair/merge reconciliation, exact-head approval, Matrix updates, and emergency stop; 40 tests | Complete |
+| M7.2–M7.3 | Parent issue #4; native sub-issues #5/#6 with dependency; Pi PR #7 and OpenCode PR #8 independently cross-reviewed, green, and merged | Complete |
+| M7.1, M7.4–M7.7 | Physical Commet acceptance, higher-risk approval, recovery/failure exercises, and restore audit remain | Pending |
+| M8.1, M8.4 | `services/matrix-coordinator/RUNBOOK.md` | Complete |
+| M8.2–M8.3, M8.5 | Await final cutover acceptance and rollback window | Pending |
 
 ## Component choices and escape hatches
 
