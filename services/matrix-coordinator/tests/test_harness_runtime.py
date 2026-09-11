@@ -4,8 +4,9 @@ import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
+import json
 
-from coordinator.harness_runtime import Workspace
+from coordinator.harness_runtime import Workspace, harness_argv
 from coordinator.models import AgentRun
 
 
@@ -55,6 +56,20 @@ class WorkspaceTests(unittest.TestCase):
         (workspace.repo / "outside.txt").write_text("no\n")
         with self.assertRaisesRegex(RuntimeError, "outside allowlist"):
             workspace.publish()
+
+    def test_pi_uses_litellm_custom_provider_without_persisting_secret(self):
+        home = Path(self.tmp.name) / "home"
+        with patch.dict(os.environ, {
+            "HOME": str(home), "OPENAI_BASE_URL": "http://litellm.test/v1",
+            "OPENAI_API_KEY": "do-not-write-me",
+        }, clear=False):
+            argv, _ = harness_argv("pi", self.run)
+        self.assertIn("litellm", argv)
+        config = json.loads((home / ".pi" / "agent" / "models.json").read_text())
+        provider = config["providers"]["litellm"]
+        self.assertEqual(provider["baseUrl"], "http://litellm.test/v1")
+        self.assertEqual(provider["apiKey"], "OPENAI_API_KEY")
+        self.assertNotIn("do-not-write-me", json.dumps(config))
 
 
 if __name__ == "__main__":

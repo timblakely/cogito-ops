@@ -98,12 +98,39 @@ def prompt(run: AgentRun) -> str:
     return "\n\n".join(sections)
 
 
+def configure_pi(role_model: str, env: dict[str, str]) -> None:
+    """Configure Pi's documented OpenAI-compatible custom provider."""
+    home = Path(env.get("HOME", "/tmp/agent-home"))
+    agent_dir = home / ".pi" / "agent"
+    agent_dir.mkdir(parents=True, mode=0o700)
+    config = {
+        "providers": {
+            "litellm": {
+                "baseUrl": env.get("OPENAI_BASE_URL", "https://litellm.timblakely.com/v1"),
+                "api": "openai-completions",
+                # Pi resolves this value from the environment at request time.
+                "apiKey": "OPENAI_API_KEY",
+                "authHeader": True,
+                "compat": {
+                    "supportsDeveloperRole": False,
+                    "supportsReasoningEffort": False,
+                },
+                "models": [{"id": role_model, "name": role_model}],
+            }
+        }
+    }
+    path = agent_dir / "models.json"
+    path.write_text(canonical_json(config))
+    path.chmod(0o600)
+
+
 def harness_argv(kind: str, run: AgentRun) -> tuple[list[str], dict[str, str]]:
     role_model = os.environ.get(f"COGITO_MODEL_FOR_{run.role.upper().replace('-', '_')}", run.role)
     env = dict(os.environ)
     if kind == "pi":
+        configure_pi(role_model, env)
         command = shlex.split(os.environ.get("PI_COMMAND", "pi"))
-        return [*command, "--print", "--no-session", "--provider", "openai",
+        return [*command, "--print", "--no-session", "--provider", "litellm",
                 "--model", role_model, prompt(run)], env
     if kind == "opencode":
         command = shlex.split(os.environ.get("OPENCODE_COMMAND", "opencode"))

@@ -71,7 +71,7 @@ class RunCoordinator:
             phase = workflow.get("status", {}).get("phase", "Pending")
             if phase == "Succeeded":
                 result = self._result(workflow, row["run_id"])
-                state = "succeeded"
+                state = result.status
                 self.state.update_run(row["run_id"], state, result.as_dict())
                 self.state.audit("argo", "run.completed", row["run_id"], result.as_dict())
             elif phase in {"Failed", "Error"}:
