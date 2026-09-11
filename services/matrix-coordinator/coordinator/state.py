@@ -10,7 +10,7 @@ from typing import Any, Iterator
 import json
 import time
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 DDL = """
 PRAGMA journal_mode=WAL;
@@ -120,6 +120,19 @@ class StateStore:
             "INSERT OR IGNORE INTO migrations(version, applied_at) VALUES (?, ?)",
             (SCHEMA_VERSION, int(time.time())),
         )
+        self._backfill_work_items()
+
+    def _backfill_work_items(self) -> None:
+        """Recover issue hierarchy created before work-item persistence existed."""
+        rows = self.db.execute(
+            "SELECT request_json,result_json FROM external_actions "
+            "WHERE kind='github.create-plan' AND state='complete' AND result_json IS NOT NULL"
+        ).fetchall()
+        for row in rows:
+            request, result = json.loads(row["request_json"]), json.loads(row["result_json"])
+            plan_id = request.get("plan_id")
+            if plan_id and result.get("parent"):
+                self.register_work_items(plan_id, result["parent"], result.get("children", []))
 
     @contextmanager
     def transaction(self) -> Iterator[Connection]:

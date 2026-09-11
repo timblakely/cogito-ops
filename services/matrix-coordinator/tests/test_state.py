@@ -32,6 +32,24 @@ class StateTests(unittest.TestCase):
         with self.assertRaises(sqlite3.IntegrityError):
             self.state.db.execute("DELETE FROM audit_events WHERE sequence=?", (sequence,))
 
+    def test_restart_backfills_legacy_issue_hierarchy(self):
+        with self.state.transaction() as db:
+            db.execute(
+                "INSERT INTO plans(plan_id,state,repository,matrix_room_id,root_event_id,current_version) "
+                "VALUES (?,?,?,?,?,?)",
+                ("legacy-plan", "review", "https://github.com/o/r.git", "!r:x", "$root", 1),
+            )
+        self.state.begin_action("legacy", "github.create-plan", {"plan_id": "legacy-plan"})
+        self.state.complete_action("legacy", {
+            "parent": "https://github.com/o/r/issues/1",
+            "children": ["https://github.com/o/r/issues/2"],
+        })
+        path = self.tmp.name
+        self.state.close()
+        self.state = StateStore(path)
+        self.assertIsNotNone(self.state.work_item_context("https://github.com/o/r/issues/1"))
+        self.assertIsNotNone(self.state.work_item_context("https://github.com/o/r/issues/2"))
+
 
 if __name__ == "__main__":
     unittest.main()
