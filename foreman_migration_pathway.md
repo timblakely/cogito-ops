@@ -145,12 +145,10 @@ Implementation evidence (2026-09-11): LLMKube and Foreman 0.9.25 reconciled
 Ready; all three Cogito Agent CRs validated; a FleetNode registered on `iggy`; and
 documentation issue #21 completed as Workload `foreman-acceptance-21-v5` with
 coder `GO`, deterministic `GATE-PASS`, reviewer `GO`, and draft PR #22. The
-retired Argo Flux applications and their managed resources were removed. The
-remaining unchecked items deliberately require a normal plan initiated in
-Commet and Tim's manual GitHub merge; the direct Workload acceptance does not
-pretend to cover that human boundary. Eight inactive Argo CRDs remain pending
-explicit approval because deleting them also destroys the terminal workflow
-history stored in those APIs.
+retired Argo Flux applications, managed resources, CRDs, and terminal workflow
+history were removed. The remaining unchecked items deliberately require a
+normal plan initiated in Commet and Tim's manual GitHub merge; the direct
+Workload acceptance does not pretend to cover that human boundary.
 
 ### F1 — Pin and install the upstream control plane
 
