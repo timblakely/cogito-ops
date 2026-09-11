@@ -23,7 +23,7 @@ class ForemanTests(unittest.TestCase):
         self.assertIn("@sha256:", manifest["spec"]["gateProfile"]["image"])
         self.assertEqual(
             manifest["spec"]["gateProfile"]["commands"]["lint"],
-            "git diff --check origin/main...HEAD -- .",
+            "git diff --check HEAD^ HEAD -- .",
         )
 
     def test_repository_and_issue_must_match(self):
