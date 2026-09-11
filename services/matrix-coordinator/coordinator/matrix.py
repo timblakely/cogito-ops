@@ -183,11 +183,24 @@ class MatrixCoordinator:
             self.state.audit(event.sender, "coordinator.started", "global", {})
             return self._message("Emergency stop cleared; reconciliation resumed.", root)
         if command == "merge":
-            run_id, separator, head_sha = argument.strip().partition(" ")
-            if not separator:
-                raise ValidationError("usage: !cogito merge <worker-run-id> <head-sha>")
+            explicit = argument.strip()
+            if explicit:
+                run_id, separator, head_sha = explicit.partition(" ")
+                if not separator:
+                    raise ValidationError("usage: !cogito merge")
+                head_sha = head_sha.strip()
+            else:
+                pending = self.state.awaiting_merges_for_thread(event.room_id, root)
+                if not pending:
+                    raise ValidationError("this thread has no change awaiting merge approval")
+                if len(pending) > 1:
+                    raise ValidationError(
+                        "multiple changes await approval in this thread; use the approval card"
+                    )
+                run_id = pending[0]["worker_run_id"]
+                head_sha = pending[0]["approved_head_sha"]
             self.deliveries.approve_merge(run_id, head_sha.strip())
-            return self._message(f"Merge approved for `{run_id}` at `{head_sha.strip()}`.", root)
+            return self._message("Merge approved.", root)
         if command == "status":
             run_id = argument.strip()
             row = self.state.run(run_id)
@@ -198,6 +211,6 @@ class MatrixCoordinator:
         if command in {"help", ""}:
             return self._message(
                 "Commands: `plan <objective>`, `revise`, `approve [hash]`, "
-                "`status <run>`, `cancel|pause|resume <run>`, `merge <run> <sha>`, `stop`, `start`. "
+                "`status <run>`, `cancel|pause|resume <run>`, `merge`, `stop`, `start`. "
                 "Ordinary replies in a plan thread are review comments.", root)
         raise ValidationError("unknown !cogito command")

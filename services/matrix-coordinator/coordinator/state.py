@@ -295,6 +295,17 @@ class StateStore:
                 (run_id, run_id),
             ).fetchone()
 
+    def awaiting_merges_for_thread(self, room_id: str, root_event_id: str):
+        with self.lock:
+            return self.db.execute(
+                "SELECT d.* FROM deliveries d "
+                "JOIN work_items w ON w.external_id=d.work_item_external_id "
+                "JOIN plans p ON p.plan_id=w.plan_id "
+                "WHERE p.matrix_room_id=? AND p.root_event_id=? "
+                "AND d.state='awaiting_approval' ORDER BY d.work_item_external_id",
+                (room_id, root_event_id),
+            ).fetchall()
+
     def update_delivery(self, work_item: str, **values: Any) -> None:
         allowed = {"state", "worker_run_id", "worker_harness", "pull_request_url",
                    "reviewer_run_id", "review_harness",

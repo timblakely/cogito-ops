@@ -92,6 +92,25 @@ class MatrixTests(unittest.TestCase):
         with self.assertRaisesRegex(ValidationError, "plan changed"):
             self.matrix.handle(self.event("$approve", "!cogito approve", "$root"))
 
+    def test_thread_merge_resolves_pending_delivery_and_reviewed_head(self):
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        approval = self.event("$approve", "!cogito approve", "$root")
+        approval["timestamp"] = "2099-01-01T00:00:00Z"
+        self.matrix.handle(approval)
+        run_id = self.state.active_runs()[0]["run_id"]
+        head_sha = "a" * 40
+        delivery = self.state.delivery_for_run(run_id)
+        self.state.update_delivery(
+            delivery["work_item_external_id"],
+            state="awaiting_approval",
+            approved_head_sha=head_sha,
+        )
+
+        result = self.matrix.handle(self.event("$merge", "!cogito merge", "$root"))
+
+        self.assertEqual(result["actions"][0]["body"], "Merge approved.")
+        self.assertEqual(self.state.delivery_for_run(run_id)["state"], "ready_to_merge")
+
     def test_non_command_outside_plan_thread_is_ignored(self):
         self.assertEqual(self.matrix.handle(self.event("$chat", "ordinary chat")), {"actions": []})
         self.assertEqual(

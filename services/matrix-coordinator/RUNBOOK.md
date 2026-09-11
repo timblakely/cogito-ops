@@ -29,10 +29,10 @@ and OpenCode worker runs. Successful workers publish only an explicit
 `agent/<run-id>` ref. The coordinator opens a PR, dispatches a different
 role-scoped reviewer, records review evidence, waits for GitHub checks, and
 merges low-risk changes. Workload and high-risk changes produce an approval
-card. Approve the exact reviewed head from that card:
+message. Approve the reviewed change from its plan thread:
 
 ```text
-!cogito merge <worker-run-id> <full-head-sha>
+!cogito merge
 ```
 
 The approval becomes invalid if the PR head changes. Useful recovery commands
@@ -194,8 +194,7 @@ already-open sync connection.
    independent review, checks, merge, and completion updates stay in that
    thread.
 4. Repeat with a harmless file under `kubernetes/` so policy requires an exact
-   head approval. Send the displayed
-   `!cogito merge <worker-run-id> <full-head-sha>` without editing either value.
+   head approval. Send `!cogito merge` in the plan thread.
 5. Perform one run on locked-screen Wi-Fi, one on cellular with WireGuard
    available, and one while offline followed by reconnect. Confirm ntfy wakes
    Commet, the encrypted Matrix event appears once, and the offline event

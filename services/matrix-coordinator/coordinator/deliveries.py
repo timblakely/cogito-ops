@@ -136,8 +136,7 @@ class DeliveryCoordinator:
                                                    approved_head_sha=worker_head)
                         self._notify(work_item, "merge-approval",
                                      f"{delivery['pull_request_url']} passed independent review. "
-                                     f"Approve immutable head `{worker_head}` with "
-                                     f"`!cogito merge {worker.run_id} {worker_head}`.")
+                                     "Reply `!cogito merge` to approve it.")
                     changed += 1
             elif state == "ready_to_merge":
                 try:
