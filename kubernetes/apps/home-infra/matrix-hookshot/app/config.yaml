@@ -25,3 +25,13 @@ permissions:
     services:
       - service: "*"
         level: admin
+generic:
+  enabled: true
+  outbound: false
+  urlPrefix: https://hookshot.${DOMAIN_NAME}/generic/
+  userIdPrefix: _webhooks_
+  allowJsTransformationFunctions: false
+  waitForComplete: false
+  enableHttpGet: false
+  includeHookBody: false
+  payloadSizeLimit: 1mb
