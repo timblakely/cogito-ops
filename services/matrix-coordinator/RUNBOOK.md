@@ -119,6 +119,17 @@ restricted to their role aliases. The planner key must stay restricted to
 planner seats. A model/provider change belongs in LiteLLM model configuration;
 the coordinator contract and harness commands continue to use role names.
 
+For an operator-generated LiteLLM virtual key, leave its generated Secret in
+place while deleting the `LiteLLMVirtualKey`. The finalizer reads that Secret to
+revoke the upstream key. Wait for the custom resource to disappear, reconcile
+the `litellm` Kustomization so Flux recreates it, and wait for the new Secret and
+Ready condition. Force-sync its `PushSecret`, verify a newer refresh time, then
+call `/v1/models` with the new key and confirm that only the intended role alias
+is visible before making a completion request. Do not delete the generated
+Secret first. If it is missing, temporarily recover the old field from
+1Password through an `ExternalSecret` so the finalizer can revoke it; remove
+that temporary projection before Flux issues the replacement.
+
 ## Hookshot and Android push
 
 Hookshot is the general GitHub bridge; the coordinator webhook is the durable
@@ -130,6 +141,54 @@ After Matrix, Commet, ntfy, or Hookshot upgrades, test an encrypted message with
 the phone locked on Wi-Fi and again on cellular with WireGuard available. Also
 test offline replay after reconnecting. Direct ntfy publication is reserved for
 emergency transport diagnostics.
+
+### GitHub App enrollment
+
+Create one private GitHub App named `Cogito Matrix Coordinator` and install it
+only on `timblakely/cogito-ops`. Use
+`https://hookshot.timblakely.com/github/webhook` as its webhook URL, generate a
+webhook secret in 1Password, and leave user authorization disabled. Grant these
+repository permissions: Actions read, Checks read, Contents read/write, Issues
+read/write, Metadata read, and Pull requests read/write. Subscribe only to
+issue, issue comment, pull request, pull request review, pull request review
+comment, push, and workflow run events.
+
+Generate one private key from the App settings page and place it directly in a
+1Password item; never paste it into Matrix, GitHub issues, or this repository.
+The item needs `app-id`, `installation-id`, `private-key`, and `webhook-secret`
+fields. Record the App ID and installation ID for the GitOps change. The
+coordinator must mint short-lived installation tokens at runtime; the private
+key is not itself a Git credential. Keep the existing PAT and repository
+webhook enabled until App-token branch push, issue/PR mutation, check read,
+merge, Hookshot delivery, and signed coordinator delivery all pass.
+
+### Physical Commet acceptance
+
+Run the test from `#project-cogito` in Commet. Lock the phone before each
+expected state transition so the test exercises UnifiedPush rather than an
+already-open sync connection.
+
+1. Send `!cogito plan Add matrix-e2e.txt containing exactly matrix-ok followed
+   by one newline, with no other changes. Include one deliverable and explicit
+   acceptance checks.`
+2. Reply in the plan thread with `>> Require exactly one trailing newline and
+   no unrelated file changes.`, then send `!cogito revise` in the same thread.
+3. Compare the revised text and send `!cogito approve sha256:<hash>` using the
+   exact displayed hash. Confirm the parent issue, deliverable issue, run, PR,
+   independent review, checks, merge, and completion updates stay in that
+   thread.
+4. Repeat with a harmless file under `kubernetes/` so policy requires an exact
+   head approval. Send the displayed
+   `!cogito merge <worker-run-id> <full-head-sha>` without editing either value.
+5. Perform one run on locked-screen Wi-Fi, one on cellular with WireGuard
+   available, and one while offline followed by reconnect. Confirm ntfy wakes
+   Commet, the encrypted Matrix event appears once, and the offline event
+   replays once after reconnect.
+
+Record the Matrix event IDs, GitHub object URLs, workflow names, reviewed head
+SHA, merge SHA, network path, and whether the screen was locked. If Commet
+misses a wake while the event exists in Matrix, repeat that transition in
+FluffyChat to separate a Commet client fault from the Synapse/ntfy path.
 
 ## Full disablement and rollback
 

@@ -411,7 +411,7 @@ can be safely resumed or cancelled without shell access to its pod.
   delivery-signature and replay validation.
 - [x] **M3.4** Deploy a pinned maubot runtime with persistent E2EE state and a
   repository-owned coordinator plugin package.
-- [ ] **M3.5** GitOps-manage bot membership and least-privilege power levels in
+- [x] **M3.5** GitOps-manage bot membership and least-privilege power levels in
   the existing spaces and rooms.
 - [x] **M3.6** Implement allowlisted thread/reply/reaction/command parsing and
   idempotent Matrix sends.
@@ -523,11 +523,12 @@ coordination behavior.
 | M0.3 | `2c366c235731f2289211ffc7abf32319e8f0993f` on `origin/main` | Complete |
 | M1.1–M1.2, M1.4 | Planner alias/key, exact-scope validator, and dashboard commit | Complete |
 | M1.3, M1.5 | Dedicated planner/worker/reviewer keys; deterministic coordinator; role-only Pi/OpenCode consumer configuration | Complete |
-| M1.6 | Coordinator-role smoke and complete spend-attribution audit remain | Pending |
+| M1.6 | Coordinator key rotated: new CR/Secret identities, PushSecret synced to 1Password, `/v1/models` exposed only `coordinator`, and the completion attempt reached the `coordinator` route and spend tracking. A successful completion remains blocked by the expired shared ChatGPT OAuth token. | Partial |
 | M2.1–M2.6 | Argo chart, Garage key/item, SSO, policy, monitoring, templates commit | Complete |
 | M2.7 | Flux `daa83362e9a7`; `coordination-smoke-h4fj4` retried and succeeded with Garage artifacts/exit hook; `coordination-suspend-44c7r` resumed and succeeded; `coordination-cancel-6mkd4` terminated | Complete |
 | M3.1 | `919bda0c65f3`, `a95d5b1758f5`; Hookshot 7.4.4 Ready with persistent cryptostore, Redis, and Synapse MSC3202 transaction extensions | Complete |
-| M3.2, M3.5, M3.7 | GitHub App creation, Hookshot invitation authority, and physical Android acceptance remain | Pending |
+| M3.2, M3.7 | GitHub App creation and physical Android acceptance remain | Pending |
+| M3.5 | `db2dc34e1dc9`; Hookshot grants `@agent-gitops` only `generic: manageConnections`; Tofu reconciled at the same revision and live Matrix state reported `join` for Hookshot in `#agent-control`, `#agent-alerts`, `#agent-plans`, `#agent-runs`, and `#project-cogito` | Complete |
 | M3.3–M3.4, M3.6 | maubot E2EE transport; signed public webhook delivery `3842042566967042000`; durable outbox Matrix event `$PhBeAAwjVMgbm61NJe-qiGxQKmv5CuUncXWjD06z5R0` | Complete |
 | M4.1–M4.2, M4.4, M4.7 | Coordinator domain/state/policy commit; replay, hash, actor, and budget tests | Complete |
 | M4.3, M4.5–M4.6, M4.8 | 28 service tests; GitHub issues #4/#5; `agent-run-5sjjh` succeeded and result recovered after coordinator restart; schema v4 backfill | Complete |
@@ -571,15 +572,13 @@ actions that require Tim's identity or physical Android observation:
 
 1. Create and install the narrowly scoped GitHub App, then replace the current
    repository webhook/PAT credentials and prove signed redelivery.
-2. Authorize Hookshot's `generic` service to accept room connection management
-   from `@agent-gitops:matrix.timblakely.com`; the desired invitations already
-   exist in Git, but Hookshot currently declines that inviter.
-3. Rotate the stale `coordinator` LiteLLM virtual key. Its resource and
-   PushSecret report Ready, but a live scoped request returned HTTP 401. Worker,
-   reviewer, and planner role routes have live evidence.
-4. From locked-screen Commet, start a real plan, add `>>` review comments,
+2. Refresh the shared ChatGPT OAuth login on the LiteLLM token PVC, then rerun
+   the successful coordinator completion. The replacement coordinator key is
+   authenticated, limited to `coordinator`, synchronized to 1Password, and
+   attributed; its upstream Luna request currently returns `token_expired`.
+3. From locked-screen Commet, start a real plan, add `>>` review comments,
    revise, approve the exact hash, exercise one higher-risk exact-head approval,
    and confirm Wi-Fi plus cellular/WireGuard push delivery.
-5. Complete a coordinator/maubot backup restore and the remaining failure-path
+4. Complete a coordinator/maubot backup restore and the remaining failure-path
    drills, then observe the rollback window before removing the legacy plan-PR
    workflow.

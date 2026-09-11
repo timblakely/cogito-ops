@@ -80,6 +80,13 @@ without further client action. The canonical aliases (`#agent-control`,
 `#personal-watches`, `#personal-money-making`) confirm that the intended
 rooms were joined.
 
+Service accounts may accept invitations automatically when their own runtime
+supports it. Hookshot does so only when the inviter has at least `login`
+permission. Cogito grants `@agent-gitops` the additive
+`generic: manageConnections` level, which includes invite permission while
+remaining confined to generic webhooks. Human accounts still accept their own
+invitations in a Matrix client.
+
 ## Android setup and acceptance
 
 1. Install the ntfy Android distributor and set its default server to
