@@ -1,9 +1,12 @@
 # Matrix development coordination
 
-Status: implementation plan and controlling checklist  
-Owner: Tim  
-Primary human interface: Commet over Matrix  
-Infrastructure source of truth: this repository  
+Status: implementation deployed; acceptance and cutover in progress
+
+Owner: Tim
+
+Primary human interface: Commet over Matrix
+
+Infrastructure source of truth: this repository
 
 ## Purpose
 
@@ -112,20 +115,18 @@ project or topic room.
 
 ### Plan thread protocol
 
-The bot recognizes commands and reactions only from an allowlist of Matrix user
-IDs. Each state-changing response includes a transaction ID so retries are
-idempotent.
+The bot recognizes commands only from an allowlist of Matrix user IDs. Each
+state-changing response includes a transaction ID so retries are idempotent.
 
 1. A request in a project room creates a plan thread and invokes `planner`.
 2. The root event contains a stable plan ID, title, repository, and state.
 3. Each plan version is posted as a single canonical Markdown message. Large
    sections may be companion thread messages, but the canonical content and
    hash are unambiguous.
-4. Replies or quoted text become review comments. `revise` asks the planner to
-   produce the next complete version and a concise change summary.
-5. `approve` or the configured approval reaction records the exact event ID,
-   SHA-256 hash, approver, and timestamp. Approval of an obsolete event fails
-   with a link to the current version.
+4. Ordinary replies in a plan thread become review comments. `revise` asks the
+   planner to produce the next complete version and a concise change summary.
+5. `approve` records the exact event ID, SHA-256 hash, approver, and timestamp.
+   Approval of an obsolete event fails with a link to the current version.
 6. The coordinator creates the GitHub parent issue and sub-issues, then edits
    the Matrix root status with links. It does not edit the accepted plan body.
 7. Run, PR, review, retry, approval, and completion events appear in the same
@@ -413,7 +414,7 @@ can be safely resumed or cancelled without shell access to its pod.
   repository-owned coordinator plugin package.
 - [x] **M3.5** GitOps-manage bot membership and least-privilege power levels in
   the existing spaces and rooms.
-- [x] **M3.6** Implement allowlisted thread/reply/reaction/command parsing and
+- [x] **M3.6** Implement allowlisted thread/reply/command parsing and
   idempotent Matrix sends.
 - [ ] **M3.7** Validate encrypted round trips and locked-screen Commet delivery
   through ntfy across Wi-Fi, cellular/WireGuard, restart, and offline replay.
@@ -473,13 +474,15 @@ change requires only LiteLLM configuration.
   reports in their correct Matrix threads.
 - [x] **M6.7** Enforce cancellation, emergency stop, concurrency, and aggregate
   spend limits across active workflows.
+- [ ] **M6.8** Close the parent plan issue and transition the coordinator plan
+  to `Complete` after every deliverable is terminal and accepted.
 
 Acceptance: routine delivery proceeds from plan approval to merged PRs and
 closed sub-issues without manual relay between systems.
 
 ### M7 — End-to-end acceptance
 
-- [ ] **M7.1** Start a real request in Commet, review inline, revise the plan,
+- [x] **M7.1** Start a real request in Commet, review inline, revise the plan,
   and approve its exact Matrix version.
 - [x] **M7.2** Verify creation of the parent issue, native sub-issues,
   dependencies, accepted-plan hash, and Matrix backlinks.
@@ -538,8 +541,11 @@ coordination behavior.
 | M5.5 | No DeepSeek-class seat is currently configured; provider-seat swap acceptance remains | Pending |
 | M5.6 | `artifact-manifest-smoke-29tds`: normalized verdict, path evidence, and SHA-256 log/patch artifacts survived controller restart with no artifact-GC finalizer | Complete |
 | M6.1–M6.7 | Durable delivery schema, native dependency API, queued bounded runs, PR/check/review/repair/merge reconciliation, exact-head approval, Matrix updates, and emergency stop; 42 tests | Complete |
+| M6.8 | The Commet acceptance delivery merged and closed child issue #12, but parent issue #11 remains open and plan `plan-40aa867b10e0935e` remains `decomposed` | Pending |
+| M7.1 | Commet root `$evr_q9bFnDmmGT-sdprXD8Az9jTjrPTUum8CIzCE5lI`; ordinary thread comment `$5gErUpJa-CcNxWTrPWvhY3hE0myTecNxzFMztBp9gfo`; revision `$E_J0lRYOMVlWRKj5bUvbvgkEOTGgcBGxsShsHybKSU4`; hashless approval `$UCBG4QMvk1fDDca8Q62W92GDc634PIiGxGuWf4MI4lM` resolved version 2 hash `sha256:7e58ffd205ecbd1adb97c9da78c62cc89a5d7edb4546059d9be8cea66f49cc34`; parent #11, child #12, Pi delivery `agent-run-q2qmn`, OpenCode review `agent-run-r42sd`, and merged PR #13 at `7d1ffdfd` | Complete |
 | M7.2–M7.3 | Parent issue #4; native sub-issues #5/#6 with dependency; Pi PR #7 and OpenCode PR #8 independently cross-reviewed, green, and merged | Complete |
-| M7.1, M7.4–M7.7 | Physical Commet acceptance, higher-risk approval, recovery/failure exercises, and restore audit remain | Pending |
+| M7.4 partial | PR #13 proved autonomous low-risk merge from a Commet approval; locked-screen higher-risk approval remains | Partial |
+| M7.4–M7.7 | Higher-risk Android approval, recovery/failure exercises, and restore audit remain | Pending |
 | M7.5 partial | Coordinator schema v5 survived rollouts with one plan/two work items; Argo controller restart retained `artifact-manifest-smoke-29tds`; live webhook redelivery is blocked by the current CLI token lacking `admin:repo_hook` | Partial |
 | M7.6 partial | Live `failure-timeout-0001` normalized to `failed` and encrypted Matrix event `$cWRTkM1YX2mssdicix_AsI6HlPtVFFjFdBLNM4wc88M` was acknowledged; repair, stop, queue, pause/resume, and cancellation paths have deterministic tests or earlier M2 evidence | Partial |
 | M8.1, M8.4 | `services/matrix-coordinator/RUNBOOK.md` | Complete |
@@ -571,9 +577,11 @@ through those substitutions.
 The implementation is deployed, but cutover remains intentionally gated on
 actions that require Tim's identity or physical Android observation:
 
-1. From locked-screen Commet, start a real plan, add ordinary thread replies as review comments,
-   revise, approve the exact hash, exercise one higher-risk exact-head approval,
-   and confirm Wi-Fi plus cellular/WireGuard push delivery.
-2. Complete a coordinator/maubot backup restore and the remaining failure-path
+1. Close completed parent plan issues and transition their coordinator records
+   to `Complete` after all deliverables merge.
+2. From locked-screen Commet, exercise one higher-risk exact-head approval and
+   confirm Wi-Fi plus cellular/WireGuard, restart, and offline replay delivery.
+3. Prove a LiteLLM backing-seat swap without changing the adapter contract.
+4. Complete a coordinator/maubot backup restore and the remaining failure-path
    drills, then observe the rollback window before removing the legacy plan-PR
    workflow.
