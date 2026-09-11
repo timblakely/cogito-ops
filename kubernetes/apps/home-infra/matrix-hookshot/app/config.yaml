@@ -1,0 +1,27 @@
+bridge:
+  domain: matrix.${DOMAIN_NAME}
+  url: http://matrix.home-infra.svc.cluster.local:8008
+  mediaUrl: https://matrix.${DOMAIN_NAME}
+  port: 9993
+  bindAddress: 0.0.0.0
+logging:
+  level: info
+  colorize: false
+  json: true
+passFile: /run/secrets/matrix-hookshot/passkey.pem
+listeners:
+  - port: 9000
+    bindAddress: 0.0.0.0
+    resources: [webhooks]
+  - port: 9001
+    bindAddress: 0.0.0.0
+    resources: [metrics]
+cache:
+  redisUri: redis://dragonfly-db.database.svc.cluster.local:6379/7
+encryption:
+  storagePath: /data/cryptostore
+permissions:
+  - actor: "@tim:matrix.${DOMAIN_NAME}"
+    services:
+      - service: "*"
+        level: admin

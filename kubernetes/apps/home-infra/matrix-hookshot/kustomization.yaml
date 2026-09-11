@@ -1,0 +1,29 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: APP-app-vars
+    literals:
+      - APP=matrix-hookshot
+      - VOLSYNC_CAPACITY=2Gi
+      - VOLSYNC_PUID=1000
+      - VOLSYNC_PGID=1000
+patches:
+  - patch: |-
+      - op: add
+        path: /spec/dependsOn/-
+        value:
+          name: matrix
+          namespace: home-infra
+      - op: add
+        path: /spec/dependsOn/-
+        value:
+          name: dragonfly
+          namespace: database
+    target:
+      group: kustomize.toolkit.fluxcd.io
+      kind: Kustomization
+components:
+  - ../../../components/ks/app
+  - ../../../components/kustomize/volsync

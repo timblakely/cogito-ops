@@ -1,0 +1,12 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: matrix-hookshot
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: matrix-hookshot
+  endpoints:
+    - port: metrics
+      interval: 30s

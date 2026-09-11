@@ -74,3 +74,12 @@ ip_range_whitelist:
 
 url_preview_enabled: false
 trusted_key_servers: []
+
+app_service_config_files:
+  - /run/secrets/matrix-hookshot/registration.yml
+
+# Required by Hookshot's end-to-bridge encryption support.
+experimental_features:
+  msc3202_device_masquerading: true
+  msc3202_transaction_extensions: true
+  msc2409_to_device_messages_enabled: true

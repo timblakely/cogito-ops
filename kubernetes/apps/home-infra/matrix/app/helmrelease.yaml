@@ -131,6 +131,13 @@ spec:
         globalMounts:
           - path: /run/secrets/matrix-oidc
             readOnly: true
+      hookshot-registration:
+        type: secret
+        name: matrix-hookshot-registration
+        globalMounts:
+          - path: /run/secrets/matrix-hookshot/registration.yml
+            subPath: registration.yml
+            readOnly: true
       data:
         existingClaim: matrix
         globalMounts:

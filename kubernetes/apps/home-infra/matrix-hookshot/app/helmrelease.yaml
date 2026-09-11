@@ -1,0 +1,86 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/refs/tags/app-template-4.6.0/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: matrix-hookshot
+spec:
+  interval: 1h
+  maxHistory: 2
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+    namespace: flux-system
+  install:
+    timeout: 5m
+    remediation: { retries: 3 }
+  upgrade:
+    timeout: 5m
+    cleanupOnFail: true
+    remediation: { retries: 3 }
+  values:
+    controllers:
+      hookshot:
+        strategy: Recreate
+        annotations:
+          reloader.stakater.com/auto: "true"
+        pod:
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile: { type: RuntimeDefault }
+        containers:
+          main:
+            image:
+              repository: ghcr.io/matrix-org/matrix-hookshot
+              tag: 7.4.4@sha256:4110ffaf4b11433c72e7a168078dac5d1f86bd58593e2412c61156742741a23d
+            probes:
+              readiness: &probe
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket: { port: 9993 }
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+                  timeoutSeconds: 3
+                  failureThreshold: 6
+              liveness: *probe
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities: { drop: [ALL] }
+            resources:
+              requests: { cpu: 25m, memory: 128Mi }
+              limits: { memory: 512Mi }
+    service:
+      main:
+        controller: hookshot
+        ports:
+          appservice: { port: 9993 }
+          webhooks: { port: 9000 }
+          metrics: { port: 9001 }
+    persistence:
+      data:
+        existingClaim: matrix-hookshot
+        globalMounts:
+          - path: /data
+      config:
+        type: configMap
+        name: matrix-hookshot-config
+        globalMounts:
+          - path: /data/config.yml
+            subPath: config.yml
+            readOnly: true
+      secrets:
+        type: secret
+        name: matrix-hookshot
+        globalMounts:
+          - path: /data/registration.yml
+            subPath: registration.yml
+            readOnly: true
+          - path: /run/secrets/matrix-hookshot/passkey.pem
+            subPath: passkey.pem
+            readOnly: true
