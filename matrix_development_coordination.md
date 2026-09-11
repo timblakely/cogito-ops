@@ -450,7 +450,7 @@ state, and an obsolete approval cannot launch work.
   explicit-ref publication.
 - [x] **M5.3** Implement and pass conformance for the Pi adapter.
 - [x] **M5.4** Implement and pass conformance for the OpenCode adapter.
-- [ ] **M5.5** Prove a backing-model/provider swap, including a DeepSeek-class
+- [x] **M5.5** Prove a backing-model/provider swap, including a DeepSeek-class
   model where available, without changing the run contract.
 - [x] **M5.6** Store logs, patches, checks, usage, and result manifests as
   digest-addressed artifacts with retention and redaction.
@@ -474,7 +474,7 @@ change requires only LiteLLM configuration.
   reports in their correct Matrix threads.
 - [x] **M6.7** Enforce cancellation, emergency stop, concurrency, and aggregate
   spend limits across active workflows.
-- [ ] **M6.8** Close the parent plan issue and transition the coordinator plan
+- [x] **M6.8** Close the parent plan issue and transition the coordinator plan
   to `Complete` after every deliverable is terminal and accepted.
 
 Acceptance: routine delivery proceeds from plan approval to merged PRs and
@@ -490,11 +490,11 @@ closed sub-issues without manual relay between systems.
   run, with independent reviews and recorded checks.
 - [ ] **M7.4** Exercise autonomous low-risk merge and a higher-risk Android
   approval while the phone is locked and remote through WireGuard.
-- [ ] **M7.5** Restart the coordinator and workflow controller, replay webhook
+- [x] **M7.5** Restart the coordinator and workflow controller, replay webhook
   deliveries, and prove state recovery without duplicate objects.
-- [ ] **M7.6** Exercise timeout, failed review, bounded repair, pause/resume,
+- [x] **M7.6** Exercise timeout, failed review, bounded repair, pause/resume,
   cancellation, exhausted-budget alert, and emergency stop paths.
-- [ ] **M7.7** Verify dashboards, alerts, audit trail, spend attribution,
+- [x] **M7.7** Verify dashboards, alerts, audit trail, spend attribution,
   artifact redaction/retention, and backup restoration.
 
 Acceptance: evidence covers the happy path and failure paths from Android input
@@ -538,16 +538,16 @@ coordination behavior.
 | M4.3, M4.5–M4.6, M4.8 | 28 service tests; GitHub issues #4/#5; `agent-run-5sjjh` succeeded and result recovered after coordinator restart; schema v4 backfill | Complete |
 | M5.1 | Versioned JSON schemas, command boundary, fixture and conformance runner | Complete |
 | M5.2–M5.4 | Pi workflow `pi-production-ccxlr` at `2033197b`; OpenCode workflow `opencode-production-nr2dk` at `baf29363`; explicit refs and allowlists verified | Complete |
-| M5.5 | No DeepSeek-class seat is currently configured; provider-seat swap acceptance remains | Pending |
+| M5.5 | The unchanged `PlannerClient` generated a valid plan through `planner-local` backed by `openai/qwen-3-8-fp8`: 830 bytes, all seven required sections, deliverable checkboxes, and SHA-256 `f87d5a61edb21e7afdb4b882854c4762223f1786aa7998624c3e678f42b59fd8`. The earlier Commet plan used subscription-backed `planner`; no DeepSeek seat is currently available. | Complete |
 | M5.6 | `artifact-manifest-smoke-29tds`: normalized verdict, path evidence, and SHA-256 log/patch artifacts survived controller restart with no artifact-GC finalizer | Complete |
 | M6.1–M6.7 | Durable delivery schema, native dependency API, queued bounded runs, PR/check/review/repair/merge reconciliation, exact-head approval, Matrix updates, and emergency stop; 42 tests | Complete |
-| M6.8 | The Commet acceptance delivery merged and closed child issue #12, but parent issue #11 remains open and plan `plan-40aa867b10e0935e` remains `decomposed` | Pending |
+| M6.8 | `443904ed` implements restart-safe parent completion; image deployment `6ae5a0a3`. Parent issue #11 closed with reason `completed`, plan `plan-40aa867b10e0935e` transitioned to `complete`, and Matrix acknowledged completion event `$Vh-haBL_u9jgVqAHtTvZYtuIlSHtPPvRjaBNth2ITBw`. | Complete |
 | M7.1 | Commet root `$evr_q9bFnDmmGT-sdprXD8Az9jTjrPTUum8CIzCE5lI`; ordinary thread comment `$5gErUpJa-CcNxWTrPWvhY3hE0myTecNxzFMztBp9gfo`; revision `$E_J0lRYOMVlWRKj5bUvbvgkEOTGgcBGxsShsHybKSU4`; hashless approval `$UCBG4QMvk1fDDca8Q62W92GDc634PIiGxGuWf4MI4lM` resolved version 2 hash `sha256:7e58ffd205ecbd1adb97c9da78c62cc89a5d7edb4546059d9be8cea66f49cc34`; parent #11, child #12, Pi delivery `agent-run-q2qmn`, OpenCode review `agent-run-r42sd`, and merged PR #13 at `7d1ffdfd` | Complete |
 | M7.2–M7.3 | Parent issue #4; native sub-issues #5/#6 with dependency; Pi PR #7 and OpenCode PR #8 independently cross-reviewed, green, and merged | Complete |
 | M7.4 partial | PR #13 proved autonomous low-risk merge from a Commet approval; locked-screen higher-risk approval remains | Partial |
-| M7.4–M7.7 | Higher-risk Android approval, recovery/failure exercises, and restore audit remain | Pending |
-| M7.5 partial | Coordinator schema v5 survived rollouts with one plan/two work items; Argo controller restart retained `artifact-manifest-smoke-29tds`; live webhook redelivery is blocked by the current CLI token lacking `admin:repo_hook` | Partial |
-| M7.6 partial | Live `failure-timeout-0001` normalized to `failed` and encrypted Matrix event `$cWRTkM1YX2mssdicix_AsI6HlPtVFFjFdBLNM4wc88M` was acknowledged; repair, stop, queue, pause/resume, and cancellation paths have deterministic tests or earlier M2 evidence | Partial |
+| M7.5 | Coordinator rollouts preserved plan, run, and audit state; the Argo workflow controller restarted with six completed workflows intact. Signed delivery `acceptance-replay-20260911` returned accepted then duplicate, producing exactly one inbound record, audit record, and Matrix event `$rD6G39Uo_PSm-kigxDRxYJUfZ0HI_13Wlc79X83U2_c`. | Complete |
+| M7.6 | Live timeout `failure-timeout-0001`; budget fixture `acceptance-budget-20260911` produced Matrix event `$uybEu9hMWKQHpCGs3Z5knwZ0fLKHuzeUA8NxhFNq_5A`; corrected control fixture `acceptance-control-20260911b` audited pause, resume, cancel, stop, and start, then reached `cancelled` with Matrix event `$T9xRCH9NUFdnm1t-JgK0fH71MSO39rG0hq_otvupi-I`. In the failed-review drill, Pi opened PR #16, OpenCode workflow `agent-run-q8wzb` was terminated, the coordinator closed the superseded PR, dispatched one Pi repair `agent-run-8phdq`, independently reviewed repaired PR #17 through `agent-run-8scwp`, merged at `a9cb6e17`, closed issues #14/#15, completed the plan, and sent Matrix completion event `$VIDaUprygfJfvhB4iLPCUjkSjz5OFV76Sfa1afJeyxs`. `49d9b7d2` adds missing-verdict repair and budget alerts; `cec8986c` fixes cancellation-intent races. | Complete |
+| M7.7 | Image deployment `6345a0ac` exposes lifecycle, audit, artifact, external-action, and role/harness token metrics; five Prometheus rules exist; Grafana reports `DashboardSynchronized=True`. Fresh backup `acceptance-backup-20260911` and isolated restore `acceptance-restore-20260911` succeeded; the cloned database passed integrity with 2 plans, 272 audit events, 11 Matrix results, and maubot state present. Temporary restore resources were removed. | Complete |
 | M8.1, M8.4 | `services/matrix-coordinator/RUNBOOK.md` | Complete |
 | M8.2–M8.3, M8.5 | Await final cutover acceptance and rollback window | Pending |
 
@@ -577,11 +577,7 @@ through those substitutions.
 The implementation is deployed, but cutover remains intentionally gated on
 actions that require Tim's identity or physical Android observation:
 
-1. Close completed parent plan issues and transition their coordinator records
-   to `Complete` after all deliverables merge.
-2. From locked-screen Commet, exercise one higher-risk exact-head approval and
+1. From locked-screen Commet, exercise one higher-risk exact-head approval and
    confirm Wi-Fi plus cellular/WireGuard, restart, and offline replay delivery.
-3. Prove a LiteLLM backing-seat swap without changing the adapter contract.
-4. Complete a coordinator/maubot backup restore and the remaining failure-path
-   drills, then observe the rollback window before removing the legacy plan-PR
-   workflow.
+2. Disable the legacy plan-PR entrypoint, observe the rollback window, and
+   remove the old Pi-owned coordinator after the Android acceptance gate.
