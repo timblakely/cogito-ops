@@ -247,6 +247,36 @@ resource "matrix_room_power_levels" "agent" {
   depends_on = [matrix_room_member.agent]
 }
 
+resource "matrix_room_state" "cogito_github_repository" {
+  room_id    = matrix_room.agent["cogito"].id
+  event_type = "uk.half-shot.matrix-hookshot.github.repository"
+  state_key  = "timblakely/cogito-ops"
+  content_json = jsonencode({
+    org           = "timblakely"
+    repo          = "cogito-ops"
+    commandPrefix = "!gh"
+    enableHooks = [
+      "issue.created",
+      "issue.changed",
+      "issue.comment.created",
+      "pull_request.opened",
+      "pull_request.ready_for_review",
+      "pull_request.reviewed",
+      "pull_request.merged",
+      "pull_request.closed",
+      "workflow.run.success",
+      "workflow.run.failure",
+      "workflow.run.cancelled",
+      "workflow.run.timed_out",
+      "workflow.run.action_required",
+    ]
+    showIssueRoomLink = true
+    showUrlPreviews   = true
+  })
+
+  depends_on = [matrix_room_power_levels.agent]
+}
+
 resource "matrix_room" "personal" {
   for_each = local.personal_rooms
 
