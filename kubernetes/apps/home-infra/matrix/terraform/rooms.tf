@@ -228,6 +228,7 @@ resource "matrix_room_power_levels" "agent" {
 
   # agent-gitops creates these v12 rooms and therefore has intrinsic control.
   users = {
+    (local.agent_users.hookshot) = 50
     (local.users.hermes) = 0
     (local.users.tim)    = 100
   }
@@ -375,6 +376,7 @@ resource "matrix_room_power_levels" "hermes_agent" {
   users = {
     (local.users.gitops) = 100
     (local.users.hermes) = 100
+    (local.agent_users.hookshot) = 50
     (local.users.tim)    = 100
   }
 

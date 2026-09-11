@@ -1,0 +1,57 @@
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: agent-runtime-github-app-auth
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: onepassword
+  target:
+    name: agent-runtime-github-app-auth
+    creationPolicy: Owner
+    deletionPolicy: Retain
+  data:
+    - secretKey: private-key.pem
+      remoteRef:
+        key: matrix-github-app
+        property: private-key
+---
+apiVersion: generators.external-secrets.io/v1alpha1
+kind: GithubAccessToken
+metadata:
+  name: agent-runtime
+spec:
+  appID: "4906005"
+  installID: "160792836"
+  auth:
+    privateKey:
+      secretRef:
+        name: agent-runtime-github-app-auth
+        key: private-key.pem
+  repositories:
+    - cogito-ops
+  permissions:
+    actions: read
+    checks: read
+    contents: write
+    issues: write
+    pull_requests: write
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: agent-runtime-github-token
+spec:
+  refreshInterval: 30m
+  target:
+    name: agent-runtime-github-token
+    creationPolicy: Owner
+    deletionPolicy: Delete
+  dataFrom:
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: GithubAccessToken
+          name: agent-runtime

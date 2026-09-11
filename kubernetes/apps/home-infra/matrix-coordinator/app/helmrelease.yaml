@@ -58,6 +58,7 @@ spec:
               COGITO_REVIEW_HARNESSES: opencode,pi
               COGITO_MAX_ACTIVE_RUNS: "4"
               COGITO_MAX_AGGREGATE_TOKENS: "1000000"
+              GITHUB_TOKEN_FILE: /run/secrets/github-app/token
             envFrom:
               - secretRef:
                   name: matrix-coordinator
@@ -143,4 +144,13 @@ spec:
             bot:
               - path: /plugin/config.yaml
                 subPath: config.yaml
+                readOnly: true
+      github-token:
+        type: secret
+        name: matrix-coordinator-github-token
+        advancedMounts:
+          coordinator:
+            main:
+              - path: /run/secrets/github-app/token
+                subPath: token
                 readOnly: true

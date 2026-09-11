@@ -128,6 +128,136 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
+  name: agent-run-v1alpha7
+spec:
+  entrypoint: delivery
+  onExit: exit-report
+  serviceAccountName: argo-workflow
+  activeDeadlineSeconds: 7200
+  arguments:
+    parameters:
+      - name: run-id
+      - name: harness
+        value: contract
+      - name: request
+  volumeClaimGC:
+    strategy: OnWorkflowCompletion
+  volumes:
+    - name: workspace
+      emptyDir: {}
+    - name: tmp
+      emptyDir: {}
+  templates:
+    - name: delivery
+      dag:
+        tasks:
+          - name: validate
+            template: validate-request
+          - name: execute
+            dependencies: [validate]
+            template: execute
+          - name: verify
+            dependencies: [execute]
+            template: verify-result
+            arguments:
+              parameters:
+                - name: result-json
+                  value: '{{tasks.execute.outputs.parameters.result-json}}'
+      outputs:
+        parameters:
+          - name: result-json
+            valueFrom:
+              parameter: '{{tasks.execute.outputs.parameters.result-json}}'
+    - name: validate-request
+      container:
+        image: docker.io/library/python:3.13-slim@sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285
+        command: [python, -c]
+        args:
+          - |
+            import json, os
+            request = json.loads(os.environ['REQUEST'])
+            required = {'api_version', 'run_id', 'work_item', 'role', 'repository', 'base_ref', 'objective'}
+            missing = required - request.keys()
+            assert not missing, f'missing fields: {sorted(missing)}'
+            assert request['api_version'] == 'cogito.dev/v1alpha1'
+            assert request['run_id'] == os.environ['RUN_ID']
+            assert os.environ['HARNESS'] in {'contract', 'pi', 'opencode'}
+            print('request and harness valid')
+        env:
+          - { name: REQUEST, value: '{{workflow.parameters.request}}' }
+          - { name: RUN_ID, value: '{{workflow.parameters.run-id}}' }
+          - { name: HARNESS, value: '{{workflow.parameters.harness}}' }
+        securityContext: &agentV1alpha7Security
+          allowPrivilegeEscalation: false
+          capabilities: { drop: [ALL] }
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65532
+          runAsGroup: 65532
+          seccompProfile: { type: RuntimeDefault }
+    - name: execute
+      container:
+        image: ghcr.io/timblakely/cogito-agent-runtime:9bfb27cb509e78955167faeaf60ffe0739ba4b5b@sha256:e8f0745f13ea909f620cb9da9dfc2bc66a6c427b34ab1ac70ad46623ea9fe90d
+        command: [python3, -m, coordinator.agent_entry]
+        args: ['{{workflow.parameters.harness}}']
+        env:
+          - { name: COGITO_AGENT_REQUEST, value: '{{workflow.parameters.request}}' }
+          - { name: COGITO_WORK_ROOT, value: /workspace }
+          - { name: COGITO_PUBLISH, value: "1" }
+          - { name: OPENAI_BASE_URL, value: http://litellm.llm.svc.cluster.local:4000/v1 }
+          - name: OPENAI_API_KEY
+            valueFrom: { secretKeyRef: { name: agent-runtime, key: WORKER_API_KEY } }
+          - name: REVIEWER_API_KEY
+            valueFrom: { secretKeyRef: { name: agent-runtime, key: REVIEWER_API_KEY } }
+          - name: GITHUB_TOKEN
+            valueFrom: { secretKeyRef: { name: agent-runtime-github-token, key: token } }
+        volumeMounts:
+          - { name: workspace, mountPath: /workspace }
+          - { name: tmp, mountPath: /tmp }
+        resources:
+          requests: { cpu: 100m, memory: 256Mi }
+          limits: { memory: 2Gi }
+        securityContext: *agentV1alpha7Security
+      outputs:
+        parameters:
+          - name: result-json
+            valueFrom: { path: /tmp/result.json }
+        artifacts:
+          - name: result
+            path: /tmp/result.json
+            archive: { none: {} }
+          - name: agent-artifacts
+            path: '/workspace/{{workflow.parameters.run-id}}/artifacts'
+            optional: true
+    - name: verify-result
+      inputs:
+        parameters:
+          - name: result-json
+      container:
+        image: docker.io/library/python:3.13-slim@sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285
+        command: [python, -c]
+        args:
+          - |
+            import json, os
+            result = json.loads(os.environ['RESULT_JSON'])
+            assert result['run_id'] == os.environ['RUN_ID']
+            assert result['status'] in {'succeeded', 'failed', 'cancelled', 'needs_input'}
+            assert result['summary']
+            print(f"normalized result status={result['status']}")
+        env:
+          - { name: RESULT_JSON, value: '{{inputs.parameters.result-json}}' }
+          - { name: RUN_ID, value: '{{workflow.parameters.run-id}}' }
+        securityContext: *agentV1alpha7Security
+    - name: exit-report
+      container:
+        image: docker.io/library/python:3.13-slim@sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285
+        command: [python, -c]
+        args: ["print('workflow={{workflow.name}} status={{workflow.status}}')"]
+        securityContext: *agentV1alpha7Security
+---
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
   name: agent-run-v1alpha6
 spec:
   entrypoint: delivery

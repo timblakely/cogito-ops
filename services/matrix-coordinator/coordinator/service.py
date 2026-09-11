@@ -34,7 +34,10 @@ class App:
             int(os.environ.get("COGITO_MAX_ACTIVE_RUNS", "4")),
             int(os.environ.get("COGITO_MAX_AGGREGATE_TOKENS", "1000000")),
         )
-        self.github = GitHubIssues(os.environ["GITHUB_TOKEN"])
+        self.github = GitHubIssues(
+            token=os.environ.get("GITHUB_TOKEN"),
+            token_file=os.environ.get("GITHUB_TOKEN_FILE"),
+        )
         self.coordinator = Coordinator(
             self.state, self.github,
             set(filter(None, os.environ.get("MATRIX_APPROVERS", "").split(","))),

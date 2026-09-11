@@ -38,6 +38,10 @@ spec:
             image:
               repository: ghcr.io/matrix-org/matrix-hookshot
               tag: 7.4.4@sha256:4110ffaf4b11433c72e7a168078dac5d1f86bd58593e2412c61156742741a23d
+            args:
+              - /data/config.yml
+              - /data/registration.yml
+              - /run/secrets/matrix-hookshot/github.yml
             probes:
               readiness: &probe
                 enabled: true
@@ -83,4 +87,10 @@ spec:
             readOnly: true
           - path: /run/secrets/matrix-hookshot/passkey.pem
             subPath: passkey.pem
+            readOnly: true
+          - path: /run/secrets/matrix-hookshot/github-private-key.pem
+            subPath: github-private-key.pem
+            readOnly: true
+          - path: /run/secrets/matrix-hookshot/github.yml
+            subPath: github.yml
             readOnly: true

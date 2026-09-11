@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 import json
@@ -42,9 +43,20 @@ def deliverables(markdown: str) -> list[str]:
 
 @dataclass
 class GitHubIssues:
-    token: str
+    token: str | None = None
     matrix_base_url: str = "https://matrix.to/#"
     api_base: str = "https://api.github.com"
+    token_file: str | None = None
+
+    def _authorization_token(self) -> str:
+        """Read projected App tokens for every request so rotation is immediate."""
+        if self.token_file:
+            token = Path(self.token_file).read_text().strip()
+            if token:
+                return token
+        if self.token:
+            return self.token
+        raise RuntimeError("GitHub credential is empty")
 
     def _request(self, method: str, path: str, body: dict | None = None) -> dict:
         request = Request(
@@ -52,7 +64,7 @@ class GitHubIssues:
             method=method,
             data=None if body is None else json.dumps(body).encode(),
             headers={
-                "Authorization": f"Bearer {self.token}",
+                "Authorization": f"Bearer {self._authorization_token()}",
                 "Accept": "application/vnd.github+json",
                 "X-GitHub-Api-Version": API_VERSION,
                 "Content-Type": "application/json",
