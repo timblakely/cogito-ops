@@ -39,7 +39,7 @@ class ArgoClient:
                 "labels": {"cogito.dev/run-id": run.run_id, "cogito.dev/harness": harness},
             },
             "spec": {
-                "workflowTemplateRef": {"name": "agent-run-v1alpha2"},
+                "workflowTemplateRef": {"name": "agent-run-v1alpha3"},
                 "arguments": {"parameters": [
                     {"name": "run-id", "value": run.run_id},
                     {"name": "harness", "value": harness},
@@ -50,6 +50,16 @@ class ArgoClient:
         result = self._call(
             "POST", f"/apis/argoproj.io/v1alpha1/namespaces/{self.namespace}/workflows", workflow)
         return result["metadata"]["name"]
+
+    def find_run(self, run_id: str) -> str | None:
+        selector = quote(f"cogito.dev/run-id={run_id}")
+        result = self._call(
+            "GET", f"/apis/argoproj.io/v1alpha1/namespaces/{self.namespace}/workflows"
+            f"?labelSelector={selector}")
+        names = sorted(item["metadata"]["name"] for item in result.get("items", []))
+        if len(names) > 1:
+            raise RuntimeError(f"multiple workflows found for run_id {run_id}")
+        return names[0] if names else None
 
     def status(self, name: str) -> dict:
         return self._call(

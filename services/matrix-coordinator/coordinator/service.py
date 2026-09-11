@@ -8,12 +8,15 @@ from urllib.parse import urlparse
 import hashlib
 import json
 import os
+import threading
+import time
 
 from .argo import ArgoClient
 from .core import Coordinator
 from .github import GitHubIssues
 from .models import AgentRun, Approval, PlanVersion, ValidationError
 from .state import StateStore
+from .runs import RunCoordinator
 from .webhooks import verify_github, verify_internal
 
 
@@ -23,6 +26,7 @@ class App:
         self.github_secret = os.environ["GITHUB_WEBHOOK_SECRET"].encode()
         self.state = StateStore(os.environ.get("COORDINATOR_STATE_PATH", "/data/coordinator.sqlite3"))
         self.argo = ArgoClient(namespace=os.environ.get("ARGO_NAMESPACE", "tools"))
+        self.runs = RunCoordinator(self.state, self.argo)
         self.coordinator = Coordinator(
             self.state, GitHubIssues(os.environ["GITHUB_TOKEN"]),
             set(filter(None, os.environ.get("MATRIX_APPROVERS", "").split(","))),
@@ -52,11 +56,32 @@ class App:
         if path == "/v1/runs":
             harness = value.pop("harness")
             run = AgentRun.from_dict(value)
-            name = self.argo.submit(run, harness)
-            self.state.audit("coordinator", "run.submitted", run.run_id,
-                             {"workflow": name, "harness": harness})
+            name = self.runs.submit(run, harness)
             return 201, {"workflow": name, "run_id": run.run_id}
+        if path.startswith("/v1/runs/"):
+            parts = path.strip("/").split("/")
+            if len(parts) == 4 and parts[:2] == ["v1", "runs"]:
+                run_id, operation = parts[2:]
+                if operation == "cancel":
+                    self.runs.cancel(run_id)
+                elif operation == "resume":
+                    self.runs.resume(run_id)
+                elif operation == "reconcile":
+                    self.runs.reconcile_once()
+                else:
+                    return 404, {"error": "not found"}
+                return 202, {"run_id": run_id, "operation": operation}
         return 404, {"error": "not found"}
+
+    def reconcile_forever(self) -> None:
+        interval = int(os.environ.get("COORDINATOR_RECONCILE_SECONDS", "15"))
+        while True:
+            try:
+                self.runs.reconcile_once()
+            except Exception as exc:
+                print(json.dumps({"component": "reconciler", "error": type(exc).__name__,
+                                  "message": str(exc)[:500]}))
+            time.sleep(interval)
 
 
 APP: App
@@ -99,6 +124,7 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> None:
     global APP
     APP = App()
+    threading.Thread(target=APP.reconcile_forever, daemon=True, name="reconciler").start()
     address = os.environ.get("COORDINATOR_LISTEN", "0.0.0.0:8080")
     host, port = address.rsplit(":", 1)
     ThreadingHTTPServer((host, int(port)), Handler).serve_forever()

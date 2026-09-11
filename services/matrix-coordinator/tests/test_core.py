@@ -41,6 +41,9 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(parent.rsplit("/", 1)[-1], "10")
         self.assertEqual(len(children), 1)
         self.assertEqual(self.issues.calls, 1)
+        replay_parent, replay_children = self.core.approve(self.approval())
+        self.assertEqual((replay_parent, replay_children), (parent, children))
+        self.assertEqual(self.issues.calls, 1)
 
     def test_wrong_hash_and_wrong_actor_fail(self):
         with self.assertRaises(ValidationError):

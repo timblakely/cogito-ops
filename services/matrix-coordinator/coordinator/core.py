@@ -61,8 +61,6 @@ class Coordinator:
                 "SELECT content_hash FROM approvals WHERE plan_id=?", (approval.plan_id,)
             ).fetchone()
             if existing:
-                if existing["content_hash"] == approval.plan_hash and plan_row["github_issue_url"]:
-                    return plan_row["github_issue_url"], []
                 if existing["content_hash"] == approval.plan_hash:
                     pass
                 else:

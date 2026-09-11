@@ -158,5 +158,48 @@ class StateStore:
                 (error[-2000:], key),
             )
 
+    def register_run(self, run_id: str, work_item: str, request: dict[str, Any]) -> bool:
+        """Persist a run before its external submission; identical retries are harmless."""
+        encoded = json.dumps(request, sort_keys=True)
+        with self.transaction() as db:
+            row = db.execute(
+                "SELECT request_json FROM runs WHERE run_id=?", (run_id,)
+            ).fetchone()
+            if row:
+                if row["request_json"] != encoded:
+                    raise ValueError("run_id already exists with another request")
+                return False
+            db.execute(
+                "INSERT INTO runs(run_id,work_item_external_id,state,request_json) "
+                "VALUES (?,?,'submitting',?)", (run_id, work_item, encoded),
+            )
+            return True
+
+    def attach_workflow(self, run_id: str, name: str) -> None:
+        with self.transaction() as db:
+            db.execute(
+                "UPDATE runs SET argo_name=?,state='submitted' WHERE run_id=?",
+                (name, run_id),
+            )
+
+    def run(self, run_id: str):
+        with self.lock:
+            return self.db.execute("SELECT * FROM runs WHERE run_id=?", (run_id,)).fetchone()
+
+    def active_runs(self):
+        with self.lock:
+            return self.db.execute(
+                "SELECT * FROM runs WHERE state IN ('submitting','submitted','running','cancelling') "
+                "ORDER BY run_id"
+            ).fetchall()
+
+    def update_run(self, run_id: str, state: str, result: dict[str, Any] | None = None) -> None:
+        encoded = None if result is None else json.dumps(result, sort_keys=True)
+        with self.transaction() as db:
+            db.execute(
+                "UPDATE runs SET state=?,result_json=COALESCE(?,result_json) WHERE run_id=?",
+                (state, encoded, run_id),
+            )
+
     def close(self) -> None:
         self.db.close()
