@@ -22,3 +22,6 @@ The Pi and OpenCode conformance tests substitute a fixture executable for the
 real harness. Production provides `PI_COMMAND` or `OPENCODE_COMMAND` and a
 role-scoped LiteLLM credential. Adapter input is JSON on stdin and output is one
 JSON result on stdout; prompt content is never evaluated as shell code.
+
+Matrix/Commet usage, operational recovery, credential rotation, and shutdown
+procedures are in [RUNBOOK.md](RUNBOOK.md).

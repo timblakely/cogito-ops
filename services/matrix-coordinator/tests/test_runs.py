@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from coordinator.models import AgentRun, ValidationError
 from coordinator.runs import RunCoordinator
@@ -145,6 +146,17 @@ class RunTests(unittest.TestCase):
         limited.reconcile_once()
         limited.reconcile_once()
         self.assertEqual(self.state.run(second_run.run_id)["state"], "submitted")
+
+    def test_dependency_queues_until_predecessor_closes(self):
+        dependent = AgentRun(**{**self.run.__dict__,
+            "run_id": "dependent-run-0001", "context": {"depends_on": "https://github.com/o/r/issues/1"}})
+        with patch.object(self.state, "work_item_state", return_value="open"):
+            self.assertEqual(self.runs.submit(dependent, "contract"), "queued")
+            self.runs.reconcile_once()
+            self.assertEqual(self.state.run(dependent.run_id)["state"], "queued")
+        with patch.object(self.state, "work_item_state", return_value="closed"):
+            self.runs.reconcile_once()
+        self.assertEqual(self.state.run(dependent.run_id)["state"], "submitted")
 
 
 if __name__ == "__main__":

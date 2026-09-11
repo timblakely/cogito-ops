@@ -354,6 +354,13 @@ class StateStore:
                 "JOIN plans p ON p.plan_id=w.plan_id WHERE w.external_id=?", (external_id,)
             ).fetchone()
 
+    def work_item_state(self, external_id: str) -> str | None:
+        with self.lock:
+            row = self.db.execute(
+                "SELECT state FROM work_items WHERE external_id=?", (external_id,)
+            ).fetchone()
+            return row[0] if row else None
+
     def work_items(self):
         with self.lock:
             return self.db.execute(

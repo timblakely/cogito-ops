@@ -138,7 +138,8 @@ class MatrixCoordinator:
                     acceptance_checks=("Deliverable acceptance checklist is satisfied",
                                        "Relevant repository checks pass"),
                     context={"plan_hash": digest, "matrix_thread": root,
-                             "parent_issue": parent},
+                             "parent_issue": parent,
+                             **({"depends_on": children[index - 1]} if index else {})},
                     limits={"attempts": 2, "wall_seconds": 3600, "token_budget": 200000},
                 )
                 name = self.runs.submit(run, harness)

@@ -28,6 +28,10 @@ class RunCoordinator:
         self.max_active = max_active
         self.max_aggregate_tokens = max_aggregate_tokens
 
+    def _dependency_ready(self, run: AgentRun) -> bool:
+        dependency = run.context.get("depends_on")
+        return not dependency or self.state.work_item_state(dependency) == "closed"
+
     def submit(self, run: AgentRun, harness: str) -> str:
         request = {**run.as_dict(), "harness": harness}
         created = self.state.register_run(run.run_id, run.work_item, request)
@@ -37,7 +41,8 @@ class RunCoordinator:
         if self.state.control("emergency_stop", "false") == "true":
             self.state.update_run(run.run_id, "queued")
             return "queued"
-        if (self.state.active_run_count() > self.max_active or
+        if (not self._dependency_ready(run) or
+                self.state.active_run_count() > self.max_active or
                 self.state.total_usage_tokens() >= self.max_aggregate_tokens):
             self.state.update_run(run.run_id, "queued")
             return "queued"
@@ -83,6 +88,8 @@ class RunCoordinator:
             request = json.loads(row["request_json"])
             harness = request.pop("harness")
             run = AgentRun.from_dict(request)
+            if not self._dependency_ready(run):
+                continue
             name = self.argo.find_run(run.run_id) or self.argo.submit(run, harness)
             self.state.attach_workflow(run.run_id, name)
             self.state.audit("coordinator", "run.dequeued", run.run_id,

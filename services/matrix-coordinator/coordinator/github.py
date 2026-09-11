@@ -82,6 +82,7 @@ class GitHubIssues:
                 "labels": ["workflow/plan", "workflow/accepted"],
             })
         children = []
+        child_records = []
         for index, item in enumerate(deliverables(plan.markdown), 1):
             child_marker = f"<!-- cogito-plan-deliverable: {plan.plan_id}:{index} -->"
             child_body = (f"{child_marker}\nParent plan: {parent['html_url']}\n\n"
@@ -90,6 +91,7 @@ class GitHubIssues:
             child = next((issue for issue in existing if child_marker in (issue.get("body") or "")), None)
             if child is not None:
                 children.append(child["html_url"])
+                child_records.append(child)
                 continue
             child = self._request("POST", f"/repos/{slug}/issues", {
                 "title": item,
@@ -98,8 +100,19 @@ class GitHubIssues:
                 "parent_issue_id": parent["id"],
             })
             children.append(child["html_url"])
+            child_records.append(child)
             if index < len(deliverables(plan.markdown)):
                 time.sleep(0.5)
+        # A plan checklist is ordered. Represent that order with native issue
+        # dependencies so later deliverables cannot be mistaken as runnable
+        # before their predecessor is accepted.
+        for blocker, blocked in zip(child_records, child_records[1:]):
+            dependencies = self._request(
+                "GET", f"/repos/{slug}/issues/{blocked['number']}/dependencies/blocked_by")
+            if not any(issue["id"] == blocker["id"] for issue in dependencies):
+                self._request(
+                    "POST", f"/repos/{slug}/issues/{blocked['number']}/dependencies/blocked_by",
+                    {"issue_id": blocker["id"]})
         return parent["html_url"], children
 
     def get_issue(self, url: str) -> dict:
