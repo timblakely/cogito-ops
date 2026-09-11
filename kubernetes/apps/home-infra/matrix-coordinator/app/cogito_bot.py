@@ -107,11 +107,15 @@ class CogitoBot(Plugin):
             return
         self.log.info("Forwarding Matrix command event %s", evt.event_id)
         try:
-            if body.startswith("!cogito plan "):
-                await evt.respond(
-                    "⏳ Plan request received. I’ll post the draft here when planning completes.",
-                    in_thread=True,
-                )
+            command = body.removeprefix("!cogito").strip().partition(" ")[0].lower()
+            progress = {
+                "plan": "⏳ Plan request received. I’ll post the draft here when planning completes.",
+                "revise": "⏳ Revision request received. I’ll post the updated plan here when ready.",
+                "approve": "⏳ Approval received. I’m creating and dispatching the deliverables now.",
+                "merge": "⏳ Merge approval received. I’m validating and merging the reviewed change now.",
+            }.get(command)
+            if body.startswith("!cogito") and progress:
+                await evt.respond(progress, in_thread=True)
             thread_root = None
             if is_thread_reply:
                 thread_root = str(relation.event_id)
