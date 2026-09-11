@@ -134,6 +134,16 @@ class GitHubIssues:
             raise ValidationError("work item is not a GitHub issue URL")
         return self._request("GET", f"/repos/{slug}/issues/{parts[3]}")
 
+    def close_issue(self, url: str) -> dict:
+        slug, number = self._issue_parts(url)
+        issue = self._request("GET", f"/repos/{slug}/issues/{number}")
+        if issue.get("state") == "closed":
+            return issue
+        return self._request(
+            "PATCH", f"/repos/{slug}/issues/{number}",
+            {"state": "closed", "state_reason": "completed"},
+        )
+
     @staticmethod
     def _issue_parts(url: str) -> tuple[str, int]:
         parts = urlparse(url).path.strip("/").split("/")

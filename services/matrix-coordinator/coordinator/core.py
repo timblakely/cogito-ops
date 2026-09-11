@@ -12,6 +12,10 @@ from .state import StateStore
 class IssuePort(Protocol):
     def create_plan(self, plan: PlanVersion) -> tuple[str, list[str]]: ...
 
+    def get_issue(self, url: str) -> dict: ...
+
+    def close_issue(self, url: str) -> dict: ...
+
 
 class Coordinator:
     def __init__(self, state: StateStore, issues: IssuePort, approvers: set[str]):
@@ -117,7 +121,35 @@ class Coordinator:
             self.state.enqueue_matrix(
                 f"github:{delivery}", context["matrix_room_id"], context["root_event_id"], body)
             self.state.audit("github", f"{event}.{action}", url, {"delivery": delivery, "state": state})
+            self.reconcile_completed_plans()
         return changed
+
+    def reconcile_completed_plans(self) -> int:
+        """Close parent issues only after every child has an accepted merge."""
+        completed = 0
+        for plan in self.state.completable_plans():
+            plan_id, parent = plan["plan_id"], plan["github_issue_url"]
+            action_key = f"github-close-plan:{plan_id}"
+            result = self.state.begin_action(
+                action_key, "github.close-plan", {"plan_id": plan_id, "parent": parent})
+            if result is None:
+                try:
+                    issue = self.issues.close_issue(parent)
+                except Exception as exc:
+                    self.state.fail_action(action_key, str(exc))
+                    raise
+                result = {
+                    "kind": "issue", "url": issue.get("html_url", parent),
+                    "title": issue.get("title", ""), "state": issue.get("state", "closed"),
+                }
+                self.state.complete_action(action_key, result)
+            if self.state.complete_plan(plan_id, parent, result):
+                completed += 1
+                self.state.enqueue_matrix(
+                    f"plan-complete:{plan_id}", plan["matrix_room_id"], plan["root_event_id"],
+                    f"Plan complete: every deliverable merged and [{parent}]({parent}) is closed.")
+                self.state.audit("coordinator", "plan.completed", plan_id, result)
+        return completed
 
     def reconcile_github(self) -> int:
         changed = 0
@@ -135,4 +167,4 @@ class Coordinator:
                     f"GitHub reconciled: [{issue.get('title') or row['external_id']}]"
                     f"({row['external_id']}) · `{state}`",
                 )
-        return changed
+        return changed + self.reconcile_completed_plans()

@@ -9,12 +9,17 @@ from coordinator.state import StateStore
 class FakeIssues:
     def __init__(self):
         self.calls = 0
+        self.closed = []
 
     def create_plan(self, plan):
         self.calls += 1
         return "https://github.com/timblakely/cogito/issues/10", ["https://github.com/timblakely/cogito/issues/11"]
 
     def get_issue(self, url):
+        return {"html_url": url, "title": "One", "state": "closed"}
+
+    def close_issue(self, url):
+        self.closed.append(url)
         return {"html_url": url, "title": "One", "state": "closed"}
 
 
@@ -80,6 +85,27 @@ class CoreTests(unittest.TestCase):
         self.core.approve(self.approval())
         self.assertEqual(self.core.reconcile_github(), 2)
         self.assertEqual(self.core.reconcile_github(), 0)
+
+    def test_completed_deliveries_close_parent_and_plan_once(self):
+        parent, children = self.core.approve(self.approval())
+        with self.state.transaction() as db:
+            db.execute(
+                "INSERT INTO runs(run_id,work_item_external_id,state,request_json) VALUES (?,?,?,?)",
+                ("run-1", children[0], "succeeded", "{}"),
+            )
+            db.execute(
+                "INSERT INTO deliveries(work_item_external_id,worker_run_id,worker_harness,state) "
+                "VALUES (?,?,?,'merged')", (children[0], "run-1", "pi"),
+            )
+        self.assertEqual(self.core.reconcile_github(), 3)
+        self.assertEqual(self.issues.closed, [parent])
+        self.assertEqual(self.state.plan_for_thread(
+            self.plan.matrix_room_id, self.plan.matrix_event_id)["state"], "complete")
+        self.assertEqual(self.core.reconcile_github(), 0)
+        self.assertEqual(self.issues.closed, [parent])
+        self.assertEqual(len([
+            row for row in self.state.pending_matrix()
+            if row["notification_id"] == "plan-complete:plan-1"]), 1)
 
 
 if __name__ == "__main__":

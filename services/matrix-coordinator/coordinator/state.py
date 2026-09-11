@@ -368,6 +368,38 @@ class StateStore:
                 "JOIN plans p ON p.plan_id=w.plan_id ORDER BY w.external_id"
             ).fetchall()
 
+    def completable_plans(self):
+        """Return decomposed plans whose child issues all have merged deliveries."""
+        with self.lock:
+            return self.db.execute(
+                "SELECT p.plan_id,p.github_issue_url,p.matrix_room_id,p.root_event_id "
+                "FROM plans p JOIN work_items parent ON parent.plan_id=p.plan_id "
+                "AND parent.parent_external_id IS NULL "
+                "WHERE p.state IN ('decomposed','running') AND p.github_issue_url IS NOT NULL "
+                "AND EXISTS (SELECT 1 FROM work_items child WHERE child.plan_id=p.plan_id "
+                "AND child.parent_external_id=parent.external_id) "
+                "AND NOT EXISTS (SELECT 1 FROM work_items child WHERE child.plan_id=p.plan_id "
+                "AND child.parent_external_id=parent.external_id AND child.state!='closed') "
+                "AND NOT EXISTS (SELECT 1 FROM work_items child "
+                "LEFT JOIN deliveries d ON d.work_item_external_id=child.external_id "
+                "WHERE child.plan_id=p.plan_id AND child.parent_external_id=parent.external_id "
+                "AND (d.state IS NULL OR d.state!='merged')) ORDER BY p.plan_id"
+            ).fetchall()
+
+    def complete_plan(self, plan_id: str, parent: str, payload: dict[str, Any]) -> bool:
+        """Atomically record a completed plan and its closed parent work item."""
+        with self.transaction() as db:
+            result = db.execute(
+                "UPDATE plans SET state='complete' WHERE plan_id=? "
+                "AND state IN ('decomposed','running')", (plan_id,))
+            if result.rowcount != 1:
+                return False
+            db.execute(
+                "UPDATE work_items SET state='closed',payload_json=? WHERE external_id=?",
+                (json.dumps(payload, sort_keys=True), parent),
+            )
+            return True
+
     def enqueue_matrix(self, notification_id: str, room_id: str, thread_root: str, body: str) -> bool:
         with self.transaction() as db:
             result = db.execute(
