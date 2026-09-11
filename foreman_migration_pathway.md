@@ -1,6 +1,6 @@
 # Foreman migration pathway
 
-Status: proposed migration milestone
+Status: implemented; one Commet-originated acceptance remains
 
 Owner: Tim
 
@@ -141,17 +141,28 @@ coding executor.
 The submilestones are intentionally short. Each ends in a usable state and
 moves ownership directly to Foreman.
 
+Implementation evidence (2026-09-11): LLMKube and Foreman 0.9.25 reconciled
+Ready; all four Cogito Agents validated; a FleetNode registered on `iggy`; and
+documentation issue #21 completed as Workload `foreman-acceptance-21-v5` with
+coder `GO`, deterministic `GATE-PASS`, reviewer `GO`, and draft PR #22. The
+retired Argo Flux applications and their managed workloads were removed. The
+remaining unchecked items deliberately require a normal plan initiated in
+Commet and Tim's manual GitHub merge; the direct Workload acceptance does not
+pretend to cover that human boundary. Eight inactive Argo CRDs remain pending
+explicit approval because deleting them also destroys the terminal workflow
+history stored in those APIs.
+
 ### F1 — Pin and install the upstream control plane
 
-- [ ] **F1.1** Review the releases since the repository's LLMKube 0.9.18 pin,
+- [x] **F1.1** Review the releases since the repository's LLMKube 0.9.18 pin,
   choose one LLMKube/Foreman release, and record both OCI digests.
-- [ ] **F1.2** Upgrade LLMKube core to that reviewed release and add the sibling
+- [x] **F1.2** Upgrade LLMKube core to that reviewed release and add the sibling
   Foreman OCIRepository and HelmRelease through Flux.
-- [ ] **F1.3** Configure the chart's existing GitHub and model credential
+- [x] **F1.3** Configure the chart's existing GitHub and model credential
   interfaces from 1Password/External Secrets; do not add a credential adapter.
-- [ ] **F1.4** Give the Foreman operator and agent pools only the namespace,
+- [x] **F1.4** Give the Foreman operator and agent pools only the namespace,
   GitHub, workspace, Job, and inference access required by upstream.
-- [ ] **F1.5** Reconcile and verify the pinned charts, CRDs, controller, webhook,
+- [x] **F1.5** Reconcile and verify the pinned charts, CRDs, controller, webhook,
   Agent validation conditions, and at least one registered FleetNode.
 
 Acceptance: the matching pinned LLMKube and Foreman releases are Ready, with no
@@ -159,16 +170,16 @@ Cogito fork or custom controller.
 
 ### F2 — Describe Cogito as Foreman configuration
 
-- [ ] **F2.1** Define a coder `Agent` using the existing worker model endpoint
+- [x] **F2.1** Define a coder `Agent` using the existing worker model endpoint
   and the smallest upstream tool whitelist that can edit this repository.
-- [ ] **F2.2** Define a reviewer `Agent` using the existing reviewer endpoint;
+- [x] **F2.2** Define a reviewer `Agent` using the existing reviewer endpoint;
   use Foreman's reviewer and escalation fields rather than coordinator code.
-- [ ] **F2.3** Define the minimal gate profile needed for Cogito. Reuse an
+- [x] **F2.3** Define the minimal gate profile needed for Cogito. Reuse an
   upstream or already-pinned tool image where possible; do not create a general
   replacement for the current Argo template library.
-- [ ] **F2.4** Set Foreman concurrency at the Agent/pool level so the shared
+- [x] **F2.4** Set Foreman concurrency at the Agent/pool level so the shared
   inference endpoint is not oversubscribed.
-- [ ] **F2.5** Manually apply one Workload for a harmless real documentation
+- [x] **F2.5** Manually apply one Workload for a harmless real documentation
   issue and confirm coder, gate, reviewer, branch, and draft PR completion.
 
 Acceptance: an upstream-only Foreman pipeline turns one Cogito issue into a
@@ -177,23 +188,23 @@ not to build a local executor.
 
 ### F3 — Reduce the Matrix coordinator to a gateway
 
-- [ ] **F3.1** Replace Argo dispatch after `!cogito approve` with deterministic
+- [x] **F3.1** Replace Argo dispatch after `!cogito approve` with deterministic
   creation of one Foreman Workload containing the generated deliverable issue
   numbers and correlation metadata.
-- [ ] **F3.2** Replace run/delivery polling with a watch of Workload conditions
+- [x] **F3.2** Replace run/delivery polling with a watch of Workload conditions
   and selected AgenticTask failure reasons. Post only phase changes, actionable
   failures, the draft PR link, and completion to the original thread.
-- [ ] **F3.3** Make `!cogito status` read Foreman directly. Remove custom
+- [x] **F3.3** Make `!cogito status` read Foreman directly. Remove custom
   pause/resume/retry/merge semantics unless the selected Foreman release exposes
   the same operation natively.
-- [ ] **F3.4** Remove direct GitHub PR/review/merge reconciliation from the
+- [x] **F3.4** Remove direct GitHub PR/review/merge reconciliation from the
   coordinator. Keep only accepted-plan issue creation; let Hookshot report
   ordinary GitHub activity.
-- [ ] **F3.5** Reduce the state schema to plan/approval identity, Workload
+- [x] **F3.5** Reduce the state schema to plan/approval identity, Workload
   correlation, and Matrix send idempotency. Do not migrate completed run or
   delivery history; Matrix, GitHub, and Git already retain the experiment's
   useful record.
-- [ ] **F3.6** Narrow coordinator RBAC to Foreman Workload create/get/watch and
+- [x] **F3.6** Narrow coordinator RBAC to Foreman Workload create/get/watch and
   read-only task status. It must not create or mutate AgenticTasks.
 
 Acceptance: replaying the same Matrix approval finds the same Workload, and the
@@ -202,9 +213,9 @@ implementation.
 
 ### F4 — Cut over on one real plan
 
-- [ ] **F4.1** Stop accepting new custom runs and ensure any currently active
+- [x] **F4.1** Stop accepting new custom runs and ensure any currently active
   Argo agent run is terminal. Do not build a traffic switch or dual writer.
-- [ ] **F4.2** Make Foreman dispatch the only post-approval path.
+- [x] **F4.2** Make Foreman dispatch the only post-approval path.
 - [ ] **F4.3** Complete one real Commet-originated plan through issue creation,
   Workload execution, gate, review, draft PR, manual GitHub merge, and final
   Matrix status.
@@ -217,21 +228,21 @@ state reconstruction is required for this experimental cluster.
 
 ### F5 — Delete the superseded platform
 
-- [ ] **F5.1** Remove `argo.py`, `runs.py`, `deliveries.py`, the AgentRun/result
+- [x] **F5.1** Remove `argo.py`, `runs.py`, `deliveries.py`, the AgentRun/result
   schemas, Pi/OpenCode adapters, harness runtime, and their obsolete tests.
-- [ ] **F5.2** Remove `Dockerfile.agent` and the agent-runtime build/publish job;
+- [x] **F5.2** Remove `Dockerfile.agent` and the agent-runtime build/publish job;
   keep only the thin gateway image build if it still exists as a separate
   service.
-- [ ] **F5.3** Remove the Argo Workflows app, all agent-run templates, its UI,
+- [x] **F5.3** Remove the Argo Workflows app, all agent-run templates, its UI,
   OIDC client, RBAC, dashboard, alerts, Garage credentials, and the
   matrix-coordinator dependency on Argo resources.
-- [ ] **F5.4** Remove coordinator execution metrics, secrets, state tables,
+- [x] **F5.4** Remove coordinator execution metrics, secrets, state tables,
   backup instructions, and runbooks that no longer describe a deployed
   responsibility.
-- [ ] **F5.5** Update `matrix_development_coordination.md`, the coordinator
+- [x] **F5.5** Update `matrix_development_coordination.md`, the coordinator
   README/runbook, and architecture diagrams so Foreman is the sole execution
   owner and GitHub is the merge interface.
-- [ ] **F5.6** Run the remaining unit tests and repository manifest validation,
+- [x] **F5.6** Run the remaining unit tests and repository manifest validation,
   render both charts, and reconcile the deletion through Flux.
 
 Acceptance: `rg` finds no deployed Argo agent-run path, custom autonomous agent
