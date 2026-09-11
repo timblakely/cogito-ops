@@ -115,7 +115,10 @@ class ForemanClient:
                     "image": self.gate_image,
                     "sourceExtensions": [".py", ".yaml", ".yml", ".json", ".md"],
                     "commands": {
-                        "lint": "git diff --check HEAD^ HEAD -- ."
+                        "lint": (
+                            "git fetch --deepen=1 origin && "
+                            "git diff --check HEAD^ HEAD -- ."
+                        )
                     },
                 },
             },
