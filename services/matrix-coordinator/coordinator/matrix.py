@@ -81,15 +81,14 @@ class MatrixCoordinator:
         root = event.thread_root or event.event_id
         if event.sender not in self.allowed_senders:
             raise ValidationError("Matrix sender is not allowlisted")
-        if body.startswith(">>"):
-            plan = self._thread_plan(event)
-            comment = body.removeprefix(">>").strip()
-            if not comment:
-                raise ValidationError("empty review comment")
-            self.state.add_plan_comment(event.event_id, plan["plan_id"], event.sender, comment)
-            return self._message("Review comment recorded. Send `!cogito revise` when ready.", root)
         if not body.startswith("!cogito"):
-            return {"actions": []}
+            if not event.thread_root:
+                return {"actions": []}
+            plan = self.state.plan_for_thread(event.room_id, event.thread_root)
+            if not plan:
+                return {"actions": []}
+            self.state.add_plan_comment(event.event_id, plan["plan_id"], event.sender, body)
+            return self._message("Review comment recorded. Send `!cogito revise` when ready.", root)
         command, _, argument = body.removeprefix("!cogito").strip().partition(" ")
         command = command.lower()
         if command == "plan":
@@ -102,7 +101,8 @@ class MatrixCoordinator:
             self.core.record_plan(plan)
             return self._message(
                 f"**Plan `{plan.plan_id}` · version 1**\n\n{plan.markdown}\n"
-                f"Plan hash: `{plan.hash}`\n\nReply with `>>` comments, then `!cogito revise`, "
+                f"Plan hash: `{plan.hash}`\n\nReply in this thread with comments, then "
+                f"`!cogito revise`, "
                 f"or approve with `!cogito approve {plan.hash}`.", root)
         if command == "revise":
             row = self._thread_plan(event)
@@ -184,5 +184,5 @@ class MatrixCoordinator:
             return self._message(
                 "Commands: `plan <objective>`, `revise`, `approve <hash>`, "
                 "`status <run>`, `cancel|pause|resume <run>`, `merge <run> <sha>`, `stop`, `start`. "
-                "Review comments begin with `>>`.", root)
+                "Ordinary replies in a plan thread are review comments.", root)
         raise ValidationError("unknown !cogito command")

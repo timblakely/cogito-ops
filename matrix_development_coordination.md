@@ -571,7 +571,7 @@ through those substitutions.
 The implementation is deployed, but cutover remains intentionally gated on
 actions that require Tim's identity or physical Android observation:
 
-1. From locked-screen Commet, start a real plan, add `>>` review comments,
+1. From locked-screen Commet, start a real plan, add ordinary thread replies as review comments,
    revise, approve the exact hash, exercise one higher-risk exact-head approval,
    and confirm Wi-Fi plus cellular/WireGuard push delivery.
 2. Complete a coordinator/maubot backup restore and the remaining failure-path

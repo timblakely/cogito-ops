@@ -12,9 +12,9 @@ Start a plan in the applicable project room:
 !cogito plan <objective>
 ```
 
-Reply in its thread with review comments beginning with `>>`. After all comments
-are present, send `!cogito revise`. Approve only the hash shown on the desired
-version:
+Reply in its thread with ordinary review comments. After all comments are
+present, send `!cogito revise` in the same thread. Approve only the hash shown
+on the desired version:
 
 ```text
 !cogito approve sha256:<64 hex characters>
@@ -183,8 +183,8 @@ already-open sync connection.
 1. Send `!cogito plan Add matrix-e2e.txt containing exactly matrix-ok followed
    by one newline, with no other changes. Include one deliverable and explicit
    acceptance checks.`
-2. Reply in the plan thread with `>> Require exactly one trailing newline and
-   no unrelated file changes.`, then send `!cogito revise` in the same thread.
+2. Reply in the plan thread with `Require exactly one trailing newline and no
+   unrelated file changes.`, then send `!cogito revise` in the same thread.
 3. Compare the revised text and send `!cogito approve sha256:<hash>` using the
    exact displayed hash. Confirm the parent issue, deliverable issue, run, PR,
    independent review, checks, merge, and completion updates stay in that

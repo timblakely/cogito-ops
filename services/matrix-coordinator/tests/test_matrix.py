@@ -59,7 +59,9 @@ class MatrixTests(unittest.TestCase):
     def test_plan_comment_revision_and_exact_approval(self):
         first = self.matrix.handle(self.event("$root", "!cogito plan Build it"))
         digest = first["actions"][0]["body"].split("Plan hash: `", 1)[1].split("`", 1)[0]
-        self.matrix.handle(self.event("$comment", ">> Add rollback", "$root"))
+        self.matrix.handle(self.event("$comment", "Add rollback", "$root"))
+        plan = self.state.plan_for_thread("!room:matrix.example", "$root")
+        self.assertEqual(self.state.plan_comments(plan["plan_id"]), ["Add rollback"])
         revised = self.matrix.handle(self.event("$revise", "!cogito revise", "$root"))
         revised_hash = revised["actions"][0]["body"].split("Plan hash: `", 1)[1].split("`", 1)[0]
         with self.assertRaises(ValidationError):
@@ -77,6 +79,13 @@ class MatrixTests(unittest.TestCase):
         value = self.event("$root", "!cogito plan Build it")
         self.assertEqual(self.matrix.handle(value), self.matrix.handle(value))
         self.assertEqual(self.planner.calls, 1)
+
+    def test_non_command_outside_plan_thread_is_ignored(self):
+        self.assertEqual(self.matrix.handle(self.event("$chat", "ordinary chat")), {"actions": []})
+        self.assertEqual(
+            self.matrix.handle(self.event("$other", "thread chat", "$unrelated")),
+            {"actions": []},
+        )
 
     def test_untrusted_sender_is_rejected(self):
         value = self.event("$root", "!cogito help")

@@ -97,8 +97,12 @@ class CogitoBot(Plugin):
     async def on_message(self, evt: MessageEvent) -> None:
         if evt.sender == self.client.mxid or evt.sender not in self.config["allowed_senders"]:
             return
+        if getattr(evt.content, "msgtype", None) not in {MessageType.TEXT, MessageType.NOTICE}:
+            return
         body = getattr(evt.content, "body", "").strip()
-        if not (body.startswith("!cogito") or body.startswith(">>")):
+        relation = getattr(evt.content, "relates_to", None)
+        is_thread_reply = bool(relation and relation.rel_type == RelationType.THREAD)
+        if not body.startswith("!cogito") and not is_thread_reply:
             return
         self.log.info("Forwarding Matrix command event %s", evt.event_id)
         try:
@@ -107,9 +111,8 @@ class CogitoBot(Plugin):
                     "⏳ Plan request received. I’ll post the draft here when planning completes.",
                     in_thread=True,
                 )
-            relation = getattr(evt.content, "relates_to", None)
             thread_root = None
-            if relation and relation.rel_type == RelationType.THREAD:
+            if is_thread_reply:
                 thread_root = str(relation.event_id)
             value = {
                 "event_id": str(evt.event_id),
