@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from hashlib import sha256
 from threading import RLock
 from typing import Any
@@ -103,7 +104,7 @@ class MatrixCoordinator:
                 f"**Plan `{plan.plan_id}` · version 1**\n\n{plan.markdown}\n"
                 f"Plan hash: `{plan.hash}`\n\nReply in this thread with comments, then "
                 f"`!cogito revise`, "
-                f"or approve with `!cogito approve {plan.hash}`.", root)
+                f"or approve the current version with `!cogito approve`.", root)
         if command == "revise":
             row = self._thread_plan(event)
             version = self.state.current_plan_version(row["plan_id"])
@@ -116,15 +117,29 @@ class MatrixCoordinator:
             self.core.record_plan(plan)
             return self._message(
                 f"**Plan `{plan.plan_id}` · version {plan.version}**\n\n{plan.markdown}\n"
-                f"Plan hash: `{plan.hash}`\n\nApprove this exact version with "
-                f"`!cogito approve {plan.hash}`.", root)
+                f"Plan hash: `{plan.hash}`\n\nApprove the current version with "
+                f"`!cogito approve`.", root)
         if command == "approve":
             if self.state.control("emergency_stop", "false") == "true":
                 raise ValidationError("coordinator emergency stop is active")
             row = self._thread_plan(event)
             digest = argument.strip()
-            if not HASH.fullmatch(digest):
-                raise ValidationError("usage: !cogito approve sha256:<64 hex characters>")
+            if digest:
+                if not HASH.fullmatch(digest):
+                    raise ValidationError("usage: !cogito approve [sha256:<64 hex characters>]")
+            else:
+                version = self.state.current_plan_version(row["plan_id"])
+                try:
+                    sent_at = datetime.fromisoformat(event.timestamp.replace("Z", "+00:00"))
+                    if sent_at.tzinfo is None:
+                        raise ValueError
+                except ValueError as exc:
+                    raise ValidationError("invalid Matrix event timestamp") from exc
+                if sent_at.timestamp() < version["created_at"]:
+                    raise ValidationError(
+                        "the plan changed after this approval was sent; review the latest version"
+                    )
+                digest = version["content_hash"]
             parent, children = self.core.approve(Approval(
                 row["plan_id"], digest, event.event_id, event.sender, event.timestamp))
             dispatched = []
@@ -182,7 +197,7 @@ class MatrixCoordinator:
                 f"Run `{run_id}` is **{row['state']}** (Argo `{row['argo_name'] or 'pending'}`).", root)
         if command in {"help", ""}:
             return self._message(
-                "Commands: `plan <objective>`, `revise`, `approve <hash>`, "
+                "Commands: `plan <objective>`, `revise`, `approve [hash]`, "
                 "`status <run>`, `cancel|pause|resume <run>`, `merge <run> <sha>`, `stop`, `start`. "
                 "Ordinary replies in a plan thread are review comments.", root)
         raise ValidationError("unknown !cogito command")

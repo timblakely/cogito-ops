@@ -64,7 +64,9 @@ class WorkspaceTests(unittest.TestCase):
             "OPENAI_API_KEY": "do-not-write-me",
         }, clear=False):
             argv, _ = harness_argv("pi", self.run)
+            repeated_argv, _ = harness_argv("pi", self.run)
         self.assertIn("litellm", argv)
+        self.assertEqual(repeated_argv, argv)
         config = json.loads((home / ".pi" / "agent" / "models.json").read_text())
         provider = config["providers"]["litellm"]
         self.assertEqual(provider["baseUrl"], "http://litellm.test/v1")

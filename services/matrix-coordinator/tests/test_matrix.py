@@ -80,6 +80,18 @@ class MatrixTests(unittest.TestCase):
         self.assertEqual(self.matrix.handle(value), self.matrix.handle(value))
         self.assertEqual(self.planner.calls, 1)
 
+    def test_thread_approval_resolves_current_version(self):
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        value = self.event("$approve", "!cogito approve", "$root")
+        value["timestamp"] = "2099-01-01T00:00:00Z"
+        accepted = self.matrix.handle(value)
+        self.assertIn("Plan accepted", accepted["actions"][0]["body"])
+
+    def test_delayed_thread_approval_cannot_accept_newer_version(self):
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        with self.assertRaisesRegex(ValidationError, "plan changed"):
+            self.matrix.handle(self.event("$approve", "!cogito approve", "$root"))
+
     def test_non_command_outside_plan_thread_is_ignored(self):
         self.assertEqual(self.matrix.handle(self.event("$chat", "ordinary chat")), {"actions": []})
         self.assertEqual(

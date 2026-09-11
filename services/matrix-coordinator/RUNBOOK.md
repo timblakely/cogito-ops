@@ -13,12 +13,16 @@ Start a plan in the applicable project room:
 ```
 
 Reply in its thread with ordinary review comments. After all comments are
-present, send `!cogito revise` in the same thread. Approve only the hash shown
-on the desired version:
+present, send `!cogito revise` in the same thread. For normal interactive
+approval, the coordinator resolves and records the current version's hash:
 
 ```text
-!cogito approve sha256:<64 hex characters>
+!cogito approve
 ```
+
+Automation may pin a version explicitly with `!cogito approve sha256:<hash>`.
+A delayed hashless command fails if its Matrix timestamp predates the current
+plan version.
 
 Approval creates a parent issue and native sub-issues, then queues bounded Pi
 and OpenCode worker runs. Successful workers publish only an explicit
@@ -185,8 +189,8 @@ already-open sync connection.
    acceptance checks.`
 2. Reply in the plan thread with `Require exactly one trailing newline and no
    unrelated file changes.`, then send `!cogito revise` in the same thread.
-3. Compare the revised text and send `!cogito approve sha256:<hash>` using the
-   exact displayed hash. Confirm the parent issue, deliverable issue, run, PR,
+3. Compare the revised text and send `!cogito approve`. Confirm the parent
+   issue, deliverable issue, run, PR,
    independent review, checks, merge, and completion updates stay in that
    thread.
 4. Repeat with a harmless file under `kubernetes/` so policy requires an exact

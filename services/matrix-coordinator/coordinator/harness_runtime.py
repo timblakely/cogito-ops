@@ -100,9 +100,9 @@ def prompt(run: AgentRun) -> str:
 
 def configure_pi(role_model: str, env: dict[str, str]) -> None:
     """Configure Pi's documented OpenAI-compatible custom provider."""
-    home = Path(env.get("HOME", "/tmp/agent-home"))
+    home = Path(env.get("COGITO_AGENT_HOME", env.get("HOME", "/tmp/agent-home")))
     agent_dir = home / ".pi" / "agent"
-    agent_dir.mkdir(parents=True, mode=0o700)
+    agent_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     config = {
         "providers": {
             "litellm": {
