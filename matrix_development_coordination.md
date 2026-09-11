@@ -451,7 +451,7 @@ state, and an obsolete approval cannot launch work.
 - [x] **M5.4** Implement and pass conformance for the OpenCode adapter.
 - [ ] **M5.5** Prove a backing-model/provider swap, including a DeepSeek-class
   model where available, without changing the run contract.
-- [ ] **M5.6** Store logs, patches, checks, usage, and result manifests as
+- [x] **M5.6** Store logs, patches, checks, usage, and result manifests as
   digest-addressed artifacts with retention and redaction.
 
 Acceptance: the same fixture succeeds through Pi and OpenCode, and a role-seat
@@ -533,10 +533,13 @@ coordination behavior.
 | M4.3, M4.5–M4.6, M4.8 | 28 service tests; GitHub issues #4/#5; `agent-run-5sjjh` succeeded and result recovered after coordinator restart; schema v4 backfill | Complete |
 | M5.1 | Versioned JSON schemas, command boundary, fixture and conformance runner | Complete |
 | M5.2–M5.4 | Pi workflow `pi-production-ccxlr` at `2033197b`; OpenCode workflow `opencode-production-nr2dk` at `baf29363`; explicit refs and allowlists verified | Complete |
-| M5.5–M5.6 | Provider-seat swap and final artifact-manifest smoke remain | Pending |
+| M5.5 | No DeepSeek-class seat is currently configured; provider-seat swap acceptance remains | Pending |
+| M5.6 | `artifact-manifest-smoke-29tds`: normalized verdict, path evidence, and SHA-256 log/patch artifacts survived controller restart with no artifact-GC finalizer | Complete |
 | M6.1–M6.7 | Durable delivery schema, native dependency API, queued bounded runs, PR/check/review/repair/merge reconciliation, exact-head approval, Matrix updates, and emergency stop; 40 tests | Complete |
 | M7.2–M7.3 | Parent issue #4; native sub-issues #5/#6 with dependency; Pi PR #7 and OpenCode PR #8 independently cross-reviewed, green, and merged | Complete |
 | M7.1, M7.4–M7.7 | Physical Commet acceptance, higher-risk approval, recovery/failure exercises, and restore audit remain | Pending |
+| M7.5 partial | Coordinator schema v5 survived rollouts with one plan/two work items; Argo controller restart retained `artifact-manifest-smoke-29tds`; live webhook redelivery is blocked by the current CLI token lacking `admin:repo_hook` | Partial |
+| M7.6 partial | Live `failure-timeout-0001` normalized to `failed` and encrypted Matrix event `$cWRTkM1YX2mssdicix_AsI6HlPtVFFjFdBLNM4wc88M` was acknowledged; repair, stop, queue, pause/resume, and cancellation paths have deterministic tests or earlier M2 evidence | Partial |
 | M8.1, M8.4 | `services/matrix-coordinator/RUNBOOK.md` | Complete |
 | M8.2–M8.3, M8.5 | Await final cutover acceptance and rollback window | Pending |
 
@@ -560,3 +563,23 @@ Hookshot can be replaced behind normalized GitHub events, maubot behind the
 Matrix command/event interface, Argo behind the workflow API, and any harness
 behind the adapter contract. Matrix and GitHub object identities remain stable
 through those substitutions.
+
+## Remaining acceptance gates
+
+The implementation is deployed, but cutover remains intentionally gated on
+actions that require Tim's identity or physical Android observation:
+
+1. Create and install the narrowly scoped GitHub App, then replace the current
+   repository webhook/PAT credentials and prove signed redelivery.
+2. Authorize Hookshot's `generic` service to accept room connection management
+   from `@agent-gitops:matrix.timblakely.com`; the desired invitations already
+   exist in Git, but Hookshot currently declines that inviter.
+3. Rotate the stale `coordinator` LiteLLM virtual key. Its resource and
+   PushSecret report Ready, but a live scoped request returned HTTP 401. Worker,
+   reviewer, and planner role routes have live evidence.
+4. From locked-screen Commet, start a real plan, add `>>` review comments,
+   revise, approve the exact hash, exercise one higher-risk exact-head approval,
+   and confirm Wi-Fi plus cellular/WireGuard push delivery.
+5. Complete a coordinator/maubot backup restore and the remaining failure-path
+   drills, then observe the rollback window before removing the legacy plan-PR
+   workflow.
