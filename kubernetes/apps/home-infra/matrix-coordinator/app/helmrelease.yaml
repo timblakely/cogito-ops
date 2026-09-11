@@ -59,6 +59,11 @@ spec:
               COGITO_MAX_ACTIVE_RUNS: "4"
               COGITO_MAX_AGGREGATE_TOKENS: "1000000"
               GITHUB_TOKEN_FILE: /run/secrets/github-app/token
+              GITHUB_TOKEN:
+                valueFrom:
+                  secretKeyRef:
+                    name: matrix-coordinator-github-token
+                    key: token
             envFrom:
               - secretRef:
                   name: matrix-coordinator

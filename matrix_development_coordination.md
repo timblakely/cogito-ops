@@ -405,7 +405,7 @@ can be safely resumed or cancelled without shell access to its pod.
 ### M3 — Matrix and GitHub event integration
 
 - [x] **M3.1** Deploy pinned Matrix Hookshot with persistent E2EE state.
-- [ ] **M3.2** Create a narrowly scoped GitHub App, store its key and webhook
+- [x] **M3.2** Create a narrowly scoped GitHub App, store its key and webhook
   secret in 1Password, and project them through External Secrets.
 - [x] **M3.3** Connect GitHub events to Cogito, run, and alert threads with
   delivery-signature and replay validation.
@@ -527,7 +527,8 @@ coordination behavior.
 | M2.1–M2.6 | Argo chart, Garage key/item, SSO, policy, monitoring, templates commit | Complete |
 | M2.7 | Flux `daa83362e9a7`; `coordination-smoke-h4fj4` retried and succeeded with Garage artifacts/exit hook; `coordination-suspend-44c7r` resumed and succeeded; `coordination-cancel-6mkd4` terminated | Complete |
 | M3.1 | `919bda0c65f3`, `a95d5b1758f5`; Hookshot 7.4.4 Ready with persistent cryptostore, Redis, and Synapse MSC3202 transaction extensions | Complete |
-| M3.2, M3.7 | GitHub App creation and physical Android acceptance remain | Pending |
+| M3.2 | App `4906005`, installation `160792836`; commits `65a9546b3813`, `5e555005aef7`, `28b42556afc6`, `77a1cbfe99d9`, and `96960c770749`; both ESO generators Ready and restricted to `cogito-ops`; issue #9 and PR #10 proved issue/PR/ref/check/merge permissions using a `ghs_` token and temporary branches; delivery `3842077238426075136` produced encrypted Matrix event `$0bEaL5T0dPUAbCD8roRge-GFKY5kjQ29Axagw3HE5Uo` in `#project-cogito` | Complete |
+| M3.7 | Physical locked-screen Wi-Fi, cellular/WireGuard, restart, and offline-replay acceptance remain | Pending |
 | M3.5 | `db2dc34e1dc9`; Hookshot grants `@agent-gitops` only `generic: manageConnections`; Tofu reconciled at the same revision and live Matrix state reported `join` for Hookshot in `#agent-control`, `#agent-alerts`, `#agent-plans`, `#agent-runs`, and `#project-cogito` | Complete |
 | M3.3–M3.4, M3.6 | maubot E2EE transport; signed public webhook delivery `3842042566967042000`; durable outbox Matrix event `$PhBeAAwjVMgbm61NJe-qiGxQKmv5CuUncXWjD06z5R0` | Complete |
 | M4.1–M4.2, M4.4, M4.7 | Coordinator domain/state/policy commit; replay, hash, actor, and budget tests | Complete |
@@ -570,15 +571,13 @@ through those substitutions.
 The implementation is deployed, but cutover remains intentionally gated on
 actions that require Tim's identity or physical Android observation:
 
-1. Create and install the narrowly scoped GitHub App, then replace the current
-   repository webhook/PAT credentials and prove signed redelivery.
-2. Refresh the shared ChatGPT OAuth login on the LiteLLM token PVC, then rerun
+1. Refresh the shared ChatGPT OAuth login on the LiteLLM token PVC, then rerun
    the successful coordinator completion. The replacement coordinator key is
    authenticated, limited to `coordinator`, synchronized to 1Password, and
    attributed; its upstream Luna request currently returns `token_expired`.
-3. From locked-screen Commet, start a real plan, add `>>` review comments,
+2. From locked-screen Commet, start a real plan, add `>>` review comments,
    revise, approve the exact hash, exercise one higher-risk exact-head approval,
    and confirm Wi-Fi plus cellular/WireGuard push delivery.
-4. Complete a coordinator/maubot backup restore and the remaining failure-path
+3. Complete a coordinator/maubot backup restore and the remaining failure-path
    drills, then observe the rollback window before removing the legacy plan-PR
    workflow.

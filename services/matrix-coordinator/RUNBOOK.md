@@ -157,10 +157,22 @@ Generate one private key from the App settings page and place it directly in a
 1Password item; never paste it into Matrix, GitHub issues, or this repository.
 The item needs `app-id`, `installation-id`, `private-key`, and `webhook-secret`
 fields. Record the App ID and installation ID for the GitOps change. The
-coordinator must mint short-lived installation tokens at runtime; the private
-key is not itself a Git credential. Keep the existing PAT and repository
-webhook enabled until App-token branch push, issue/PR mutation, check read,
-merge, Hookshot delivery, and signed coordinator delivery all pass.
+External Secrets Operator `GithubAccessToken` generators mint repository-bound
+installation tokens every 30 minutes in `home-infra` and `tools`; the private
+key is not itself a Git credential. The coordinator rereads its projected token
+file for every request. New agent runs use `agent-run-v1alpha7` and receive the
+current generated token. Compatibility environment variables also resolve to
+generated tokens, so an older coordinator or WorkflowTemplate does not require
+the retired PAT.
+
+The `timblakely/cogito-ops` Hookshot connection is a Matrix state event managed
+by Terraform in `#project-cogito`. Hookshot also stores a private grant scoped
+to that room and repository. After a complete Matrix restore onto a server that
+does not contain the grant, send
+`!hookshot github repo https://github.com/timblakely/cogito-ops` once in the
+project room as an authorized administrator, then reconcile `matrix` again.
+Normal upgrades and pod or controller restarts retain the grant in Matrix and
+need no bootstrap command.
 
 ### Physical Commet acceptance
 
