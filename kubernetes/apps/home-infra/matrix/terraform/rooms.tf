@@ -8,6 +8,10 @@ locals {
     tim    = "@tim:${local.server_name}"
   }
 
+  agent_users = merge(local.users, {
+    hookshot = "@hookshot:${local.server_name}"
+  })
+
   agent_rooms = {
     alerts = {
       name  = "Agent Alerts"
@@ -52,7 +56,7 @@ locals {
 
   agent_room_members = merge([
     for room_key, room in local.agent_rooms : {
-      for user_key, user_id in local.users : "${room_key}:${user_key}" => {
+      for user_key, user_id in local.agent_users : "${room_key}:${user_key}" => {
         room_key = room_key
         user_key = user_key
         user_id  = user_id
@@ -345,7 +349,7 @@ import {
 }
 
 resource "matrix_room_member" "hermes_agent" {
-  for_each = local.users
+  for_each = local.agent_users
 
   room_id    = matrix_room.hermes_agent.id
   user_id    = each.value
@@ -353,7 +357,7 @@ resource "matrix_room_member" "hermes_agent" {
 }
 
 import {
-  for_each = { for key, value in local.users : key => value if key != "coordinator" }
+  for_each = { for key, value in local.agent_users : key => value if !contains(["coordinator", "hookshot"], key) }
   to       = matrix_room_member.hermes_agent[each.key]
   id       = "!rADbfOpOlzoprqhGdz:${local.server_name}|${each.value}"
 }
