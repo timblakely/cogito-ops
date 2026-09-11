@@ -35,10 +35,10 @@ class MatrixTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.NamedTemporaryFile()
         self.state = StateStore(self.tmp.name)
-        self.planner, self.issues = FakePlanner(), FakeIssues()
+        self.planner, self.issues, self.argo = FakePlanner(), FakeIssues(), FakeArgo()
         core = Coordinator(self.state, self.issues, {"@tim:matrix.example"})
         self.matrix = MatrixCoordinator(
-            self.state, core, RunCoordinator(self.state, FakeArgo()), self.planner,
+            self.state, core, RunCoordinator(self.state, self.argo), self.planner,
             {"@tim:matrix.example"},
         )
         self.base = {
@@ -64,6 +64,9 @@ class MatrixTests(unittest.TestCase):
         accepted = self.matrix.handle(
             self.event("$accepted", f"!cogito approve {revised_hash}", "$root"))
         self.assertIn("Parent issue", accepted["actions"][0]["body"])
+        self.assertIn("Dispatched runs", accepted["actions"][0]["body"])
+        self.assertEqual(len(self.state.active_runs()), 1)
+        self.assertEqual(self.state.active_runs()[0]["request_json"].count('"harness": "pi"'), 1)
         self.assertEqual(self.planner.calls, 2)
         self.assertEqual(self.issues.calls, 1)
 

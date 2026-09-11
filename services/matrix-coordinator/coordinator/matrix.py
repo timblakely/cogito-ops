@@ -9,7 +9,7 @@ from typing import Any
 import re
 
 from .core import Coordinator
-from .models import Approval, PlanVersion, ValidationError, canonical_json
+from .models import AgentRun, Approval, PlanVersion, ValidationError, canonical_json
 from .planner import PlannerClient
 from .runs import RunCoordinator
 from .state import StateStore
@@ -43,9 +43,13 @@ class MatrixEvent:
 
 class MatrixCoordinator:
     def __init__(self, state: StateStore, core: Coordinator, runs: RunCoordinator,
-                 planner: PlannerClient, allowed_senders: set[str]):
+                 planner: PlannerClient, allowed_senders: set[str],
+                 worker_harnesses: tuple[str, ...] = ("pi", "opencode")):
         self.state, self.core, self.runs, self.planner = state, core, runs, planner
         self.allowed_senders = frozenset(allowed_senders)
+        self.worker_harnesses = worker_harnesses
+        if not worker_harnesses or set(worker_harnesses) - {"pi", "opencode", "contract"}:
+            raise ValidationError("invalid worker harness list")
         self.lock = RLock()
 
     @staticmethod
@@ -119,9 +123,27 @@ class MatrixCoordinator:
                 raise ValidationError("usage: !cogito approve sha256:<64 hex characters>")
             parent, children = self.core.approve(Approval(
                 row["plan_id"], digest, event.event_id, event.sender, event.timestamp))
+            dispatched = []
+            for index, child in enumerate(children):
+                run_id = "delivery-" + sha256(f"{digest}:{child}".encode()).hexdigest()[:20]
+                harness = self.worker_harnesses[index % len(self.worker_harnesses)]
+                name = self.runs.submit(AgentRun(
+                    run_id=run_id, work_item=child, role="worker", repository=row["repository"],
+                    base_ref="main",
+                    objective=f"Implement and verify the accepted deliverable tracked by {child}.",
+                    acceptance_checks=("Deliverable acceptance checklist is satisfied",
+                                       "Relevant repository checks pass"),
+                    context={"plan_hash": digest, "matrix_thread": root,
+                             "parent_issue": parent},
+                    limits={"attempts": 2, "wall_seconds": 3600, "token_budget": 200000},
+                ), harness)
+                dispatched.append((run_id, name, harness))
             links = "\n".join(f"- {child}" for child in children)
+            run_links = "\n".join(
+                f"- `{run_id}` via **{harness}** (Argo `{name}`)" for run_id, name, harness in dispatched)
             return self._message(
-                f"Plan accepted at `{digest}`.\n\nParent issue: {parent}\n\nDeliverables:\n{links}", root)
+                f"Plan accepted at `{digest}`.\n\nParent issue: {parent}\n\nDeliverables:\n{links}"
+                f"\n\nDispatched runs:\n{run_links}", root)
         if command in {"cancel", "resume"}:
             run_id = argument.strip()
             getattr(self.runs, command)(run_id)

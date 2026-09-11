@@ -83,6 +83,14 @@ class RunCoordinator:
                 state = "running" if phase == "Running" else row["state"]
                 if state != row["state"]:
                     self.state.update_run(row["run_id"], state)
+            if state in {"succeeded", "failed", "cancelled"} and state != row["state"]:
+                context = self.state.work_item_context(row["work_item_external_id"])
+                if context:
+                    self.state.enqueue_matrix(
+                        f"run:{row['run_id']}:{state}", context["matrix_room_id"],
+                        context["root_event_id"],
+                        f"Run `{row['run_id']}` is **{state}** · Argo `{row['argo_name']}`",
+                    )
             changed += state != row["state"]
         return changed
 

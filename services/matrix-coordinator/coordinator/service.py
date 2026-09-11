@@ -41,6 +41,7 @@ class App:
                           os.environ.get("LITELLM_BASE_URL", "https://litellm.timblakely.com/v1"),
                           os.environ.get("PLANNER_MODEL", "planner"), planner_fallbacks),
             set(filter(None, os.environ.get("MATRIX_APPROVERS", "").split(","))),
+            tuple(filter(None, os.environ.get("COGITO_WORKER_HARNESSES", "pi,opencode").split(","))),
         )
 
     def handle(self, path: str, headers, body: bytes) -> tuple[int, dict]:
