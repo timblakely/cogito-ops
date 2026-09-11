@@ -101,3 +101,10 @@ class GitHubIssues:
             if index < len(deliverables(plan.markdown)):
                 time.sleep(0.5)
         return parent["html_url"], children
+
+    def get_issue(self, url: str) -> dict:
+        slug = repository_slug("https://github.com/" + "/".join(urlparse(url).path.strip("/").split("/")[:2]))
+        parts = urlparse(url).path.strip("/").split("/")
+        if len(parts) != 4 or parts[2] != "issues" or not parts[3].isdigit():
+            raise ValidationError("work item is not a GitHub issue URL")
+        return self._request("GET", f"/repos/{slug}/issues/{parts[3]}")

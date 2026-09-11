@@ -40,7 +40,16 @@ class RunCoordinator:
 
     @staticmethod
     def _result(workflow: dict, run_id: str) -> AgentResult:
-        parameters = workflow.get("status", {}).get("outputs", {}).get("parameters", [])
+        status = workflow.get("status", {})
+        outputs = status.get("outputs")
+        if not outputs:
+            # Argo stores WorkflowTemplate entrypoint outputs on the root node.
+            # Depending on controller/version, it may not copy them to
+            # status.outputs on the Workflow object.
+            name = workflow.get("metadata", {}).get("name")
+            root = status.get("nodes", {}).get(name, {})
+            outputs = root.get("outputs", {})
+        parameters = (outputs or {}).get("parameters", [])
         value = next((p.get("value") for p in parameters if p.get("name") == "result-json"), None)
         if value is None:
             raise ValidationError("successful workflow has no result-json output")

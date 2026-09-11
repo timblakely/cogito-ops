@@ -14,6 +14,9 @@ class FakeIssues:
         self.calls += 1
         return "https://github.com/timblakely/cogito/issues/10", ["https://github.com/timblakely/cogito/issues/11"]
 
+    def get_issue(self, url):
+        return {"html_url": url, "title": "One", "state": "closed"}
+
 
 class CoreTests(unittest.TestCase):
     def setUp(self):
@@ -41,6 +44,8 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(parent.rsplit("/", 1)[-1], "10")
         self.assertEqual(len(children), 1)
         self.assertEqual(self.issues.calls, 1)
+        self.assertIsNotNone(self.state.work_item_context(parent))
+        self.assertIsNotNone(self.state.work_item_context(children[0]))
         replay_parent, replay_children = self.core.approve(self.approval())
         self.assertEqual((replay_parent, replay_children), (parent, children))
         self.assertEqual(self.issues.calls, 1)
@@ -58,6 +63,23 @@ class CoreTests(unittest.TestCase):
             "https://github.com/timblakely/cogito.git"))
         with self.assertRaises(ValidationError):
             self.core.approve(self.approval(plan_hash=old_hash))
+
+    def test_github_event_reconciles_once_and_queues_matrix(self):
+        parent, children = self.core.approve(self.approval())
+        payload = {"action": "closed", "issue": {
+            "html_url": children[0], "title": "One", "state": "closed"}}
+        self.assertTrue(self.core.github_event("delivery-1", "issues", payload))
+        self.assertFalse(self.core.github_event("delivery-1", "issues", payload))
+        outbox = self.state.pending_matrix()
+        self.assertEqual(len(outbox), 1)
+        self.assertEqual(outbox[0]["notification_id"], "github:delivery-1")
+        self.assertTrue(self.state.complete_matrix("github:delivery-1", "$sent"))
+        self.assertFalse(self.state.complete_matrix("github:delivery-1", "$sent-again"))
+
+    def test_periodic_github_reconciliation(self):
+        self.core.approve(self.approval())
+        self.assertEqual(self.core.reconcile_github(), 2)
+        self.assertEqual(self.core.reconcile_github(), 0)
 
 
 if __name__ == "__main__":

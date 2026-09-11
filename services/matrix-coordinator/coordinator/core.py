@@ -92,6 +92,47 @@ class Coordinator:
                 "UPDATE plans SET state='decomposed', github_issue_url=? WHERE plan_id=?",
                 (issue_url, approval.plan_id),
             )
+        self.state.register_work_items(approval.plan_id, issue_url, children)
         self.state.audit(approval.approver, "plan.approved", approval.plan_id,
                          {**asdict(approval), "github_issue": issue_url, "sub_issues": children})
         return issue_url, children
+
+    def github_event(self, delivery: str, event: str, payload: dict) -> bool:
+        """Reconcile a relevant GitHub issue/PR event and queue one Matrix update."""
+        issue = payload.get("issue") or payload.get("pull_request")
+        if not isinstance(issue, dict) or not issue.get("html_url"):
+            return False
+        url = issue["html_url"]
+        context = self.state.work_item_context(url)
+        if not context:
+            return False
+        state = issue.get("state", "open")
+        changed = self.state.update_work_item(url, state, {
+            "kind": event, "action": payload.get("action"), "url": url,
+            "title": issue.get("title", ""), "state": state,
+        })
+        if changed:
+            action = payload.get("action") or "updated"
+            body = f"GitHub **{event} {action}**: [{issue.get('title') or url}]({url}) · `{state}`"
+            self.state.enqueue_matrix(
+                f"github:{delivery}", context["matrix_room_id"], context["root_event_id"], body)
+            self.state.audit("github", f"{event}.{action}", url, {"delivery": delivery, "state": state})
+        return changed
+
+    def reconcile_github(self) -> int:
+        changed = 0
+        for row in self.state.work_items():
+            issue = self.issues.get_issue(row["external_id"])
+            state = issue.get("state", "open")
+            payload = {"kind": "issue", "url": row["external_id"],
+                       "title": issue.get("title", ""), "state": state}
+            if self.state.update_work_item(row["external_id"], state, payload):
+                changed += 1
+                self.state.enqueue_matrix(
+                    "reconcile:" + __import__("hashlib").sha256(
+                        (row["external_id"] + ":" + state).encode()).hexdigest(),
+                    row["matrix_room_id"], row["root_event_id"],
+                    f"GitHub reconciled: [{issue.get('title') or row['external_id']}]"
+                    f"({row['external_id']}) · `{state}`",
+                )
+        return changed

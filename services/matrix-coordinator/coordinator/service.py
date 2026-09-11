@@ -52,14 +52,27 @@ class App:
                 return 400, {"error": "missing delivery ID"}
             fresh = self.state.accept_event("github", delivery, hashlib.sha256(body).hexdigest())
             if fresh:
+                payload = json.loads(body)
+                changed = self.coordinator.github_event(
+                    delivery, headers.get("X-GitHub-Event", "unknown"), payload)
                 self.state.audit("github", "webhook.received", delivery,
-                                 {"event": headers.get("X-GitHub-Event", "unknown")})
+                                 {"event": headers.get("X-GitHub-Event", "unknown"),
+                                  "changed": changed})
             return 202, {"accepted": fresh}
         if not verify_internal(self.internal_secret, body, headers.get("X-Cogito-Signature-256")):
             return 401, {"error": "invalid signature"}
         value = json.loads(body)
         if path == "/v1/matrix/events":
             return 200, self.matrix.handle(value)
+        if path == "/v1/matrix/outbox":
+            operation = value.get("operation")
+            if operation == "poll":
+                return 200, {"notifications": self.state.pending_matrix(
+                    min(max(int(value.get("limit", 20)), 1), 100))}
+            if operation == "ack":
+                return 200, {"completed": self.state.complete_matrix(
+                    value["notification_id"], value["event_id"])}
+            raise ValidationError("unknown outbox operation")
         if path == "/v1/plans":
             plan = PlanVersion(**value)
             return 201, {"created": self.coordinator.record_plan(plan), "hash": plan.hash}
@@ -91,6 +104,7 @@ class App:
         while True:
             try:
                 self.runs.reconcile_once()
+                self.coordinator.reconcile_github()
             except Exception as exc:
                 print(json.dumps({"component": "reconciler", "error": type(exc).__name__,
                                   "message": str(exc)[:500]}))

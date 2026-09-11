@@ -68,6 +68,20 @@ class RunTests(unittest.TestCase):
         self.assertEqual(row["state"], "succeeded")
         self.assertEqual(json.loads(row["result_json"])["summary"], "done")
 
+    def test_reconcile_reads_workflow_template_root_node_output(self):
+        name = self.runs.submit(self.run, "contract")
+        self.argo.workflows[name]["metadata"]["name"] = name
+        result = {"run_id": self.run.run_id, "status": "succeeded", "summary": "root done"}
+        self.argo.workflows[name]["status"] = {
+            "phase": "Succeeded", "nodes": {name: {"outputs": {"parameters": [
+                {"name": "result-json", "value": json.dumps(result)}
+            ]}}},
+        }
+        self.runs.reconcile_once()
+        row = self.state.run(self.run.run_id)
+        self.assertEqual(row["state"], "succeeded")
+        self.assertEqual(json.loads(row["result_json"])["summary"], "root done")
+
     def test_restart_recovers_unattached_submission(self):
         self.state.register_run(self.run.run_id, self.run.work_item,
                                 {**self.run.as_dict(), "harness": "contract"})

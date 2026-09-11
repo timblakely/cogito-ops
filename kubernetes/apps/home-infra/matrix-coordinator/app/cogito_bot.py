@@ -1,13 +1,14 @@
 """Thin encrypted Matrix transport for the durable Cogito coordinator."""
 
 from datetime import datetime, timezone
+import asyncio
 import hashlib
 import hmac
 import json
 
 from maubot import MessageEvent, Plugin
 from maubot.handlers import event
-from mautrix.types import EventType, RelationType
+from mautrix.types import EventID, EventType, MessageType, RelationType, RoomID, TextMessageEventContent
 from mautrix.util.config import BaseProxyConfig, ConfigUpdateHelper
 
 
@@ -20,7 +21,49 @@ class Config(BaseProxyConfig):
 
 class CogitoBot(Plugin):
     async def start(self) -> None:
-        self.config.load_and_update()
+        self._outbox_task = asyncio.create_task(self._deliver_outbox())
+
+    async def stop(self) -> None:
+        self._outbox_task.cancel()
+
+    async def _request(self, path: str, value: dict) -> dict:
+        payload = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+        signature = "sha256=" + hmac.new(
+            self.config["coordinator_secret"].encode(), payload, hashlib.sha256
+        ).hexdigest()
+        async with self.http.post(
+            self.config["coordinator_url"].rstrip("/") + path,
+            data=payload,
+            headers={"Content-Type": "application/json", "X-Cogito-Signature-256": signature},
+        ) as response:
+            result = await response.json()
+            if response.status >= 400:
+                raise RuntimeError(result.get("error", f"HTTP {response.status}"))
+            return result
+
+    async def _deliver_outbox(self) -> None:
+        while True:
+            try:
+                result = await self._request("/v1/matrix/outbox", {"operation": "poll", "limit": 20})
+                for item in result.get("notifications", []):
+                    content = TextMessageEventContent(
+                        msgtype=MessageType.TEXT,
+                        body=item["body"],
+                    )
+                    content.set_thread_parent(EventID(item["thread_root"]), reply_fallback=True)
+                    event_id = await self.client.send_message_event(
+                        RoomID(item["room_id"]), EventType.ROOM_MESSAGE, content,
+                        txn_id=item["notification_id"],
+                    )
+                    await self._request("/v1/matrix/outbox", {
+                        "operation": "ack", "notification_id": item["notification_id"],
+                        "event_id": str(event_id),
+                    })
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                self.log.exception("coordinator outbox delivery failed")
+            await asyncio.sleep(5)
 
     @classmethod
     def get_config_class(cls):
@@ -46,19 +89,8 @@ class CogitoBot(Plugin):
         }
         if thread_root:
             value["thread_root"] = thread_root
-        payload = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
-        signature = "sha256=" + hmac.new(
-            self.config["coordinator_secret"].encode(), payload, hashlib.sha256
-        ).hexdigest()
         try:
-            async with self.http.post(
-                self.config["coordinator_url"].rstrip("/") + "/v1/matrix/events",
-                data=payload,
-                headers={"Content-Type": "application/json", "X-Cogito-Signature-256": signature},
-            ) as response:
-                result = await response.json()
-                if response.status >= 400:
-                    raise RuntimeError(result.get("error", f"HTTP {response.status}"))
+            result = await self._request("/v1/matrix/events", value)
             for action in result.get("actions", []):
                 if action.get("kind") == "message":
                     await evt.respond(action["body"], markdown=True, allow_html=False, in_thread=True)

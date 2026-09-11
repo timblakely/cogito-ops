@@ -10,7 +10,7 @@ from typing import Any, Iterator
 import json
 import time
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 DDL = """
 PRAGMA journal_mode=WAL;
@@ -68,6 +68,15 @@ CREATE TABLE IF NOT EXISTS work_items (
   parent_external_id TEXT,
   state TEXT NOT NULL,
   payload_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS matrix_outbox (
+  notification_id TEXT PRIMARY KEY,
+  room_id TEXT NOT NULL,
+  thread_root TEXT NOT NULL,
+  body TEXT NOT NULL,
+  state TEXT NOT NULL DEFAULT 'pending',
+  created_at INTEGER NOT NULL,
+  sent_event_id TEXT
 );
 CREATE TABLE IF NOT EXISTS runs (
   run_id TEXT PRIMARY KEY,
@@ -211,6 +220,73 @@ class StateStore:
                 "UPDATE runs SET state=?,result_json=COALESCE(?,result_json) WHERE run_id=?",
                 (state, encoded, run_id),
             )
+
+    def register_work_items(self, plan_id: str, parent: str, children: list[str]) -> None:
+        with self.transaction() as db:
+            db.execute(
+                "INSERT INTO work_items VALUES (?,?,NULL,'open',?) "
+                "ON CONFLICT(external_id) DO NOTHING",
+                (parent, plan_id, json.dumps({"kind": "plan"}, sort_keys=True)),
+            )
+            for child in children:
+                db.execute(
+                    "INSERT INTO work_items VALUES (?,?,?,'open',?) "
+                    "ON CONFLICT(external_id) DO NOTHING",
+                    (child, plan_id, parent, json.dumps({"kind": "deliverable"}, sort_keys=True)),
+                )
+
+    def update_work_item(self, external_id: str, state: str, payload: dict[str, Any]) -> bool:
+        with self.transaction() as db:
+            row = db.execute(
+                "SELECT state,payload_json FROM work_items WHERE external_id=?", (external_id,)
+            ).fetchone()
+            if not row:
+                return False
+            encoded = json.dumps(payload, sort_keys=True)
+            changed = row["state"] != state or row["payload_json"] != encoded
+            db.execute(
+                "UPDATE work_items SET state=?,payload_json=? WHERE external_id=?",
+                (state, encoded, external_id),
+            )
+            return changed
+
+    def work_item_context(self, external_id: str):
+        with self.lock:
+            return self.db.execute(
+                "SELECT w.*,p.matrix_room_id,p.root_event_id FROM work_items w "
+                "JOIN plans p ON p.plan_id=w.plan_id WHERE w.external_id=?", (external_id,)
+            ).fetchone()
+
+    def work_items(self):
+        with self.lock:
+            return self.db.execute(
+                "SELECT w.*,p.repository,p.matrix_room_id,p.root_event_id FROM work_items w "
+                "JOIN plans p ON p.plan_id=w.plan_id ORDER BY w.external_id"
+            ).fetchall()
+
+    def enqueue_matrix(self, notification_id: str, room_id: str, thread_root: str, body: str) -> bool:
+        with self.transaction() as db:
+            result = db.execute(
+                "INSERT OR IGNORE INTO matrix_outbox(notification_id,room_id,thread_root,body,created_at) "
+                "VALUES (?,?,?,?,?)", (notification_id, room_id, thread_root, body, int(time.time())),
+            )
+            return result.rowcount == 1
+
+    def pending_matrix(self, limit: int = 20) -> list[dict[str, Any]]:
+        with self.lock:
+            rows = self.db.execute(
+                "SELECT notification_id,room_id,thread_root,body FROM matrix_outbox "
+                "WHERE state='pending' ORDER BY created_at,notification_id LIMIT ?", (limit,)
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def complete_matrix(self, notification_id: str, event_id: str) -> bool:
+        with self.transaction() as db:
+            result = db.execute(
+                "UPDATE matrix_outbox SET state='sent',sent_event_id=? "
+                "WHERE notification_id=? AND state='pending'", (event_id, notification_id),
+            )
+            return result.rowcount == 1
 
     def matrix_result(self, event_id: str) -> dict[str, Any] | None:
         with self.lock:
