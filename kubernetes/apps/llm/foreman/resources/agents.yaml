@@ -8,9 +8,9 @@ metadata:
     foreman.llmkube.dev/role: planner
 spec:
   role: planner
-  model: qwen-3-8-fp8
+  model: muse-glimmer-30b
   inferenceServiceRef:
-    name: qwen-3-8-fp8
+    name: muse-glimmer-30b
   execution:
     mode: Job
     image: ghcr.io/defilantech/llmkube-foreman-agent-coder@sha256:70622d517f626d8e25cb6a5c1d4a70dc5803ceaddf4615ef6d0e371fb8a68ba9
@@ -49,9 +49,9 @@ metadata:
     foreman.llmkube.dev/role: coder
 spec:
   role: coder
-  model: qwen-3-8-fp8
+  model: qwen3-8-27b
   inferenceServiceRef:
-    name: qwen-3-8-fp8
+    name: qwen3-8-27b
   execution:
     mode: Job
     image: ghcr.io/defilantech/llmkube-foreman-agent-coder@sha256:70622d517f626d8e25cb6a5c1d4a70dc5803ceaddf4615ef6d0e371fb8a68ba9
@@ -111,9 +111,11 @@ metadata:
     foreman.llmkube.dev/role: reviewer
 spec:
   role: reviewer
-  model: qwen-3-8-fp8
+  # Match the coder here; the falsifier below runs Muse, so a two-review
+  # quorum cannot be satisfied by one model family alone.
+  model: qwen3-8-27b
   inferenceServiceRef:
-    name: qwen-3-8-fp8
+    name: qwen3-8-27b
   execution:
     mode: Job
     image: ghcr.io/defilantech/llmkube-foreman-agent-coder@sha256:70622d517f626d8e25cb6a5c1d4a70dc5803ceaddf4615ef6d0e371fb8a68ba9
@@ -153,9 +155,9 @@ metadata:
     foreman.llmkube.dev/role: reviewer
 spec:
   role: reviewer
-  model: qwen-3-8-fp8
+  model: muse-glimmer-30b
   inferenceServiceRef:
-    name: qwen-3-8-fp8
+    name: muse-glimmer-30b
   execution:
     mode: Job
     image: ghcr.io/defilantech/llmkube-foreman-agent-coder@sha256:70622d517f626d8e25cb6a5c1d4a70dc5803ceaddf4615ef6d0e371fb8a68ba9

@@ -58,25 +58,21 @@ notes when they disagree.
   | x16 | `00000000:2D:00.0` | `GPU-a5982685-6ed7-6fce-8096-52d29e241396` | Qwen |
   | x4 | `00000000:23:00.0` | `GPU-787b1f07-4246-5ccd-5074-4bb2120f2c14` | Muse |
 
-- Use NVIDIA's DRA driver and UUID-selecting `ResourceClaimTemplate` objects
-  for deterministic assignment. Do not rely on pod startup order and do not
-  hand-set `NVIDIA_VISIBLE_DEVICES`; both bypass scheduler correctness.
-- LLMKube 0.9.25 supports DRA under
-  `Model.spec.hardware.gpu.resourceClaims`. When using it, omit both
-  `hardware.gpu.count`/`resourceName` and `InferenceService.spec.resources.gpu`.
-  Setting either count makes LLMKube request a legacy GPU in addition to the
-  DRA claim, causing double allocation or an unschedulable pod.
-- NVIDIA DRA v0.5.0 requires Kubernetes 1.34.2 or newer for this cluster. Avoid
-  1.34.0/1.34.1 because of the documented DRA defect. DRA also needs CDI in
-  containerd; Cogito's Talos config already includes `/var/run/cdi`.
-- Do not let the legacy NVIDIA device plugin and DRA driver advertise the same
-  cards concurrently. Preserve legacy `nvidia.com/gpu` consumers by enabling
-  `DRAExtendedResource` on kube-apiserver, controller-manager, scheduler, and
-  kubelet before removing the device plugin.
-- Rollout order is load-bearing: upgrade/apply the Kubernetes component and
-  feature-gate configuration first; remove the old device plugin; install the
-  DRA driver; verify its `DeviceClass` and `ResourceSlice`; only then activate
-  UUID-bound model claims.
+- For this experimental node, bind each service with `runtimeClassName: nvidia`
+  and an exact `NVIDIA_VISIBLE_DEVICES` UUID. Keep the LLMKube `Model`
+  scheduler-neutral and omit `InferenceService.spec.resources.gpu`, otherwise
+  LLMKube adds an interchangeable `nvidia.com/gpu` request as well.
+- This direct binding is deterministic but scheduler-blind: Kubernetes still
+  advertises both GPUs as free. Treat the two serving manifests as the sole GPU
+  owners and do not schedule another GPU workload on iggy while they run.
+- NVIDIA DRA v0.5.0 does not currently work with Talos's system-extension
+  driver layout. Its init code expects the NVIDIA binaries and libraries under
+  one conventional driver root, while Talos exposes them under `/usr/local`.
+  Upstream Talos support was not merged. Avoid a custom DRA image and CDI
+  post-render bridge here; reconsider DRA after upstream support matures.
+- The Kubernetes 1.34.2 upgrade and `DRAExtendedResource` feature gates may
+  remain enabled. They are inert without DRA claims/driver and avoid another
+  control-plane change merely to undo preparatory work.
 
 ## Runtime and cache details
 
@@ -102,7 +98,8 @@ notes when they disagree.
 - Search operator recipes and runbooks for the retired service name, not only
   active manifests. The old `llm-split`/`llm-dark` helpers suspended Flux and
   overwrote a shared two-GPU service; leaving those commands exposed after the
-  DRA split would turn a convenient old workflow into a destructive footgun.
+  fixed-UUID split would turn a convenient old workflow into a destructive
+  footgun.
 
 ## Validation shortcuts and traps
 

@@ -1,13 +1,11 @@
 ---
 # On-node CUDA development pod for GPU kernel work on iggy.
 #
-# THIS FILE IS THE NORMAL-MODE (git) STATE: the pod runs, but with NO GPU.
-# Both 3090s belong to the serving stack in NORMAL, and the pod's CPU-only
+# This Git-managed pod runs with NO GPU. Both 3090s belong exclusively to the
+# Qwen and Muse serving lanes, and the pod's CPU-only
 # workloads (checkpoint analysis against the weights on the model archive)
-# have no reason to wait for a GPU window. The GPU-bearing variants of this
-# same Deployment live in ../../llmkube/modes/ and are applied by the
-# `just kube llm-split` / `llm-dark` targets; `just kube llm-normal` resumes
-# Flux and this file is what comes back.
+# have no reason to wait for a GPU window. Former GPU-bearing variants under
+# ../../llmkube/modes/ are retired experiment records and must not be applied.
 #
 # Two consequences of "no GPU" are load-bearing and easy to get wrong:
 #   - runtimeClassName is deliberately ABSENT here. The nvidia runtime honours
@@ -16,8 +14,8 @@
 #     gets every card on the node - it would be able to allocate VRAM out from
 #     under the serving pods. NVIDIA_VISIBLE_DEVICES=void below is the second
 #     belt on the same trousers.
-#   - the container therefore has no libcuda/nvidia-smi in NORMAL; that is
-#     expected, not a fault. Anything requiring a device runs in SPLIT/DARK.
+#   - the container therefore has no libcuda/nvidia-smi; that is expected.
+#     Any future GPU experiment must first change ownership through Git.
 #
 # The image tracks the CUDA toolkit the vLLM this project TARGETS is built
 # against - not necessarily the one currently deployed. Deployed serving is
@@ -35,9 +33,7 @@ spec:
   replicas: 1
   revisionHistoryLimit: 2
   strategy:
-    # Recreate, not RollingUpdate: the GPU-bearing variants hold an exclusive
-    # nvidia.com/gpu unit, and a rolling replacement would deadlock waiting for
-    # a device the outgoing pod still holds.
+    # Only one pod should mutate the persistent development workspace.
     type: Recreate
   selector:
     matchLabels:
