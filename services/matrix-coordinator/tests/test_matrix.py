@@ -16,21 +16,39 @@ class FakePlanner:
 
 
 class FakeIssues:
-    def __init__(self): self.calls = 0
+    def __init__(self):
+        self.calls = 0
+        self.children = ["https://github.com/t/c/issues/2"]
+        self.merge_requests = []
     def create_plan(self, plan):
         self.calls += 1
-        return "https://github.com/t/c/issues/1", ["https://github.com/t/c/issues/2"]
+        return "https://github.com/t/c/issues/1", self.children
+    def request_merge(self, pr_url, head_sha, branch):
+        self.merge_requests.append((pr_url, head_sha, branch))
+        return {"status": "pending", "uuid": f"merge-{len(self.merge_requests)}"}
+    def merge_result(self, pr_url, merge_uuid):
+        return {"status": "merged", "details": {"sha": "f" * 40}}
 
 
 class FakeForeman:
-    def __init__(self): self.created = []
+    def __init__(self):
+        self.created = []
+        self.phase = "Dispatched"
     def ensure_workload(self, **values):
         self.created.append(values)
-        return {"metadata": {"name": "plan-test-abc123"}, "status": {"phase": "Planning"}}
+        position = values.get("deliverable_position", 1)
+        return {"metadata": {"name": f"plan-test-d{position}"},
+                "status": {"phase": "Planning"}}
     def get(self, name):
         return {"metadata": {"name": name}, "status": {
-            "phase": "Dispatched", "succeededTasks": 1,
+            "phase": self.phase, "succeededTasks": 4 if self.phase == "Completed" else 1,
         }}
+    def merge_candidate(self, name, quorum=2):
+        position = name.rsplit("d", 1)[-1]
+        return {"pr_url": f"https://github.com/t/c/pull/{position}",
+                "head_sha": position * 40,
+                "branch": f"foreman/plan/issue-{position}",
+                "reviewers": ["reviewer", "falsifier"]}
     @staticmethod
     def summary(value):
         status = value.get("status", {})
@@ -117,6 +135,28 @@ class MatrixTests(unittest.TestCase):
         result = self.matrix.handle(self.event("$status", "!cogito status", "$root"))
         self.assertIn("**Dispatched**", result["actions"][0]["body"])
         self.assertIn("1 succeeded", result["actions"][0]["body"])
+
+    def test_multi_deliverable_plan_merges_serially_after_quorum(self):
+        self.issues.children = [
+            "https://github.com/t/c/issues/2", "https://github.com/t/c/issues/3",
+        ]
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        approval = self.event("$approve", "!cogito approve", "$root")
+        approval["timestamp"] = "2099-01-01T00:00:00Z"
+        self.matrix.handle(approval)
+        self.assertEqual([call["deliverable_position"] for call in self.foreman.created], [1])
+
+        self.foreman.phase = "Completed"
+        self.matrix.reconcile_once()
+        self.assertEqual([call["deliverable_position"] for call in self.foreman.created], [1, 2])
+        self.assertEqual(self.state.plan_progress("plan-" + __import__(
+            "hashlib").sha256(b"$root").hexdigest()[:16])["merged"], 1)
+
+        self.matrix.reconcile_once()
+        plan = self.state.plan_for_thread("!room:matrix.example", "$root")
+        self.assertEqual(plan["state"], "completed")
+        messages = [item["body"] for item in self.state.pending_matrix()]
+        self.assertTrue(any("every approved deliverable merged" in body for body in messages))
 
     def test_non_command_outside_plan_thread_is_ignored(self):
         self.assertEqual(self.matrix.handle(self.event("$chat", "ordinary chat")), {"actions": []})

@@ -17,8 +17,12 @@ class ForemanTests(unittest.TestCase):
         self.assertEqual(manifest["metadata"]["name"], workload_name(values["plan_id"], values["plan_hash"]))
         self.assertEqual(manifest["spec"]["repo"], "timblakely/cogito-ops")
         self.assertEqual(manifest["spec"]["issues"], [12])
-        self.assertEqual(manifest["spec"]["maxTasks"], 6)
+        self.assertEqual(manifest["spec"]["maxTasks"], 8)
         self.assertEqual(manifest["spec"]["maxReviewIterations"], 1)
+        self.assertEqual(
+            [ref["name"] for ref in manifest["spec"]["reviewerAgentRefs"]],
+            ["cogito-reviewer", "cogito-reviewer-falsifier"],
+        )
         self.assertEqual(manifest["spec"]["gateProfile"]["language"], "generic")
         self.assertIn("@sha256:", manifest["spec"]["gateProfile"]["image"])
         self.assertEqual(
@@ -37,6 +41,30 @@ class ForemanTests(unittest.TestCase):
         self.assertEqual(ForemanClient.summary({"status": {
             "phase": "Completed", "succeededTasks": 3, "failedTasks": 0,
         }})["succeeded"], 3)
+
+    def test_merge_candidate_requires_two_distinct_reviews_after_final_coder(self):
+        client = ForemanClient()
+        tasks = [
+            {"spec": {"kind": "issue-fix"}, "status": {
+                "phase": "Succeeded", "verdict": "GO", "finishedAt": "2026-01-01T00:00:01Z",
+                "branch": "foreman/plan/issue-1", "commitSHA": "a" * 40,
+            }},
+            *[{"spec": {"kind": "review", "agentRef": {"name": agent},
+                        "payload": {"branch": "foreman/plan/issue-1"}},
+               "status": {"phase": "Succeeded", "verdict": "GO",
+                          "startedAt": "2026-01-01T00:00:02Z",
+                          "result": {"extra": {"pullRequestURL":
+                              "https://github.com/o/r/pull/2"}}}}
+              for agent in ("reviewer", "falsifier")],
+        ]
+        client.tasks = lambda _: tasks
+        candidate = client.merge_candidate("workload")
+        self.assertEqual(candidate["head_sha"], "a" * 40)
+        self.assertEqual(candidate["reviewers"], ["falsifier", "reviewer"])
+
+        client.tasks = lambda _: tasks[:-1]
+        with self.assertRaises(RuntimeError):
+            client.merge_candidate("workload")
 
 
 if __name__ == "__main__":

@@ -3,8 +3,10 @@
 This is a deliberately narrow planning gateway. It accepts authenticated,
 decrypted Matrix events from the maubot sidecar, versions plans, records exact
 approvals, creates a GitHub parent issue plus native sub-issues, and submits one
-Foreman `Workload` for the approved plan. Foreman owns coding, verification,
-review, retries, branch publication, and draft pull requests.
+serial Foreman `Workload` per deliverable. Foreman owns coding, verification,
+repair, branch publication, and a two-profile reviewer quorum. The coordinator
+queues a SHA-pinned GitHub merge only after that quorum and starts the next
+deliverable only after the prior pull request merges.
 
 The service uses only the Python standard library. Run its checks with:
 

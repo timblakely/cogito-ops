@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.error import HTTPError
+from urllib.parse import quote, urlparse
 from urllib.request import Request, urlopen
 import json
 import re
@@ -14,6 +15,7 @@ from .models import PlanVersion, ValidationError
 
 API_VERSION = "2026-03-10"
 DELIVERABLE = re.compile(r"^\s*[-*]\s+\[[ xX]\]\s+(.+?)\s*$")
+PULL_PATH = re.compile(r"^/([^/]+)/([^/]+)/pull/([1-9][0-9]*)$")
 
 
 def repository_slug(url: str) -> str:
@@ -69,7 +71,8 @@ class GitHubIssues:
             return self.token
         raise RuntimeError("GitHub credential is empty")
 
-    def _request(self, method: str, path: str, body: dict | None = None) -> dict:
+    def _request_with_status(self, method: str, path: str, body: dict | None = None,
+                             allowed_errors: set[int] | None = None) -> tuple[int, object]:
         request = Request(
             self.api_base + path,
             method=method,
@@ -82,8 +85,60 @@ class GitHubIssues:
                 "User-Agent": "cogito-matrix-coordinator/0.1",
             },
         )
-        with urlopen(request, timeout=30) as response:
-            return json.load(response)
+        try:
+            with urlopen(request, timeout=30) as response:
+                return response.status, json.load(response)
+        except HTTPError as exc:
+            if not allowed_errors or exc.code not in allowed_errors:
+                raise
+            return exc.code, json.load(exc)
+
+    def _request(self, method: str, path: str, body: dict | None = None):
+        return self._request_with_status(method, path, body)[1]
+
+    @staticmethod
+    def _pull_identity(pr_url: str) -> tuple[str, int]:
+        parsed = urlparse(pr_url)
+        match = PULL_PATH.fullmatch(parsed.path)
+        if parsed.scheme != "https" or parsed.hostname != "github.com" or not match:
+            raise ValidationError(f"invalid GitHub pull request URL: {pr_url}")
+        return f"{match.group(1)}/{match.group(2)}", int(match.group(3))
+
+    def request_merge(self, pr_url: str, expected_head_sha: str, expected_branch: str) -> dict:
+        """Queue a squash merge, pinned to the exact branch revision reviewed."""
+        slug, number = self._pull_identity(pr_url)
+        pull = self._request("GET", f"/repos/{slug}/pulls/{number}")
+        if pull.get("merged"):
+            return {"status": "merged", "details": {"sha": pull.get("merge_commit_sha")}}
+        if pull.get("state") != "open" or pull.get("draft"):
+            raise RuntimeError("reviewed pull request is not open and ready for merge")
+        if pull.get("base", {}).get("ref") != "main":
+            raise RuntimeError("reviewed pull request does not target main")
+        if pull.get("head", {}).get("repo", {}).get("full_name", "").lower() != slug.lower():
+            raise RuntimeError("reviewed pull request head belongs to another repository")
+        if pull.get("head", {}).get("ref") != expected_branch:
+            raise RuntimeError("reviewed pull request branch does not match Foreman")
+        if pull.get("head", {}).get("sha") != expected_head_sha:
+            raise RuntimeError("pull request changed after reviewer quorum")
+        _, result = self._request_with_status(
+            "PUT", f"/repos/{slug}/pulls/{number}/merge-async",
+            {"sha": expected_head_sha, "merge_method": "squash", "merge_action": "default"},
+            allowed_errors={409},
+        )
+        if not isinstance(result, dict):
+            raise RuntimeError("GitHub returned an invalid asynchronous merge response")
+        merge_uuid = result.get("uuid") or result.get("details", {}).get("uuid")
+        if result.get("status") != "merged" and not merge_uuid:
+            raise RuntimeError("GitHub did not return an asynchronous merge UUID")
+        return {**result, "uuid": merge_uuid}
+
+    def merge_result(self, pr_url: str, merge_uuid: str) -> dict:
+        slug, number = self._pull_identity(pr_url)
+        result = self._request(
+            "GET", f"/repos/{slug}/pulls/{number}/merge-async/{quote(merge_uuid, safe='')}")
+        if not isinstance(result, dict) or not result.get("status"):
+            raise RuntimeError("GitHub returned an invalid asynchronous merge result")
+        return result
 
     def create_plan(self, plan: PlanVersion) -> tuple[str, list[str]]:
         slug = repository_slug(plan.repository)

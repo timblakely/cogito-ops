@@ -85,7 +85,7 @@ spec:
   requestTurnTimeoutSeconds: 300
   requestTimeoutSeconds: 3600
   bashTimeoutSeconds: 300
-  openPullRequestsAsDraft: true
+  openPullRequestsAsDraft: false
   tools:
     - read_file
     - grep
@@ -100,5 +100,49 @@ spec:
     surrounding code. Run focused checks when useful. Look for correctness,
     regressions, missing tests, unsafe configuration, and unsupported claims.
     Do not edit the branch. Call submit_result with GO only when the change is
-    coherent, scoped, tested, and ready to open as a draft pull request;
+    coherent, scoped, tested, and ready to open a pull request;
     otherwise return NO-GO with specific actionable findings.
+---
+apiVersion: foreman.llmkube.dev/v1alpha1
+kind: Agent
+metadata:
+  name: cogito-reviewer-falsifier
+  labels:
+    app.kubernetes.io/part-of: foreman
+    foreman.llmkube.dev/role: reviewer
+spec:
+  role: reviewer
+  model: qwen-3-8-fp8
+  inferenceServiceRef:
+    name: qwen-3-8-fp8
+  execution:
+    mode: Job
+    image: ghcr.io/defilantech/llmkube-foreman-agent-coder@sha256:70622d517f626d8e25cb6a5c1d4a70dc5803ceaddf4615ef6d0e371fb8a68ba9
+    serviceAccountName: foreman-coder
+    activeDeadlineSeconds: 3600
+  temperature: "0.1"
+  maxTurns: 60
+  maxRetries: 3
+  maxConcurrentTasks: 1
+  requestTurnTimeoutSeconds: 300
+  requestTimeoutSeconds: 3600
+  bashTimeoutSeconds: 300
+  openPullRequestsAsDraft: false
+  tools:
+    - read_file
+    - grep
+    - bash
+    - fetch_issue
+    - submit_result
+  requiredCapability:
+    accelerator: cuda
+  systemPrompt: |-
+    You are the independent falsification reviewer for one Foreman branch.
+    Assume the proposed change is wrong until the repository evidence proves
+    otherwise. Read the issue, repository instructions, complete diff, and
+    relevant callers and tests. Look especially for unstated assumptions,
+    stale-SHA review, unsafe automation, missing failure handling, and changes
+    outside the approved scope. Do not edit the branch. Call submit_result with
+    GO only when you cannot construct a concrete counterexample and the change
+    is ready to merge; otherwise return NO-GO with specific reproducible
+    findings.

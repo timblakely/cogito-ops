@@ -11,6 +11,9 @@ from .state import StateStore
 
 class IssuePort(Protocol):
     def create_plan(self, plan: PlanVersion) -> tuple[str, list[str]]: ...
+    def request_merge(self, pr_url: str, expected_head_sha: str,
+                      expected_branch: str) -> dict: ...
+    def merge_result(self, pr_url: str, merge_uuid: str) -> dict: ...
 
 
 class Coordinator:

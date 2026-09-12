@@ -42,9 +42,10 @@ def _issue_numbers(repo: str, issue_urls: list[str]) -> list[int]:
     return numbers
 
 
-def workload_name(plan_id: str, plan_hash: str) -> str:
-    stem = DNS_SAFE.sub("-", plan_id.lower()).strip("-")[:42] or "plan"
-    return f"{stem}-{plan_hash.removeprefix('sha256:')[:12]}"[:63].rstrip("-")
+def workload_name(plan_id: str, plan_hash: str, deliverable_position: int | None = None) -> str:
+    suffix = "" if deliverable_position is None else f"-d{deliverable_position}"
+    stem = DNS_SAFE.sub("-", plan_id.lower()).strip("-")[:39] or "plan"
+    return f"{stem}-{plan_hash.removeprefix('sha256:')[:12]}{suffix}"[:63].rstrip("-")
 
 
 @dataclass
@@ -65,6 +66,10 @@ class ForemanClient:
     def collection_path(self) -> str:
         return f"/apis/foreman.llmkube.dev/v1alpha1/namespaces/{self.namespace}/workloads"
 
+    @property
+    def task_collection_path(self) -> str:
+        return f"/apis/foreman.llmkube.dev/v1alpha1/namespaces/{self.namespace}/agentictasks"
+
     def _call(self, method: str, path: str, body: dict | None = None) -> dict:
         token = Path(self.token_path).read_text().strip()
         request = Request(
@@ -78,10 +83,13 @@ class ForemanClient:
             return json.load(response)
 
     def manifest(self, plan_id: str, plan_hash: str, intent: str, repository: str,
-                 issue_urls: list[str], room_id: str, thread_root: str) -> dict:
+                 issue_urls: list[str], room_id: str, thread_root: str,
+                 deliverable_position: int | None = None) -> dict:
         repo = _repo_slug(repository)
         issues = _issue_numbers(repo, issue_urls)
-        name = workload_name(plan_id, plan_hash)
+        if deliverable_position is not None and len(issues) != 1:
+            raise ValidationError("a serial deliverable Workload must contain exactly one issue")
+        name = workload_name(plan_id, plan_hash, deliverable_position)
         return {
             "apiVersion": "foreman.llmkube.dev/v1alpha1",
             "kind": "Workload",
@@ -96,18 +104,22 @@ class ForemanClient:
                     "cogito.dev/plan-hash": plan_hash,
                     "cogito.dev/matrix-room": room_id,
                     "cogito.dev/matrix-thread": thread_root,
+                    "cogito.dev/deliverable-position": str(deliverable_position or 1),
                 },
             },
             "spec": {
                 "intent": intent,
                 "repo": repo,
                 "issues": issues,
-                # Base coder/gate/reviewer plus one bounded reviewer repair round.
-                "maxTasks": len(issues) * 6,
+                # Coder + gate + two reviewers, plus one bounded repair round.
+                "maxTasks": len(issues) * 8,
                 "maxReviewIterations": 1,
                 "coderAgentRef": {"name": "cogito-coder"},
                 "verifierAgentRef": {"name": "cogito-gate"},
-                "reviewerAgentRefs": [{"name": "cogito-reviewer"}],
+                "reviewerAgentRefs": [
+                    {"name": "cogito-reviewer"},
+                    {"name": "cogito-reviewer-falsifier"},
+                ],
                 "allowCloudReviewers": False,
                 "openPullRequest": True,
                 "gateProfile": {
@@ -139,6 +151,49 @@ class ForemanClient:
 
     def get(self, name: str) -> dict:
         return self._call("GET", f"{self.collection_path}/{quote(name)}")
+
+    def tasks(self, workload_name_value: str) -> list[dict]:
+        selector = quote(f"foreman.llmkube.dev/workload={workload_name_value}", safe="")
+        return self._call("GET", f"{self.task_collection_path}?labelSelector={selector}").get(
+            "items", [])
+
+    def merge_candidate(self, workload_name_value: str, quorum: int = 2) -> dict:
+        """Return a PR bound to the final coder SHA and independent GO reviews."""
+        tasks = self.tasks(workload_name_value)
+        coders = [task for task in tasks
+                  if task.get("spec", {}).get("kind") == "issue-fix"
+                  and task.get("status", {}).get("phase") == "Succeeded"
+                  and task.get("status", {}).get("verdict") == "GO"
+                  and task.get("status", {}).get("commitSHA")
+                  and task.get("status", {}).get("branch")]
+        if not coders:
+            raise RuntimeError("completed Workload has no successful coder artifact")
+        coder = max(coders, key=lambda task: task.get("status", {}).get("finishedAt", ""))
+        coder_status = coder["status"]
+        reviewers = [task for task in tasks
+                     if task.get("spec", {}).get("kind") == "review"
+                     and task.get("spec", {}).get("payload", {}).get("branch")
+                     == coder_status["branch"]
+                     and task.get("status", {}).get("phase") == "Succeeded"
+                     and task.get("status", {}).get("verdict") == "GO"
+                     and task.get("status", {}).get("startedAt", "")
+                     >= coder_status.get("finishedAt", "")
+                     and task.get("status", {}).get("result", {}).get("extra", {}).get(
+                         "pullRequestURL")]
+        agents = {task.get("spec", {}).get("agentRef", {}).get("name") for task in reviewers}
+        if len(agents - {None}) < quorum:
+            raise RuntimeError(f"review quorum not met: {len(agents - {None})}/{quorum}")
+        pull_requests = {
+            task["status"]["result"]["extra"]["pullRequestURL"] for task in reviewers
+        }
+        if len(pull_requests) != 1:
+            raise RuntimeError("reviewers did not agree on exactly one pull request")
+        return {
+            "pr_url": pull_requests.pop(),
+            "head_sha": coder_status["commitSHA"],
+            "branch": coder_status["branch"],
+            "reviewers": sorted(agents - {None}),
+        }
 
     @staticmethod
     def summary(workload: dict) -> dict:

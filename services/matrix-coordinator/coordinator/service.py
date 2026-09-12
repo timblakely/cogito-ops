@@ -69,16 +69,7 @@ class App:
         interval = int(os.environ.get("COORDINATOR_RECONCILE_SECONDS", "15"))
         while True:
             try:
-                for row in self.state.active_workloads():
-                    status = self.foreman.summary(self.foreman.get(row["name"]))
-                    if self.state.update_workload(row["name"], status):
-                        body = (f"Foreman Workload `{row['name']}` is **{status['phase']}**: "
-                                f"{status['succeeded']} succeeded, {status['failed']} failed, "
-                                f"{status['incomplete']} incomplete.")
-                        self.state.enqueue_matrix(
-                            f"foreman:{row['name']}:{status['phase']}:"
-                            f"{status['succeeded']}:{status['failed']}:{status['incomplete']}",
-                            row["matrix_room_id"], row["root_event_id"], body)
+                self.matrix.reconcile_once()
             except Exception as exc:
                 print(json.dumps({"component": "reconciler", "error": type(exc).__name__,
                                   "message": str(exc)[:500]}))

@@ -10,7 +10,7 @@ from typing import Any, Iterator
 import json
 import time
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 DDL = """
 PRAGMA journal_mode=WAL;
@@ -34,8 +34,16 @@ CREATE TABLE IF NOT EXISTS approvals (
   plan_id TEXT PRIMARY KEY REFERENCES plans(plan_id), content_hash TEXT NOT NULL,
   matrix_event_id TEXT NOT NULL UNIQUE, approver TEXT NOT NULL, approved_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS workloads (
-  name TEXT PRIMARY KEY, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(plan_id),
-  state TEXT NOT NULL, status_json TEXT NOT NULL, updated_at INTEGER NOT NULL);
+  name TEXT PRIMARY KEY, plan_id TEXT NOT NULL REFERENCES plans(plan_id),
+  deliverable_position INTEGER NOT NULL DEFAULT 1,
+  state TEXT NOT NULL, status_json TEXT NOT NULL, updated_at INTEGER NOT NULL,
+  UNIQUE(plan_id, deliverable_position));
+CREATE TABLE IF NOT EXISTS plan_deliverables (
+  plan_id TEXT NOT NULL REFERENCES plans(plan_id), position INTEGER NOT NULL,
+  issue_url TEXT NOT NULL UNIQUE, state TEXT NOT NULL DEFAULT 'pending',
+  workload_name TEXT REFERENCES workloads(name), pr_url TEXT, head_sha TEXT,
+  merge_uuid TEXT, merge_status_json TEXT, updated_at INTEGER NOT NULL,
+  PRIMARY KEY(plan_id, position));
 CREATE TABLE IF NOT EXISTS matrix_event_results (
   event_id TEXT PRIMARY KEY, response_json TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS matrix_outbox (
@@ -72,6 +80,37 @@ class StateStore:
                 DROP TABLE IF EXISTS work_items;
                 DROP TABLE IF EXISTS controls;
             """)
+        if current < 7:
+            columns = {row[1] for row in self.db.execute("PRAGMA table_info(workloads)")}
+            if "deliverable_position" not in columns:
+                self.db.executescript("""
+                    DROP TABLE plan_deliverables;
+                    ALTER TABLE workloads RENAME TO workloads_v6;
+                    CREATE TABLE workloads (
+                      name TEXT PRIMARY KEY,
+                      plan_id TEXT NOT NULL REFERENCES plans(plan_id),
+                      deliverable_position INTEGER NOT NULL DEFAULT 1,
+                      state TEXT NOT NULL,
+                      status_json TEXT NOT NULL,
+                      updated_at INTEGER NOT NULL,
+                      UNIQUE(plan_id, deliverable_position));
+                    INSERT INTO workloads
+                      (name,plan_id,deliverable_position,state,status_json,updated_at)
+                    SELECT name,plan_id,1,state,status_json,updated_at FROM workloads_v6;
+                    DROP TABLE workloads_v6;
+                    CREATE TABLE plan_deliverables (
+                      plan_id TEXT NOT NULL REFERENCES plans(plan_id),
+                      position INTEGER NOT NULL,
+                      issue_url TEXT NOT NULL UNIQUE,
+                      state TEXT NOT NULL DEFAULT 'pending',
+                      workload_name TEXT REFERENCES workloads(name),
+                      pr_url TEXT,
+                      head_sha TEXT,
+                      merge_uuid TEXT,
+                      merge_status_json TEXT,
+                      updated_at INTEGER NOT NULL,
+                      PRIMARY KEY(plan_id, position));
+                """)
         self.db.execute("INSERT OR IGNORE INTO migrations VALUES (?,?)",
                         (SCHEMA_VERSION, int(time.time())))
 
@@ -138,6 +177,10 @@ class StateStore:
             return self.db.execute("SELECT * FROM plans WHERE matrix_room_id=? AND root_event_id=?",
                                    (room_id, root_event_id)).fetchone()
 
+    def plan(self, plan_id: str):
+        with self.lock:
+            return self.db.execute("SELECT * FROM plans WHERE plan_id=?", (plan_id,)).fetchone()
+
     def current_plan_version(self, plan_id: str):
         with self.lock:
             return self.db.execute(
@@ -155,26 +198,81 @@ class StateStore:
                 "SELECT body FROM plan_comments WHERE plan_id=? ORDER BY created_at,matrix_event_id",
                 (plan_id,)).fetchall()]
 
-    def register_workload(self, name: str, plan_id: str, status: dict[str, Any]) -> None:
+    def register_deliverables(self, plan_id: str, issue_urls: list[str]) -> None:
+        with self.transaction() as db:
+            existing = db.execute(
+                "SELECT issue_url FROM plan_deliverables WHERE plan_id=? ORDER BY position",
+                (plan_id,),
+            ).fetchall()
+            if existing:
+                if [row[0] for row in existing] != issue_urls:
+                    raise ValueError("approved plan deliverables changed after dispatch")
+                return
+            now = int(time.time())
+            db.executemany(
+                "INSERT INTO plan_deliverables(plan_id,position,issue_url,updated_at) "
+                "VALUES (?,?,?,?)",
+                [(plan_id, position, url, now)
+                 for position, url in enumerate(issue_urls, 1)],
+            )
+
+    def next_deliverable(self, plan_id: str):
+        """Return the first pending item only when every predecessor merged."""
+        with self.lock:
+            return self.db.execute(
+                "SELECT d.* FROM plan_deliverables d "
+                "WHERE d.plan_id=? AND d.state='pending' "
+                "AND NOT EXISTS (SELECT 1 FROM plan_deliverables prior "
+                "WHERE prior.plan_id=d.plan_id AND prior.position<d.position "
+                "AND prior.state!='merged') ORDER BY d.position LIMIT 1",
+                (plan_id,),
+            ).fetchone()
+
+    def plans_ready_to_dispatch(self):
+        with self.lock:
+            return self.db.execute(
+                "SELECT DISTINCT p.plan_id FROM plans p JOIN plan_deliverables d "
+                "ON d.plan_id=p.plan_id WHERE p.state IN ('decomposed','running') "
+                "AND d.state='pending' AND NOT EXISTS (SELECT 1 FROM plan_deliverables prior "
+                "WHERE prior.plan_id=d.plan_id AND prior.position<d.position "
+                "AND prior.state!='merged') AND NOT EXISTS (SELECT 1 FROM plan_deliverables active "
+                "WHERE active.plan_id=d.plan_id AND active.state IN ('running','merge_pending')) "
+                "ORDER BY p.plan_id"
+            ).fetchall()
+
+    def register_workload(self, name: str, plan_id: str, status: dict[str, Any],
+                          deliverable_position: int = 1) -> None:
         encoded = json.dumps(status, sort_keys=True)
         with self.transaction() as db:
             db.execute(
-                "INSERT INTO workloads(name,plan_id,state,status_json,updated_at) VALUES (?,?,?,?,?) "
+                "INSERT INTO workloads(name,plan_id,deliverable_position,state,status_json,updated_at) "
+                "VALUES (?,?,?,?,?,?) "
                 "ON CONFLICT(name) DO UPDATE SET state=excluded.state,"
                 "status_json=excluded.status_json,updated_at=excluded.updated_at",
-                (name, plan_id, status.get("phase", "Pending"), encoded, int(time.time())))
+                (name, plan_id, deliverable_position, status.get("phase", "Pending"),
+                 encoded, int(time.time())))
+            db.execute(
+                "UPDATE plan_deliverables SET state='running',workload_name=?,updated_at=? "
+                "WHERE plan_id=? AND position=?",
+                (name, int(time.time()), plan_id, deliverable_position),
+            )
             db.execute("UPDATE plans SET state='running' WHERE plan_id=?", (plan_id,))
 
     def workload_for_plan(self, plan_id: str):
         with self.lock:
-            return self.db.execute("SELECT * FROM workloads WHERE plan_id=?", (plan_id,)).fetchone()
+            return self.db.execute(
+                "SELECT * FROM workloads WHERE plan_id=? ORDER BY deliverable_position DESC LIMIT 1",
+                (plan_id,),
+            ).fetchone()
 
     def active_workloads(self):
         with self.lock:
             return self.db.execute(
                 "SELECT w.*,p.matrix_room_id,p.root_event_id FROM workloads w "
                 "JOIN plans p ON p.plan_id=w.plan_id "
-                "WHERE w.state NOT IN ('Completed','Failed') ORDER BY w.name").fetchall()
+                "JOIN plan_deliverables d ON d.plan_id=w.plan_id "
+                "AND d.position=w.deliverable_position "
+                "WHERE d.state='running' ORDER BY w.name").fetchall()
 
     def update_workload(self, name: str, status: dict[str, Any]) -> bool:
         encoded = json.dumps(status, sort_keys=True)
@@ -187,10 +285,63 @@ class StateStore:
             changed = row["state"] != state or row["status_json"] != encoded
             db.execute("UPDATE workloads SET state=?,status_json=?,updated_at=? WHERE name=?",
                        (state, encoded, int(time.time()), name))
-            if state in {"Completed", "Failed"}:
-                db.execute("UPDATE plans SET state=? WHERE plan_id=?",
-                           (state.lower(), row["plan_id"]))
             return changed
+
+    def begin_merge(self, plan_id: str, position: int, pr_url: str, head_sha: str,
+                    merge_uuid: str | None, status: dict[str, Any]) -> None:
+        with self.transaction() as db:
+            db.execute(
+                "UPDATE plan_deliverables SET state=?,pr_url=?,head_sha=?,merge_uuid=?,"
+                "merge_status_json=?,updated_at=? WHERE plan_id=? AND position=?",
+                ("merge_pending", pr_url, head_sha, merge_uuid, json.dumps(status, sort_keys=True),
+                 int(time.time()), plan_id, position),
+            )
+
+    def pending_merges(self):
+        with self.lock:
+            return self.db.execute(
+                "SELECT d.*,p.matrix_room_id,p.root_event_id FROM plan_deliverables d "
+                "JOIN plans p ON p.plan_id=d.plan_id WHERE d.state='merge_pending' "
+                "ORDER BY d.plan_id,d.position"
+            ).fetchall()
+
+    def finish_merge(self, plan_id: str, position: int, status: dict[str, Any]) -> str:
+        merged = status.get("status") == "merged"
+        new_state = "merged" if merged else "failed"
+        with self.transaction() as db:
+            db.execute(
+                "UPDATE plan_deliverables SET state=?,merge_status_json=?,updated_at=? "
+                "WHERE plan_id=? AND position=?",
+                (new_state, json.dumps(status, sort_keys=True), int(time.time()),
+                 plan_id, position),
+            )
+            if not merged:
+                db.execute("UPDATE plans SET state='failed' WHERE plan_id=?", (plan_id,))
+            elif not db.execute(
+                    "SELECT 1 FROM plan_deliverables WHERE plan_id=? AND state!='merged' LIMIT 1",
+                    (plan_id,)).fetchone():
+                db.execute("UPDATE plans SET state='completed' WHERE plan_id=?", (plan_id,))
+                return "completed"
+        return new_state
+
+    def fail_deliverable(self, plan_id: str, position: int, status: dict[str, Any]) -> None:
+        with self.transaction() as db:
+            db.execute(
+                "UPDATE plan_deliverables SET state='failed',merge_status_json=?,updated_at=? "
+                "WHERE plan_id=? AND position=?",
+                (json.dumps(status, sort_keys=True), int(time.time()), plan_id, position),
+            )
+            db.execute("UPDATE plans SET state='failed' WHERE plan_id=?", (plan_id,))
+
+    def plan_progress(self, plan_id: str) -> dict[str, int]:
+        with self.lock:
+            rows = self.db.execute(
+                "SELECT state,count(*) count FROM plan_deliverables WHERE plan_id=? GROUP BY state",
+                (plan_id,),
+            ).fetchall()
+        counts = {row["state"]: row["count"] for row in rows}
+        counts["total"] = sum(counts.values())
+        return counts
 
     def enqueue_matrix(self, notification_id: str, room_id: str, thread_root: str, body: str) -> bool:
         with self.transaction() as db:

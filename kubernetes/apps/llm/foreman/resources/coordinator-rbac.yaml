@@ -7,6 +7,9 @@ rules:
   - apiGroups: [foreman.llmkube.dev]
     resources: [workloads]
     verbs: [create, get, list, watch]
+  - apiGroups: [foreman.llmkube.dev]
+    resources: [agentictasks]
+    verbs: [get, list]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

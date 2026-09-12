@@ -1,6 +1,6 @@
 # Foreman migration pathway
 
-Status: implemented; one Commet-originated acceptance remains
+Status: Foreman migration implemented; quorum auto-merge acceptance remains
 
 Owner: Tim
 
@@ -19,9 +19,11 @@ GitHub parent issue and deliverable issues, and concise status back to that
 thread.
 
 After approval, Foreman owns scheduling, workspaces, the agent loop, gates,
-review, repair/escalation, branch publication, and draft pull-request creation.
-GitHub owns final human review and merge. Cogito will not preserve its custom
-Matrix exact-head merge bridge during this experiment.
+review, repair/escalation, branch publication, and pull-request creation.
+Approval also authorizes each listed deliverable to merge after two distinct
+Foreman reviewer profiles return `GO` against the final coder revision. The
+thin gateway pins that exact SHA in an asynchronous GitHub merge request;
+GitHub remains authoritative for repository rules, checks, and the merge.
 
 This is a replacement, not a compatibility project. There will be no parallel
 production path, soak period, historical run import, generic harness adapter,
@@ -92,10 +94,10 @@ dependency are in scope for removal.
 Commet / Matrix
   -> thin planning gateway
   -> GitHub parent issue and deliverable issues
-  -> one Foreman Workload
+  -> one serial Foreman Workload per deliverable
   -> Foreman AgenticTasks / Agents / FleetNodes
-  -> draft pull request
-  -> human review and merge in GitHub
+  -> pull request + two-reviewer GO quorum
+  -> SHA-pinned asynchronous merge in GitHub
 
 Foreman Workload status
   -> thin planning gateway
@@ -107,27 +109,30 @@ Foreman Workload status
 | Encrypted conversation and Android wake-up | Commet, Matrix, Synapse, and ntfy |
 | Plan generation, revision, version hash, and approval identity | Thin Matrix gateway |
 | Accepted plan and deliverables | GitHub issues |
-| Translation of accepted deliverables into one `Workload` | Thin Matrix gateway |
+| Translation of each accepted deliverable into a serial `Workload` | Thin Matrix gateway |
 | Coding pipeline and execution state | Foreman `Workload` and `AgenticTask` |
 | Agent roles, tool access, and concurrency | Foreman `Agent` |
 | Execution placement | Foreman `FleetNode` scheduler |
-| Workspace, branch, gate, review, repair, and draft PR | Foreman |
-| Final review, required checks, and merge | GitHub and Tim |
+| Workspace, branch, gate, review, repair, and PR creation | Foreman |
+| Quorum policy and exact reviewed SHA authorization | Thin Matrix gateway |
+| Required checks, repository rules, queueing, and merge | GitHub |
 | Human-readable execution status | Matrix projection of Foreman conditions; Hookshot may continue to show GitHub events |
 | Inference | Existing LLMKube and LiteLLM endpoints |
 
 The gateway may persist Matrix event IDs, plan versions and hashes, approval
-identity, GitHub issue IDs, the Foreman Workload name/UID, and Matrix outbox
-transaction IDs. It must not persist task lifecycle, attempt counts, branches,
-review verdicts, or PR state merely to mirror Foreman or GitHub.
+identity, GitHub issue IDs, Foreman Workload names/UIDs, the exact merge SHA and
+asynchronous request receipt, and Matrix outbox transaction IDs. It must not
+persist task lifecycle, attempt counts, transcripts, or check state merely to
+mirror Foreman or GitHub.
 
 Use deterministic correlation rather than reconciliation machinery:
 
 - label the Workload with the plan ID;
 - annotate it with the accepted plan hash, Matrix room/thread IDs, and parent
   issue URL;
-- derive its name from the plan ID and accepted hash;
-- use GitHub deliverable issue numbers as the Workload issue list;
+- derive its name from the plan ID, accepted hash, and deliverable position;
+- use one GitHub deliverable issue number per Workload and dispatch the next
+  only after its predecessor merges;
 - treat creation of an already-identical Workload as success and a conflicting
   spec under the same name as an error.
 
@@ -248,12 +253,44 @@ runtime, harness adapter, or coordinator delivery loop. A fresh Flux install
 reconstructs the Matrix gateway plus upstream LLMKube/Foreman without any
 retired execution component.
 
+### G — Quorum-authorized automatic delivery
+
+Outcome: approving a plan authorizes its exact checklist. Each deliverable runs
+from current `main`, receives two independent Foreman reviews, and is merged by
+GitHub at the reviewed SHA before the next deliverable starts. This deliberately
+supersedes F3.4's original human-merge boundary without restoring the retired
+custom delivery engine.
+
+- [x] **G1** Configure a validator reviewer and a separate falsification
+  reviewer profile. Require both Foreman tasks to return `GO`; retain the
+  deterministic gate and one bounded repair round.
+- [x] **G2** Bind merge authorization to the final successful coder SHA and
+  reject a draft PR, changed head, unexpected branch or fork, non-`main` base,
+  missing reviewer, or reviewers that disagree on the PR.
+- [x] **G3** Submit the authorized SHA through GitHub's asynchronous merge API
+  so repository rules and required checks remain authoritative. Persist only
+  its UUID and terminal result for crash-safe correlation.
+- [x] **G4** Execute multi-deliverable plans serially: one issue, Workload, and
+  PR at a time; dispatch the next item only after the prior merge completes.
+  Multiple commits inside that PR are allowed and reviewed as one final diff.
+- [x] **G5** Limit proactive Commet messages to acceptance/start, actionable
+  blocked states, each merged PR, and final plan completion. Keep intermediate
+  task counts behind `!cogito status`.
+- [ ] **G6** Complete one new Commet-originated plan with at least two
+  deliverables and record both reviewer identities, reviewed head SHAs,
+  asynchronous merge results, PR links, and final Matrix completion.
+
+Acceptance: the approved plan reaches `Completed` only after all of its PRs are
+merged. A changed head or failed reviewer/check leaves the affected deliverable
+blocked and does not dispatch its successors. No soak test, stacked-PR bridge,
+or parallel legacy path is required for this experiment.
+
 ## Explicit non-goals
 
 - preserving Pi/OpenCode interchangeability for autonomous runs;
 - running old and new executors side by side;
 - importing historical Argo or delivery records into Foreman;
-- preserving Matrix-based PR merge approval;
+- adding a second Matrix merge approval after the exact plan was approved;
 - adding a generic Foreman executor, scheduler, state mirror, or PR bridge;
 - creating custom dashboards before upstream status proves insufficient;
 - proving controller/node-loss recovery, backup restore, long soaks, or every
