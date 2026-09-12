@@ -1,0 +1,26 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: APP-app-vars
+    literals:
+      - APP=nvidia-dra-driver
+labels:
+  - pairs:
+      kustomize.autoreiv/cluster-settings: "false"
+components:
+  - ../../../components/ks/app
+patches:
+  # Wait until the old device-plugin HelmRelease has been pruned before the
+  # DRA driver can advertise the same physical devices.
+  - target:
+      group: kustomize.toolkit.fluxcd.io
+      version: v1
+      kind: Kustomization
+      name: nvidia-dra-driver
+    patch: |-
+      - op: add
+        path: /spec/dependsOn/-
+        value:
+          name: nvidia-device-plugin

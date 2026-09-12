@@ -1,158 +1,172 @@
 ---
-# The one local backend (plan.md T1.3): a single always-on tensor-parallel
-# Qwen 3.8 spanning both 3090s, serving every worker/reviewer seat through
-# continuous batching. The eleven-member swap pool, the ModelRouter, and the
-# other ten InferenceServices were deleted when the target state landed -
-# nothing swaps, so residency is a plain replicas field, not a pool decision.
-#
-# CAPABILITY NOTE (unchanged): VLLMConfig has no toolCallParser/
-# reasoningParser fields, so those pass as raw extraArgs; nothing validates
-# them at admission - a typo fails at pod startup, so re-run the tool-calling
-# smoke test after editing them.
+# Text/tool lane on iggy's PCIe x16 RTX 3090. This follows Jory's Syv AI
+# profile: W4A16 AutoRound, DFlash2, long context, prefix cache, five admitted
+# requests. MAX_SEQS is admission, not a promise that five long requests fit.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: InferenceService
 metadata:
-  name: qwen-3-8-fp8
+  name: qwen3-8-27b
+  annotations:
+    inference.llmkube.dev/idle-endpoint: /health
 spec:
-  modelRef: qwen-3-8-fp8
-  # Explicit now that the ModelPool is gone: residency is this file's opinion
-  # again, and there is no controller left to fight Flux over the field (the
-  # old fight is documented at f77bb0a4). The CRD would default to 1 anyway,
-  # but a pool-era write of 0 would have survived pool deletion - explicit is
-  # deterministic.
+  modelRef: qwen3-8-27b
   replicas: 1
-  runtime: vllm
-  # Pinned above the operator default (v0.25.1): v0.28.0 ships the fused
-  # CUDA GDN MTP decode kernel (vllm#51674), which is compiled for sm8.6
-  # and fuses the whole GDN decode step (gating, delta-rule recurrence,
-  # state update, gated RMSNorm) into one launch for MTP speculative
-  # decode. It is built only when the image is CUDA >= 13.0, so this must
-  # be the default -cu130 tag, not -cu129; iggy's 595.x driver supports it.
-  # Safe either way: VLLM_GDN_DECODE_KERNEL defaults to cuda and falls
-  # back to the Triton path (logged) if any runtime precondition fails.
-  image: vllm/vllm-openai:v0.28.0
-  env:
-    - name: NCCL_P2P_DISABLE
-      value: "1"
-    - name: NCCL_CUMEM_ENABLE
-      value: "0"
-    - name: OMP_NUM_THREADS
-      value: "1"
-    - name: PYTORCH_CUDA_ALLOC_CONF
-      value: expandable_segments:True,max_split_size_mb:512
-    - name: VLLM_WORKER_MULTIPROC_METHOD
-      value: spawn
-    - name: VLLM_ALLOW_LONG_MAX_MODEL_LEN
-      value: "1"
-    - name: VLLM_NO_USAGE_STATS
-      value: "1"
-    - name: TRITON_CACHE_DIR
-      value: /tmp/triton-cache
+  runtime: generic
+  image: ghcr.io/syv-ai/qwen38-27b-rtx3090@sha256:8382b69916f413a8580f3117b6dc353bba6fb3ace94810c91c945ba7bdee8096
+  skipModelInit: true
   runtimeClassName: nvidia
   nodeSelector:
     kubernetes.io/hostname: iggy
+  env:
+    - name: SPEC
+      value: dflash2
+    - name: PREFIX_CACHE
+      value: "1"
+    - name: CTX
+      value: long
+    - name: MAX_SEQS
+      value: "5"
+    # Syv's default. Keep the vision tower out of VRAM; Muse owns the vision
+    # lane and offloads its projector to system RAM.
+    - name: VISION
+      value: "0"
+    - name: NVIDIA_DRIVER_CAPABILITIES
+      value: compute,utility
+    - name: HF_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: huggingface
+          key: HF_TOKEN
   resources:
-    gpu: 2
-    # CPU/memory requests exist to buy QoS class, not because vLLM needs much
-    # host RAM - the weights live in VRAM and the two TP workers hold ~2.6 GiB
-    # RSS each. Without them this pod is BestEffort, and Talos v1.13's userspace
-    # OOM controller picks BestEffort cgroups FIRST: it SIGKILLed this lane four
-    # times under page-cache pressure during the D4 bench
-    # (d4-qwen4exp-results-v2.md S7). Now that flashnext holds ~69 GiB of
-    # anonymous memory on the same node full time, that pressure is permanent,
-    # so the cluster's most important GPU workload must stop being its first
-    # OOM victim.
     cpu: "2"
     memory: 10Gi
-  endpoint:
-    port: 8000
   extraVolumes:
+    - name: models
+      persistentVolumeClaim:
+        claimName: llmkube-model-cache
+    - name: runtime-cache
+      emptyDir:
+        sizeLimit: 16Gi
     - name: shm
       emptyDir:
         medium: Memory
-        sizeLimit: 16Gi
+        sizeLimit: 8Gi
   extraVolumeMounts:
+    # Mount the cache root rather than a subPath so first boot can create the
+    # exact dbirks checkpoint/derived variants expected by the Syv image.
+    - name: models
+      mountPath: /app/models
+    - name: runtime-cache
+      mountPath: /cache
     - name: shm
       mountPath: /dev/shm
-  vllmConfig:
-    # Full ceiling, with the seats budget moved up a layer. The earlier
-    # "seats over ceiling" retune (Idle Bench S2 / plan.md T1.1) halved this
-    # to 131072 to buy concurrency, but the A1 sweep showed the two are not
-    # actually traded against each other: the KV pool is sized by weights and
-    # gpuMemoryUtilization, not by maxModelLen (277,007 tokens measured at the
-    # 262144 ceiling, 275,656 at 131072 with 8 seats - unchanged), and at real
-    # worker shapes (<=18k KV/seat) 8 full seats occupy ~144k of that pool.
-    # So the ceiling was free to give back, and it is restored here for the
-    # one caller that wants it: a human talking to the Qwen/Qwen3.8-27B-FP8
-    # alias directly.
-    #
-    # The 131072 budget did not disappear, it moved to the role aliases -
-    # worker and reviewer declare maxInputTokens 131072 against this backend
-    # on purpose, so coordinated agents keep planning against the smaller
-    # window (see their cogito.dev/context-budget annotation). Only the
-    # HF-named passthrough alias mirrors this number exactly, and the
-    # validator asserts that: aliases may declare LESS with the annotation,
-    # never more.
-    #
-    # Measured on the 2026-08-28 restart (manifest-comment convention):
-    #   GPU KV cache size: 273,859 tokens
-    #   Maximum concurrency for 262,144 tokens per request: 1.04x
-    # 273,859 against 275,656 at the old 131072 ceiling - a 0.65% difference,
-    # which is the whole argument: the pool did not move, only the ceiling.
-    #
-    # What a full-length request actually costs, so it is chosen knowingly:
-    # 262144 tokens is ~96% of the pool, so one of them preempts-and-recomputes
-    # the worker seats around it, and prefill is the real wall. End-to-end
-    # proof on the same restart: a 257,600-token unique-text prompt answered
-    # correctly through the proxy in 390s cold (~660 tok/s prefill), 13s on the
-    # prefix-cache repeat. Four-plus minutes of TTFT is fine for a human in an
-    # interactive session and useless inside a 300s worker turn, which is
-    # exactly why the long-context lane is the direct alias and not the roles.
-    maxModelLen: 262144
-    tensorParallelSize: 2
-    gpuMemoryUtilization: 0.90
-    maxNumBatchedTokens: 8192
-    # fp8 is in VLLMConfig.quantization's enum, so it is typed here rather
-    # than passed as a raw extraArg.
-    quantization: fp8
-    kvCacheDtype: fp8_e4m3
-    enablePrefixCaching: true
-    enableChunkedPrefill: true
+  endpoint:
+    port: 18020
+    type: ClusterIP
+  probeOverrides:
+    startup:
+      tcpSocket:
+        port: 18020
+      periodSeconds: 10
+      failureThreshold: 360
+    liveness:
+      tcpSocket:
+        port: 18020
+      initialDelaySeconds: 60
+      periodSeconds: 30
+      failureThreshold: 6
+    readiness:
+      httpGet:
+        path: /health
+        port: 18020
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      failureThreshold: 6
+---
+# Independent review/vision lane on iggy's PCIe x4 RTX 3090. The projector is
+# deliberately kept in host RAM, leaving GPU memory for target, DFlash, and KV.
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: InferenceService
+metadata:
+  name: muse-glimmer-30b
+spec:
+  modelRef: muse-glimmer-30b
+  replicas: 1
+  runtime: llamacpp
+  image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:6ac921528d613deb0fd142c654735e594a446a1c37a069eeab08d8fd974d4bec
+  runtimeClassName: nvidia
+  nodeSelector:
+    kubernetes.io/hostname: iggy
+  env:
+    - name: NVIDIA_DRIVER_CAPABILITIES
+      value: compute,utility
+  contextSize: 131072
+  flashAttention: true
+  jinja: true
+  parallelSlots: 2
+  batchSize: 4096
+  uBatchSize: 1024
+  cacheTypeK: q8_0
+  cacheTypeV: q8_0
+  reasoningBudget: 16384
+  reasoningBudgetMessage: Stop reasoning and produce the implementation, tool call, or final answer.
+  resources:
+    cpu: "2"
+    memory: 6Gi
+  speculativeDecoding:
+    type: draft-dflash
+    draftModel: /model-source/muse-glimmer-30b/dflash-Muse-Glimmer-30B-Q4_K_M.gguf
+    nDraftMax: 15
+    pMin: 0.75
   extraArgs:
-    - --served-model-name
-    - qwen-3-8-fp8
-    - --pipeline-parallel-size
-    - "1"
-    # 8 seats, PINNED by the A1 sweep (2026-08-23, full table in
-    # plans/llm/bench-notes.md). Worst-case-prefix load, 4-16k prompts,
-    # 0.5-2k completions, MTP=3:
-    #   conc  agg tok/s  seat tok/s  ITL p50   preempt
-    #     2      76         55        19ms       0
-    #     4     104         35        29ms       0
-    #     6     115         25        44ms       0
-    #     8     122         21        50ms       0
-    # Aggregate saturates (~122); 8 admits two more seats for +6% agg, zero
-    # preemptions, no ITL cliff - the ceiling is free, so take the seats.
-    - --max-num-seqs
-    - "8"
-    - --disable-custom-all-reduce
-    # The build carries a vision tower (Qwen3_5ForConditionalGeneration,
-    # vision_config present) that nothing uses - vision tiers to the kristeva
-    # CPU path and the cloud (Idle Bench S4). Dropping it returns its VRAM to
-    # the KV pool. Flag verified present in vllm 0.25.1.
-    - --language-model-only
-    - --trust-remote-code
-    - --tool-call-parser
-    - qwen3_xml
-    - --reasoning-parser
-    - qwen3
-    - --enable-auto-tool-choice
-    - --default-chat-template-kwargs
-    - '{"enable_thinking": true}'
-    # The repo ships mtp.safetensors, so this build carries an MTP head.
-    # MTP=3, PINNED by A2's three arms (2026-08-23, bench-notes): per-seat
-    # decode 89/62/44 tok/s (3/2/off) at conc 1; aggregate 122/115/106 at
-    # conc 8. The model-card "2" and the vLLM acceptance warning both lose
-    # to 3 on this build in both regimes.
-    - --speculative-config
-    - '{"method":"mtp","num_speculative_tokens":3}'
+    - --alias
+    - muse-glimmer-30b
+    - --mmproj
+    - /model-source/muse-glimmer-30b/mmproj-Muse-Glimmer-30B-Q4_K_M.gguf
+    - --no-mmproj-offload
+    - --image-min-tokens
+    - "1024"
+    - --cont-batching
+    - --spec-draft-type-k
+    - q8_0
+    - --spec-draft-type-v
+    - q8_0
+    - --cache-prompt
+    - --kv-unified
+    - --temp
+    - "1.0"
+    - --top-p
+    - "0.95"
+    - --top-k
+    - "64"
+    - --reasoning-preserve
+    - --threads
+    - "6"
+    - --threads-batch
+    - "12"
+    - --load-mode
+    - none
+  endpoint:
+    port: 8080
+    type: ClusterIP
+  probeOverrides:
+    startup:
+      httpGet:
+        path: /health
+        port: 8080
+      periodSeconds: 10
+      failureThreshold: 360
+    liveness:
+      httpGet:
+        path: /health
+        port: 8080
+      initialDelaySeconds: 30
+      periodSeconds: 30
+      failureThreshold: 6
+    readiness:
+      httpGet:
+        path: /health
+        port: 8080
+      initialDelaySeconds: 20
+      periodSeconds: 10
+      failureThreshold: 6
