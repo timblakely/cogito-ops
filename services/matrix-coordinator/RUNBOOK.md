@@ -46,6 +46,10 @@ While local planning scouts or the subsequent Astra synthesis are active, the
 Cogito bot refreshes its room-level Matrix typing indicator. Matrix does not
 provide a thread-scoped typing indicator, so concurrent work in any Cogito
 thread makes the bot appear to type in the room as a whole.
+Repo-backed read-only scouts may be reported by Foreman as `NO-CHANGES` because
+they correctly produce no diff. The coordinator uses Foreman's preserved model
+summary as research evidence rather than treating the no-diff wrapper as the
+scout's answer.
 
 ## Commet acceptance check v2
 
