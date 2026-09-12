@@ -107,7 +107,10 @@ spec:
   contextSize: 131072
   flashAttention: true
   jinja: true
-  parallelSlots: 2
+  # Foreman currently supervises one local task at a time. A single slot gives
+  # that scout the full context window and avoids retaining a second independent
+  # prompt cache while long research jobs are active.
+  parallelSlots: 1
   batchSize: 4096
   uBatchSize: 1024
   cacheTypeK: q8_0
@@ -116,7 +119,10 @@ spec:
   reasoningBudgetMessage: Stop reasoning and produce the implementation, tool call, or final answer.
   resources:
     cpu: "2"
-    memory: 12Gi
+    # Sustained multi-turn research grew the llama.cpp host process beyond 12Gi
+    # and OOM-killed the endpoint. cuda-dev is dormant, leaving room for this
+    # cgroup plus one 2Gi planning Job and the controllers on iggy.
+    memory: 16Gi
   speculativeDecoding:
     type: draft-dflash
     draftModel: /model-source/muse-glimmer-30b/dflash-Muse-Glimmer-30B-Q4_K_M.gguf

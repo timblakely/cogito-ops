@@ -168,7 +168,7 @@ class ForemanClient:
                 "kind": "freeform",
                 "agentRef": {"name": "cogito-planning-scout"},
                 "modelRef": "muse-glimmer-30b",
-                "timeoutSeconds": 900,
+                "timeoutSeconds": 3600,
                 "payload": {
                     "agent": "cogito-planning-scout",
                     # Freeform tasks without payload.repo intentionally run in
