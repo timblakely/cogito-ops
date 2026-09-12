@@ -1,11 +1,15 @@
 ---
 # On-node CUDA development pod for GPU kernel work on iggy.
 #
-# This Git-managed pod runs with NO GPU. Both 3090s belong exclusively to the
+# This Git-managed pod is dormant by default and runs with NO GPU when enabled.
+# Both 3090s belong exclusively to the
 # Qwen and Muse serving lanes, and the pod's CPU-only
 # workloads (checkpoint analysis against the weights on the model archive)
 # have no reason to wait for a GPU window. Former GPU-bearing variants under
 # ../../llmkube/modes/ are retired experiment records and must not be applied.
+# Keep replicas at zero outside an explicit development session: its 8Gi memory
+# request otherwise prevents the Foreman worker and 4Gi planning-scout Jobs from
+# scheduling alongside the serving lanes on iggy.
 #
 # Two consequences of "no GPU" are load-bearing and easy to get wrong:
 #   - runtimeClassName is deliberately ABSENT here. The nvidia runtime honours
@@ -30,7 +34,7 @@ kind: Deployment
 metadata:
   name: cuda-dev
 spec:
-  replicas: 1
+  replicas: 0
   revisionHistoryLimit: 2
   strategy:
     # Only one pod should mutate the persistent development workspace.
