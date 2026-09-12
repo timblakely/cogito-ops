@@ -8,7 +8,19 @@ from coordinator.state import StateStore
 
 
 class FakePlanner:
-    def __init__(self): self.calls = 0
+    def __init__(self):
+        self.calls = 0
+        self.decisions = []
+    def intake(self, messages, force=False):
+        self.calls += 1
+        if self.decisions:
+            decision = self.decisions.pop(0)
+            if force and decision["status"] != "ready":
+                return {"status": "ready", "message": "Drafting with assumptions.",
+                        "plan_markdown": "# Forced\n\n## Deliverables\n- [ ] Ship it\n"}
+            return decision
+        return {"status": "ready", "message": "This is ready to plan.",
+                "plan_markdown": "# Test\n\n## Deliverables\n- [ ] Ship it\n"}
     def plan(self, objective, prior="", comments=None):
         self.calls += 1
         suffix = " revised" if prior else ""
@@ -67,6 +79,7 @@ class MatrixTests(unittest.TestCase):
         core = Coordinator(self.state, self.issues, {"@tim:matrix.example"})
         self.matrix = MatrixCoordinator(
             self.state, core, self.foreman, self.planner, {"@tim:matrix.example"},
+            "!activity:matrix.example",
         )
         self.base = {
             "room_id": "!room:matrix.example", "sender": "@tim:matrix.example",
@@ -97,6 +110,40 @@ class MatrixTests(unittest.TestCase):
         self.assertEqual(len(self.foreman.created), 1)
         self.assertEqual(self.planner.calls, 2)
         self.assertEqual(self.issues.calls, 1)
+
+    def test_intake_clarification_reply_then_plan(self):
+        self.planner.decisions = [
+            {"status": "clarify", "message": "Which namespace should own it?"},
+            {"status": "ready", "message": "That resolves the boundary.",
+             "plan_markdown": "# Namespaced\n\n## Deliverables\n- [ ] Ship it\n"},
+        ]
+        first = self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        self.assertIn("Which namespace", first["actions"][0]["body"])
+        row = self.state.plan_for_thread("!room:matrix.example", "$root")
+        self.assertEqual(row["state"], "intake")
+        second = self.matrix.handle(self.event("$answer", "Use home-infra", "$root"))
+        self.assertIn("# Namespaced", second["actions"][0]["body"])
+        self.assertEqual(self.state.plan(row["plan_id"])["state"], "review")
+
+    def test_draft_command_forces_plan_during_intake(self):
+        self.planner.decisions = [
+            {"status": "clarify", "message": "Which namespace should own it?"},
+            {"status": "clarify", "message": "Still need a namespace."},
+        ]
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        result = self.matrix.handle(self.event("$draft", "!cogito draft", "$root"))
+        self.assertIn("# Forced", result["actions"][0]["body"])
+
+    def test_intake_automatically_drafts_after_two_rounds(self):
+        self.planner.decisions = [
+            {"status": "clarify", "message": "Question one?"},
+            {"status": "pushback", "message": "Concern two."},
+            {"status": "clarify", "message": "Would otherwise ask again."},
+        ]
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        self.matrix.handle(self.event("$answer1", "Answer one", "$root"))
+        result = self.matrix.handle(self.event("$answer2", "Proceed", "$root"))
+        self.assertIn("# Forced", result["actions"][0]["body"])
 
     def test_event_replay_returns_same_actions(self):
         value = self.event("$root", "!cogito plan Build it")
@@ -157,6 +204,10 @@ class MatrixTests(unittest.TestCase):
         self.assertEqual(plan["state"], "completed")
         messages = [item["body"] for item in self.state.pending_matrix()]
         self.assertTrue(any("every approved deliverable merged" in body for body in messages))
+        activity = [item for item in self.state.pending_matrix()
+                    if item["room_id"] == "!activity:matrix.example"]
+        self.assertTrue(any("review quorum" in item["body"] for item in activity))
+        self.assertTrue(all(item["thread_root"] == "" for item in activity))
 
     def test_non_command_outside_plan_thread_is_ignored(self):
         self.assertEqual(self.matrix.handle(self.event("$chat", "ordinary chat")), {"actions": []})

@@ -6,8 +6,12 @@ is authoritative for coding, gates, and review state.
 
 ## Commands
 
-- `!cogito plan <objective>` creates a versioned plan in a new thread.
-- Ordinary thread replies are revision comments.
+- `!cogito plan <objective>` opens conversational intake in a new thread. The
+  planner may ask up to two rounds of material questions or push back before it
+  posts version 1.
+- `!cogito draft` ends intake immediately and drafts with stated assumptions.
+- Ordinary thread replies answer the planner during intake and become revision
+  comments after the first draft.
 - `!cogito revise` creates a new plan version from those comments.
 - `!cogito approve [sha256:…]` accepts the current exact version, creates the
   GitHub issue hierarchy, and starts the first deliverable. Approval authorizes
@@ -29,9 +33,12 @@ one PR; reviewers cover the complete final diff and any later commit invalidates
 their SHA-bound authorization. The plan completes only after every approved PR
 merges.
 
-Routine task progress is intentionally silent. Commet receives the approval/
-start message, actionable blocked states, each merged PR, and final plan
-completion. Use `!cogito status` for intermediate task counts.
+The originating `Cogito` thread is the control surface: planner conversation,
+drafts, approval, actionable blockers, and final plan completion stay there.
+Routine Foreman status changes, review quorum, per-deliverable merge messages,
+and the Hookshot GitHub feed go to `Agent Runs`. Mute that room in Commet to
+retain the workflow record without receiving operational notification spam.
+Use `!cogito status` in the control thread for an on-demand snapshot.
 
 ## Commet acceptance check v2
 
@@ -65,9 +72,11 @@ both projected tokens. The coordinator reloads its token on every request.
 
 ## State and backup
 
-The SQLite volume contains plan versions, comments, exact approvals, ordered
+The SQLite volume contains durable planner-intake conversation, plan versions,
+comments, exact approvals, ordered
 deliverable correlation, Workload names, the SHA-pinned asynchronous merge
 receipt, Matrix replay/outbox records, idempotent issue-creation actions, and
 audit records. Foreman CRs contain execution and review state; GitHub contains
-check and merge state. The v7 migration adds only the serial-delivery boundary;
-retired run, delivery, control, and work-item tables remain deleted.
+check and merge state. The v8 migration adds planner intake; v7 added the
+serial-delivery boundary. Retired run, delivery, control, and work-item tables
+remain deleted.

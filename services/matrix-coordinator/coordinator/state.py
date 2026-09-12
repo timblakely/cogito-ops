@@ -10,7 +10,7 @@ from typing import Any, Iterator
 import json
 import time
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 DDL = """
 PRAGMA journal_mode=WAL;
@@ -30,6 +30,10 @@ CREATE TABLE IF NOT EXISTS plan_versions (
 CREATE TABLE IF NOT EXISTS plan_comments (
   matrix_event_id TEXT PRIMARY KEY, plan_id TEXT NOT NULL REFERENCES plans(plan_id),
   sender TEXT NOT NULL, body TEXT NOT NULL, created_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS plan_intake (
+  sequence INTEGER PRIMARY KEY AUTOINCREMENT, matrix_event_id TEXT NOT NULL UNIQUE,
+  plan_id TEXT NOT NULL REFERENCES plans(plan_id), sender TEXT NOT NULL,
+  role TEXT NOT NULL, kind TEXT NOT NULL, body TEXT NOT NULL, created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS approvals (
   plan_id TEXT PRIMARY KEY REFERENCES plans(plan_id), content_hash TEXT NOT NULL,
   matrix_event_id TEXT NOT NULL UNIQUE, approver TEXT NOT NULL, approved_at TEXT NOT NULL);
@@ -180,6 +184,38 @@ class StateStore:
     def plan(self, plan_id: str):
         with self.lock:
             return self.db.execute("SELECT * FROM plans WHERE plan_id=?", (plan_id,)).fetchone()
+
+    def begin_intake(self, plan_id: str, room_id: str, root_event_id: str,
+                     repository: str) -> None:
+        with self.transaction() as db:
+            db.execute(
+                "INSERT OR IGNORE INTO plans(plan_id,state,repository,matrix_room_id,"
+                "root_event_id,current_version) VALUES (?, 'intake', ?, ?, ?, 0)",
+                (plan_id, repository, room_id, root_event_id),
+            )
+
+    def add_intake_message(self, event_id: str, plan_id: str, sender: str,
+                           role: str, kind: str, body: str) -> bool:
+        with self.transaction() as db:
+            return db.execute(
+                "INSERT OR IGNORE INTO plan_intake(matrix_event_id,plan_id,sender,role,kind,body,created_at) "
+                "VALUES (?,?,?,?,?,?,?)",
+                (event_id, plan_id, sender, role, kind, body, int(time.time())),
+            ).rowcount == 1
+
+    def intake_messages(self, plan_id: str) -> list[dict[str, str]]:
+        with self.lock:
+            return [dict(row) for row in self.db.execute(
+                "SELECT role,kind,body FROM plan_intake WHERE plan_id=? ORDER BY sequence",
+                (plan_id,),
+            ).fetchall()]
+
+    def intake_rounds(self, plan_id: str) -> int:
+        with self.lock:
+            return int(self.db.execute(
+                "SELECT count(*) FROM plan_intake WHERE plan_id=? AND role='assistant' "
+                "AND kind IN ('clarify','pushback')", (plan_id,),
+            ).fetchone()[0])
 
     def current_plan_version(self, plan_id: str):
         with self.lock:

@@ -51,12 +51,15 @@ class CogitoBot(Plugin):
             try:
                 result = await self._request("/v1/matrix/outbox", {"operation": "poll", "limit": 20})
                 for item in result.get("notifications", []):
-                    relation = TextMessageEventContent(msgtype=MessageType.TEXT, body="")
-                    relation.set_thread_parent(EventID(item["thread_root"]), reply_fallback=True)
+                    relates_to = None
+                    if item["thread_root"]:
+                        relation = TextMessageEventContent(msgtype=MessageType.TEXT, body="")
+                        relation.set_thread_parent(EventID(item["thread_root"]), reply_fallback=True)
+                        relates_to = relation.relates_to
                     try:
                         event_id = await self.client.send_markdown(
                             RoomID(item["room_id"]), item["body"], allow_html=False,
-                            relates_to=relation.relates_to,
+                            relates_to=relates_to,
                             txn_id=item["notification_id"],
                         )
                     except MUnknown as exc:
@@ -106,15 +109,14 @@ class CogitoBot(Plugin):
         if not body.startswith("!cogito") and not is_thread_reply:
             return
         self.log.info("Forwarding Matrix command event %s", evt.event_id)
+        typing_task = None
         try:
-            command = body.removeprefix("!cogito").strip().partition(" ")[0].lower()
-            progress = {
-                "plan": "⏳ Plan request received. I’ll post the draft here when planning completes.",
-                "revise": "⏳ Revision request received. I’ll post the updated plan here when ready.",
-                "approve": "⏳ Approval received. I’m creating the issues and Foreman Workload now.",
-            }.get(command)
-            if body.startswith("!cogito") and progress:
-                await evt.respond(progress, in_thread=True)
+            async def keep_typing() -> None:
+                while True:
+                    await self.client.set_typing(evt.room_id, timeout=60000)
+                    await asyncio.sleep(45)
+
+            typing_task = asyncio.create_task(keep_typing())
             thread_root = None
             if is_thread_reply:
                 thread_root = str(relation.event_id)
@@ -132,3 +134,7 @@ class CogitoBot(Plugin):
         except Exception as exc:
             self.log.exception("coordinator event failed")
             await evt.respond(f"⚠️ Coordinator error: {exc}", in_thread=True)
+        finally:
+            if typing_task:
+                typing_task.cancel()
+            await self.client.set_typing(evt.room_id, timeout=0)

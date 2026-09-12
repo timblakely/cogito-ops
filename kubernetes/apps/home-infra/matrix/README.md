@@ -41,6 +41,13 @@ Control`; `#agent-control` is canonical and `#hermes-agent` remains a working
 alternate alias. Plans should use one Matrix thread per plan in the applicable
 project room, falling back to `Agent Plans` when no project room exists.
 
+For Cogito automation, `Cogito` is the control room: planner conversation,
+approval, blockers, and overall completion remain in the originating plan
+thread. `Agent Runs` is the muteable activity room for Foreman progress,
+review/merge updates, and the Hookshot repository connection. Matrix room
+notification settings are the reliable client-wide boundary; activity is not
+hidden in a thread that may notify differently across clients.
+
 The separate private `Personal` space contains `Watches` and `Money Making`.
 These rooms hold durable topic context that may span many agent runs; operational
 progress and failures still belong in the `Agents` space. Tim and Hermes are

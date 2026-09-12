@@ -248,7 +248,7 @@ resource "matrix_room_power_levels" "agent" {
 }
 
 resource "matrix_room_state" "cogito_github_repository" {
-  room_id    = matrix_room.agent["cogito"].id
+  room_id    = matrix_room.agent["runs"].id
   event_type = "uk.half-shot.matrix-hookshot.github.repository"
   state_key  = "timblakely/cogito-ops"
   content_json = jsonencode({
