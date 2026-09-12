@@ -47,6 +47,21 @@ notes when they disagree.
 
 ## Two heterogeneous NVIDIA GPUs
 
+Current status (2026-09-12): **do not deploy NVIDIA DRA 0.5.0 on Talos with
+the system-extension NVIDIA driver.** Kubernetes was safely upgraded to 1.34.2
+and the feature gates remain enabled, but the DRA/model rollout was rolled back
+to the legacy device plugin and two-GPU Qwen FP8 service.
+
+The DRA init container searches standard driver-root locations such as
+`usr/bin/nvidia-smi` and `usr/lib64/libnvidia-ml.so.1`. Talos installs those
+pieces under separate `/usr/local/bin` and `/usr/local/lib` paths, so no valid
+`nvidiaDriverRoot` exists. Upstream issue
+[`kubernetes-sigs/dra-driver-nvidia-gpu#605`](https://github.com/kubernetes-sigs/dra-driver-nvidia-gpu/issues/605)
+documents the same failure; its Talos support PR #695 was closed without merge.
+The published workaround needs a custom driver image plus CDI-path
+post-rendering. That creates local maintenance ownership and is intentionally
+out of scope for Cogito.
+
 - `nvidia.com/gpu: 1` does not select a physical card. The legacy NVIDIA device
   plugin exposes identical RTX 3090s as interchangeable units even when their
   PCIe links differ. `deviceIDStrategy: uuid` changes the injected identifier
@@ -58,9 +73,11 @@ notes when they disagree.
   | x16 | `00000000:2D:00.0` | `GPU-a5982685-6ed7-6fce-8096-52d29e241396` | Qwen |
   | x4 | `00000000:23:00.0` | `GPU-787b1f07-4246-5ccd-5074-4bb2120f2c14` | Muse |
 
-- Use NVIDIA's DRA driver and UUID-selecting `ResourceClaimTemplate` objects
-  for deterministic assignment. Do not rely on pod startup order and do not
-  hand-set `NVIDIA_VISIBLE_DEVICES`; both bypass scheduler correctness.
+- Once upstream Talos support exists, use NVIDIA's DRA driver and
+  UUID-selecting `ResourceClaimTemplate` objects for deterministic assignment.
+  Until then, keep the shared legacy service; do not rely on pod startup order
+  and do not hand-set `NVIDIA_VISIBLE_DEVICES`, because both bypass scheduler
+  correctness.
 - LLMKube 0.9.25 supports DRA under
   `Model.spec.hardware.gpu.resourceClaims`. When using it, omit both
   `hardware.gpu.count`/`resourceName` and `InferenceService.spec.resources.gpu`.
@@ -77,10 +94,14 @@ notes when they disagree.
   feature-gate configuration first; remove the old device plugin; install the
   DRA driver; verify its `DeviceClass` and `ResourceSlice`; only then activate
   UUID-bound model claims.
+- A generated root Kustomization with `spec.prune: false` will leave a removed
+  child Kustomization behind. During the rollback, the orphaned DRA child kept
+  its HelmRelease alive beside the restored device plugin and had to be deleted
+  explicitly so its Flux finalizer could uninstall the chart.
 
 ## Runtime and cache details
 
-- Jory's single-card Qwen recipe uses
+- The deferred target for Jory's single-card Qwen recipe uses
   `dbirks/Qwen3.8-27B-W4A16-AutoRound` through Syv AI's 3090 image with
   `SPEC=dflash2`, `CTX=long`, prefix caching, and `MAX_SEQS=5`. Five is an
   admission ceiling, not five guaranteed resident long-context requests.
@@ -99,10 +120,11 @@ notes when they disagree.
   its manifests under an inactive `disabled/` path and omit them from
   Kustomization resources. This keeps an obvious rollback without leaving two
   controllers competing for GPU residency.
-- Search operator recipes and runbooks for the retired service name, not only
-  active manifests. The old `llm-split`/`llm-dark` helpers suspended Flux and
-  overwrote a shared two-GPU service; leaving those commands exposed after the
-  DRA split would turn a convenient old workflow into a destructive footgun.
+- Search operator recipes and runbooks for a retired service name, not only
+  active manifests. The legacy `llm-split`/`llm-dark` helpers suspend Flux and
+  overwrite the shared two-GPU service. Remove them when a future DRA split
+  actually lands, but restore them together with the shared service during a
+  rollback so documentation and operator behavior do not disagree.
 
 ## Validation shortcuts and traps
 
