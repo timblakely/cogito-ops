@@ -1,4 +1,10 @@
-# Serving modes
+# Retired serving modes
+
+> Historical only (retired 2026-09-12). The Qwen/Muse DRA split gives each
+> service a UUID-bound GPU, so these shared-service mode manifests must not be
+> applied. The mutating `just kube llm-split`, `llm-dark`, and `llm-normal`
+> recipes were removed; `just kube llm-mode` is now read-only. The files remain
+> here as experiment records and are excluded from every Kustomization.
 
 Alternate specs for the objects in `../resources/` and `../../cuda-dev/`, used
 when one or both of iggy's 3090s is handed to the CUDA development pod.
@@ -14,13 +20,6 @@ NORMAL; the modes exist only as something an operator applies on purpose.
 | NORMAL | Qwen 3.8 FP8, TP=2 | ← same | full, 8 seats, MTP, 262k |
 | SPLIT | single-card 4-bit Qwen | dev pod | degraded, 1-2 seats |
 | DARK | dev pod | dev pod | none |
-
-```
-just kube llm-mode          # what is running now
-just kube llm-split a       # or `b` - the two degraded candidates below
-just kube llm-dark          # dev pod takes both cards, no local serving
-just kube llm-normal        # rollback from anywhere; never reads dev state
-```
 
 ## How the switch works, and why it reverts cleanly
 

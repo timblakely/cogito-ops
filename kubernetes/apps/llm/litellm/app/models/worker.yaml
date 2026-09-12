@@ -18,8 +18,8 @@ spec:
   modelName: worker
   proxyRef: litellm
   params:
-    model: openai/qwen-3-8-fp8
-    apiBase: http://qwen-3-8-fp8.llm.svc.cluster.local:8000/v1
+    model: openai/qwen3-8-27b
+    apiBase: http://qwen3-8-27b.llm.svc.cluster.local:18020/v1
     apiKey: not-needed
     additional:
       reasoning_effort: low
@@ -32,7 +32,7 @@ spec:
     # coordination budget at 131072 on purpose, so fan-out stays cheap: the KV
     # pool is ~275k tokens total, and agents that plan against a 262k window
     # would each try to hold most of it. The full window lives on the
-    # Qwen/Qwen3.8-27B-FP8 passthrough alias, for interactive use.
+    # Qwen/Qwen3.8-27B-W4A16 passthrough alias, for interactive use.
     # Gap from the backend is licensed by the cogito.dev/context-budget
     # annotation above; the validator asserts this never EXCEEDS the backend.
     #
@@ -54,7 +54,7 @@ spec:
       # overwrites whatever a client puts in chat_template_kwargs. The proof is
       # that sending the template-invalid `high` to this alias returns 200
       # (the pin replaced it) while the same request to the passthrough alias
-      # Qwen/Qwen3.8-27B-FP8, which pins nothing, 400s out of the Jinja.
+      # Qwen/Qwen3.8-27B-W4A16, which pins nothing, 400s out of the Jinja.
       #
       # So listing low/medium/xhigh here published two levels that silently did
       # nothing. Listing the pinned level alone leaves a client offering

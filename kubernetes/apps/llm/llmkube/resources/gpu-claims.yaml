@@ -1,0 +1,37 @@
+---
+# The two RTX 3090s in iggy are electrically different. The NVIDIA DRA driver
+# publishes their UUIDs as device attributes, so select the physical card here
+# instead of depending on kubelet allocation order.
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata:
+  name: qwen-gpu-x16
+spec:
+  spec:
+    devices:
+      requests:
+        - name: gpu
+          exactly:
+            deviceClassName: gpu.nvidia.com
+            selectors:
+              - cel:
+                  expression: >-
+                    device.attributes['gpu.nvidia.com'].uuid ==
+                    'GPU-a5982685-6ed7-6fce-8096-52d29e241396'
+---
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata:
+  name: muse-gpu-x4
+spec:
+  spec:
+    devices:
+      requests:
+        - name: gpu
+          exactly:
+            deviceClassName: gpu.nvidia.com
+            selectors:
+              - cel:
+                  expression: >-
+                    device.attributes['gpu.nvidia.com'].uuid ==
+                    'GPU-787b1f07-4246-5ccd-5074-4bb2120f2c14'
