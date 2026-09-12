@@ -39,10 +39,11 @@ spec:
   resources:
     cpu: "2"
     # The Syv entrypoint materializes the public checkpoint before serving.
-    # Its parallel download and lm_head quantization exceeded 16Gi on the first
-    # cold start. Upstream's container guide specifies a 20 GB host allowance;
-    # 20Gi remains within iggy's allocatable requests.
-    memory: 20Gi
+    # Its parallel download and lm_head quantization exceeded both 16Gi and a
+    # hard 20Gi cgroup. Upstream's example is 20 GB plus 8 GB swap; 24Gi gives
+    # the no-swap Kubernetes pod working headroom while keeping iggy below its
+    # allocatable-memory ceiling.
+    memory: 24Gi
   extraVolumes:
     - name: models
       persistentVolumeClaim:
