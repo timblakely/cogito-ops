@@ -82,8 +82,20 @@ class MatrixTests(unittest.TestCase):
 
     def test_event_replay_returns_same_actions(self):
         value = self.event("$root", "!cogito plan Build it")
-        self.assertEqual(self.matrix.handle(value), self.matrix.handle(value))
+        first = self.matrix.handle(value)
+        self.assertEqual(first, self.matrix.handle(value))
         self.assertEqual(self.planner.calls, 1)
+        pending = self.state.pending_matrix()
+        self.assertEqual(len(pending), 1)
+        self.assertEqual(pending[0]["room_id"], "!room:matrix.example")
+        self.assertEqual(pending[0]["thread_root"], "$root")
+        self.assertEqual(pending[0]["body"], first["actions"][0]["body"])
+
+    def test_command_response_is_durable_before_transport_delivery(self):
+        result = self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        pending = self.state.pending_matrix()
+        self.assertEqual(len(pending), 1)
+        self.assertEqual(pending[0]["body"], result["actions"][0]["body"])
 
     def test_thread_approval_resolves_current_version(self):
         self.matrix.handle(self.event("$root", "!cogito plan Build it"))

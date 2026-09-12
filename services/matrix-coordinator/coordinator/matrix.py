@@ -53,15 +53,31 @@ class MatrixCoordinator:
     def _message(body: str, root: str) -> dict[str, Any]:
         return {"actions": [{"kind": "message", "body": body, "thread_root": root}]}
 
+    def _enqueue_actions(self, event: MatrixEvent, result: dict[str, Any]) -> None:
+        for index, action in enumerate(result.get("actions", [])):
+            if action.get("kind") != "message":
+                continue
+            notification_id = "command:" + sha256(
+                f"{event.event_id}:{index}".encode()
+            ).hexdigest()
+            self.state.enqueue_matrix(
+                notification_id,
+                event.room_id,
+                action.get("thread_root") or event.thread_root or event.event_id,
+                action["body"],
+            )
+
     def handle(self, value: dict[str, Any]) -> dict[str, Any]:
         event = MatrixEvent.from_dict(value)
         with self.lock:
             if cached := self.state.matrix_result(event.event_id):
+                self._enqueue_actions(event, cached)
                 return cached
             payload_hash = sha256(canonical_json(value).encode()).hexdigest()
             self.state.accept_event("matrix", event.event_id, payload_hash)
             result = self._handle(event)
             self.state.save_matrix_result(event.event_id, result)
+            self._enqueue_actions(event, result)
             return result
 
     def _thread_plan(self, event: MatrixEvent):
