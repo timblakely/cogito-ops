@@ -39,9 +39,10 @@ spec:
   resources:
     cpu: "2"
     # The Syv entrypoint materializes the public checkpoint before serving.
-    # Its parallel Hugging Face download exceeded 10Gi on the first cold start;
-    # 16Gi covers that phase and remains within iggy's allocatable requests.
-    memory: 16Gi
+    # Its parallel download and lm_head quantization exceeded 16Gi on the first
+    # cold start. Upstream's container guide specifies a 20 GB host allowance;
+    # 20Gi remains within iggy's allocatable requests.
+    memory: 20Gi
   extraVolumes:
     - name: models
       persistentVolumeClaim:
