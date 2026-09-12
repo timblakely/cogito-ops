@@ -41,6 +41,17 @@ def deliverables(markdown: str) -> list[str]:
     return result
 
 
+def deliverable_body(plan: PlanVersion, index: int, item: str, parent_url: str) -> str:
+    """Keep the issue's executable ask in the body where Foreman verifies it."""
+    return (
+        f"## Deliverable\n\n{item}\n\n"
+        f"<!-- cogito-plan-deliverable: {plan.plan_id}:{index} -->\n"
+        f"Parent plan: {parent_url}\n\n"
+        f"Accepted plan hash: `{plan.hash}`\n\n"
+        "## Acceptance criteria\n\n- [ ] Deliverable implemented\n- [ ] Checks recorded\n"
+    )
+
+
 @dataclass
 class GitHubIssues:
     token: str | None = None
@@ -97,9 +108,7 @@ class GitHubIssues:
         child_records = []
         for index, item in enumerate(deliverables(plan.markdown), 1):
             child_marker = f"<!-- cogito-plan-deliverable: {plan.plan_id}:{index} -->"
-            child_body = (f"{child_marker}\nParent plan: {parent['html_url']}\n\n"
-                          f"Accepted plan hash: `{plan.hash}`\n\n"
-                          "## Acceptance criteria\n\n- [ ] Deliverable implemented\n- [ ] Checks recorded\n")
+            child_body = deliverable_body(plan, index, item, parent["html_url"])
             child = next((issue for issue in existing if child_marker in (issue.get("body") or "")), None)
             if child is not None:
                 children.append(child["html_url"])
