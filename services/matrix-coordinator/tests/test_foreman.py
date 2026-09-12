@@ -42,6 +42,16 @@ class ForemanTests(unittest.TestCase):
             "phase": "Completed", "succeededTasks": 3, "failedTasks": 0,
         }})["succeeded"], 3)
 
+    def test_research_manifest_is_a_local_read_only_freeform_task(self):
+        manifest = ForemanClient().research_manifest(
+            "plan-a-research-r1-1", "plan-a", "Inspect planning.",
+            "https://github.com/timblakely/cogito-ops.git",
+        )
+        self.assertEqual(manifest["spec"]["kind"], "freeform")
+        self.assertEqual(manifest["spec"]["agentRef"]["name"], "cogito-planning-scout")
+        self.assertEqual(manifest["spec"]["modelRef"], "qwen-3-8-fp8")
+        self.assertIn("Work read-only", manifest["spec"]["payload"]["prompt"])
+
     def test_merge_candidate_requires_two_distinct_reviews_after_final_coder(self):
         client = ForemanClient()
         tasks = [

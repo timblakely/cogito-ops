@@ -305,6 +305,31 @@ Acceptance: the control thread contains decisions requiring human attention,
 the activity room contains the detailed audit trail, and no persistent
 "request received" acknowledgement is emitted.
 
+### I — Astra synthesis with local planning scouts
+
+Outcome: Astra supplies the high-value planning judgment without spending its
+context on repository exploration, research transcripts, or shell output.
+
+- [x] **I1** Move the stable `planner` alias to `gpt-6-astra` at medium
+  reasoning and use the Responses API for planner function calls.
+- [x] **I2** Give Astra one bounded `delegate_research` tool and no repository,
+  web, filesystem, or shell tools; remove automatic paid-model fallbacks.
+- [x] **I3** Add a local Qwen Foreman planning scout with read-only tools and
+  create its `freeform` tasks through the coordinator's narrow RBAC boundary.
+- [x] **I4** Persist scout prompts, terminal state, and bounded summaries in
+  SQLite; synthesize only after the current round reaches terminal state.
+- [x] **I5** Cap delegation at four scouts per round and two rounds per plan,
+  then draft with explicit assumptions. Preserve `!cogito draft` and expose
+  research progress through `!cogito status`.
+- [ ] **I6** Complete one Commet-originated plan that delegates at least one
+  scout, returns a versioned draft to its control thread, and records detailed
+  scout state only in `Agent Runs`.
+
+Acceptance: Astra sees the intake transcript plus compact scout summaries, not
+raw tool output. Local agents perform repository discovery and command execution;
+an Astra or synthesis failure blocks visibly rather than silently selecting a
+different paid model. No soak test or compatibility bridge is required.
+
 ## Explicit non-goals
 
 - preserving Pi/OpenCode interchangeability for autonomous runs;

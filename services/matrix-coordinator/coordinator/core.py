@@ -29,7 +29,9 @@ class Coordinator:
             ).fetchone()
             if current and plan.version <= current["current_version"]:
                 return False
-            if current and current["state"] not in {"intake", "drafting", "review"}:
+            if current and current["state"] not in {
+                    "intake", "researching", "synthesizing", "research_failed",
+                    "drafting", "review"}:
                 raise ValidationError("accepted plan is immutable")
             db.execute(
                 "INSERT INTO plans(plan_id,state,repository,matrix_room_id,root_event_id,current_version) "

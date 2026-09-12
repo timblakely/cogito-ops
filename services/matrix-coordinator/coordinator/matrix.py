@@ -101,25 +101,63 @@ class MatrixCoordinator:
             f"`!cogito revise`, or approve the current version with `!cogito approve`."
         )
 
-    def _continue_intake(self, event: MatrixEvent, row, force: bool = False) -> dict[str, Any]:
-        # Two conversational rounds are enough for an experiment. Beyond that,
-        # draft with explicit assumptions so intake cannot become an endless gate.
-        force = force or self.state.intake_rounds(row["plan_id"]) >= 2
-        decision = self.planner.intake(self.state.intake_messages(row["plan_id"]), force=force)
+    def _apply_intake_decision(self, event_id: str, row,
+                               decision: dict[str, Any]) -> dict[str, Any]:
+        if decision["status"] == "delegate":
+            self.state.add_intake_message(
+                event_id + ":assistant", row["plan_id"], "planner",
+                "assistant", "delegate", decision["message"],
+            )
+            round_number, names = self.state.register_research(
+                row["plan_id"], decision["tasks"])
+            self._activity(
+                f"activity:{row['plan_id']}:research:{round_number}:delegated",
+                f"Plan `{row['plan_id']}` delegated {len(names)} read-only planning scout "
+                f"task(s) in research round {round_number}.",
+            )
+            return self._message(
+                decision["message"].strip() +
+                f"\n\nDelegated {len(names)} focused read-only task(s) to local planning "
+                "scouts. I’ll post the draft or a substantive question here when they finish.",
+                row["root_event_id"],
+            )
         if decision["status"] == "ready":
+            version = row["current_version"] + 1
             plan = PlanVersion(
-                row["plan_id"], 1, decision["plan_markdown"], row["matrix_room_id"],
-                event.event_id, row["repository"],
+                row["plan_id"], version, decision["plan_markdown"], row["matrix_room_id"],
+                event_id, row["repository"],
             )
             self.core.record_plan(plan)
             transition = decision["message"].strip()
             return self._message(f"{transition}\n\n{self._plan_message(plan)}", row["root_event_id"])
         self.state.add_intake_message(
-            event.event_id + ":assistant", row["plan_id"], "planner",
+            event_id + ":assistant", row["plan_id"], "planner",
             "assistant", decision["status"], decision["message"],
         )
+        self.state.set_plan_state(row["plan_id"], "intake")
         suffix = "\n\nReply here, or send `!cogito draft` to proceed with stated assumptions."
         return self._message(decision["message"].strip() + suffix, row["root_event_id"])
+
+    def _planner_messages(self, row) -> list[dict[str, str]]:
+        messages = self.state.intake_messages(row["plan_id"])
+        if row["current_version"]:
+            version = self.state.current_plan_version(row["plan_id"])
+            messages.append({"role": "assistant", "kind": "prior_plan",
+                             "body": version["markdown"]})
+            messages.extend({"role": "user", "kind": "review_comment", "body": comment}
+                            for comment in self.state.plan_comments(row["plan_id"]))
+        return messages
+
+    def _continue_intake(self, event: MatrixEvent, row, force: bool = False) -> dict[str, Any]:
+        # Two conversational rounds are enough for an experiment. Beyond that,
+        # draft with explicit assumptions so intake cannot become an endless gate.
+        force = (force or self.state.intake_rounds(row["plan_id"]) >= 2
+                 or self.state.research_rounds(row["plan_id"]) >= 2)
+        decision = self.planner.intake(
+            self._planner_messages(row), force=force,
+            research=self.state.research_briefing(row["plan_id"]),
+        )
+        return self._apply_intake_decision(event.event_id, row, decision)
 
     def _dispatch_next(self, plan_id: str) -> dict[str, Any] | None:
         deliverable = self.state.next_deliverable(plan_id)
@@ -160,8 +198,62 @@ class MatrixCoordinator:
                 f"Plan `{row['plan_id']}` is **Completed**; every approved deliverable merged.",
             )
 
+    def _synthesize_research(self, ready) -> None:
+        # Matrix commands use this same lock, preventing a manual draft and the
+        # background synthesis from creating competing plan versions.
+        with self.lock:
+            row = self.state.plan(ready["plan_id"])
+            if row["state"] != "researching":
+                return
+            self.state.set_plan_state(row["plan_id"], "synthesizing")
+            try:
+                decision = self.planner.intake(
+                    self._planner_messages(row),
+                    force=ready["round"] >= 2,
+                    research=self.state.research_briefing(row["plan_id"]),
+                )
+                result = self._apply_intake_decision(
+                    f"$research-{row['plan_id']}-{ready['round']}", row, decision)
+            except Exception as exc:
+                self.state.set_plan_state(row["plan_id"], "research_failed")
+                self.state.enqueue_matrix(
+                    f"plan:{row['plan_id']}:research:{ready['round']}:failed",
+                    row["matrix_room_id"], row["root_event_id"],
+                    f"Planning synthesis is **Blocked**: {type(exc).__name__}. "
+                    "Send `!cogito draft` to retry with the completed scout summaries.",
+                )
+                return
+            for index, action in enumerate(result.get("actions", [])):
+                if action.get("kind") == "message":
+                    self.state.enqueue_matrix(
+                        f"plan:{row['plan_id']}:research:{ready['round']}:result:{index}",
+                        row["matrix_room_id"], row["root_event_id"], action["body"],
+                    )
+
     def reconcile_once(self) -> None:
         """Advance Workload -> reviewed SHA -> GitHub merge -> next deliverable."""
+        for row in self.state.active_research():
+            if row["state"] == "Pending":
+                task = self.foreman.ensure_research_task(
+                    task_name=row["task_name"], plan_id=row["plan_id"],
+                    prompt=row["prompt"], repository=row["repository"],
+                )
+            else:
+                task = self.foreman.get_task(row["task_name"])
+            task_status = task.get("status", {})
+            changed = self.state.update_research(row["task_name"], task_status)
+            if changed:
+                phase = task_status.get("phase", "Pending")
+                self._activity(
+                    "activity:" + sha256(
+                        f"{row['task_name']}:{canonical_json(task_status)}".encode()).hexdigest(),
+                    f"Plan `{row['plan_id']}` · planning scout `{row['task_name']}` is "
+                    f"**{phase}**.",
+                )
+
+        for ready in self.state.research_ready():
+            self._synthesize_research(ready)
+
         for row in self.state.active_workloads():
             status = self.foreman.summary(self.foreman.get(row["name"]))
             changed = self.state.update_workload(row["name"], status)
@@ -245,10 +337,14 @@ class MatrixCoordinator:
             plan = self.state.plan_for_thread(event.room_id, event.thread_root)
             if not plan:
                 return {"actions": []}
-            if plan["state"] == "intake":
+            if plan["state"] in {"intake", "research_failed"}:
                 self.state.add_intake_message(
                     event.event_id, plan["plan_id"], event.sender, "user", "answer", body)
                 return self._continue_intake(event, plan)
+            if plan["state"] in {"researching", "synthesizing"}:
+                return self._message(
+                    "Planning scouts are still working. Send `!cogito status` for progress or "
+                    "`!cogito draft` to draft now from completed results.", root)
             self.state.add_plan_comment(event.event_id, plan["plan_id"], event.sender, body)
             return self._message("Review comment recorded. Send `!cogito revise` when ready.", root)
         command, _, argument = body.removeprefix("!cogito").strip().partition(" ")
@@ -265,23 +361,15 @@ class MatrixCoordinator:
             return self._continue_intake(event, self.state.plan(plan_id))
         if command == "draft":
             row = self._thread_plan(event)
-            if row["state"] != "intake":
+            if row["state"] not in {"intake", "researching", "synthesizing", "research_failed"}:
                 raise ValidationError("this plan already has a draft")
             return self._continue_intake(event, row, force=True)
         if command == "revise":
             row = self._thread_plan(event)
-            version = self.state.current_plan_version(row["plan_id"])
             comments = self.state.plan_comments(row["plan_id"])
             if not comments:
                 raise ValidationError("no review comments have been recorded")
-            markdown = self.planner.plan("Revise the reviewed plan", version["markdown"], comments)
-            plan = PlanVersion(row["plan_id"], row["current_version"] + 1, markdown,
-                               event.room_id, event.event_id, row["repository"])
-            self.core.record_plan(plan)
-            return self._message(
-                f"**Plan `{plan.plan_id}` · version {plan.version}**\n\n{plan.markdown}\n"
-                f"Plan hash: `{plan.hash}`\n\nApprove the current version with "
-                f"`!cogito approve`.", root)
+            return self._continue_intake(event, row)
         if command == "approve":
             row = self._thread_plan(event)
             digest = argument.strip()
@@ -317,6 +405,13 @@ class MatrixCoordinator:
             name = argument.strip()
             if not name:
                 row = self._thread_plan(event)
+                if row["state"] in {"researching", "synthesizing", "research_failed"}:
+                    progress = self.state.research_progress(row["plan_id"])
+                    complete = progress.get("Succeeded", 0) + progress.get("Failed", 0)
+                    return self._message(
+                        f"Planning research is **{row['state']}**: {complete}/"
+                        f"{progress['total']} scout tasks finished "
+                        f"({progress.get('Failed', 0)} failed).", root)
                 saved = self.state.workload_for_plan(row["plan_id"])
                 if not saved:
                     raise ValidationError("this plan has no Foreman Workload")

@@ -33,7 +33,7 @@ class App:
             set(filter(None, os.environ.get("MATRIX_APPROVERS", "").split(","))),
         )
         planner_fallbacks = tuple(filter(None, os.environ.get(
-            "PLANNER_FALLBACK_MODELS", "planner-gpt,planner-gpt-pro,planner-local").split(",")))
+            "PLANNER_FALLBACK_MODELS", "").split(",")))
         self.matrix = MatrixCoordinator(
             self.state, self.coordinator, self.foreman,
             PlannerClient(os.environ["LITELLM_PLANNER_API_KEY"],

@@ -31,11 +31,13 @@ calculation for any `openai/<slug>` missing from its cost map, so the choice is
 between an asserted zero and a per-request error with no ledger entry.
 
 **Role seats** — `coordinator` is the routine Luna workflow manager and
-`planner` is the high-reasoning Terra planning seat. `coordinator-heavy` is a
-temporary compatibility alias for `planner`; new consumers must not use it.
-`planner-local` is the explicit zero-cost continuity seat on Qwen at xhigh
-reasoning when the subscription and metered provider paths are unavailable.
-Each workflow component uses its own scoped virtual key.
+`planner` is the Astra planning seat at medium reasoning. Astra receives only
+the conversation and compact summaries from read-only local Foreman planning
+scouts; it does not perform repository exploration or command execution.
+`coordinator-heavy` is a temporary compatibility alias for `planner`; new
+consumers must not use it. `planner-local` remains an explicit, operator-chosen
+continuity seat rather than an automatic fallback. Each workflow component uses
+its own scoped virtual key.
 
 **Metered frontier** — `planner-gpt` and `planner-gpt-pro`, deliberately under
 names no local model shares. A shared `modelName` would make LiteLLM's router

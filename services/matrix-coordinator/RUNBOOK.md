@@ -7,9 +7,11 @@ is authoritative for coding, gates, and review state.
 ## Commands
 
 - `!cogito plan <objective>` opens conversational intake in a new thread. The
-  planner may ask up to two rounds of material questions or push back before it
-  posts version 1.
-- `!cogito draft` ends intake immediately and drafts with stated assumptions.
+  Astra planner may ask up to two rounds of material questions or push back. It
+  delegates repository exploration, research, and command execution to local
+  read-only Foreman scouts before posting version 1.
+- `!cogito draft` ends intake or research immediately and drafts from completed
+  scout summaries plus stated assumptions.
 - Ordinary thread replies answer the planner during intake and become revision
   comments after the first draft.
 - `!cogito revise` creates a new plan version from those comments.
@@ -17,7 +19,8 @@ is authoritative for coding, gates, and review state.
   GitHub issue hierarchy, and starts the first deliverable. Approval authorizes
   every listed deliverable to merge when its policy gates pass.
 - `!cogito status [workload]` reads current Foreman status. Without a name it
-  uses the Workload associated with the current plan thread.
+  uses the Workload associated with the current plan thread, or reports planning
+  scout progress before approval.
 
 There is no Matrix merge command. Each deliverable gets its own Workload and
 pull request. Foreman runs a coder, deterministic gate, and two distinct local
@@ -72,11 +75,11 @@ both projected tokens. The coordinator reloads its token on every request.
 
 ## State and backup
 
-The SQLite volume contains durable planner-intake conversation, plan versions,
-comments, exact approvals, ordered
+The SQLite volume contains durable planner-intake conversation, bounded planning
+scout tasks and summaries, plan versions, comments, exact approvals, ordered
 deliverable correlation, Workload names, the SHA-pinned asynchronous merge
 receipt, Matrix replay/outbox records, idempotent issue-creation actions, and
 audit records. Foreman CRs contain execution and review state; GitHub contains
-check and merge state. The v8 migration adds planner intake; v7 added the
-serial-delivery boundary. Retired run, delivery, control, and work-item tables
-remain deleted.
+check and merge state. The v9 migration adds delegated planning research; v8
+added planner intake and v7 added the serial-delivery boundary. Retired run,
+delivery, control, and work-item tables remain deleted.
