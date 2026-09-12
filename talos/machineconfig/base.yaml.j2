@@ -53,9 +53,12 @@ machine:
     disableManifestsDirectory: true
     extraConfig:
       featureGates:
+        # NVIDIA's DRA DeviceClass maps nvidia.com/gpu for legacy consumers
+        # while the LLM lanes use explicit UUID-selecting ResourceClaims.
+        DRAExtendedResource: true
         ImageVolume: true
       serializeImagePulls: false
-    image: ghcr.io/siderolabs/kubelet:v1.34.1
+    image: ghcr.io/siderolabs/kubelet:v1.34.2
     nodeIP:
       validSubnets:
         - 192.168.42.0/24
@@ -127,13 +130,14 @@ cluster:
     disablePodSecurityPolicy: true
     extraArgs:
       enable-aggregator-routing: "true"
-      feature-gates: ImageVolume=true,MutatingAdmissionPolicy=true,ResourceHealthStatus=true # Changed
+      feature-gates: DRAExtendedResource=true,ImageVolume=true,MutatingAdmissionPolicy=true,ResourceHealthStatus=true # Changed
       runtime-config: admissionregistration.k8s.io/v1beta1=true # Changed
-    image: registry.k8s.io/kube-apiserver:v1.34.1
+    image: registry.k8s.io/kube-apiserver:v1.34.2
   controllerManager:
     extraArgs:
       bind-address: 0.0.0.0
-    image: registry.k8s.io/kube-controller-manager:v1.34.1
+      feature-gates: DRAExtendedResource=true
+    image: registry.k8s.io/kube-controller-manager:v1.34.2
   coreDNS:
     disabled: true
   etcd:
@@ -146,7 +150,7 @@ cluster:
       listen-metrics-urls: http://0.0.0.0:2381
   proxy:
     disabled: true
-    image: registry.k8s.io/kube-proxy:v1.34.1
+    image: registry.k8s.io/kube-proxy:v1.34.2
   scheduler:
     # Change begin
     config:
@@ -169,7 +173,8 @@ cluster:
     # Change end
     extraArgs:
       bind-address: 0.0.0.0
-    image: registry.k8s.io/kube-scheduler:v1.34.1
+      feature-gates: DRAExtendedResource=true
+    image: registry.k8s.io/kube-scheduler:v1.34.2
   secretboxEncryptionSecret: op://kubernetes/talos/CLUSTER_SECRETBOXENCRYPTIONSECRET
   serviceAccount:
     key: op://kubernetes/talos/CLUSTER_SERVICEACCOUNT_KEY
