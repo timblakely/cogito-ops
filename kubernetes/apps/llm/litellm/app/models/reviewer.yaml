@@ -1,26 +1,68 @@
 ---
-# Review defaults to Muse so generic reviewer traffic is independent from the
-# Qwen worker/coder lane. The concrete Foreman reviewers are split across both
-# models below, giving quorum two distinct model families.
+# Role alias: judgement-shaped review over the SAME endpoint as worker -
+# concurrency comes from the backend's seats, not a second model. Differs from
+# worker only in its thinking default (medium): review turns are short,
+# structured, and worth the reasoning tokens.
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:
   name: reviewer
+  annotations:
+    # Deliberate under-declaration: the backend serves 262144, this alias
+    # advertises less on purpose, so the validator's context mirror accepts
+    # the gap instead of failing it. Without this annotation any mismatch
+    # against the backend is an error.
+    cogito.dev/context-budget: deliberate
 spec:
   modelName: reviewer
   proxyRef: litellm
   params:
-    model: openai/muse-glimmer-30b
-    apiBase: http://muse-glimmer-30b.llm.svc.cluster.local:8080/v1
+    model: openai/qwen-3-8-fp8
+    apiBase: http://qwen-3-8-fp8.llm.svc.cluster.local:8000/v1
     apiKey: not-needed
     additional:
-      timeout: 600
+      reasoning_effort: medium
+      timeout: 300
+      allowed_openai_params:
+      - reasoning_effort
   info:
     supportsFunctionCalling: true
-    supportsVision: true
+    # NOT the backend ceiling. The backend serves 262144; this alias holds the
+    # coordination budget at 131072 on purpose, so fan-out stays cheap: the KV
+    # pool is ~275k tokens total, and agents that plan against a 262k window
+    # would each try to hold most of it. The full window lives on the
+    # Qwen/Qwen3.8-27B-FP8 passthrough alias, for interactive use.
+    # Gap from the backend is licensed by the cogito.dev/context-budget
+    # annotation above; the validator asserts this never EXCEEDS the backend.
+    #
+    # Advisory, not a guard rail - verified 2026-08-28: a 257,600-token prompt
+    # sent to this alias was ACCEPTED and answered. LiteLLM publishes
+    # max_input_tokens as capability metadata for clients to plan against and
+    # enforces only the backend's real ceiling. A client that ignores it gets
+    # a four-minute prefill, not a 400.
     maxInputTokens: 131072
     maxOutputTokens: 16384
     extra:
       input_cost_per_token: 0
       output_cost_per_token: 0
       supports_reasoning: true
+      # ONE level, and it is the one pinned in params.additional above - not
+      # the three the chat template knows. thinking_levels answers "what can a
+      # CLIENT actually choose here", and on this alias the answer is nothing:
+      # verified 2026-08-28 that LiteLLM's server-side reasoning_effort
+      # overwrites whatever a client puts in chat_template_kwargs. The proof is
+      # that sending the template-invalid `high` to this alias returns 200
+      # (the pin replaced it) while the same request to the passthrough alias
+      # Qwen/Qwen3.8-27B-FP8, which pins nothing, 400s out of the Jinja.
+      #
+      # So listing low/medium/xhigh here published two levels that silently did
+      # nothing. Listing the pinned level alone leaves a client offering
+      # exactly the two outcomes that are real: this effort, or thinking off -
+      # `enable_thinking: false` is NOT overwritten, since the pin does not set
+      # it, and does zero the reasoning output (verified same day).
+      #
+      # Raising the level for a whole role is a change to this alias's reasoning_effort, not a client
+      # setting. A caller who wants to choose per-request should use the
+      # passthrough alias, which is what it is for.
+      thinking_levels:
+      - medium
