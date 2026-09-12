@@ -16,6 +16,20 @@ class FakePlannerClient(PlannerClient):
 
 
 class PlannerTests(unittest.TestCase):
+    def test_streamed_responses_are_reassembled_from_completed_event(self):
+        completed = {"status": "completed", "output": [{"type": "message"}]}
+        raw = (b'data: {"type":"response.created"}\n\n' +
+               b'data: ' + json.dumps({"type": "response.completed",
+                                       "response": completed}).encode() + b'\n\n' +
+               b'data: [DONE]\n\n')
+        self.assertEqual(
+            PlannerClient._decode_response(raw, "text/event-stream; charset=utf-8"), completed)
+
+    def test_incomplete_response_stream_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "did not complete"):
+            PlannerClient._decode_response(
+                b'data: {"type":"response.in_progress"}\n\n', "text/event-stream")
+
     def test_intake_reads_responses_api_function_call(self):
         client = FakePlannerClient({"output": [{
             "type": "function_call", "name": "delegate_research",
