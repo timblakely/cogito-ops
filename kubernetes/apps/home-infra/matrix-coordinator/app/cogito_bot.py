@@ -26,10 +26,13 @@ class CogitoBot(Plugin):
             "Matrix command receiver started for %d allowed sender(s)",
             len(self.config["allowed_senders"]),
         )
+        self._planning_typing_rooms = set()
         self._outbox_task = asyncio.create_task(self._deliver_outbox())
 
     async def stop(self) -> None:
         self._outbox_task.cancel()
+        for room_id in self._planning_typing_rooms:
+            await self.client.set_typing(RoomID(room_id), timeout=0)
 
     async def _request(self, path: str, value: dict) -> dict:
         payload = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
@@ -50,6 +53,15 @@ class CogitoBot(Plugin):
         while True:
             try:
                 result = await self._request("/v1/matrix/outbox", {"operation": "poll", "limit": 20})
+                typing_rooms = set(result.get("typing_rooms", []))
+                for room_id in typing_rooms:
+                    # Matrix typing is room-scoped, not thread-scoped. Refresh
+                    # a short lease on every poll while any planning scout or
+                    # Astra synthesis for that room remains active.
+                    await self.client.set_typing(RoomID(room_id), timeout=15000)
+                for room_id in self._planning_typing_rooms - typing_rooms:
+                    await self.client.set_typing(RoomID(room_id), timeout=0)
+                self._planning_typing_rooms = typing_rooms
                 for item in result.get("notifications", []):
                     relates_to = None
                     if item["thread_root"]:

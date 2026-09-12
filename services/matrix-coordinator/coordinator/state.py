@@ -191,6 +191,14 @@ class StateStore:
             return self.db.execute("SELECT * FROM plans WHERE matrix_room_id=? AND root_event_id=?",
                                    (room_id, root_event_id)).fetchone()
 
+    def planning_typing_rooms(self) -> list[str]:
+        """Rooms where asynchronous planning scouts or synthesis are active."""
+        with self.lock:
+            return [row[0] for row in self.db.execute(
+                "SELECT DISTINCT matrix_room_id FROM plans "
+                "WHERE state IN ('researching','synthesizing') ORDER BY matrix_room_id"
+            ).fetchall()]
+
     def plan(self, plan_id: str):
         with self.lock:
             return self.db.execute("SELECT * FROM plans WHERE plan_id=?", (plan_id,)).fetchone()

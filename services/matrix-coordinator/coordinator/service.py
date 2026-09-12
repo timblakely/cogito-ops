@@ -52,8 +52,11 @@ class App:
         if path == "/v1/matrix/outbox":
             operation = value.get("operation")
             if operation == "poll":
-                return 200, {"notifications": self.state.pending_matrix(
-                    min(max(int(value.get("limit", 20)), 1), 100))}
+                return 200, {
+                    "notifications": self.state.pending_matrix(
+                        min(max(int(value.get("limit", 20)), 1), 100)),
+                    "typing_rooms": self.state.planning_typing_rooms(),
+                }
             if operation == "ack":
                 return 200, {"completed": self.state.complete_matrix(
                     value["notification_id"], value["event_id"])}

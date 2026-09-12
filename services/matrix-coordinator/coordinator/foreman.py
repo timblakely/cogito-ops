@@ -171,6 +171,12 @@ class ForemanClient:
                 "timeoutSeconds": 900,
                 "payload": {
                     "agent": "cogito-planning-scout",
+                    # Freeform tasks without payload.repo intentionally run in
+                    # an empty workspace. Give Foreman the structured repo
+                    # identity so it clones a read-only working copy before
+                    # assembling workspace-backed tools.
+                    "repo": repo,
+                    "baseBranch": "main",
                     "prompt": (
                         f"Repository: https://github.com/{repo}.git\nBase branch: main\n\n"
                         "Clone the public repository if the workspace is empty. Work read-only; "

@@ -82,8 +82,10 @@ class StateTests(unittest.TestCase):
     def test_research_rounds_are_durable_and_bounded_to_latest_round(self):
         self.state.begin_intake(
             "plan-research", "!r:x", "$root", "https://github.com/o/r.git")
+        self.assertEqual(self.state.planning_typing_rooms(), [])
         round_one, names = self.state.register_research("plan-research", ["Inspect A", "Inspect B"])
         self.assertEqual(round_one, 1)
+        self.assertEqual(self.state.planning_typing_rooms(), ["!r:x"])
         self.state.update_research(names[0], {"phase": "Succeeded", "result": {"summary": "A"}})
         self.assertEqual(self.state.research_ready(), [])
         self.state.update_research(names[1], {"phase": "Failed", "failureReason": "blocked"})
@@ -93,6 +95,8 @@ class StateTests(unittest.TestCase):
         self.state.update_research(newer[0], {"phase": "Succeeded", "result": {"summary": "C"}})
         briefing = self.state.research_briefing("plan-research")
         self.assertEqual([item["summary"] for item in briefing], ["A", "blocked", "C"])
+        self.state.set_plan_state("plan-research", "review")
+        self.assertEqual(self.state.planning_typing_rooms(), [])
 
     def test_workload_status_is_correlated_to_plan(self):
         with self.state.transaction() as db:
