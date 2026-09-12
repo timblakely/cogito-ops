@@ -17,13 +17,17 @@ class FakePlannerClient(PlannerClient):
 
 class PlannerTests(unittest.TestCase):
     def test_streamed_responses_are_reassembled_from_completed_event(self):
-        completed = {"status": "completed", "output": [{"type": "message"}]}
+        item = {"type": "message", "content": [{"type": "output_text", "text": "OK"}]}
+        completed = {"status": "completed", "output": []}
         raw = (b'data: {"type":"response.created"}\n\n' +
+               b'data: ' + json.dumps({"type": "response.output_item.done",
+                                       "output_index": 0, "item": item}).encode() + b'\n\n' +
                b'data: ' + json.dumps({"type": "response.completed",
                                        "response": completed}).encode() + b'\n\n' +
                b'data: [DONE]\n\n')
-        self.assertEqual(
-            PlannerClient._decode_response(raw, "text/event-stream; charset=utf-8"), completed)
+        decoded = PlannerClient._decode_response(raw, "text/event-stream; charset=utf-8")
+        self.assertEqual(decoded["output"], [item])
+        self.assertEqual(PlannerClient._output_text(decoded), "OK")
 
     def test_incomplete_response_stream_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "did not complete"):

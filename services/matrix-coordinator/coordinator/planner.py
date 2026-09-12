@@ -71,15 +71,23 @@ class PlannerClient:
             return json.loads(raw)
         completed = None
         failure = None
+        output_items = {}
         for line in raw.decode().splitlines():
             if not line.startswith("data: ") or line == "data: [DONE]":
                 continue
             event = json.loads(line.removeprefix("data: "))
             if event.get("type") == "response.completed":
                 completed = event.get("response")
+            elif (event.get("type") == "response.output_item.done"
+                  and isinstance(event.get("item"), dict)):
+                output_items[int(event.get("output_index", len(output_items)))] = event["item"]
             elif event.get("type") in {"error", "response.failed"}:
                 failure = event
         if isinstance(completed, dict):
+            # LiteLLM's subscription provider currently streams complete output
+            # items but returns an empty output list in response.completed.
+            if not completed.get("output") and output_items:
+                completed["output"] = [output_items[index] for index in sorted(output_items)]
             return completed
         error = (failure or {}).get("error", {})
         raise ValueError(error.get("message") or "planner response stream did not complete")
