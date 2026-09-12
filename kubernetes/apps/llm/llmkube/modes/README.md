@@ -1,26 +1,25 @@
-# Serving modes
+# Retired serving modes
 
-Alternate specs for the objects in `../resources/` and `../../cuda-dev/`, used
-when one or both of iggy's 3090s is handed to the CUDA development pod.
+> Historical only (retired 2026-09-12). Qwen and Muse now own fixed GPU UUIDs
+> through the NVIDIA runtime. The mutating `llm-split`, `llm-dark`, and
+> `llm-normal` recipes were removed; `just kube llm-mode` is read-only. These
+> files remain as experiment records and are excluded from every Kustomization.
+
+These are archived alternate specs for the former shared Qwen service and CUDA
+development pod. They are retained as experiment records only.
 
 **These files are not part of any Kustomization and Flux never applies them.**
 Flux's generated root scan adds a directory as a resource and stops descending
 as soon as it finds a kustomization file, so `llmkube/` is pulled in through
 its own `kustomization.yaml` and this directory is never read. Git is always
-NORMAL; the modes exist only as something an operator applies on purpose.
+NORMAL. The mode recipes no longer exist and these manifests must not be
+applied manually.
 
 | Mode | GPU 0 | GPU 1 | Local serving |
 | --- | --- | --- | --- |
 | NORMAL | Qwen 3.8 FP8, TP=2 | ← same | full, 8 seats, MTP, 262k |
 | SPLIT | single-card 4-bit Qwen | dev pod | degraded, 1-2 seats |
 | DARK | dev pod | dev pod | none |
-
-```
-just kube llm-mode          # what is running now
-just kube llm-split a       # or `b` - the two degraded candidates below
-just kube llm-dark          # dev pod takes both cards, no local serving
-just kube llm-normal        # rollback from anywhere; never reads dev state
-```
 
 ## How the switch works, and why it reverts cleanly
 

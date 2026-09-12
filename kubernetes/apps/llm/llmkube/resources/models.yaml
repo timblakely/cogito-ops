@@ -1,37 +1,31 @@
 ---
-# The one local Model (plan.md T1.3). Source is the NVMe hot-tier PVC; the
-# NFS archive (model-archive.yaml) keeps the durable copy of these weights
-# and of the retired fleet's. hardware.accelerator MUST stay cuda - the cpu
-# default silently serves from CPU, presenting as "unexpectedly slow".
-#
-# Staged into both tiers by hand, then served from the hot tier.
-#
-# LLMKube 0.9.18 cannot fetch a multi-file Hugging Face repo, despite the CRD
-# documenting hf:// as a supported scheme and stating that multi-file staging
-# REQUIRES an hf:// or s3:// source. The download init container shells out to
-# curl, so:
-#   source: hf://Qwen/Qwen3.8-27B-FP8  -> curl: (1) Protocol "hf" not supported
-#   source: Qwen/Qwen3.8-27B-FP8       -> curl: (6) Could not resolve host: Qwen
-# The bare form additionally makes the Model report Ready "without a
-# controller-side download", so the failure only surfaces later, when the
-# serving pod's init container dies.
-#
-# Files were therefore pulled from the resolve endpoint at a pinned revision
-# (017b9c7af6b5689d5dd426a76e0bc077eb5ca20a) into the NFS archive and copied to
-# the hot tier, which also gives this model the same durable second copy as the
-# rest.
+# Syv AI's single-3090 Qwen recipe prepares this checkpoint inside its image.
+# skipModelInit prevents LLMKube from duplicating that work. Hardware remains
+# scheduler-neutral because direct UUID binding is intentionally outside
+# LLMKube's legacy extended-resource and DRA allocation paths.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: Model
 metadata:
-  name: qwen-3-8-fp8
+  name: qwen3-8-27b
 spec:
-  source: pvc://llmkube-model-cache/qwen-3-8-fp8
+  source: dbirks/Qwen3.8-27B-W4A16-AutoRound
+  sourceSecretRef:
+    name: huggingface
   format: safetensors
-  quantization: fp8
+  quantization: compressed-tensors
   hardware:
-    accelerator: cuda
-    gpu:
-      enabled: true
-      vendor: nvidia
-      resourceName: nvidia.com/gpu
-      count: 2
+    accelerator: cpu
+---
+# Muse's target, DFlash draft, and projector are already staged together in
+# the hot cache. GPU offload is supplied explicitly by the InferenceService;
+# keeping this Model scheduler-neutral prevents an nvidia.com/gpu request.
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: muse-glimmer-30b
+spec:
+  source: pvc://llmkube-model-cache/muse-glimmer-30b/Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf
+  format: gguf
+  quantization: Q4_K_M
+  hardware:
+    accelerator: cpu

@@ -1,12 +1,10 @@
 ---
-# Generic review traffic uses Muse, independent from the Qwen worker/coder
-# lane. Foreman's concrete reviewers are split across both model families.
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:
-  name: reviewer
+  name: muse-glimmer-30b
 spec:
-  modelName: reviewer
+  modelName: Muse-Glimmer-30B
   proxyRef: litellm
   params:
     model: openai/muse-glimmer-30b
