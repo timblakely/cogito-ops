@@ -276,8 +276,22 @@ class StateStore:
         # even to read-only freeform tasks. A successful scout therefore ends
         # as NO-CHANGES/NO-GO, with its useful answer preserved separately.
         # Prefer that model answer over the generic "produced no diff" wrapper.
-        if isinstance(result, dict) and isinstance(result.get("extra"), dict):
-            summary = result["extra"].get("modelSummary") or summary
+        extra = result.get("extra") if isinstance(result, dict) else None
+        if isinstance(extra, dict):
+            summary = extra.get("modelSummary") or summary
+            # Job-mode Foreman currently wraps executor errors in a generic
+            # image-pull/OOM/deadline summary. Give Astra a bounded, actionable
+            # classification without forwarding raw logs or possible secrets.
+            if extra.get("outcome") == "JOB-ERROR" and not extra.get("modelSummary"):
+                log_tail = str(extra.get("logTail", "")).lower()
+                if any(marker in log_tail for marker in (
+                        "connection refused", "connect: operation not permitted",
+                        "i/o timeout", "context deadline exceeded")):
+                    summary = ("Foreman research Job could not reach its inference endpoint; "
+                               "the task produced no repository evidence.")
+                else:
+                    reason = status.get("failureReason") or result.get("failureReason")
+                    summary = f"Foreman research Job failed before producing evidence: {reason or 'unknown infrastructure error'}."
         if not summary and phase == "Failed":
             summary = status.get("failureReason") or "Foreman research task failed"
         if summary:

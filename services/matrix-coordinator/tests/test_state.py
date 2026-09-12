@@ -101,6 +101,25 @@ class StateTests(unittest.TestCase):
         self.state.set_plan_state("plan-research", "review")
         self.assertEqual(self.state.planning_typing_rooms(), [])
 
+    def test_research_job_error_is_bounded_without_forwarding_raw_logs(self):
+        self.state.begin_intake(
+            "plan-error", "!r:x", "$root", "https://github.com/o/r.git")
+        _, names = self.state.register_research("plan-error", ["Inspect CI"])
+        self.state.update_research(names[0], {
+            "phase": "Succeeded",
+            "failureReason": "InfrastructureError",
+            "result": {
+                "summary": "coder Job failed before producing a verdict",
+                "extra": {
+                    "outcome": "JOB-ERROR",
+                    "logTail": "FOREMAN ERROR: chat endpoint token=do-not-forward connection refused",
+                },
+            },
+        })
+        summary = self.state.research_briefing("plan-error")[0]["summary"]
+        self.assertIn("could not reach its inference endpoint", summary)
+        self.assertNotIn("do-not-forward", summary)
+
     def test_workload_status_is_correlated_to_plan(self):
         with self.state.transaction() as db:
             db.execute(
