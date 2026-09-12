@@ -121,6 +121,10 @@ notes when they disagree.
   GitHub's `gh` CLI. Repository-only scouts work without it; PR/check-log scouts
   do not. Use Cogito's thin, digest-pinned planning-scout derivative rather than
   teaching the model to install tools at task time.
+- GitHub Actions job logs are delivered as zip archives. Include `unzip` and
+  `jq` alongside `gh`; run metadata alone is not enough for evidence-first CI
+  diagnosis, and missing extraction tools can send a local scout through a long
+  sequence of unproductive fallback commands.
 - Long-running llama.cpp research traffic exceeded Muse's 12Gi host-memory
   cgroup after several sequential scouts. The endpoint was OOM-killed at the
   same instant an active scout received `connection refused`. Match the server's

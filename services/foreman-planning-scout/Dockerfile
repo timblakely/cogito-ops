@@ -2,6 +2,6 @@ FROM ghcr.io/defilantech/llmkube-foreman-agent-coder@sha256:70622d517f626d8e25cb
 
 USER root
 RUN apt-get update \
-    && apt-get install --yes --no-install-recommends gh \
+    && apt-get install --yes --no-install-recommends gh jq unzip \
     && rm -rf /var/lib/apt/lists/*
 USER 65532:0
