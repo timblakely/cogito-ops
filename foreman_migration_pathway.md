@@ -273,9 +273,9 @@ custom delivery engine.
 - [x] **G4** Execute multi-deliverable plans serially: one issue, Workload, and
   PR at a time; dispatch the next item only after the prior merge completes.
   Multiple commits inside that PR are allowed and reviewed as one final diff.
-- [x] **G5** Limit proactive Commet messages to acceptance/start, actionable
-  blocked states, each merged PR, and final plan completion. Keep intermediate
-  task counts behind `!cogito status`.
+- [x] **G5** Keep actionable control messages in the originating Commet thread
+  and route detailed execution activity to a separately muteable Matrix room.
+  Retain `!cogito status` for on-demand status.
 - [ ] **G6** Complete one new Commet-originated plan with at least two
   deliverables and record both reviewer identities, reviewed head SHAs,
   asynchronous merge results, PR links, and final Matrix completion.
@@ -284,6 +284,26 @@ Acceptance: the approved plan reaches `Completed` only after all of its PRs are
 merged. A changed head or failed reviewer/check leaves the affected deliverable
 blocked and does not dispatch its successors. No soak test, stacked-PR bridge,
 or parallel legacy path is required for this experiment.
+
+### H — Conversational control and quiet activity routing
+
+Outcome: `Cogito` remains a useful human/planner conversation while detailed
+automation traffic is retained in the muteable `Agent Runs` room.
+
+- [x] **H1** Persist the initial objective before invoking the planner and let
+  the planner return `ready`, `clarify`, or `pushback`.
+- [x] **H2** Continue intake through ordinary thread replies, cap it at two
+  clarification rounds, and provide `!cogito draft` as an explicit escape hatch.
+- [x] **H3** Replace durable receipt messages with a Matrix typing indicator.
+- [x] **H4** Route Foreman state changes, review quorum, and per-deliverable
+  merge updates to `Agent Runs`; keep blockers and final completion in `Cogito`.
+- [x] **H5** Move the Hookshot repository connection from `Cogito` to `Agent Runs`.
+- [ ] **H6** Confirm one Commet-originated plan can clarify, draft, approve, and
+  complete while muting `Agent Runs` suppresses routine notifications.
+
+Acceptance: the control thread contains decisions requiring human attention,
+the activity room contains the detailed audit trail, and no persistent
+"request received" acknowledgement is emitted.
 
 ## Explicit non-goals
 

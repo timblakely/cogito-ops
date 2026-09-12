@@ -32,7 +32,7 @@ class StateTests(unittest.TestCase):
         with self.assertRaises(sqlite3.IntegrityError):
             self.state.db.execute("DELETE FROM audit_events WHERE sequence=?", (sequence,))
 
-    def test_v7_migration_drops_retired_tables_and_allows_serial_workloads(self):
+    def test_v8_migration_drops_retired_tables_and_allows_serial_workloads(self):
         path = self.tmp.name
         self.state.close()
         db = sqlite3.connect(path)
@@ -59,10 +59,24 @@ class StateTests(unittest.TestCase):
         self.assertTrue({"runs", "deliveries", "work_items", "controls"}.isdisjoint(names))
         columns = {row[1] for row in self.state.db.execute("PRAGMA table_info(workloads)")}
         self.assertIn("deliverable_position", columns)
+        self.assertIn("plan_intake", names)
         migrated = self.state.db.execute(
             "SELECT plan_id,deliverable_position,state FROM workloads WHERE name='old-workload'"
         ).fetchone()
         self.assertEqual(tuple(migrated), ("old-plan", 1, "Completed"))
+
+    def test_intake_is_durable_and_ordered(self):
+        self.state.begin_intake(
+            "plan-intake", "!r:x", "$root", "https://github.com/o/r.git")
+        self.assertTrue(self.state.add_intake_message(
+            "$root", "plan-intake", "@tim:x", "user", "objective", "Build it"))
+        self.assertTrue(self.state.add_intake_message(
+            "$root:assistant", "plan-intake", "planner", "assistant", "clarify", "Where?"))
+        self.assertFalse(self.state.add_intake_message(
+            "$root:assistant", "plan-intake", "planner", "assistant", "clarify", "Where?"))
+        self.assertEqual([item["body"] for item in self.state.intake_messages("plan-intake")],
+                         ["Build it", "Where?"])
+        self.assertEqual(self.state.intake_rounds("plan-intake"), 1)
 
     def test_workload_status_is_correlated_to_plan(self):
         with self.state.transaction() as db:

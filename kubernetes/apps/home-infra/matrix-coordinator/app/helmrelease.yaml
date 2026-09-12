@@ -49,11 +49,12 @@ spec:
           main:
             image:
               repository: ghcr.io/timblakely/cogito-matrix-coordinator
-              tag: 92e495d2a1aa936044f43d1cb2ee1e211fc168be@sha256:0c2f83b366bccfeb35d03eb6f317dbba741a032e3d62720f294e3abd782d07b2
+              tag: 78679223f7591badba98e2973ecc11ae01e57178@sha256:c259cffcb6d668e5efe3a59725fc6ec6f070e946f450e204e8a4390fbf6ae6a1
             env:
               COORDINATOR_STATE_PATH: /data/coordinator.sqlite3
               FOREMAN_NAMESPACE: llm
               MATRIX_APPROVERS: "@tim:matrix.${DOMAIN_NAME}"
+              MATRIX_ACTIVITY_ROOM_ID: "!5wS6Ha0iIA8OL4oWd1lYAqGubN1eXqN34ZDqmWIgbPU"
               GITHUB_TOKEN_FILE: /run/secrets/github-app/token
               GITHUB_TOKEN:
                 valueFrom:
