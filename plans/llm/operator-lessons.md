@@ -27,6 +27,15 @@ notes when they disagree.
   search, research, and every shell command to bounded local scouts; return
   concise evidence summaries to the planner. Cap rounds and summary size so
   delegation does not become an unbounded loop.
+- Foreman `freeform` tasks clone a repository only when `payload.repo` is set;
+  putting a URL in the natural-language prompt leaves an empty workspace and
+  disables workspace-backed tools. Repo-backed read-only tasks can then receive
+  a coder-style `NO-CHANGES` wrapper, so consume the preserved `modelSummary`.
+- A planning scout should retain repeated-call and context stuck-loop guards but
+  disable the edit-free signal: reading without writing is its intended work.
+  Size the local model's host-memory limit for multi-turn context growth, not
+  only idle residency; Muse idled near 4.4 GiB and exceeded a 6 GiB limit after
+  21 research turns.
 - Merge authority belongs to the coordinator only after at least two distinct
   reviewer agents approve the final coder commit. Bind every review to that
   exact SHA; a new coder commit invalidates earlier approvals. For a long plan,

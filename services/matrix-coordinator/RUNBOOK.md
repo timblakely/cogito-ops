@@ -50,6 +50,10 @@ Repo-backed read-only scouts may be reported by Foreman as `NO-CHANGES` because
 they correctly produce no diff. The coordinator uses Foreman's preserved model
 summary as research evidence rather than treating the no-diff wrapper as the
 scout's answer.
+The planning scout disables Foreman's coder-oriented edit-free detector while
+retaining repeated-call and context guards. Inference-connectivity failures are
+reduced to a bounded classification before Astra sees them; raw Job logs are
+not copied into paid-model context.
 
 ## Commet acceptance check v2
 

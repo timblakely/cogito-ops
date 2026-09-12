@@ -20,6 +20,13 @@ spec:
   maxTurns: 40
   maxRetries: 2
   maxConcurrentTasks: 2
+  # Planning is intentionally read-only. Retain duplicate-call and context
+  # guards, but do not classify productive inspection as a missing edit.
+  stuckLoopDetection:
+    repeatedToolThreshold: 5
+    editFreeTurnsLimit: 0
+    contextSoftCap: 90000
+    contextHardCap: 140000
   requestTurnTimeoutSeconds: 180
   requestTimeoutSeconds: 900
   bashTimeoutSeconds: 120
@@ -39,6 +46,8 @@ spec:
     in a concise summary of at most 4000 characters. Separate observed facts from
     inferences and identify consequential uncertainty. Finish with submit_result;
     use GO when the question is answered and NO-GO only for a concrete blocker.
+    Successful read-only research does not require a diff: put all useful findings
+    in the GO summary and never return NO-GO merely because no edit was made.
 ---
 apiVersion: foreman.llmkube.dev/v1alpha1
 kind: Agent
