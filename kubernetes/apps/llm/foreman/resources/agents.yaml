@@ -15,9 +15,16 @@ spec:
     mode: Job
     image: ghcr.io/defilantech/llmkube-foreman-agent-coder@sha256:70622d517f626d8e25cb6a5c1d4a70dc5803ceaddf4615ef6d0e371fb8a68ba9
     serviceAccountName: foreman-coder
-    activeDeadlineSeconds: 1200
+    activeDeadlineSeconds: 3600
+    resources:
+      requests:
+        cpu: "1"
+        memory: 2Gi
+      limits:
+        cpu: "4"
+        memory: 8Gi
   temperature: "0.2"
-  maxTurns: 40
+  maxTurns: 80
   maxRetries: 2
   maxConcurrentTasks: 2
   # Planning is intentionally read-only. Retain duplicate-call and context
@@ -27,9 +34,9 @@ spec:
     editFreeTurnsLimit: 0
     contextSoftCap: 90000
     contextHardCap: 140000
-  requestTurnTimeoutSeconds: 180
-  requestTimeoutSeconds: 900
-  bashTimeoutSeconds: 120
+  requestTurnTimeoutSeconds: 300
+  requestTimeoutSeconds: 3600
+  bashTimeoutSeconds: 300
   tools:
     - read_file
     - grep
@@ -48,6 +55,11 @@ spec:
     use GO when the question is answered and NO-GO only for a concrete blocker.
     Successful read-only research does not require a diff: put all useful findings
     in the GO summary and never return NO-GO merely because no edit was made.
+    The planner receives only your final summary, not your transcript or tool
+    output. Restate the concrete evidence in that summary; never finish with a
+    meta-summary such as "inspected the files" or "reported the findings". Before
+    each additional command, decide whether the delegated question is already
+    answered. When it is, stop exploring and submit the evidence immediately.
 ---
 apiVersion: foreman.llmkube.dev/v1alpha1
 kind: Agent

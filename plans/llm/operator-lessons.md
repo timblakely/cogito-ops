@@ -112,6 +112,21 @@ notes when they disagree.
 
 ## Validation shortcuts and traps
 
+- A planning scout's final summary is an API boundary. Foreman does not forward
+  the task transcript to Astra, so a statement such as "inspected workflows and
+  reported findings" discards the evidence even when the transcript contains
+  it. Prompts must tell scouts to restate paths, commands, errors, and conclusions
+  in the final summary and to stop exploring once the question is answered.
+- The upstream Foreman coder image includes `git`, `curl`, and `wget`, but not
+  GitHub's `gh` CLI. Repository-only scouts work without it; PR/check-log scouts
+  do not. Use Cogito's thin, digest-pinned planning-scout derivative rather than
+  teaching the model to install tools at task time.
+- Long-running llama.cpp research traffic exceeded Muse's 12Gi host-memory
+  cgroup after several sequential scouts. The endpoint was OOM-killed at the
+  same instant an active scout received `connection refused`. Match the server's
+  slot count to actual Foreman supervision, reserve the full per-scout context,
+  and size host memory from sustained traffic rather than idle RSS.
+
 - Bypass mise shims for read-only inspection. In this repository, the direct
   binaries live under the persistent mise install tree; sandboxed shim startup
   can fail while trying to write mise state even when no tool installation is
