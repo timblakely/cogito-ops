@@ -33,6 +33,14 @@ Routine task progress is intentionally silent. Commet receives the approval/
 start message, actionable blocked states, each merged PR, and final plan
 completion. Use `!cogito status` for intermediate task counts.
 
+## Commet acceptance check v2
+
+The acceptance path is complete when, in order:
+
+1. The plan is accepted.
+2. The Foreman Workload completes with three successful tasks.
+3. A draft pull request is opened.
+
 ## Inspect and recover
 
 ```sh
