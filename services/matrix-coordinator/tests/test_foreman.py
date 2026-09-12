@@ -50,6 +50,8 @@ class ForemanTests(unittest.TestCase):
         self.assertEqual(manifest["spec"]["kind"], "freeform")
         self.assertEqual(manifest["spec"]["agentRef"]["name"], "cogito-planning-scout")
         self.assertEqual(manifest["spec"]["modelRef"], "muse-glimmer-30b")
+        self.assertEqual(manifest["spec"]["payload"]["repo"], "timblakely/cogito-ops")
+        self.assertEqual(manifest["spec"]["payload"]["baseBranch"], "main")
         self.assertIn("Work read-only", manifest["spec"]["payload"]["prompt"])
 
     def test_merge_candidate_requires_two_distinct_reviews_after_final_coder(self):

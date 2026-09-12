@@ -42,6 +42,10 @@ Routine Foreman status changes, review quorum, per-deliverable merge messages,
 and the Hookshot GitHub feed go to `Agent Runs`. Mute that room in Commet to
 retain the workflow record without receiving operational notification spam.
 Use `!cogito status` in the control thread for an on-demand snapshot.
+While local planning scouts or the subsequent Astra synthesis are active, the
+Cogito bot refreshes its room-level Matrix typing indicator. Matrix does not
+provide a thread-scoped typing indicator, so concurrent work in any Cogito
+thread makes the bot appear to type in the room as a whole.
 
 ## Commet acceptance check v2
 
