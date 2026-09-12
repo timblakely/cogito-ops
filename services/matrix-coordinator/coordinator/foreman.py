@@ -167,7 +167,7 @@ class ForemanClient:
             "spec": {
                 "kind": "freeform",
                 "agentRef": {"name": "cogito-planning-scout"},
-                "modelRef": "qwen-3-8-fp8",
+                "modelRef": "muse-glimmer-30b",
                 "timeoutSeconds": 900,
                 "payload": {
                     "agent": "cogito-planning-scout",
