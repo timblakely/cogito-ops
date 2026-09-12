@@ -127,10 +127,7 @@ class CogitoBot(Plugin):
             }
             if thread_root:
                 value["thread_root"] = thread_root
-            result = await self._request("/v1/matrix/events", value)
-            for action in result.get("actions", []):
-                if action.get("kind") == "message":
-                    await evt.respond(action["body"], markdown=True, allow_html=False, in_thread=True)
+            await self._request("/v1/matrix/events", value)
             self.log.info("Completed Matrix command event %s", evt.event_id)
         except Exception as exc:
             self.log.exception("coordinator event failed")
