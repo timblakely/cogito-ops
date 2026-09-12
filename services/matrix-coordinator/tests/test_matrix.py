@@ -11,14 +11,19 @@ class FakePlanner:
     def __init__(self):
         self.calls = 0
         self.decisions = []
-    def intake(self, messages, force=False):
+        self.research = []
+    def intake(self, messages, force=False, research=None):
         self.calls += 1
+        self.research.append(research or [])
         if self.decisions:
             decision = self.decisions.pop(0)
             if force and decision["status"] != "ready":
                 return {"status": "ready", "message": "Drafting with assumptions.",
                         "plan_markdown": "# Forced\n\n## Deliverables\n- [ ] Ship it\n"}
             return decision
+        if any(message.get("kind") == "prior_plan" for message in messages):
+            return {"status": "ready", "message": "Revision ready.",
+                    "plan_markdown": "# Test revised\n\n## Deliverables\n- [ ] Ship it\n"}
         return {"status": "ready", "message": "This is ready to plan.",
                 "plan_markdown": "# Test\n\n## Deliverables\n- [ ] Ship it\n"}
     def plan(self, objective, prior="", comments=None):
@@ -45,6 +50,8 @@ class FakeIssues:
 class FakeForeman:
     def __init__(self):
         self.created = []
+        self.research_created = []
+        self.research_phase = "Succeeded"
         self.phase = "Dispatched"
     def ensure_workload(self, **values):
         self.created.append(values)
@@ -54,6 +61,17 @@ class FakeForeman:
     def get(self, name):
         return {"metadata": {"name": name}, "status": {
             "phase": self.phase, "succeededTasks": 4 if self.phase == "Completed" else 1,
+        }}
+    def ensure_research_task(self, **values):
+        self.research_created.append(values)
+        return {"metadata": {"name": values["task_name"]}, "status": {
+            "phase": self.research_phase,
+            "result": {"summary": "The relevant implementation is in coordinator/matrix.py."},
+        }}
+    def get_task(self, name):
+        return {"metadata": {"name": name}, "status": {
+            "phase": self.research_phase,
+            "result": {"summary": "The relevant implementation is in coordinator/matrix.py."},
         }}
     def merge_candidate(self, name, quorum=2):
         position = name.rsplit("d", 1)[-1]
@@ -144,6 +162,50 @@ class MatrixTests(unittest.TestCase):
         self.matrix.handle(self.event("$answer1", "Answer one", "$root"))
         result = self.matrix.handle(self.event("$answer2", "Proceed", "$root"))
         self.assertIn("# Forced", result["actions"][0]["body"])
+
+    def test_research_is_delegated_to_foreman_then_synthesized(self):
+        self.planner.decisions = [
+            {"status": "delegate", "message": "I need the current boundaries.",
+             "tasks": ["Inspect the coordinator planning boundary."]},
+            {"status": "ready", "message": "Research resolved it.",
+             "plan_markdown": "# Researched\n\n## Deliverables\n- [ ] Ship it\n"},
+        ]
+        first = self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        self.assertIn("local planning scouts", first["actions"][0]["body"])
+        plan = self.state.plan_for_thread("!room:matrix.example", "$root")
+        self.assertEqual(plan["state"], "researching")
+        self.matrix.reconcile_once()
+        self.assertEqual(len(self.foreman.research_created), 1)
+        self.assertIn("coordinator/matrix.py", self.planner.research[-1][0]["summary"])
+        self.assertEqual(self.state.plan(plan["plan_id"])["state"], "review")
+        messages = [item["body"] for item in self.state.pending_matrix()]
+        self.assertTrue(any("# Researched" in body for body in messages))
+
+    def test_revision_can_delegate_before_creating_version_two(self):
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        self.matrix.handle(self.event("$comment", "Confirm current boundaries", "$root"))
+        self.planner.decisions = [
+            {"status": "delegate", "message": "Checking the revision.",
+             "tasks": ["Inspect the current boundary."]},
+            {"status": "ready", "message": "Revision ready.",
+             "plan_markdown": "# Version two\n\n## Deliverables\n- [ ] Ship it\n"},
+        ]
+        result = self.matrix.handle(self.event("$revise", "!cogito revise", "$root"))
+        self.assertIn("local planning scouts", result["actions"][0]["body"])
+        self.matrix.reconcile_once()
+        plan = self.state.plan_for_thread("!room:matrix.example", "$root")
+        self.assertEqual(plan["current_version"], 2)
+        self.assertEqual(self.state.current_plan_version(plan["plan_id"])["markdown"],
+                         "# Version two\n\n## Deliverables\n- [ ] Ship it\n")
+
+    def test_status_and_draft_work_while_scouts_are_running(self):
+        self.planner.decisions = [{
+            "status": "delegate", "message": "Checking.", "tasks": ["Inspect it."]}]
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        status = self.matrix.handle(self.event("$status", "!cogito status", "$root"))
+        self.assertIn("0/1 scout tasks", status["actions"][0]["body"])
+        drafted = self.matrix.handle(self.event("$draft", "!cogito draft", "$root"))
+        self.assertIn("# Test", drafted["actions"][0]["body"])
 
     def test_event_replay_returns_same_actions(self):
         value = self.event("$root", "!cogito plan Build it")

@@ -10,7 +10,7 @@ from typing import Any, Iterator
 import json
 import time
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 DDL = """
 PRAGMA journal_mode=WAL;
@@ -34,6 +34,12 @@ CREATE TABLE IF NOT EXISTS plan_intake (
   sequence INTEGER PRIMARY KEY AUTOINCREMENT, matrix_event_id TEXT NOT NULL UNIQUE,
   plan_id TEXT NOT NULL REFERENCES plans(plan_id), sender TEXT NOT NULL,
   role TEXT NOT NULL, kind TEXT NOT NULL, body TEXT NOT NULL, created_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS plan_research (
+  task_name TEXT PRIMARY KEY, plan_id TEXT NOT NULL REFERENCES plans(plan_id),
+  round INTEGER NOT NULL, position INTEGER NOT NULL, prompt TEXT NOT NULL,
+  state TEXT NOT NULL DEFAULT 'Pending', summary TEXT, status_json TEXT NOT NULL DEFAULT '{}',
+  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+  UNIQUE(plan_id, round, position));
 CREATE TABLE IF NOT EXISTS approvals (
   plan_id TEXT PRIMARY KEY REFERENCES plans(plan_id), content_hash TEXT NOT NULL,
   matrix_event_id TEXT NOT NULL UNIQUE, approver TEXT NOT NULL, approved_at TEXT NOT NULL);
@@ -115,6 +121,10 @@ class StateStore:
                       updated_at INTEGER NOT NULL,
                       PRIMARY KEY(plan_id, position));
                 """)
+        # A process can disappear while Astra is synthesizing completed scout
+        # results. Re-entering research is safe: Foreman task names and Matrix
+        # notifications are deterministic, while a stuck plan is not useful.
+        self.db.execute("UPDATE plans SET state='researching' WHERE state='synthesizing'")
         self.db.execute("INSERT OR IGNORE INTO migrations VALUES (?,?)",
                         (SCHEMA_VERSION, int(time.time())))
 
@@ -216,6 +226,94 @@ class StateStore:
                 "SELECT count(*) FROM plan_intake WHERE plan_id=? AND role='assistant' "
                 "AND kind IN ('clarify','pushback')", (plan_id,),
             ).fetchone()[0])
+
+    def set_plan_state(self, plan_id: str, state: str) -> None:
+        with self.transaction() as db:
+            db.execute("UPDATE plans SET state=? WHERE plan_id=?", (state, plan_id))
+
+    def register_research(self, plan_id: str, prompts: list[str]) -> tuple[int, list[str]]:
+        if not prompts or len(prompts) > 4:
+            raise ValueError("research delegation requires one to four tasks")
+        with self.transaction() as db:
+            round_number = int(db.execute(
+                "SELECT COALESCE(max(round),0)+1 FROM plan_research WHERE plan_id=?",
+                (plan_id,),
+            ).fetchone()[0])
+            now = int(time.time())
+            names = []
+            for position, prompt in enumerate(prompts, 1):
+                task_name = f"{plan_id}-research-r{round_number}-{position}"[:63].rstrip("-")
+                db.execute(
+                    "INSERT INTO plan_research(task_name,plan_id,round,position,prompt,created_at,updated_at) "
+                    "VALUES (?,?,?,?,?,?,?)",
+                    (task_name, plan_id, round_number, position, prompt, now, now),
+                )
+                names.append(task_name)
+            db.execute("UPDATE plans SET state='researching' WHERE plan_id=?", (plan_id,))
+        return round_number, names
+
+    def active_research(self):
+        with self.lock:
+            return self.db.execute(
+                "SELECT r.*,p.repository,p.matrix_room_id,p.root_event_id FROM plan_research r "
+                "JOIN plans p ON p.plan_id=r.plan_id WHERE p.state='researching' "
+                "AND r.state NOT IN ('Succeeded','Failed') ORDER BY r.plan_id,r.round,r.position"
+            ).fetchall()
+
+    def update_research(self, task_name: str, status: dict[str, Any]) -> bool:
+        phase = status.get("phase", "Pending")
+        result = status.get("result") or {}
+        summary = result.get("summary") if isinstance(result, dict) else None
+        if not summary and phase == "Failed":
+            summary = status.get("failureReason") or "Foreman research task failed"
+        if summary:
+            summary = str(summary).strip()[:4000]
+        encoded = json.dumps(status, sort_keys=True)
+        with self.transaction() as db:
+            row = db.execute(
+                "SELECT state,status_json FROM plan_research WHERE task_name=?", (task_name,)
+            ).fetchone()
+            if not row:
+                return False
+            changed = row["state"] != phase or row["status_json"] != encoded
+            db.execute(
+                "UPDATE plan_research SET state=?,summary=?,status_json=?,updated_at=? "
+                "WHERE task_name=?", (phase, summary, encoded, int(time.time()), task_name),
+            )
+            return changed
+
+    def research_ready(self):
+        with self.lock:
+            return self.db.execute(
+                "SELECT r.plan_id,r.round FROM plan_research r JOIN plans p ON p.plan_id=r.plan_id "
+                "WHERE p.state='researching' AND r.round=(SELECT max(r2.round) "
+                "FROM plan_research r2 WHERE r2.plan_id=r.plan_id) GROUP BY r.plan_id,r.round "
+                "HAVING count(*)=sum(CASE WHEN r.state IN "
+                "('Succeeded','Failed') THEN 1 ELSE 0 END) ORDER BY r.plan_id"
+            ).fetchall()
+
+    def research_briefing(self, plan_id: str) -> list[dict[str, Any]]:
+        with self.lock:
+            return [dict(row) for row in self.db.execute(
+                "SELECT round,position,prompt,state,COALESCE(summary,'No summary returned') summary "
+                "FROM plan_research WHERE plan_id=? ORDER BY round,position", (plan_id,),
+            ).fetchall()]
+
+    def research_rounds(self, plan_id: str) -> int:
+        with self.lock:
+            return int(self.db.execute(
+                "SELECT COALESCE(max(round),0) FROM plan_research WHERE plan_id=?", (plan_id,),
+            ).fetchone()[0])
+
+    def research_progress(self, plan_id: str) -> dict[str, int]:
+        with self.lock:
+            rows = self.db.execute(
+                "SELECT state,count(*) count FROM plan_research WHERE plan_id=? GROUP BY state",
+                (plan_id,),
+            ).fetchall()
+        counts = {row["state"]: row["count"] for row in rows}
+        counts["total"] = sum(counts.values())
+        return counts
 
     def current_plan_version(self, plan_id: str):
         with self.lock:

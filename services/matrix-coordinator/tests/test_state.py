@@ -32,7 +32,7 @@ class StateTests(unittest.TestCase):
         with self.assertRaises(sqlite3.IntegrityError):
             self.state.db.execute("DELETE FROM audit_events WHERE sequence=?", (sequence,))
 
-    def test_v8_migration_drops_retired_tables_and_allows_serial_workloads(self):
+    def test_v9_migration_drops_retired_tables_and_allows_serial_workloads(self):
         path = self.tmp.name
         self.state.close()
         db = sqlite3.connect(path)
@@ -60,6 +60,7 @@ class StateTests(unittest.TestCase):
         columns = {row[1] for row in self.state.db.execute("PRAGMA table_info(workloads)")}
         self.assertIn("deliverable_position", columns)
         self.assertIn("plan_intake", names)
+        self.assertIn("plan_research", names)
         migrated = self.state.db.execute(
             "SELECT plan_id,deliverable_position,state FROM workloads WHERE name='old-workload'"
         ).fetchone()
@@ -77,6 +78,21 @@ class StateTests(unittest.TestCase):
         self.assertEqual([item["body"] for item in self.state.intake_messages("plan-intake")],
                          ["Build it", "Where?"])
         self.assertEqual(self.state.intake_rounds("plan-intake"), 1)
+
+    def test_research_rounds_are_durable_and_bounded_to_latest_round(self):
+        self.state.begin_intake(
+            "plan-research", "!r:x", "$root", "https://github.com/o/r.git")
+        round_one, names = self.state.register_research("plan-research", ["Inspect A", "Inspect B"])
+        self.assertEqual(round_one, 1)
+        self.state.update_research(names[0], {"phase": "Succeeded", "result": {"summary": "A"}})
+        self.assertEqual(self.state.research_ready(), [])
+        self.state.update_research(names[1], {"phase": "Failed", "failureReason": "blocked"})
+        self.assertEqual(self.state.research_ready()[0]["round"], 1)
+        _, newer = self.state.register_research("plan-research", ["Inspect C"])
+        self.assertEqual(self.state.research_ready(), [])
+        self.state.update_research(newer[0], {"phase": "Succeeded", "result": {"summary": "C"}})
+        briefing = self.state.research_briefing("plan-research")
+        self.assertEqual([item["summary"] for item in briefing], ["A", "blocked", "C"])
 
     def test_workload_status_is_correlated_to_plan(self):
         with self.state.transaction() as db:

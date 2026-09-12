@@ -2,6 +2,47 @@
 apiVersion: foreman.llmkube.dev/v1alpha1
 kind: Agent
 metadata:
+  name: cogito-planning-scout
+  labels:
+    app.kubernetes.io/part-of: foreman
+    foreman.llmkube.dev/role: planner
+spec:
+  role: planner
+  model: qwen-3-8-fp8
+  inferenceServiceRef:
+    name: qwen-3-8-fp8
+  execution:
+    mode: Job
+    image: ghcr.io/defilantech/llmkube-foreman-agent-coder@sha256:70622d517f626d8e25cb6a5c1d4a70dc5803ceaddf4615ef6d0e371fb8a68ba9
+    serviceAccountName: foreman-coder
+    activeDeadlineSeconds: 1200
+  temperature: "0.2"
+  maxTurns: 40
+  maxRetries: 2
+  maxConcurrentTasks: 2
+  requestTurnTimeoutSeconds: 180
+  requestTimeoutSeconds: 900
+  bashTimeoutSeconds: 120
+  tools:
+    - read_file
+    - grep
+    - bash
+    - submit_result
+  requiredCapability:
+    accelerator: cuda
+  systemPrompt: |-
+    You are a read-only planning scout. Investigate only the delegated question.
+    Clone the named public repository at the named base branch when necessary,
+    then inspect repository instructions and relevant files. You may run commands
+    for discovery and verification, but never edit, commit, push, open issues, or
+    change external state. Cite concrete file paths, commands, and upstream URLs
+    in a concise summary of at most 4000 characters. Separate observed facts from
+    inferences and identify consequential uncertainty. Finish with submit_result;
+    use GO when the question is answered and NO-GO only for a concrete blocker.
+---
+apiVersion: foreman.llmkube.dev/v1alpha1
+kind: Agent
+metadata:
   name: cogito-coder
   labels:
     app.kubernetes.io/part-of: foreman

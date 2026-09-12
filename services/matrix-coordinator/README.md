@@ -8,6 +8,12 @@ repair, branch publication, and a two-profile reviewer quorum. The coordinator
 queues a SHA-pinned GitHub merge only after that quorum and starts the next
 deliverable only after the prior pull request merges.
 
+The `planner` role is Astra, used only for conversation and synthesis. When it
+needs repository facts, upstream research, or command output, it delegates up
+to four focused tasks to local read-only Foreman planning scouts. The durable
+coordinator passes only their bounded summaries back to Astra, permits at most
+two research rounds, and has no automatic paid-model fallback.
+
 The service uses only the Python standard library. Run its checks with:
 
 ```sh

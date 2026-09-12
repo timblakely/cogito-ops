@@ -229,7 +229,7 @@ provider model name.
 
 | Role | Purpose | Initial seat | Invocation |
 | --- | --- | --- | --- |
-| `planner` | High-level architecture, tradeoffs, decomposition, replanning | Terra/max subscription path | Initial plan and substantive replan only |
+| `planner` | High-level architecture, tradeoffs, decomposition, replanning | Astra/medium subscription path; local Foreman scouts supply compact research | Initial plan and substantive replan only |
 | `coordinator` | Event handling, synthesis, routing, routine decisions | Luna/max subscription path | Persistent workflow management |
 | `worker` | Repository implementation | Local Qwen | Default implementation |
 | `reviewer` | Independent code/plan verification | Local Qwen | Every change set |

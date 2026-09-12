@@ -149,8 +149,58 @@ class ForemanClient:
                 raise RuntimeError("existing Foreman Workload has another plan hash")
             return current
 
+    def research_manifest(self, task_name: str, plan_id: str, prompt: str,
+                          repository: str) -> dict:
+        repo = _repo_slug(repository)
+        return {
+            "apiVersion": "foreman.llmkube.dev/v1alpha1",
+            "kind": "AgenticTask",
+            "metadata": {
+                "name": task_name,
+                "namespace": self.namespace,
+                "labels": {
+                    "app.kubernetes.io/part-of": "foreman",
+                    "cogito.dev/plan-id": plan_id,
+                    "cogito.dev/purpose": "planning-research",
+                },
+            },
+            "spec": {
+                "kind": "freeform",
+                "agentRef": {"name": "cogito-planning-scout"},
+                "modelRef": "qwen-3-8-fp8",
+                "timeoutSeconds": 900,
+                "payload": {
+                    "agent": "cogito-planning-scout",
+                    "prompt": (
+                        f"Repository: https://github.com/{repo}.git\nBase branch: main\n\n"
+                        "Clone the public repository if the workspace is empty. Work read-only; "
+                        "do not edit, commit, or push. Investigate only this delegated question:\n\n"
+                        f"{prompt}"
+                    ),
+                },
+            },
+        }
+
+    def ensure_research_task(self, **values) -> dict:
+        desired = self.research_manifest(**values)
+        try:
+            return self._call("POST", self.task_collection_path, desired)
+        except HTTPError as exc:
+            if exc.code != 409:
+                raise
+            current = self.get_task(desired["metadata"]["name"])
+            spec = current.get("spec", {})
+            if (spec.get("agentRef") != desired["spec"]["agentRef"]
+                    or spec.get("payload", {}).get("prompt")
+                    != desired["spec"]["payload"]["prompt"]):
+                raise RuntimeError("existing Foreman research task has another definition")
+            return current
+
     def get(self, name: str) -> dict:
         return self._call("GET", f"{self.collection_path}/{quote(name)}")
+
+    def get_task(self, name: str) -> dict:
+        return self._call("GET", f"{self.task_collection_path}/{quote(name)}")
 
     def tasks(self, workload_name_value: str) -> list[dict]:
         selector = quote(f"foreman.llmkube.dev/workload={workload_name_value}", safe="")
