@@ -1,5 +1,9 @@
 # LLM stack research notes
 
+Current operational sharp edges and lessons from the Matrix/Foreman and
+heterogeneous-GPU migrations live in [`operator-lessons.md`](operator-lessons.md).
+The artifacts below are dated research inputs rather than current runbooks.
+
 Source HTML for six published Artifacts. Each file redeploys to the URL below
 it — **pass that URL when republishing**, or a new artifact is created instead of
 the existing one being updated.
