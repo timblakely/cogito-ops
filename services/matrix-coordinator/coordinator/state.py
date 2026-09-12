@@ -272,6 +272,12 @@ class StateStore:
         phase = status.get("phase", "Pending")
         result = status.get("result") or {}
         summary = result.get("summary") if isinstance(result, dict) else None
+        # Foreman's repo-backed native loop applies the coder no-change gate
+        # even to read-only freeform tasks. A successful scout therefore ends
+        # as NO-CHANGES/NO-GO, with its useful answer preserved separately.
+        # Prefer that model answer over the generic "produced no diff" wrapper.
+        if isinstance(result, dict) and isinstance(result.get("extra"), dict):
+            summary = result["extra"].get("modelSummary") or summary
         if not summary and phase == "Failed":
             summary = status.get("failureReason") or "Foreman research task failed"
         if summary:

@@ -92,7 +92,10 @@ class StateTests(unittest.TestCase):
         self.assertEqual(self.state.research_ready()[0]["round"], 1)
         _, newer = self.state.register_research("plan-research", ["Inspect C"])
         self.assertEqual(self.state.research_ready(), [])
-        self.state.update_research(newer[0], {"phase": "Succeeded", "result": {"summary": "C"}})
+        self.state.update_research(newer[0], {"phase": "Succeeded", "result": {
+            "summary": "model emitted GO but produced no diff",
+            "extra": {"outcome": "NO-CHANGES", "modelSummary": "C"},
+        }})
         briefing = self.state.research_briefing("plan-research")
         self.assertEqual([item["summary"] for item in briefing], ["A", "blocked", "C"])
         self.state.set_plan_state("plan-research", "review")
