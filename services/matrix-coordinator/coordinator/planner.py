@@ -65,6 +65,25 @@ class PlannerClient:
     model: str = "planner"
     fallback_models: tuple[str, ...] = ()
 
+    @staticmethod
+    def _decode_response(raw: bytes, content_type: str = "") -> dict:
+        if "text/event-stream" not in content_type:
+            return json.loads(raw)
+        completed = None
+        failure = None
+        for line in raw.decode().splitlines():
+            if not line.startswith("data: ") or line == "data: [DONE]":
+                continue
+            event = json.loads(line.removeprefix("data: "))
+            if event.get("type") == "response.completed":
+                completed = event.get("response")
+            elif event.get("type") in {"error", "response.failed"}:
+                failure = event
+        if isinstance(completed, dict):
+            return completed
+        error = (failure or {}).get("error", {})
+        raise ValueError(error.get("message") or "planner response stream did not complete")
+
     def _response(self, system: str, content: str, tools: list[dict] | None = None,
                   tool_choice: str | None = None) -> dict:
         last_error = None
@@ -87,7 +106,8 @@ class PlannerClient:
             )
             try:
                 with urlopen(request, timeout=1800) as response:
-                    return json.load(response)
+                    return self._decode_response(
+                        response.read(), response.headers.get("Content-Type", ""))
             except HTTPError as exc:
                 last_error = exc
                 if exc.code not in {401, 402, 403, 429, 500, 502, 503, 504}:
