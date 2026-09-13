@@ -8,11 +8,19 @@ from coordinator.state import StateStore
 
 class FakeIssues:
     def __init__(self):
-        self.calls = 0
+        self.publish_calls = 0
+        self.deliverable_calls = 0
 
-    def create_plan(self, plan):
-        self.calls += 1
-        return "https://github.com/timblakely/cogito/issues/10", ["https://github.com/timblakely/cogito/issues/11"]
+    def publish_plan(self, plan):
+        self.publish_calls += 1
+        return "https://github.com/timblakely/cogito/issues/10"
+
+    def create_deliverables(self, plan, parent_url):
+        self.deliverable_calls += 1
+        return ["https://github.com/timblakely/cogito/issues/11"]
+
+    def checks_status(self, pr_url):
+        return {"ready": True, "missing": [], "pending": [], "failed": []}
 
 class CoreTests(unittest.TestCase):
     def setUp(self):
@@ -39,10 +47,10 @@ class CoreTests(unittest.TestCase):
         parent, children = self.core.approve(self.approval())
         self.assertEqual(parent.rsplit("/", 1)[-1], "10")
         self.assertEqual(len(children), 1)
-        self.assertEqual(self.issues.calls, 1)
+        self.assertEqual(self.issues.deliverable_calls, 1)
         replay_parent, replay_children = self.core.approve(self.approval())
         self.assertEqual((replay_parent, replay_children), (parent, children))
-        self.assertEqual(self.issues.calls, 1)
+        self.assertEqual(self.issues.deliverable_calls, 1)
 
     def test_wrong_hash_and_wrong_actor_fail(self):
         with self.assertRaises(ValidationError):

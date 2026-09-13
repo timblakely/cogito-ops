@@ -18,6 +18,8 @@ class StateTests(unittest.TestCase):
     def test_event_replay_is_ignored(self):
         self.assertTrue(self.state.accept_event("matrix", "$event", "sha256:a"))
         self.assertFalse(self.state.accept_event("matrix", "$event", "sha256:a"))
+        self.assertTrue(self.state.release_event("matrix", "$event", "sha256:a"))
+        self.assertTrue(self.state.accept_event("matrix", "$event", "sha256:a"))
 
     def test_concurrent_replay_is_recorded_once(self):
         with ThreadPoolExecutor(max_workers=8) as pool:
@@ -32,7 +34,23 @@ class StateTests(unittest.TestCase):
         with self.assertRaises(sqlite3.IntegrityError):
             self.state.db.execute("DELETE FROM audit_events WHERE sequence=?", (sequence,))
 
-    def test_v10_migration_drops_retired_tables_and_allows_serial_workloads(self):
+    def test_astra_turn_cap_is_atomic_and_visible(self):
+        self.state.begin_intake(
+            "astra-plan", "!r:x", "$root", "https://github.com/o/r.git")
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            reserved = list(pool.map(
+                lambda _: self.state.reserve_astra_turn("astra-plan", "intake", cap=3),
+                range(8),
+            ))
+        self.assertEqual(reserved.count(True), 3)
+        self.assertEqual(self.state.astra_turns("astra-plan"), 3)
+        self.assertEqual(self.state.plan("astra-plan")["state"], "needs_input")
+        self.assertIn(
+            'cogito_gateway_astra_turns_total{plan="astra-plan"} 3',
+            self.state.prometheus_metrics(),
+        )
+
+    def test_v11_migration_drops_retired_tables_and_adds_coordination_state(self):
         path = self.tmp.name
         self.state.close()
         db = sqlite3.connect(path)
@@ -65,6 +83,9 @@ class StateTests(unittest.TestCase):
             row[1] for row in self.state.db.execute("PRAGMA table_info(matrix_outbox)")
         }
         self.assertIn("thread_notification_id", outbox_columns)
+        self.assertIn("kind", outbox_columns)
+        self.assertIn("target_notification_id", outbox_columns)
+        self.assertTrue({"coordinator_events", "luna_turns", "plan_notes"}.issubset(names))
         migrated = self.state.db.execute(
             "SELECT plan_id,deliverable_position,state FROM workloads WHERE name='old-workload'"
         ).fetchone()
@@ -80,6 +101,18 @@ class StateTests(unittest.TestCase):
         pending = self.state.pending_matrix()
         self.assertEqual([item["notification_id"] for item in pending], ["agent:queued"])
         self.assertEqual(pending[0]["thread_root"], "$agent-root")
+
+    def test_card_updates_wait_for_original_event_and_use_matrix_edit(self):
+        self.state.begin_intake("card", "!r:x", "$root", "https://github.com/o/r.git")
+        self.state.enqueue_plan_card("card")
+        self.state.set_plan_state("card", "paused")
+        pending = self.state.pending_matrix(100)
+        self.assertEqual([item["kind"] for item in pending], ["message"])
+        self.state.complete_matrix("plan:card:card", "$card")
+        pending = self.state.pending_matrix(100)
+        edit = next(item for item in pending if item["kind"] == "edit")
+        self.assertEqual(edit["target_event_id"], "$card")
+        self.assertIn("PAUSED", edit["body"])
 
     def test_intake_is_durable_and_ordered(self):
         self.state.begin_intake(
@@ -181,8 +214,27 @@ class StateTests(unittest.TestCase):
                 "!room:x", "$root", 1),
             )
         metrics = self.state.prometheus_metrics()
-        self.assertIn('cogito_coordinator_objects{kind="plan",state="complete"} 1', metrics)
+        self.assertIn('cogito_gateway_objects{kind="plan",state="complete"} 1', metrics)
         self.assertNotIn("run_usage", metrics)
+
+    def test_coordinator_events_coalesce_and_interrupted_turn_replays(self):
+        self.state.begin_intake(
+            "batch-plan", "!r:x", "$root", "https://github.com/o/r.git")
+        self.state.enqueue_coordinator_event(
+            "one", "batch-plan", "github", "issue_comment.created", {"body": "a"}, 0)
+        self.state.enqueue_coordinator_event(
+            "two", "batch-plan", "github", "issues.edited", {"body": "b"}, 0)
+        batch = self.state.next_luna_batch(now=2**31)
+        self.assertEqual(len(batch["events"]), 2)
+        self.state.fail_luna_turn(batch["sequence"])
+        replay = self.state.next_luna_batch(now=2**31)
+        self.assertEqual(replay["batch_id"], batch["batch_id"])
+        self.assertEqual(replay["events"], batch["events"])
+        self.state.finish_luna_turn(replay["sequence"], {"ok": True}, 10, 5)
+        self.assertEqual(self.state.luna_usage("batch-plan")["turns"], 1)
+        metrics = self.state.prometheus_metrics()
+        self.assertIn('cogito_gateway_webhook_batches_total{plan="batch-plan"} 1', metrics)
+        self.assertIn('cogito_gateway_coalesced_events_total{plan="batch-plan"} 2', metrics)
 
 
 if __name__ == "__main__":

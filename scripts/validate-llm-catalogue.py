@@ -243,8 +243,10 @@ def check(state):
     expected_role_scopes = {
         "planner": {"planner", "planner-gpt", "planner-gpt-pro", "planner-local"},
         "coordinator": {"coordinator"},
+        "coder": {"coder"},
+        "scout": {"scout", "scout-qwen"},
         "worker": {"worker"},
-        "reviewer": {"reviewer"},
+        "reviewer": {"reviewer", "reviewer-qwen"},
         "escalation": {"worker-escalated", "reviewer-escalated"},
     }
     for key, expected in expected_role_scopes.items():

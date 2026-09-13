@@ -3,6 +3,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 configMapGenerator:
+  # Keep the Flux object/path and PVC identity stable for the rename rollout;
+  # the rendered HelmRelease, Deployment, Service, and application are gateway.
   - name: APP-app-vars
     literals:
       - APP=matrix-coordinator
@@ -16,6 +18,11 @@ patches:
         value:
           name: foreman-resources
           namespace: llm
+      - op: add
+        path: /spec/dependsOn/-
+        value:
+          name: matrix
+          namespace: home-infra
     target:
       group: kustomize.toolkit.fluxcd.io
       kind: Kustomization

@@ -1,17 +1,17 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: Coordinator Image
+name: Gateway Image
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - services/matrix-coordinator/**
-      - .github/workflows/coordinator-image.yaml
+      - services/gateway/**
+      - .github/workflows/gateway-image.yaml
 
 concurrency:
-  group: coordinator-image-${{ github.ref }}
+  group: gateway-image-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -26,7 +26,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Unit tests
-        working-directory: services/matrix-coordinator
+        working-directory: services/gateway
         run: python -m unittest discover -s tests -v
 
       - name: Authenticate to GHCR
@@ -36,8 +36,8 @@ jobs:
 
       - name: Build and publish immutable revision
         env:
-          IMAGE: ghcr.io/${{ github.repository_owner }}/cogito-matrix-coordinator
+          IMAGE: ghcr.io/${{ github.repository_owner }}/cogito-gateway
           REVISION: ${{ github.sha }}
         run: |
-          docker build --pull --label "org.opencontainers.image.revision=$REVISION" --tag "$IMAGE:$REVISION" services/matrix-coordinator
+          docker build --pull --label "org.opencontainers.image.revision=$REVISION" --tag "$IMAGE:$REVISION" services/gateway
           docker push "$IMAGE:$REVISION"

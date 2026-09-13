@@ -76,5 +76,6 @@ class Approval:
         _nonempty("plan_id", self.plan_id)
         if not re.fullmatch(r"sha256:[0-9a-f]{64}", self.plan_hash):
             raise ValidationError("plan_hash must be a SHA-256 digest")
-        if not self.approver.startswith("@") or ":" not in self.approver:
-            raise ValidationError("approver must be a full Matrix user ID")
+        _nonempty("matrix_event_id", self.matrix_event_id)
+        _nonempty("approver", self.approver)
+        _nonempty("approved_at", self.approved_at)

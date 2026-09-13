@@ -1,12 +1,19 @@
 # Matrix development coordination
 
-Status: complete
+Status: historical implementation record; interaction model superseded by v4
 
 Owner: Tim
 
 Primary human interface: Commet over Matrix
 
 Infrastructure source of truth: this repository
+
+> **v4 update (2026-09-13):** [Async Agentic Homelab v4](plans/llm/async-agentic-homelab-v4.md)
+> replaces decisions 1, 2, and 4 below. The GitHub issue is now the editable
+> plan-review object from first draft; `workflow/approved` freezes its body;
+> Astra owns plan content; Luna is the LLM coordinator; and the deterministic
+> service is the `gateway`. The completed milestones below remain historical
+> evidence for the transport, state, and merge primitives being adapted.
 
 ## Purpose
 

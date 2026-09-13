@@ -8,9 +8,14 @@ metadata:
     foreman.llmkube.dev/role: planner
 spec:
   role: planner
-  model: muse-glimmer-30b
-  inferenceServiceRef:
-    name: muse-glimmer-30b
+  model: scout
+  provider: cloud-proxy
+  providerConfig:
+    baseURL: http://litellm.llm.svc.cluster.local:4000/v1
+    model: scout
+    apiKeySecretRef:
+      name: litellm-key-scout
+      key: api-key
   execution:
     mode: Job
     image: ghcr.io/timblakely/cogito-foreman-planning-scout:20873c1fd44c05f2aaf1ff7301267cf731f373c3@sha256:fe0b4a47ed8f6a339f9b8635138b98e755a51a3ac31bfc4347f5af4b104c01a1
@@ -23,7 +28,6 @@ spec:
       limits:
         cpu: "4"
         memory: 8Gi
-  temperature: "0.2"
   maxTurns: 80
   maxRetries: 2
   maxConcurrentTasks: 2
@@ -34,7 +38,7 @@ spec:
     editFreeTurnsLimit: 0
     contextSoftCap: 90000
     contextHardCap: 140000
-  requestTurnTimeoutSeconds: 300
+  requestTurnTimeoutSeconds: 900
   requestTimeoutSeconds: 3600
   bashTimeoutSeconds: 300
   tools:
@@ -43,6 +47,8 @@ spec:
     - bash
     - submit_result
   requiredCapability:
+    roles:
+      - planner
     accelerator: cuda
   systemPrompt: |-
     You are a read-only planning scout. Investigate only the delegated question.
@@ -53,6 +59,9 @@ spec:
     in a concise summary of at most 4000 characters. Separate observed facts from
     inferences and identify consequential uncertainty. Finish with submit_result;
     use GO when the question is answered and NO-GO only for a concrete blocker.
+    The submit_result summary must be a JSON object with conclusion, confidence,
+    evidence (array of path, line, note), uncertainty, suggested_followups, and
+    artifacts. Use an empty array when a field has no entries.
     Successful read-only research does not require a diff: put all useful findings
     in the GO summary and never return NO-GO merely because no edit was made.
     The planner receives only your final summary, not your transcript or tool
@@ -64,15 +73,81 @@ spec:
 apiVersion: foreman.llmkube.dev/v1alpha1
 kind: Agent
 metadata:
+  name: cogito-planning-scout-qwen
+  labels:
+    app.kubernetes.io/part-of: foreman
+    foreman.llmkube.dev/role: planner
+spec:
+  role: planner
+  model: scout-qwen
+  provider: cloud-proxy
+  providerConfig:
+    baseURL: http://litellm.llm.svc.cluster.local:4000/v1
+    model: scout-qwen
+    apiKeySecretRef:
+      name: litellm-key-scout
+      key: api-key
+  execution:
+    mode: Job
+    image: ghcr.io/timblakely/cogito-foreman-planning-scout:20873c1fd44c05f2aaf1ff7301267cf731f373c3@sha256:fe0b4a47ed8f6a339f9b8635138b98e755a51a3ac31bfc4347f5af4b104c01a1
+    serviceAccountName: foreman-coder
+    activeDeadlineSeconds: 3600
+    resources:
+      requests:
+        cpu: "1"
+        memory: 2Gi
+      limits:
+        cpu: "4"
+        memory: 8Gi
+  maxTurns: 80
+  maxRetries: 2
+  maxConcurrentTasks: 1
+  stuckLoopDetection:
+    repeatedToolThreshold: 5
+    editFreeTurnsLimit: 0
+    contextSoftCap: 90000
+    contextHardCap: 140000
+  requestTurnTimeoutSeconds: 900
+  requestTimeoutSeconds: 3600
+  bashTimeoutSeconds: 300
+  tools:
+    - read_file
+    - grep
+    - bash
+    - submit_result
+  requiredCapability:
+    roles:
+      - planner
+    accelerator: cuda
+  systemPrompt: |-
+    You are a read-only planning scout. Investigate only the delegated question.
+    Clone the named public repository at the named base branch when necessary,
+    then inspect repository instructions and relevant files. You may run commands
+    for discovery and verification, but never edit, commit, push, open issues, or
+    change external state. Return a bounded result packet containing conclusion,
+    confidence, file-and-line evidence, uncertainty, suggested follow-ups, and
+    artifacts. Finish with submit_result; use GO when the question is answered
+    and NO-GO only for a concrete blocker. Before each additional command, decide
+    whether the delegated question is already answered; if so, submit immediately.
+    Encode that packet as JSON in the submit_result summary.
+---
+apiVersion: foreman.llmkube.dev/v1alpha1
+kind: Agent
+metadata:
   name: cogito-coder
   labels:
     app.kubernetes.io/part-of: foreman
     foreman.llmkube.dev/role: coder
 spec:
   role: coder
-  model: qwen3-8-27b
-  inferenceServiceRef:
-    name: qwen3-8-27b
+  model: coder
+  provider: cloud-proxy
+  providerConfig:
+    baseURL: http://litellm.llm.svc.cluster.local:4000/v1
+    model: coder
+    apiKeySecretRef:
+      name: litellm-key-coder
+      key: api-key
   execution:
     mode: Job
     image: ghcr.io/defilantech/llmkube-foreman-agent-coder@sha256:70622d517f626d8e25cb6a5c1d4a70dc5803ceaddf4615ef6d0e371fb8a68ba9
@@ -94,6 +169,8 @@ spec:
     - fetch_issue
     - submit_result
   requiredCapability:
+    roles:
+      - coder
     accelerator: cuda
   systemPrompt: |-
     You implement one small GitHub issue per run. The repository is already
@@ -134,9 +211,14 @@ spec:
   role: reviewer
   # Match the coder here; the falsifier below runs Muse, so a two-review
   # quorum cannot be satisfied by one model family alone.
-  model: qwen3-8-27b
-  inferenceServiceRef:
-    name: qwen3-8-27b
+  model: reviewer-qwen
+  provider: cloud-proxy
+  providerConfig:
+    baseURL: http://litellm.llm.svc.cluster.local:4000/v1
+    model: reviewer-qwen
+    apiKeySecretRef:
+      name: litellm-key-reviewer
+      key: api-key
   execution:
     mode: Job
     image: ghcr.io/defilantech/llmkube-foreman-agent-coder@sha256:70622d517f626d8e25cb6a5c1d4a70dc5803ceaddf4615ef6d0e371fb8a68ba9
@@ -146,8 +228,8 @@ spec:
   maxTurns: 60
   maxRetries: 3
   maxConcurrentTasks: 1
-  requestTurnTimeoutSeconds: 300
-  requestTimeoutSeconds: 3600
+  requestTurnTimeoutSeconds: 900
+  requestTimeoutSeconds: 1800
   bashTimeoutSeconds: 300
   openPullRequestsAsDraft: false
   tools:
@@ -157,6 +239,8 @@ spec:
     - fetch_issue
     - submit_result
   requiredCapability:
+    roles:
+      - reviewer
     accelerator: cuda
   systemPrompt: |-
     You independently review one Foreman branch against its GitHub issue.
@@ -165,7 +249,10 @@ spec:
     regressions, missing tests, unsafe configuration, and unsupported claims.
     Do not edit the branch. Call submit_result with GO only when the change is
     coherent, scoped, tested, and ready to open a pull request;
-    otherwise return NO-GO with specific actionable findings.
+    otherwise return NO-GO with specific actionable findings. The submit_result
+    summary must be JSON with conclusion, confidence, evidence (an array of path,
+    line, note), uncertainty, suggested_followups, and artifacts. File evidence
+    must cite the exact final branch line when an inline PR comment is useful.
 ---
 apiVersion: foreman.llmkube.dev/v1alpha1
 kind: Agent
@@ -176,20 +263,24 @@ metadata:
     foreman.llmkube.dev/role: reviewer
 spec:
   role: reviewer
-  model: muse-glimmer-30b
-  inferenceServiceRef:
-    name: muse-glimmer-30b
+  model: reviewer
+  provider: cloud-proxy
+  providerConfig:
+    baseURL: http://litellm.llm.svc.cluster.local:4000/v1
+    model: reviewer
+    apiKeySecretRef:
+      name: litellm-key-reviewer
+      key: api-key
   execution:
     mode: Job
     image: ghcr.io/defilantech/llmkube-foreman-agent-coder@sha256:70622d517f626d8e25cb6a5c1d4a70dc5803ceaddf4615ef6d0e371fb8a68ba9
     serviceAccountName: foreman-coder
     activeDeadlineSeconds: 3600
-  temperature: "0.1"
   maxTurns: 60
   maxRetries: 3
   maxConcurrentTasks: 1
-  requestTurnTimeoutSeconds: 300
-  requestTimeoutSeconds: 3600
+  requestTurnTimeoutSeconds: 900
+  requestTimeoutSeconds: 1800
   bashTimeoutSeconds: 300
   openPullRequestsAsDraft: false
   tools:
@@ -199,6 +290,8 @@ spec:
     - fetch_issue
     - submit_result
   requiredCapability:
+    roles:
+      - reviewer
     accelerator: cuda
   systemPrompt: |-
     You are the independent falsification reviewer for one Foreman branch.
@@ -209,4 +302,6 @@ spec:
     outside the approved scope. Do not edit the branch. Call submit_result with
     GO only when you cannot construct a concrete counterexample and the change
     is ready to merge; otherwise return NO-GO with specific reproducible
-    findings.
+    findings. The submit_result summary must be JSON with conclusion, confidence,
+    evidence (an array of path, line, note), uncertainty, suggested_followups,
+    and artifacts. Cite exact final branch lines for inline PR findings.

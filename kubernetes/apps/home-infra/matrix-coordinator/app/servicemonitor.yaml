@@ -2,11 +2,11 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: matrix-coordinator
+  name: gateway
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/service: matrix-coordinator
+      app.kubernetes.io/service: gateway
   endpoints:
     - port: http
       path: /metrics

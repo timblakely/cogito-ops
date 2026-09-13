@@ -155,10 +155,11 @@ class MatrixEvent:
 class MatrixCoordinator:
     def __init__(self, state: StateStore, core: Coordinator, foreman: ForemanClient,
                  planner: PlannerClient, allowed_senders: set[str],
-                 activity_room_id: str = ""):
+                 activity_room_id: str = "", astra_turn_cap: int = 20):
         self.state, self.core, self.foreman, self.planner = state, core, foreman, planner
         self.allowed_senders = frozenset(allowed_senders)
         self.activity_room_id = activity_room_id
+        self.astra_turn_cap = max(1, astra_turn_cap)
         self.lock = RLock()
 
     @staticmethod
@@ -194,7 +195,8 @@ class MatrixCoordinator:
 
     def _thread_plan(self, event: MatrixEvent):
         root = event.thread_root or event.event_id
-        row = self.state.plan_for_thread(event.room_id, root)
+        row = (self.state.plan_for_thread(event.room_id, root)
+               or self.state.plan_for_implementation_thread(event.room_id, root))
         if not row:
             raise ValidationError("this thread has no plan")
         return row
@@ -219,10 +221,13 @@ class MatrixCoordinator:
             return
         for position, (task_name, prompt) in enumerate(zip(names, prompts), 1):
             root = self._agent_root_notification(task_name)
+            agent = ("cogito-planning-scout" if position % 2
+                     else "cogito-planning-scout-qwen")
+            model = "scout" if position % 2 else "scout-qwen"
             body = (
                 f"**Planning scout `{task_name}`**\n\n"
                 f"Plan `{row['plan_id']}` · research round {round_number} · scout {position}\n\n"
-                "Agent: `cogito-planning-scout` · model: `muse-glimmer-30b`\n\n"
+                f"Agent: `{agent}` · model alias: `{model}`\n\n"
                 f"Repository: `{row['repository']}`\n\n"
                 f"**Prompt**\n\n{_code(prompt, 'text', 8000)}\n\n"
                 "Raw private chain-of-thought is not published. This thread shows "
@@ -309,11 +314,12 @@ class MatrixCoordinator:
             )
 
     @staticmethod
-    def _plan_message(plan: PlanVersion) -> str:
+    def _plan_message(plan: PlanVersion, issue_url: str) -> str:
         return (
-            f"**Plan `{plan.plan_id}` · version {plan.version}**\n\n{plan.markdown}\n"
-            f"Plan hash: `{plan.hash}`\n\nReply in this thread with review comments, then "
-            f"`!cogito revise`, or approve the current version with `!cogito approve`."
+            f"◆ Astra: **Plan drafted** → {issue_url}\n\n"
+            f"Plan `{plan.plan_id}` · version {plan.version} · Plan hash: `{plan.hash}`\n\n"
+            "Review or edit the issue body on GitHub. Approve the exact current body by "
+            "applying `workflow/approved` or commenting `/approve` on the issue."
         )
 
     def _apply_intake_decision(self, event_id: str, row,
@@ -341,7 +347,9 @@ class MatrixCoordinator:
             )
             self.core.record_plan(plan)
             transition = decision["message"].strip()
-            return self._message(f"{transition}\n\n{self._plan_message(plan)}", row["root_event_id"])
+            issue_url = self.state.plan(plan.plan_id)["github_issue_url"]
+            return self._message(
+                f"{transition}\n\n{self._plan_message(plan, issue_url)}", row["root_event_id"])
         self.state.add_intake_message(
             event_id + ":assistant", row["plan_id"], "planner",
             "assistant", decision["status"], decision["message"],
@@ -352,6 +360,8 @@ class MatrixCoordinator:
 
     def _planner_messages(self, row) -> list[dict[str, str]]:
         messages = self.state.intake_messages(row["plan_id"])
+        if notes := self.state.plan_notes(row["plan_id"]):
+            messages.append({"role": "assistant", "kind": "working_notes", "body": notes})
         if row["current_version"]:
             version = self.state.current_plan_version(row["plan_id"])
             messages.append({"role": "assistant", "kind": "prior_plan",
@@ -365,6 +375,14 @@ class MatrixCoordinator:
         # draft with explicit assumptions so intake cannot become an endless gate.
         force = (force or self.state.intake_rounds(row["plan_id"]) >= 2
                  or self.state.research_rounds(row["plan_id"]) >= 2)
+        if not self.state.reserve_astra_turn(
+                row["plan_id"], "intake", self.astra_turn_cap):
+            return self._message(
+                f"◆ Astra: **Needs input:** this plan reached the "
+                f"{self.astra_turn_cap}-turn planning cap. "
+                "Raise the configured cap or cancel the plan before continuing.",
+                row["root_event_id"],
+            )
         decision = self.planner.intake(
             self._planner_messages(row), force=force,
             research=self.state.research_briefing(row["plan_id"]),
@@ -399,6 +417,13 @@ class MatrixCoordinator:
 
     def _merged(self, row, result: dict[str, Any]) -> None:
         outcome = self.state.finish_merge(row["plan_id"], row["position"], result)
+        self.state.enqueue_coordinator_event(
+            f"merge:{row['plan_id']}:{row['position']}:merged",
+            row["plan_id"], "gateway", "deliverable.merged", {
+                "position": row["position"], "pull_request": row["pr_url"],
+                "merge": result,
+            }, delay_seconds=0,
+        )
         self._activity(
             f"merge:{row['plan_id']}:{row['position']}:merged",
             f"Plan `{row['plan_id']}` · deliverable {row['position']} merged: {row['pr_url']}",
@@ -419,6 +444,15 @@ class MatrixCoordinator:
                 return
             self.state.set_plan_state(row["plan_id"], "synthesizing")
             try:
+                if not self.state.reserve_astra_turn(
+                        row["plan_id"], "synthesis", self.astra_turn_cap):
+                    self.state.enqueue_matrix(
+                        f"plan:{row['plan_id']}:astra-cap",
+                        row["matrix_room_id"], row["root_event_id"],
+                        f"◆ Astra: **Needs input:** this plan reached the "
+                        f"{self.astra_turn_cap}-turn planning cap.",
+                    )
+                    return
                 decision = self.planner.intake(
                     self._planner_messages(row),
                     force=ready["round"] >= 2,
@@ -477,6 +511,11 @@ class MatrixCoordinator:
                 )
             if status["phase"] == "Failed":
                 self.state.fail_deliverable(row["plan_id"], row["deliverable_position"], status)
+                self.state.enqueue_coordinator_event(
+                    f"workload:{row['name']}:failed", row["plan_id"], "foreman",
+                    "workload.failed", {"name": row["name"], "status": status},
+                    delay_seconds=0,
+                )
                 self.state.enqueue_matrix(
                     f"deliverable:{row['plan_id']}:{row['deliverable_position']}:failed",
                     row["matrix_room_id"], row["root_event_id"],
@@ -486,12 +525,48 @@ class MatrixCoordinator:
             elif status["phase"] == "Completed":
                 try:
                     candidate = self.foreman.merge_candidate(row["name"], quorum=2)
+                    for packet in candidate.get("review_packets", []):
+                        agent = packet.get("agent") or "reviewer"
+                        action_key = (
+                            f"github-review:{row['plan_id']}:{row['deliverable_position']}:"
+                            f"{candidate['head_sha']}:{agent}"
+                        )
+                        cached = self.state.begin_action(
+                            action_key, "github.post-review", packet)
+                        if cached is None:
+                            try:
+                                review = self.core.issues.post_review_packet(
+                                    candidate["pr_url"], candidate["head_sha"], packet,
+                                    action_key)
+                            except Exception as exc:
+                                self.state.fail_action(action_key, str(exc))
+                                raise
+                            self.state.complete_action(action_key, review)
+                    checks = self.core.issues.checks_status(candidate["pr_url"])
+                    if checks["failed"]:
+                        raise RuntimeError(
+                            "required checks failed: " + ", ".join(checks["failed"]))
+                    if not checks["ready"]:
+                        waiting = checks["missing"] + checks["pending"]
+                        self._activity(
+                            f"activity:{row['plan_id']}:{row['deliverable_position']}:checks",
+                            f"Plan `{row['plan_id']}` · deliverable "
+                            f"{row['deliverable_position']} is waiting for required checks: "
+                            + ", ".join(waiting),
+                        )
+                        continue
                     result = self.core.issues.request_merge(
                         candidate["pr_url"], candidate["head_sha"], candidate["branch"])
                 except RuntimeError as exc:
                     blocked = {"status": "failed", "details": {"message": str(exc)}}
                     self.state.fail_deliverable(
                         row["plan_id"], row["deliverable_position"], blocked)
+                    self.state.enqueue_coordinator_event(
+                        f"workload:{row['name']}:verification-failed", row["plan_id"],
+                        "gateway", "workload.verification_failed",
+                        {"name": row["name"], "reason": str(exc)[:2_000]},
+                        delay_seconds=0,
+                    )
                     self.state.enqueue_matrix(
                         f"deliverable:{row['plan_id']}:{row['deliverable_position']}:quorum-failed",
                         row["matrix_room_id"], row["root_event_id"],
@@ -524,28 +599,82 @@ class MatrixCoordinator:
             else:
                 self.state.finish_merge(row["plan_id"], row["position"], result)
                 detail = result.get("details", {}).get("message", "GitHub rejected the merge")
+                self.state.enqueue_coordinator_event(
+                    f"merge:{row['plan_id']}:{row['position']}:failed",
+                    row["plan_id"], "github", "merge.failed",
+                    {"position": row["position"], "pull_request": row["pr_url"],
+                     "reason": str(detail)[:2_000]}, delay_seconds=0,
+                )
                 self.state.enqueue_matrix(
                     f"merge:{row['plan_id']}:{row['position']}:failed",
                     row["matrix_room_id"], row["root_event_id"],
                     f"Deliverable {row['position']} is **Blocked**: {detail}",
                 )
 
-        # This is also crash recovery for a merge committed immediately before
-        # the next Workload could be created.
+        # Crash recovery never bypasses Luna: reconstruct only the durable
+        # coordination wake-up when a runnable deliverable has no active turn.
         for plan in self.state.plans_ready_to_dispatch():
-            self._dispatch_next(plan["plan_id"])
+            pending = self.state.next_deliverable(plan["plan_id"])
+            if pending:
+                self.state.enqueue_coordinator_event(
+                    f"recovery:{plan['plan_id']}:{pending['position']}:{pending['attempt']}",
+                    plan["plan_id"], "gateway", "coordination.recover", {
+                        "position": pending["position"], "issue": pending["issue_url"],
+                        "attempt": pending["attempt"],
+                    }, delay_seconds=0,
+                )
+
+        for plan in self.state.completed_plans():
+            key = f"github-close-plan:{plan['plan_id']}"
+            if self.state.begin_action(
+                    key, "github.close-plan", {"issue": plan["github_issue_url"]}) is not None:
+                continue
+            try:
+                self.core.issues.update_issue_state(plan["github_issue_url"], "closed")
+            except Exception as exc:
+                self.state.fail_action(key, str(exc))
+                continue
+            self.state.complete_action(key, {"closed": True})
+
+        for plan in self.state.cancelled_plans():
+            urls = [plan["github_issue_url"], *self.state.deliverable_urls(plan["plan_id"])]
+            for issue_url in urls:
+                key = "github-close-cancelled:" + sha256(issue_url.encode()).hexdigest()
+                if self.state.begin_action(
+                        key, "github.close-cancelled", {"issue": issue_url}) is not None:
+                    continue
+                try:
+                    self.core.issues.update_issue_state(issue_url, "closed")
+                except Exception as exc:
+                    self.state.fail_action(key, str(exc))
+                    continue
+                self.state.complete_action(key, {"closed": True})
 
     def _handle(self, event: MatrixEvent) -> dict[str, Any]:
         body = event.body.strip()
         root = event.thread_root or event.event_id
         if event.sender not in self.allowed_senders:
             raise ValidationError("Matrix sender is not allowlisted")
+        if event.thread_root and body.lower() in {"status", "stop"}:
+            body = "!cogito " + body.lower()
         if not body.startswith("!cogito"):
             if not event.thread_root:
                 return {"actions": []}
             plan = self.state.plan_for_thread(event.room_id, event.thread_root)
+            implementation = False
+            if not plan:
+                plan = self.state.plan_for_implementation_thread(
+                    event.room_id, event.thread_root)
+                implementation = bool(plan)
             if not plan:
                 return {"actions": []}
+            if implementation:
+                self.state.enqueue_coordinator_event(
+                    f"matrix:{event.event_id}", plan["plan_id"], "matrix",
+                    "owner.instruction", {"actor": event.sender, "body": body[:8_000]},
+                    delay_seconds=0,
+                )
+                return self._message("● Luna: instruction queued.", root)
             if plan["state"] in {"intake", "research_failed"}:
                 self.state.add_intake_message(
                     event.event_id, plan["plan_id"], event.sender, "user", "answer", body)
@@ -558,6 +687,36 @@ class MatrixCoordinator:
             return self._message("Review comment recorded. Send `!cogito revise` when ready.", root)
         command, _, argument = body.removeprefix("!cogito").strip().partition(" ")
         command = command.lower()
+        if command == "react":
+            reaction, _, target = argument.strip().partition(" ")
+            row = self.state.plan_for_card_event(event.room_id, target.strip())
+            if not row:
+                raise ValidationError("reaction does not target a Cogito plan card")
+            if reaction == "⏹":
+                self.state.set_plan_state(row["plan_id"], "cancelled")
+                self.state.enqueue_coordinator_event(
+                    f"matrix:{event.event_id}:cancel", row["plan_id"], "matrix",
+                    "owner.cancelled", {"actor": event.sender}, delay_seconds=0)
+                return self._message("▣ gateway: plan cancelled.", row["root_event_id"])
+            if reaction == "⏸":
+                self.state.pause_plan(row["plan_id"])
+                return self._message("▣ gateway: plan paused.", row["root_event_id"])
+            if reaction == "🔄":
+                if row["state"] == "paused":
+                    state = self.state.resume_plan(row["plan_id"])
+                    text = f"Plan resumed in **{state}**."
+                else:
+                    text = "Owner requested a retry."
+                self.state.enqueue_coordinator_event(
+                    f"matrix:{event.event_id}:retry", row["plan_id"], "matrix",
+                    "owner.retry", {"actor": event.sender}, delay_seconds=0)
+                return self._message("▣ gateway: " + text, row["root_event_id"])
+            if reaction == "🔍":
+                self.state.enqueue_coordinator_event(
+                    f"matrix:{event.event_id}:investigate", row["plan_id"], "matrix",
+                    "owner.investigate", {"actor": event.sender}, delay_seconds=0)
+                return self._message("● Luna: investigation queued.", row["root_event_id"])
+            raise ValidationError("unsupported plan-card reaction")
         if command == "plan":
             if not argument.strip():
                 raise ValidationError("usage: !cogito plan <objective>")
@@ -600,16 +759,11 @@ class MatrixCoordinator:
                 digest = version["content_hash"]
             parent, children = self.core.approve(Approval(
                 row["plan_id"], digest, event.event_id, event.sender, event.timestamp))
-            self.state.register_deliverables(row["plan_id"], children)
-            dispatched = self._dispatch_next(row["plan_id"])
-            name = dispatched["workload"]["metadata"]["name"]
-            status = dispatched["status"]
             links = "\n".join(f"- {child}" for child in children)
             return self._message(
                 f"Plan accepted at `{digest}`.\n\nParent issue: {parent}\n\nDeliverables:\n{links}"
-                f"\n\nExecution started with Foreman Workload `{name}` · **{status['phase']}**. "
-                "Approval authorizes serial delivery and automatic merge after two independent "
-                "reviewer approvals.", root)
+                "\n\n● Luna queued the approved plan for serial execution. The gateway will "
+                "merge only after two independent reviewer approvals and required checks.", root)
         if command == "status":
             name = argument.strip()
             if not name:
@@ -623,6 +777,11 @@ class MatrixCoordinator:
                         f"({progress.get('Failed', 0)} failed).", root)
                 saved = self.state.workload_for_plan(row["plan_id"])
                 if not saved:
+                    if row["state"] in {"accepted", "decomposed"}:
+                        usage = self.state.luna_usage(row["plan_id"])
+                        return self._message(
+                            f"Plan is **{row['state']}** and queued for Luna coordination. "
+                            f"Luna turns: {usage['turns']}.", root)
                     raise ValidationError("this plan has no Foreman Workload")
                 name = saved["name"]
             workload = self.foreman.get(name)
@@ -635,9 +794,16 @@ class MatrixCoordinator:
                 f"Workload `{name}` is **{status['phase']}**: "
                 f"{status['succeeded']} succeeded, {status['failed']} failed, "
                 f"{status['incomplete']} incomplete.{progress_text}", root)
+        if command == "stop":
+            row = self._thread_plan(event)
+            self.state.set_plan_state(row["plan_id"], "cancelled")
+            self.state.enqueue_coordinator_event(
+                f"matrix:{event.event_id}:cancel", row["plan_id"], "matrix",
+                "owner.cancelled", {"actor": event.sender}, delay_seconds=0)
+            return self._message("▣ gateway: plan cancelled.", root)
         if command in {"help", ""}:
             return self._message(
                 "Commands: `plan <objective>`, `draft`, `revise`, `approve [hash]`, "
-                "`status [workload]`. During intake, ordinary thread replies continue the "
+                "`status [workload]`, `stop`. During intake, ordinary thread replies continue the "
                 "planner conversation; after a draft, they become review comments.", root)
         raise ValidationError("unknown !cogito command")

@@ -1,26 +1,24 @@
 ---
-# Per-role key: the free review lane over the same eight seats as worker.
-# Same tripwire budget and backpressure reasoning as the worker key.
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMVirtualKey
 metadata:
-  name: reviewer
+  name: scout
 spec:
   proxyRef: litellm
-  keyAlias: role-reviewer
-  secretName: litellm-key-reviewer
+  keyAlias: role-scout
+  secretName: litellm-key-scout
   secretKey: api-key
   maxBudget: "1"
   budgetDuration: 30d
-  maxParallelRequests: 2
+  maxParallelRequests: 3
   models:
-    - reviewer
-    - reviewer-qwen
+    - scout
+    - scout-qwen
 ---
 apiVersion: external-secrets.io/v1alpha1
 kind: PushSecret
 metadata:
-  name: litellm-key-reviewer
+  name: litellm-key-scout
 spec:
   refreshInterval: 1h
   secretStoreRefs:
@@ -28,7 +26,7 @@ spec:
       name: onepassword
   selector:
     secret:
-      name: litellm-key-reviewer
+      name: litellm-key-scout
   updatePolicy: Replace
   deletionPolicy: None
   data:
@@ -36,4 +34,4 @@ spec:
         secretKey: api-key
         remoteRef:
           remoteKey: litellm
-          property: LITELLM_REVIEWER_API_KEY
+          property: LITELLM_SCOUT_API_KEY

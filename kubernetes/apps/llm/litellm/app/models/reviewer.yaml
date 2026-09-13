@@ -5,6 +5,8 @@ apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:
   name: reviewer
+  annotations:
+    cogito.dev/context-budget: deliberate
 spec:
   modelName: reviewer
   proxyRef: litellm
@@ -13,7 +15,7 @@ spec:
     apiBase: http://muse-glimmer-30b.llm.svc.cluster.local:8080/v1
     apiKey: not-needed
     additional:
-      timeout: 600
+      timeout: 900
   info:
     supportsFunctionCalling: true
     supportsVision: true

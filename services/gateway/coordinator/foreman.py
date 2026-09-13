@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from hashlib import sha256
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import quote, urlparse
@@ -16,6 +17,51 @@ from .models import ValidationError
 
 ISSUE_PATH = re.compile(r"^/([^/]+)/([^/]+)/issues/([1-9][0-9]*)$")
 DNS_SAFE = re.compile(r"[^a-z0-9-]+")
+
+
+def result_packet(task: dict) -> dict:
+    """Validate the bounded packet shape without ever reading a transcript."""
+    status = task.get("status") or {}
+    result = status.get("result") or {}
+    raw = result.get("summary") or ""
+    if isinstance(raw, str):
+        text = raw.strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        try:
+            value = json.loads(text)
+        except (json.JSONDecodeError, TypeError):
+            value = {"conclusion": text[:4_000]}
+    elif isinstance(raw, dict):
+        value = raw
+    else:
+        value = {"conclusion": str(raw)[:4_000]}
+    evidence = []
+    for item in value.get("evidence", []) if isinstance(value, dict) else []:
+        if not isinstance(item, dict) or not str(item.get("path") or "").strip():
+            continue
+        line = item.get("line", item.get("lines"))
+        if isinstance(line, str) and line.isdigit():
+            line = int(line)
+        evidence.append({
+            "path": str(item["path"]).lstrip("/")[:1_000],
+            "line": line if isinstance(line, int) and line > 0 else None,
+            "note": str(item.get("note") or "")[:2_000],
+        })
+        if len(evidence) >= 25:
+            break
+    return {
+        "agent": (task.get("spec") or {}).get("agentRef", {}).get("name"),
+        "verdict": status.get("verdict"),
+        "conclusion": str(value.get("conclusion") or "")[:4_000],
+        "confidence": str(value.get("confidence") or "unspecified")[:100],
+        "evidence": evidence,
+        "uncertainty": str(value.get("uncertainty") or "")[:2_000],
+        "suggested_followups": value.get("suggested_followups", [])[:10]
+        if isinstance(value.get("suggested_followups", []), list) else [],
+        "artifacts": value.get("artifacts", [])[:10]
+        if isinstance(value.get("artifacts", []), list) else [],
+    }
 
 
 def _repo_slug(repository: str) -> str:
@@ -42,8 +88,11 @@ def _issue_numbers(repo: str, issue_urls: list[str]) -> list[int]:
     return numbers
 
 
-def workload_name(plan_id: str, plan_hash: str, deliverable_position: int | None = None) -> str:
+def workload_name(plan_id: str, plan_hash: str, deliverable_position: int | None = None,
+                  attempt: int = 1) -> str:
     suffix = "" if deliverable_position is None else f"-d{deliverable_position}"
+    if attempt > 1:
+        suffix += f"-a{attempt}"
     stem = DNS_SAFE.sub("-", plan_id.lower()).strip("-")[:39] or "plan"
     return f"{stem}-{plan_hash.removeprefix('sha256:')[:12]}{suffix}"[:63].rstrip("-")
 
@@ -54,12 +103,11 @@ class ForemanClient:
     api_server: str = "https://kubernetes.default.svc"
     token_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/token"
     ca_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-    # Foreman's gate template clones to /work. Its upstream Debian Go image
-    # runs as root and can create that directory; the non-root coder image
-    # cannot. The tag is retained for readability and the digest is authority.
+    # The gate image contains git, kustomize, Helm and flux-local. The digest is
+    # authority; it matches the repository CI's v7.11.0 release.
     gate_image: str = (
-        "docker.io/library/golang:1.26@"
-        "sha256:3c3e25a4da13fd0478eed2df1eb35a0e667094a7124d3993a6a1d30f71c17e79"
+        "ghcr.io/allenporter/flux-local:v7.11.0@"
+        "sha256:5e815fabc544d56adaed7b815c6243eca4776ef83b9a11bec370fd888196de03"
     )
 
     @property
@@ -84,16 +132,17 @@ class ForemanClient:
         )
         context = ssl.create_default_context(cafile=self.ca_path)
         with urlopen(request, timeout=30, context=context) as response:
-            return json.load(response)
+            raw = response.read()
+            return json.loads(raw) if raw else {}
 
     def manifest(self, plan_id: str, plan_hash: str, intent: str, repository: str,
                  issue_urls: list[str], room_id: str, thread_root: str,
-                 deliverable_position: int | None = None) -> dict:
+                 deliverable_position: int | None = None, attempt: int = 1) -> dict:
         repo = _repo_slug(repository)
         issues = _issue_numbers(repo, issue_urls)
         if deliverable_position is not None and len(issues) != 1:
             raise ValidationError("a serial deliverable Workload must contain exactly one issue")
-        name = workload_name(plan_id, plan_hash, deliverable_position)
+        name = workload_name(plan_id, plan_hash, deliverable_position, attempt)
         return {
             "apiVersion": "foreman.llmkube.dev/v1alpha1",
             "kind": "Workload",
@@ -109,6 +158,7 @@ class ForemanClient:
                     "cogito.dev/matrix-room": room_id,
                     "cogito.dev/matrix-thread": thread_root,
                     "cogito.dev/deliverable-position": str(deliverable_position or 1),
+                    "cogito.dev/attempt": str(attempt),
                 },
             },
             "spec": {
@@ -124,7 +174,7 @@ class ForemanClient:
                     {"name": "cogito-reviewer"},
                     {"name": "cogito-reviewer-falsifier"},
                 ],
-                "allowCloudReviewers": False,
+                "allowCloudReviewers": True,
                 "openPullRequest": True,
                 "gateProfile": {
                     "language": "generic",
@@ -133,7 +183,14 @@ class ForemanClient:
                     "commands": {
                         "lint": (
                             "git fetch --deepen=1 origin && "
-                            "git diff --check HEAD^ HEAD -- ."
+                            "git diff --check HEAD^ HEAD -- . && "
+                            "if git diff --name-only HEAD^ HEAD -- | "
+                            "grep -q '^services/gateway/'; then "
+                            "(cd services/gateway && python -m unittest discover -s tests -v); fi && "
+                            "if git diff --name-only HEAD^ HEAD -- | "
+                            "grep -q '^kubernetes/'; then "
+                            "flux-local test --enable-helm --all-namespaces "
+                            "--path kubernetes/flux/cluster -v; fi"
                         )
                     },
                 },
@@ -154,8 +211,23 @@ class ForemanClient:
             return current
 
     def research_manifest(self, task_name: str, plan_id: str, prompt: str,
-                          repository: str) -> dict:
+                          repository: str, model: str | None = None) -> dict:
         repo = _repo_slug(repository)
+        if model is None:
+            # Alternate by stable task position so retries keep the same model.
+            position = int(task_name.rsplit("-", 1)[-1])
+            model = "scout" if position % 2 else "scout-qwen"
+        if model not in {"scout", "scout-qwen"}:
+            raise ValidationError("research model must be scout or scout-qwen")
+        agent = ("cogito-planning-scout" if model == "scout"
+                 else "cogito-planning-scout-qwen")
+        prefix = (
+            f"Repository: https://github.com/{repo}.git\nBase branch: main\n\n"
+            "The workspace is intentionally empty and has no GitHub credential. First use "
+            "bash to clone this public repository at the named branch into the workspace. "
+            "Work read-only and never authenticate; "
+            "do not edit, commit, or push. Investigate only this delegated question:\n\n"
+        )
         return {
             "apiVersion": "foreman.llmkube.dev/v1alpha1",
             "kind": "AgenticTask",
@@ -167,26 +239,22 @@ class ForemanClient:
                     "cogito.dev/plan-id": plan_id,
                     "cogito.dev/purpose": "planning-research",
                 },
+                "annotations": {
+                    "cogito.dev/prompt-prefix-hash": "sha256:" + sha256(
+                        prefix.encode()).hexdigest(),
+                },
             },
             "spec": {
                 "kind": "freeform",
-                "agentRef": {"name": "cogito-planning-scout"},
-                "modelRef": "muse-glimmer-30b",
+                "agentRef": {"name": agent},
+                "modelRef": model,
                 "timeoutSeconds": 3600,
                 "payload": {
-                    "agent": "cogito-planning-scout",
-                    # Freeform tasks without payload.repo intentionally run in
-                    # an empty workspace. Give Foreman the structured repo
-                    # identity so it clones a read-only working copy before
-                    # assembling workspace-backed tools.
-                    "repo": repo,
-                    "baseBranch": "main",
-                    "prompt": (
-                        f"Repository: https://github.com/{repo}.git\nBase branch: main\n\n"
-                        "Clone the public repository if the workspace is empty. Work read-only; "
-                        "do not edit, commit, or push. Investigate only this delegated question:\n\n"
-                        f"{prompt}"
-                    ),
+                    "agent": agent,
+                    # Omitting payload.repo is the credential boundary: Foreman
+                    # does not invoke its authenticated clone path. The scout
+                    # clones this public repository anonymously with bash.
+                    "prompt": prefix + prompt,
                 },
             },
         }
@@ -211,6 +279,10 @@ class ForemanClient:
 
     def get_task(self, name: str) -> dict:
         return self._call("GET", f"{self.task_collection_path}/{quote(name)}")
+
+    def cancel_task(self, name: str) -> dict:
+        self._call("DELETE", f"{self.task_collection_path}/{quote(name)}")
+        return {"cancelled": name}
 
     def get_transcript(self, task: dict) -> dict | None:
         status = task.get("status", {})
@@ -271,6 +343,7 @@ class ForemanClient:
             "head_sha": coder_status["commitSHA"],
             "branch": coder_status["branch"],
             "reviewers": sorted(agents - {None}),
+            "review_packets": [result_packet(task) for task in reviewers],
         }
 
     @staticmethod

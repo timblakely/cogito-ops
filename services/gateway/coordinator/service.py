@@ -14,15 +14,16 @@ from .foreman import ForemanClient
 from .github import GitHubIssues
 from .models import Approval, PlanVersion, ValidationError
 from .matrix import MatrixCoordinator
+from .luna import LunaClient, LunaCoordinator
 from .planner import PlannerClient
 from .state import StateStore
-from .webhooks import verify_internal
+from .webhooks import GitHubWebhook, verify_internal
 
 
 class App:
     def __init__(self):
-        self.internal_secret = os.environ["COORDINATOR_INTERNAL_SECRET"].encode()
-        self.state = StateStore(os.environ.get("COORDINATOR_STATE_PATH", "/data/coordinator.sqlite3"))
+        self.internal_secret = os.environ["GATEWAY_INTERNAL_SECRET"].encode()
+        self.state = StateStore(os.environ.get("GATEWAY_STATE_PATH", "/data/coordinator.sqlite3"))
         self.foreman = ForemanClient(namespace=os.environ.get("FOREMAN_NAMESPACE", "llm"))
         self.github = GitHubIssues(
             token=os.environ.get("GITHUB_TOKEN"),
@@ -31,19 +32,41 @@ class App:
         self.coordinator = Coordinator(
             self.state, self.github,
             set(filter(None, os.environ.get("MATRIX_APPROVERS", "").split(","))),
+            set(filter(None, os.environ.get("GITHUB_APPROVERS", "").split(","))),
+        )
+        self.github_webhook = GitHubWebhook(
+            os.environ["GITHUB_WEBHOOK_SECRET"].encode(), self.state,
+            self.coordinator, self.github,
         )
         planner_fallbacks = tuple(filter(None, os.environ.get(
             "PLANNER_FALLBACK_MODELS", "").split(",")))
+        self.planner = PlannerClient(
+            os.environ["LITELLM_PLANNER_API_KEY"],
+            os.environ.get("LITELLM_BASE_URL", "https://litellm.timblakely.com/v1"),
+            os.environ.get("PLANNER_MODEL", "planner"), planner_fallbacks,
+        )
         self.matrix = MatrixCoordinator(
             self.state, self.coordinator, self.foreman,
-            PlannerClient(os.environ["LITELLM_PLANNER_API_KEY"],
-                          os.environ.get("LITELLM_BASE_URL", "https://litellm.timblakely.com/v1"),
-                          os.environ.get("PLANNER_MODEL", "planner"), planner_fallbacks),
+            self.planner,
             set(filter(None, os.environ.get("MATRIX_APPROVERS", "").split(","))),
             os.environ.get("MATRIX_ACTIVITY_ROOM_ID", ""),
+            int(os.environ.get("ASTRA_TURN_CAP", "20")),
+        )
+        self.luna = LunaCoordinator(
+            self.state, self.coordinator, self.foreman, self.github, self.planner,
+            LunaClient(
+                os.environ["LITELLM_COORDINATOR_API_KEY"],
+                os.environ.get("LITELLM_BASE_URL", "https://litellm.timblakely.com/v1"),
+                os.environ.get("COORDINATOR_MODEL", "coordinator"),
+            ),
+            os.environ.get("MATRIX_IMPLEMENTATION_ROOM_ID", ""),
+            int(os.environ.get("LUNA_TURN_CAP", "200")),
+            int(os.environ.get("ASTRA_TURN_CAP", "20")),
         )
 
     def handle(self, path: str, headers, body: bytes) -> tuple[int, dict]:
+        if path == "/events/github":
+            return self.github_webhook.handle(headers, body)
         if not verify_internal(self.internal_secret, body, headers.get("X-Cogito-Signature-256")):
             return 401, {"error": "invalid signature"}
         value = json.loads(body)
@@ -70,10 +93,11 @@ class App:
         return 404, {"error": "not found"}
 
     def reconcile_forever(self) -> None:
-        interval = int(os.environ.get("COORDINATOR_RECONCILE_SECONDS", "15"))
+        interval = int(os.environ.get("GATEWAY_RECONCILE_SECONDS", "15"))
         while True:
             try:
                 self.matrix.reconcile_once()
+                self.luna.reconcile_once()
             except Exception as exc:
                 print(json.dumps({"component": "reconciler", "error": type(exc).__name__,
                                   "message": str(exc)[:500]}))
@@ -84,7 +108,7 @@ APP: App
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "cogito-coordinator/0.1"
+    server_version = "cogito-gateway/0.1"
 
     def do_GET(self):
         if self.path == "/healthz":
@@ -121,7 +145,7 @@ def main() -> None:
     global APP
     APP = App()
     threading.Thread(target=APP.reconcile_forever, daemon=True, name="reconciler").start()
-    address = os.environ.get("COORDINATOR_LISTEN", "0.0.0.0:8080")
+    address = os.environ.get("GATEWAY_LISTEN", "0.0.0.0:8080")
     host, port = address.rsplit(":", 1)
     ThreadingHTTPServer((host, int(port)), Handler).serve_forever()
 

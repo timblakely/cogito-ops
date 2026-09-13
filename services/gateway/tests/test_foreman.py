@@ -1,6 +1,7 @@
 import unittest
 
-from coordinator.foreman import ForemanClient, _issue_numbers, _repo_slug, workload_name
+from coordinator.foreman import (ForemanClient, _issue_numbers, _repo_slug,
+                                 result_packet, workload_name)
 from coordinator.models import ValidationError
 
 
@@ -24,10 +25,16 @@ class ForemanTests(unittest.TestCase):
             ["cogito-reviewer", "cogito-reviewer-falsifier"],
         )
         self.assertEqual(manifest["spec"]["gateProfile"]["language"], "generic")
+        self.assertTrue(manifest["spec"]["allowCloudReviewers"])
         self.assertIn("@sha256:", manifest["spec"]["gateProfile"]["image"])
         self.assertEqual(
             manifest["spec"]["gateProfile"]["commands"]["lint"],
-            "git fetch --deepen=1 origin && git diff --check HEAD^ HEAD -- .",
+            "git fetch --deepen=1 origin && git diff --check HEAD^ HEAD -- . && "
+            "if git diff --name-only HEAD^ HEAD -- | grep -q '^services/gateway/'; then "
+            "(cd services/gateway && python -m unittest discover -s tests -v); fi && "
+            "if git diff --name-only HEAD^ HEAD -- | grep -q '^kubernetes/'; then "
+            "flux-local test --enable-helm --all-namespaces "
+            "--path kubernetes/flux/cluster -v; fi",
         )
 
     def test_repository_and_issue_must_match(self):
@@ -42,18 +49,30 @@ class ForemanTests(unittest.TestCase):
             "phase": "Completed", "succeededTasks": 3, "failedTasks": 0,
         }})["succeeded"], 3)
 
-    def test_research_manifest_is_a_local_read_only_freeform_task(self):
+    def test_research_manifest_alternates_read_only_scouts(self):
         manifest = ForemanClient().research_manifest(
             "plan-a-research-r1-1", "plan-a", "Inspect planning.",
             "https://github.com/timblakely/cogito-ops.git",
         )
         self.assertEqual(manifest["spec"]["kind"], "freeform")
         self.assertEqual(manifest["spec"]["agentRef"]["name"], "cogito-planning-scout")
-        self.assertEqual(manifest["spec"]["modelRef"], "muse-glimmer-30b")
+        self.assertEqual(manifest["spec"]["modelRef"], "scout")
         self.assertEqual(manifest["spec"]["timeoutSeconds"], 3600)
-        self.assertEqual(manifest["spec"]["payload"]["repo"], "timblakely/cogito-ops")
-        self.assertEqual(manifest["spec"]["payload"]["baseBranch"], "main")
+        self.assertNotIn("repo", manifest["spec"]["payload"])
+        self.assertNotIn("baseBranch", manifest["spec"]["payload"])
+        self.assertIn("https://github.com/timblakely/cogito-ops.git",
+                      manifest["spec"]["payload"]["prompt"])
+        self.assertIn("never authenticate", manifest["spec"]["payload"]["prompt"])
         self.assertIn("Work read-only", manifest["spec"]["payload"]["prompt"])
+        self.assertRegex(manifest["metadata"]["annotations"][
+            "cogito.dev/prompt-prefix-hash"], r"^sha256:[0-9a-f]{64}$")
+
+        qwen = ForemanClient().research_manifest(
+            "plan-a-research-r1-2", "plan-a", "Inspect planning.",
+            "https://github.com/timblakely/cogito-ops.git",
+        )
+        self.assertEqual(qwen["spec"]["agentRef"]["name"], "cogito-planning-scout-qwen")
+        self.assertEqual(qwen["spec"]["modelRef"], "scout-qwen")
 
     def test_transcript_reference_is_scoped_to_foreman_configmaps(self):
         client = ForemanClient(namespace="llm")
@@ -102,6 +121,21 @@ class ForemanTests(unittest.TestCase):
         client.tasks = lambda _: tasks[:-1]
         with self.assertRaises(RuntimeError):
             client.merge_candidate("workload")
+
+    def test_reviewer_packet_is_bounded_and_line_addressable(self):
+        packet = result_packet({
+            "spec": {"agentRef": {"name": "falsifier"}},
+            "status": {"verdict": "NO-GO", "result": {"summary": __import__("json").dumps({
+                "conclusion": "Unsafe edge case",
+                "confidence": "high",
+                "evidence": [{"path": "/services/gateway/x.py", "line": 42,
+                              "note": "This branch skips validation."}],
+                "uncertainty": "none", "suggested_followups": [], "artifacts": [],
+            })}},
+        })
+        self.assertEqual(packet["agent"], "falsifier")
+        self.assertEqual(packet["evidence"][0]["path"], "services/gateway/x.py")
+        self.assertEqual(packet["evidence"][0]["line"], 42)
 
 
 if __name__ == "__main__":
