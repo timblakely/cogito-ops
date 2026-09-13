@@ -21,9 +21,9 @@ spec:
               tag: v1.2@sha256:6071610598475260d5b37d6d4ce243ffefab4d31446172aed03c843f1895ccc2
             args:
               - --zone-name
-              - "${DOMAIN_NAME}"
+              - "${DOMAIN_NAME:=example.invalid}"
               - --record-name
-              - "ipv4.${DOMAIN_NAME}"
+              - "ipv4.${DOMAIN_NAME:=example.invalid}"
               - --provider
               - random
               - --proxied

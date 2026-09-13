@@ -63,7 +63,7 @@ spec:
         spec:
           admin: true
           email:
-            value: "${EMAIL}"
+            value: "${EMAIL:=nobody@example.invalid}"
           firstName:
             value: Tim
           lastName:
@@ -90,7 +90,7 @@ spec:
           # why tim's address is ${EMAIL} rather than a literal. (timtest's
           # literal address is a throwaway.)
           email:
-            value: "${KEATON_EMAIL}"
+            value: "${KEATON_EMAIL:=nobody@example.invalid}"
           firstName:
             value: Keaton
           lastName:
