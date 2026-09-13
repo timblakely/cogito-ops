@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+import json
 
 from coordinator.core import Coordinator
 from coordinator.matrix import MatrixCoordinator
@@ -71,8 +72,27 @@ class FakeForeman:
     def get_task(self, name):
         return {"metadata": {"name": name}, "status": {
             "phase": self.research_phase,
-            "result": {"summary": "The relevant implementation is in coordinator/matrix.py."},
+            "assignedNode": "foreman-agent-a", "jobName": "foreman-scout-a",
+            "transcriptRef": f"foreman-transcript-{name}",
+            "result": {
+                "elapsedSec": 3.5,
+                "summary": "The relevant implementation is in coordinator/matrix.py.",
+                "extra": {"turnCount": 2},
+            },
         }}
+    def get_transcript(self, task):
+        return {"data": {"transcript.json": json.dumps({"messages": [
+            {"role": "assistant", "content": "Checking the workflow.",
+             "reasoning_content": "private analysis must not appear",
+             "tool_calls": [{"id": "call-1", "function": {
+                 "name": "bash", "arguments": json.dumps({
+                     "command": "gh run view 123 --repo t/c",
+                 }),
+             }}]},
+            {"role": "tool", "tool_call_id": "call-1", "content": json.dumps({
+                "exit_code": 0, "stdout": "workflow failed token: very-secret-value",
+            })},
+        ]})}}
     def merge_candidate(self, name, quorum=2):
         position = name.rsplit("d", 1)[-1]
         return {"pr_url": f"https://github.com/t/c/pull/{position}",
@@ -180,6 +200,35 @@ class MatrixTests(unittest.TestCase):
         self.assertEqual(self.state.plan(plan["plan_id"])["state"], "review")
         messages = [item["body"] for item in self.state.pending_matrix()]
         self.assertTrue(any("# Researched" in body for body in messages))
+
+    def test_research_agent_run_is_threaded_linked_and_sanitized(self):
+        self.planner.decisions = [
+            {"status": "delegate", "message": "I need evidence.",
+             "tasks": ["Inspect CI without changing it."]},
+            {"status": "ready", "message": "Evidence received.",
+             "plan_markdown": "# Evidence\n\n## Deliverables\n- [ ] Fix it\n"},
+        ]
+        self.matrix.handle(self.event("$root", "!cogito plan Fix CI"))
+        pending = self.state.pending_matrix()
+        agent_root = next(item for item in pending
+                          if item["room_id"] == "!activity:matrix.example")
+        self.assertIn("**Prompt**", agent_root["body"])
+        self.assertIn("Inspect CI", agent_root["body"])
+        self.assertIn("!activity:matrix.example", self.matrix.typing_rooms())
+
+        self.state.complete_matrix(agent_root["notification_id"], "$agent-root")
+        self.matrix.reconcile_once()
+        pending = self.state.pending_matrix(100)
+        linked = next(item for item in pending if "Agent Runs for research round" in item["body"])
+        self.assertIn("https://matrix.to/#/!activity:matrix.example/$agent-root", linked["body"])
+        replies = [item for item in pending if item["thread_root"] == "$agent-root"]
+        trace = "\n".join(item["body"] for item in replies)
+        self.assertIn("gh run view 123", trace)
+        self.assertIn("workflow failed", trace)
+        self.assertIn("[REDACTED]", trace)
+        self.assertNotIn("very-secret-value", trace)
+        self.assertNotIn("private analysis", trace)
+        self.assertIn("**Evidence summary**", trace)
 
     def test_revision_can_delegate_before_creating_version_two(self):
         self.matrix.handle(self.event("$root", "!cogito plan Build it"))

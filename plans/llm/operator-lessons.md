@@ -13,6 +13,11 @@ notes when they disagree.
   version from durable state; humans should not need to paste a plan SHA.
 - Persist a command response before attempting Matrix delivery. Transport can
   retry or replay events, so event IDs and state transitions must be idempotent.
+- A Matrix thread root created by the coordinator has no event ID until the
+  transport acknowledges it. Persist replies against the root notification ID,
+  withhold them from the outbox until that acknowledgement arrives, then resolve
+  the returned event ID at delivery time. Use the same durable ID to generate
+  cross-room links back to the control thread.
 - Put human conversation in the plan thread and noisy lifecycle/status events
   in a dedicated activity room that users can mute. Hookshot/GitHub delivery
   belongs there too. Do not suppress useful workflow events merely to control
@@ -40,6 +45,13 @@ notes when they disagree.
   reviewer agents approve the final coder commit. Bind every review to that
   exact SHA; a new coder commit invalidates earlier approvals. For a long plan,
   repeat this per serial deliverable/PR instead of creating one giant review.
+- Foreman's completed transcript ConfigMap is useful operator evidence, not
+  planner context. Publish structured assistant notes, tool calls, commands, and
+  bounded outputs in a muteable Agent Runs thread; never publish raw private
+  reasoning fields. Redact credential-shaped values, cap event size/count, and
+  keep the concise final summary as the planner-facing boundary. Detailed live
+  streaming needs a structured Foreman event stream; do not scrape pod logs to
+  imitate one.
 
 ## Model diversity is a routing property
 

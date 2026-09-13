@@ -70,6 +70,10 @@ class ForemanClient:
     def task_collection_path(self) -> str:
         return f"/apis/foreman.llmkube.dev/v1alpha1/namespaces/{self.namespace}/agentictasks"
 
+    @property
+    def configmap_collection_path(self) -> str:
+        return f"/api/v1/namespaces/{self.namespace}/configmaps"
+
     def _call(self, method: str, path: str, body: dict | None = None) -> dict:
         token = Path(self.token_path).read_text().strip()
         request = Request(
@@ -207,6 +211,24 @@ class ForemanClient:
 
     def get_task(self, name: str) -> dict:
         return self._call("GET", f"{self.task_collection_path}/{quote(name)}")
+
+    def get_transcript(self, task: dict) -> dict | None:
+        status = task.get("status", {})
+        reference = status.get("transcriptRef")
+        if not reference:
+            reference = status.get("result", {}).get("extra", {}).get("transcriptRef")
+        if isinstance(reference, str):
+            name, namespace, kind = reference, self.namespace, "ConfigMap"
+        elif isinstance(reference, dict):
+            name = str(reference.get("name", ""))
+            namespace = str(reference.get("namespace", self.namespace))
+            kind = str(reference.get("kind", "ConfigMap"))
+        else:
+            return None
+        if (namespace != self.namespace or kind != "ConfigMap"
+                or not name.startswith("foreman-transcript-")):
+            raise RuntimeError("Foreman task returned an invalid transcript reference")
+        return self._call("GET", f"{self.configmap_collection_path}/{quote(name)}")
 
     def tasks(self, workload_name_value: str) -> list[dict]:
         selector = quote(f"foreman.llmkube.dev/workload={workload_name_value}", safe="")

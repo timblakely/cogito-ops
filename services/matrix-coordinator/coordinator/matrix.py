@@ -7,6 +7,7 @@ from datetime import datetime
 from hashlib import sha256
 from threading import RLock
 from typing import Any
+import json
 import re
 
 from .core import Coordinator
@@ -17,6 +18,115 @@ from .state import StateStore
 
 
 HASH = re.compile(r"sha256:[0-9a-f]{64}")
+SECRET_PATTERNS = (
+    re.compile(r"(?i)(authorization\s*[:=]\s*bearer\s+)[^\s'\"]+"),
+    re.compile(
+        r"(?i)((?:\"|')?(?:token|password|secret|api[_-]?key)(?:\"|')?"
+        r"\s*[:=]\s*(?:\"|')?)[^\s,'\"}]+"
+    ),
+    re.compile(r"\b(?:github_pat_|gh[pousr]_)[A-Za-z0-9_]{16,}\b"),
+    re.compile(r"\bsyt_[A-Za-z0-9_-]{16,}\b"),
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----"),
+)
+MAX_TRACE_EVENTS = 80
+
+
+def _sanitize(value: Any, limit: int = 6000) -> str:
+    text = str(value or "").replace("\x00", "")
+    for pattern in SECRET_PATTERNS:
+        if pattern.groups:
+            text = pattern.sub(r"\1[REDACTED]", text)
+        else:
+            text = pattern.sub("[REDACTED]", text)
+    text = text.replace("```", "` ` `")
+    if len(text) > limit:
+        return text[:limit] + f"\n… [truncated {len(text) - limit} characters]"
+    return text
+
+
+def _code(value: Any, language: str = "text", limit: int = 6000) -> str:
+    return f"```{language}\n{_sanitize(value, limit)}\n```"
+
+
+def _tool_output(message: dict[str, Any] | None) -> str:
+    if not message:
+        return "No tool output was recorded."
+    content = message.get("content", "")
+    try:
+        parsed = json.loads(content) if isinstance(content, str) else content
+    except (TypeError, json.JSONDecodeError):
+        parsed = content
+    if not isinstance(parsed, dict):
+        return _sanitize(parsed)
+    sections = []
+    if "exit_code" in parsed:
+        sections.append(f"exit `{parsed['exit_code']}`")
+    if parsed.get("timed_out"):
+        sections.append("timed out")
+    header = " · ".join(sections)
+    streams = []
+    if parsed.get("stdout"):
+        streams.append(_code(parsed["stdout"]))
+    if parsed.get("stderr"):
+        streams.append("stderr:\n" + _code(parsed["stderr"]))
+    if not streams:
+        residual = {key: value for key, value in parsed.items()
+                    if key not in {"command", "exit_code", "timed_out", "stdout", "stderr"}}
+        if residual:
+            streams.append(_code(json.dumps(residual, indent=2, sort_keys=True)))
+    return "\n\n".join(filter(None, [header, *streams])) or "No output."
+
+
+def _transcript_events(configmap: dict[str, Any]) -> list[str]:
+    raw = configmap.get("data", {}).get("transcript.json", "")
+    try:
+        transcript = json.loads(raw)
+    except (TypeError, json.JSONDecodeError):
+        return ["⚠️ Foreman stored a transcript that could not be decoded."]
+    if not isinstance(transcript, dict) or not isinstance(transcript.get("messages"), list):
+        return ["⚠️ Foreman stored a transcript with an unsupported structure."]
+    messages = transcript.get("messages", [])
+    outputs = {message.get("tool_call_id"): message for message in messages
+               if isinstance(message, dict) and message.get("role") == "tool"
+               and message.get("tool_call_id")}
+    events = []
+    for message in messages:
+        if not isinstance(message, dict) or message.get("role") != "assistant":
+            continue
+        note = str(message.get("content") or "").strip()
+        if note:
+            events.append(f"**Agent note**\n\n{_sanitize(note)}")
+        for call in message.get("tool_calls") or []:
+            if not isinstance(call, dict):
+                continue
+            function = call.get("function", {})
+            if not isinstance(function, dict):
+                continue
+            name = str(function.get("name", "unknown"))
+            arguments = function.get("arguments", "")
+            try:
+                parsed = json.loads(arguments) if isinstance(arguments, str) else arguments
+            except (TypeError, json.JSONDecodeError):
+                parsed = arguments
+            if name == "bash" and isinstance(parsed, dict):
+                invocation = _code(parsed.get("command", ""), "sh", 4000)
+                heading = "**Command · `bash`**"
+            else:
+                invocation = _code(
+                    json.dumps(parsed, indent=2, sort_keys=True)
+                    if isinstance(parsed, (dict, list)) else parsed,
+                    "json" if isinstance(parsed, (dict, list)) else "text", 4000,
+                )
+                heading = f"**Tool · `{_sanitize(name, 80)}`**"
+            events.append(
+                f"{heading}\n\n{invocation}\n\n**Output**\n\n"
+                f"{_tool_output(outputs.get(call.get('id')))}"
+            )
+    if len(events) > MAX_TRACE_EVENTS:
+        omitted = len(events) - MAX_TRACE_EVENTS
+        events = events[:MAX_TRACE_EVENTS]
+        events.append(f"⚠️ Trace display capped; {omitted} additional event(s) omitted.")
+    return events
 
 
 @dataclass(frozen=True)
@@ -93,6 +203,111 @@ class MatrixCoordinator:
         if self.activity_room_id:
             self.state.enqueue_matrix(notification_id, self.activity_room_id, "", body)
 
+    def typing_rooms(self) -> list[str]:
+        rooms = set(self.state.planning_typing_rooms())
+        if self.activity_room_id and self.state.has_active_research():
+            rooms.add(self.activity_room_id)
+        return sorted(rooms)
+
+    @staticmethod
+    def _agent_root_notification(task_name: str) -> str:
+        return f"agent-run:{task_name}:root"
+
+    def _enqueue_research_threads(self, row, round_number: int, names: list[str],
+                                  prompts: list[str]) -> None:
+        if not self.activity_room_id:
+            return
+        for position, (task_name, prompt) in enumerate(zip(names, prompts), 1):
+            root = self._agent_root_notification(task_name)
+            body = (
+                f"**Planning scout `{task_name}`**\n\n"
+                f"Plan `{row['plan_id']}` · research round {round_number} · scout {position}\n\n"
+                "Agent: `cogito-planning-scout` · model: `muse-glimmer-30b`\n\n"
+                f"Repository: `{row['repository']}`\n\n"
+                f"**Prompt**\n\n{_code(prompt, 'text', 8000)}\n\n"
+                "Raw private chain-of-thought is not published. This thread shows "
+                "model-authored notes, tool calls, commands, bounded outputs, and the final summary."
+            )
+            self.state.enqueue_matrix(root, self.activity_room_id, "", body)
+            self.state.enqueue_matrix(
+                f"agent-run:{task_name}:status:queued", self.activity_room_id, "",
+                "**Queued** — waiting for Foreman scheduling.", root,
+            )
+
+    def _announce_research_links(self) -> None:
+        if not self.activity_room_id:
+            return
+        for group in self.state.research_round_groups():
+            links = self.state.research_run_links(group["plan_id"], group["round"])
+            if not links:
+                continue
+            lines = [
+                f"[Scout r{group['round']}-{item['position']}]"
+                f"(https://matrix.to/#/{self.activity_room_id}/{item['sent_event_id']})"
+                for item in links
+            ]
+            self.state.enqueue_matrix(
+                f"plan:{group['plan_id']}:research:{group['round']}:agent-links",
+                group["matrix_room_id"], group["root_event_id"],
+                f"Agent Runs for research round {group['round']}: " + " · ".join(lines),
+            )
+
+    def _enqueue_research_status(self, row, task: dict[str, Any]) -> None:
+        if not self.activity_room_id:
+            return
+        status = task.get("status", {})
+        phase = status.get("phase", "Pending")
+        details = []
+        if status.get("assignedNode"):
+            details.append(f"Fleet node `{_sanitize(status['assignedNode'], 200)}`")
+        if status.get("jobName"):
+            details.append(f"Job `{_sanitize(status['jobName'], 200)}`")
+        suffix = " — " + " · ".join(details) if details else ""
+        self.state.enqueue_matrix(
+            "agent-run:" + row["task_name"] + ":status:" + sha256(
+                canonical_json(status).encode()).hexdigest(),
+            self.activity_room_id, "", f"**{_sanitize(phase, 80)}**{suffix}",
+            self._agent_root_notification(row["task_name"]),
+        )
+
+    def _publish_terminal_research(self) -> None:
+        if not self.activity_room_id:
+            return
+        for row in self.state.unpublished_terminal_research():
+            try:
+                task = self.foreman.get_task(row["task_name"])
+                transcript = self.foreman.get_transcript(task)
+            except Exception:
+                # Transcript ConfigMaps can land just after the terminal status.
+                # Leave this run unpublished so the next reconciliation retries.
+                continue
+            root = self._agent_root_notification(row["task_name"])
+            for index, body in enumerate(_transcript_events(transcript or {})):
+                self.state.enqueue_matrix(
+                    f"agent-run:{row['task_name']}:transcript:{index:03d}",
+                    self.activity_room_id, "", body, root,
+                )
+            status = task.get("status", {})
+            result = status.get("result", {})
+            extra = result.get("extra", {}) if isinstance(result, dict) else {}
+            metrics = []
+            if extra.get("turnCount") is not None:
+                metrics.append(f"{extra['turnCount']} turn(s)")
+            if result.get("elapsedSec") is not None:
+                try:
+                    metrics.append(f"{float(result['elapsedSec']):.1f}s")
+                except (TypeError, ValueError):
+                    pass
+            metrics_text = " · " + " · ".join(metrics) if metrics else ""
+            summary = row["summary"] or status.get("failureReason") or "No summary returned."
+            self.state.enqueue_matrix(
+                f"agent-run:{row['task_name']}:transcript:999-final",
+                self.activity_room_id, "",
+                f"**Finished · {_sanitize(row['state'], 80)}**{metrics_text}\n\n"
+                f"**Evidence summary**\n\n{_sanitize(summary, 8000)}",
+                root,
+            )
+
     @staticmethod
     def _plan_message(plan: PlanVersion) -> str:
         return (
@@ -110,15 +325,12 @@ class MatrixCoordinator:
             )
             round_number, names = self.state.register_research(
                 row["plan_id"], decision["tasks"])
-            self._activity(
-                f"activity:{row['plan_id']}:research:{round_number}:delegated",
-                f"Plan `{row['plan_id']}` delegated {len(names)} read-only planning scout "
-                f"task(s) in research round {round_number}.",
-            )
+            self._enqueue_research_threads(row, round_number, names, decision["tasks"])
             return self._message(
                 decision["message"].strip() +
                 f"\n\nDelegated {len(names)} focused read-only task(s) to local planning "
-                "scouts. I’ll post the draft or a substantive question here when they finish.",
+                "scouts. Their Agent Runs threads will be linked here after Matrix acknowledges "
+                "them. I’ll post the draft or a substantive question here when they finish.",
                 row["root_event_id"],
             )
         if decision["status"] == "ready":
@@ -243,13 +455,10 @@ class MatrixCoordinator:
             task_status = task.get("status", {})
             changed = self.state.update_research(row["task_name"], task_status)
             if changed:
-                phase = task_status.get("phase", "Pending")
-                self._activity(
-                    "activity:" + sha256(
-                        f"{row['task_name']}:{canonical_json(task_status)}".encode()).hexdigest(),
-                    f"Plan `{row['plan_id']}` · planning scout `{row['task_name']}` is "
-                    f"**{phase}**.",
-                )
+                self._enqueue_research_status(row, task)
+
+        self._publish_terminal_research()
+        self._announce_research_links()
 
         for ready in self.state.research_ready():
             self._synthesize_research(ready)

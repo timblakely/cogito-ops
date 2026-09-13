@@ -42,10 +42,21 @@ Routine Foreman status changes, review quorum, per-deliverable merge messages,
 and the Hookshot GitHub feed go to `Agent Runs`. Mute that room in Commet to
 retain the workflow record without receiving operational notification spam.
 Use `!cogito status` in the control thread for an on-demand snapshot.
+Each delegated planning scout gets one durable thread in `Agent Runs`. Its root
+records the exact delegated prompt and the plan/round correlation; replies show
+scheduling and phase changes followed by the completed structured trace
+(model-authored notes, tool calls, commands, bounded outputs, and evidence
+summary). The originating plan thread receives Matrix links to those scout
+threads after their root events are acknowledged. Private model reasoning is
+never forwarded. Trace messages are size/count bounded and common credentials
+are redacted, but operators should still avoid asking scouts to print secrets.
+Foreman currently persists the detailed transcript at task completion, so
+commands and outputs appear then rather than streaming live.
 While local planning scouts or the subsequent Astra synthesis are active, the
 Cogito bot refreshes its room-level Matrix typing indicator. Matrix does not
 provide a thread-scoped typing indicator, so concurrent work in any Cogito
-thread makes the bot appear to type in the room as a whole.
+thread makes the bot appear to type in the room as a whole. During scout work,
+typing is also refreshed in `Agent Runs`.
 Repo-backed read-only scouts may be reported by Foreman as `NO-CHANGES` because
 they correctly produce no diff. The coordinator uses Foreman's preserved model
 summary as research evidence rather than treating the no-diff wrapper as the
@@ -92,6 +103,8 @@ scout tasks and summaries, plan versions, comments, exact approvals, ordered
 deliverable correlation, Workload names, the SHA-pinned asynchronous merge
 receipt, Matrix replay/outbox records, idempotent issue-creation actions, and
 audit records. Foreman CRs contain execution and review state; GitHub contains
-check and merge state. The v9 migration adds delegated planning research; v8
-added planner intake and v7 added the serial-delivery boundary. Retired run,
-delivery, control, and work-item tables remain deleted.
+check and merge state. The v10 migration adds parent-notification correlation
+so replies wait for Matrix to acknowledge their Agent Runs thread root; v9 adds
+delegated planning research, v8 added planner intake, and v7 added the
+serial-delivery boundary. Retired run, delivery, control, and work-item tables
+remain deleted.

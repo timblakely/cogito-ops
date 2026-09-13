@@ -55,6 +55,30 @@ class ForemanTests(unittest.TestCase):
         self.assertEqual(manifest["spec"]["payload"]["baseBranch"], "main")
         self.assertIn("Work read-only", manifest["spec"]["payload"]["prompt"])
 
+    def test_transcript_reference_is_scoped_to_foreman_configmaps(self):
+        client = ForemanClient(namespace="llm")
+        calls = []
+        client._call = lambda method, path, body=None: calls.append((method, path)) or {
+            "data": {"transcript.json": "{}"},
+        }
+        value = client.get_transcript({"status": {
+            "result": {"extra": {"transcriptRef": {
+                "kind": "ConfigMap", "namespace": "llm",
+                "name": "foreman-transcript-plan-a-research-r1-1",
+            }}},
+        }})
+        self.assertEqual(value["data"]["transcript.json"], "{}")
+        self.assertEqual(calls, [("GET", "/api/v1/namespaces/llm/configmaps/"
+                                        "foreman-transcript-plan-a-research-r1-1")])
+
+        for reference in (
+            {"kind": "Secret", "namespace": "llm", "name": "foreman-transcript-x"},
+            {"kind": "ConfigMap", "namespace": "other", "name": "foreman-transcript-x"},
+            {"kind": "ConfigMap", "namespace": "llm", "name": "untrusted"},
+        ):
+            with self.assertRaisesRegex(RuntimeError, "invalid transcript reference"):
+                client.get_transcript({"status": {"transcriptRef": reference}})
+
     def test_merge_candidate_requires_two_distinct_reviews_after_final_coder(self):
         client = ForemanClient()
         tasks = [

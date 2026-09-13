@@ -55,7 +55,7 @@ class App:
                 return 200, {
                     "notifications": self.state.pending_matrix(
                         min(max(int(value.get("limit", 20)), 1), 100)),
-                    "typing_rooms": self.state.planning_typing_rooms(),
+                    "typing_rooms": self.matrix.typing_rooms(),
                 }
             if operation == "ack":
                 return 200, {"completed": self.state.complete_matrix(

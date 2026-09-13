@@ -10,7 +10,7 @@ from typing import Any, Iterator
 import json
 import time
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 DDL = """
 PRAGMA journal_mode=WAL;
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS matrix_event_results (
 CREATE TABLE IF NOT EXISTS matrix_outbox (
   notification_id TEXT PRIMARY KEY, room_id TEXT NOT NULL, thread_root TEXT NOT NULL,
   body TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL,
-  sent_event_id TEXT);
+  sent_event_id TEXT, thread_notification_id TEXT NOT NULL DEFAULT '');
 CREATE TABLE IF NOT EXISTS external_actions (
   action_key TEXT PRIMARY KEY, kind TEXT NOT NULL, request_json TEXT NOT NULL,
   state TEXT NOT NULL, result_json TEXT, last_error TEXT);
@@ -121,6 +121,13 @@ class StateStore:
                       updated_at INTEGER NOT NULL,
                       PRIMARY KEY(plan_id, position));
                 """)
+        if current < 10:
+            columns = {row[1] for row in self.db.execute("PRAGMA table_info(matrix_outbox)")}
+            if "thread_notification_id" not in columns:
+                self.db.execute(
+                    "ALTER TABLE matrix_outbox ADD COLUMN "
+                    "thread_notification_id TEXT NOT NULL DEFAULT ''"
+                )
         # A process can disappear while Astra is synthesizing completed scout
         # results. Re-entering research is safe: Foreman task names and Matrix
         # notifications are deterministic, while a stuck plan is not useful.
@@ -343,6 +350,47 @@ class StateStore:
         counts["total"] = sum(counts.values())
         return counts
 
+    def has_active_research(self) -> bool:
+        with self.lock:
+            return self.db.execute(
+                "SELECT 1 FROM plan_research r JOIN plans p ON p.plan_id=r.plan_id "
+                "WHERE p.state='researching' AND r.state NOT IN ('Succeeded','Failed') LIMIT 1"
+            ).fetchone() is not None
+
+    def research_round_groups(self):
+        with self.lock:
+            return self.db.execute(
+                "SELECT DISTINCT r.plan_id,r.round,p.matrix_room_id,p.root_event_id "
+                "FROM plan_research r JOIN plans p ON p.plan_id=r.plan_id "
+                "ORDER BY r.plan_id,r.round"
+            ).fetchall()
+
+    def research_run_links(self, plan_id: str, round_number: int) -> list[dict[str, Any]]:
+        with self.lock:
+            rows = self.db.execute(
+                "SELECT r.position,r.task_name,o.sent_event_id FROM plan_research r "
+                "LEFT JOIN matrix_outbox o ON o.notification_id="
+                "('agent-run:' || r.task_name || ':root') "
+                "WHERE r.plan_id=? AND r.round=? ORDER BY r.position",
+                (plan_id, round_number),
+            ).fetchall()
+        if not rows or any(not row["sent_event_id"] for row in rows):
+            return []
+        return [dict(row) for row in rows]
+
+    def unpublished_terminal_research(self):
+        with self.lock:
+            return self.db.execute(
+                "SELECT r.*,p.repository,p.matrix_room_id,p.root_event_id "
+                "FROM plan_research r JOIN plans p ON p.plan_id=r.plan_id "
+                "JOIN matrix_outbox root ON root.notification_id="
+                "('agent-run:' || r.task_name || ':root') "
+                "LEFT JOIN matrix_outbox o ON o.notification_id="
+                "('agent-run:' || r.task_name || ':transcript:999-final') "
+                "WHERE r.state IN ('Succeeded','Failed') AND o.notification_id IS NULL "
+                "ORDER BY r.updated_at,r.task_name"
+            ).fetchall()
+
     def current_plan_version(self, plan_id: str):
         with self.lock:
             return self.db.execute(
@@ -505,18 +553,26 @@ class StateStore:
         counts["total"] = sum(counts.values())
         return counts
 
-    def enqueue_matrix(self, notification_id: str, room_id: str, thread_root: str, body: str) -> bool:
+    def enqueue_matrix(self, notification_id: str, room_id: str, thread_root: str,
+                       body: str, thread_notification_id: str = "") -> bool:
         with self.transaction() as db:
             return db.execute(
-                "INSERT OR IGNORE INTO matrix_outbox(notification_id,room_id,thread_root,body,created_at) "
-                "VALUES (?,?,?,?,?)", (notification_id, room_id, thread_root, body,
-                                        int(time.time()))).rowcount == 1
+                "INSERT OR IGNORE INTO matrix_outbox(notification_id,room_id,thread_root,body,"
+                "created_at,thread_notification_id) VALUES (?,?,?,?,?,?)",
+                (notification_id, room_id, thread_root, body, int(time.time()),
+                 thread_notification_id)).rowcount == 1
 
     def pending_matrix(self, limit: int = 20) -> list[dict[str, Any]]:
         with self.lock:
             return [dict(row) for row in self.db.execute(
-                "SELECT notification_id,room_id,thread_root,body FROM matrix_outbox "
-                "WHERE state='pending' ORDER BY created_at,notification_id LIMIT ?", (limit,)).fetchall()]
+                "SELECT child.notification_id,child.room_id,"
+                "CASE WHEN child.thread_root != '' THEN child.thread_root "
+                "ELSE COALESCE(parent.sent_event_id,'') END thread_root,child.body "
+                "FROM matrix_outbox child LEFT JOIN matrix_outbox parent "
+                "ON parent.notification_id=child.thread_notification_id "
+                "WHERE child.state='pending' AND (child.thread_notification_id='' "
+                "OR parent.sent_event_id IS NOT NULL) "
+                "ORDER BY child.created_at,child.notification_id LIMIT ?", (limit,)).fetchall()]
 
     def complete_matrix(self, notification_id: str, event_id: str) -> bool:
         with self.transaction() as db:
