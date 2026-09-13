@@ -4,6 +4,15 @@ Current operational sharp edges and lessons from the Matrix/Foreman and
 heterogeneous-GPU migrations live in [`operator-lessons.md`](operator-lessons.md).
 The artifacts below are dated research inputs rather than current runbooks.
 
+The async-agent design proposal is versioned. Current: `async-agentic-homelab-v4.md`
+(2026-09-13): Luna is the coordinator agent at the Workload level, the GitHub
+issue is the plan object, approval by label, repository webhook to the renamed
+`gateway` service, nine-item cluster repair list in §1.5. Superseded, retained
+for the trail: `-v3.md` (Foreman behind LiteLLM, inherited defaults decided),
+`-v2.md` (delta from the deployed system), `-v1.md` (2026-09-12, as reviewed).
+The v1 audit is published at
+https://claude.ai/code/artifact/8342d002-3e65-4ae8-a140-9bf27ddafea8.
+
 Source HTML for six published Artifacts. Each file redeploys to the URL below
 it — **pass that URL when republishing**, or a new artifact is created instead of
 the existing one being updated.
