@@ -125,6 +125,10 @@ notes when they disagree.
   `jq` alongside `gh`; run metadata alone is not enough for evidence-first CI
   diagnosis, and missing extraction tools can send a local scout through a long
   sequence of unproductive fallback commands.
+- Debian's `gh` 2.46 returned zero bytes for `gh run view --job ... --log` on a
+  run whose current `gh` 2.82.1 client returned 2.69 MB. Install the official
+  release with a pinned checksum in the scout image; do not make the model work
+  around an old client's Actions-log behavior with raw API headers.
 - Long-running llama.cpp research traffic exceeded Muse's 12Gi host-memory
   cgroup after several sequential scouts. The endpoint was OOM-killed at the
   same instant an active scout received `connection refused`. Match the server's
