@@ -32,7 +32,7 @@ class StateTests(unittest.TestCase):
         with self.assertRaises(sqlite3.IntegrityError):
             self.state.db.execute("DELETE FROM audit_events WHERE sequence=?", (sequence,))
 
-    def test_v9_migration_drops_retired_tables_and_allows_serial_workloads(self):
+    def test_v10_migration_drops_retired_tables_and_allows_serial_workloads(self):
         path = self.tmp.name
         self.state.close()
         db = sqlite3.connect(path)
@@ -61,10 +61,25 @@ class StateTests(unittest.TestCase):
         self.assertIn("deliverable_position", columns)
         self.assertIn("plan_intake", names)
         self.assertIn("plan_research", names)
+        outbox_columns = {
+            row[1] for row in self.state.db.execute("PRAGMA table_info(matrix_outbox)")
+        }
+        self.assertIn("thread_notification_id", outbox_columns)
         migrated = self.state.db.execute(
             "SELECT plan_id,deliverable_position,state FROM workloads WHERE name='old-workload'"
         ).fetchone()
         self.assertEqual(tuple(migrated), ("old-plan", 1, "Completed"))
+
+    def test_outbox_reply_waits_for_parent_matrix_ack(self):
+        self.state.enqueue_matrix("agent:root", "!agents:x", "", "Scout")
+        self.state.enqueue_matrix(
+            "agent:queued", "!agents:x", "", "Queued", "agent:root")
+        pending = self.state.pending_matrix()
+        self.assertEqual([item["notification_id"] for item in pending], ["agent:root"])
+        self.assertTrue(self.state.complete_matrix("agent:root", "$agent-root"))
+        pending = self.state.pending_matrix()
+        self.assertEqual([item["notification_id"] for item in pending], ["agent:queued"])
+        self.assertEqual(pending[0]["thread_root"], "$agent-root")
 
     def test_intake_is_durable_and_ordered(self):
         self.state.begin_intake(
