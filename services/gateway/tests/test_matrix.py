@@ -57,6 +57,11 @@ class FakeForeman:
         self.created = []
         self.research_created = []
         self.research_phase = "Succeeded"
+        self.research_result = {
+            "elapsedSec": 3.5,
+            "summary": "The relevant implementation is in coordinator/matrix.py.",
+            "extra": {"turnCount": 2},
+        }
         self.phase = "Dispatched"
     def ensure_workload(self, **values):
         self.created.append(values)
@@ -78,11 +83,7 @@ class FakeForeman:
             "phase": self.research_phase,
             "assignedNode": "foreman-agent-a", "jobName": "foreman-scout-a",
             "transcriptRef": f"foreman-transcript-{name}",
-            "result": {
-                "elapsedSec": 3.5,
-                "summary": "The relevant implementation is in coordinator/matrix.py.",
-                "extra": {"turnCount": 2},
-            },
+            "result": self.research_result,
         }}
     def get_transcript(self, task):
         return {"data": {"transcript.json": json.dumps({"messages": [
@@ -237,6 +238,30 @@ class MatrixTests(unittest.TestCase):
         self.assertNotIn("very-secret-value", trace)
         self.assertNotIn("private analysis", trace)
         self.assertIn("**Evidence summary**", trace)
+
+    def test_terminal_research_with_null_result_is_published(self):
+        self.planner.decisions = [
+            {"status": "delegate", "message": "I need evidence.",
+             "tasks": ["Inspect CI without changing it."]},
+            {"status": "ready", "message": "Evidence received.",
+             "plan_markdown": "# Evidence\n\n## Deliverables\n- [ ] Fix it\n"},
+        ]
+        self.matrix.handle(self.event("$root", "!cogito plan Fix CI"))
+        agent_root = next(
+            item for item in self.state.pending_matrix()
+            if item["room_id"] == "!activity:matrix.example"
+        )
+        self.state.complete_matrix(agent_root["notification_id"], "$agent-root")
+        self.foreman.research_result = None
+
+        self.matrix.reconcile_once()
+
+        messages = [item["body"] for item in self.state.pending_matrix(100)]
+        self.assertTrue(any("**Evidence summary**" in body for body in messages))
+        self.assertEqual(
+            self.state.plan_for_thread("!room:matrix.example", "$root")["state"],
+            "review",
+        )
 
     def test_revision_can_delegate_before_creating_version_two(self):
         self.matrix.handle(self.event("$root", "!cogito plan Build it"))
