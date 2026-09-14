@@ -1,0 +1,58 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/admissionregistration.k8s.io/mutatingadmissionpolicy_v1beta1.json
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingAdmissionPolicy
+metadata:
+  name: llmkube-exclusive-gpu-recreate.cogito.dev
+spec:
+  failurePolicy: Fail
+  reinvocationPolicy: Never
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["deployments"]
+  matchConditions:
+    # Only mutate Deployments owned by LLMKube InferenceServices. The binding
+    # below further limits this to the two explicitly UUID-bound GPU lanes.
+    - name: llmkube-inference-service-owner
+      expression: >-
+        has(object.metadata.ownerReferences) &&
+        object.metadata.ownerReferences.exists(owner,
+          owner.apiVersion == "inference.llmkube.dev/v1alpha1" &&
+          owner.kind == "InferenceService" &&
+          owner.controller == true &&
+          owner.name == object.metadata.name)
+  mutations:
+    - patchType: JSONPatch
+      jsonPatch:
+        # Replacing the complete strategy also removes rollingUpdate, which is
+        # invalid beside type=Recreate. JSON Patch "add" replaces an existing
+        # object member and creates it when the member is absent.
+        expression: >-
+          [JSONPatch{
+            op: "add",
+            path: "/spec/strategy",
+            value: Object.spec.strategy{type: "Recreate"}
+          }]
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/admissionregistration.k8s.io/mutatingadmissionpolicybinding_v1beta1.json
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingAdmissionPolicyBinding
+metadata:
+  name: llmkube-exclusive-gpu-recreate.cogito.dev
+spec:
+  policyName: llmkube-exclusive-gpu-recreate.cogito.dev
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: llm
+    resourceRules:
+      - apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["deployments"]
+        resourceNames:
+          - qwen3-8-27b
+          - muse-glimmer-30b
