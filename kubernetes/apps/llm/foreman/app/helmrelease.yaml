@@ -97,11 +97,11 @@ spec:
       execution:
         roles: [worker, coder, verifier, reviewer]
         maxSupervisedTasks: 2
-        # The in-process verifier clones the pushed coder branch before it
-        # starts the deterministic gate, so its supervisor needs read access.
+        # Verifier clones are anonymous for this public repository. Keep the
+        # long-lived supervisor credential-free; coder/reviewer Jobs receive
+        # the current rotating App token when they are created.
         githubToken:
-          secretName: foreman-github-token
-          secretKey: token
+          secretName: ""
         coderGitSecret: foreman-github-token
         coderGitSecretKey: token
       scouts:
