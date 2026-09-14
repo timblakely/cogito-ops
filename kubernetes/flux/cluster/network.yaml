@@ -14,6 +14,11 @@ spec:
     - ../../components/namespace
   prune: false
   wait: true
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: flux-local-settings
+        optional: true
   sourceRef:
     kind: GitRepository
     name: flux-system
