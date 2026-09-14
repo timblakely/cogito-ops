@@ -443,6 +443,16 @@ three aliases, and the pod has no Kubernetes service-account token or GitHub
 credential. Session and Matrix crypto state remain on the VolSync/Kopia-backed
 PVC. `[VERIFY]` complete an owner-device E2EE DM turn with `@hermes`.
 
+Live acceptance on 2026-09-14: Flux applied exact `main` revision
+`15203aebc8570d5351ea5c07607c507a0e9e5ad1`; the provider migration init
+container completed and the replacement pod became Ready with zero restarts;
+one-shot turns returned the expected sentinel through `coordinator`, `qwen`,
+and `muse`; Matrix logged in as `@hermes`, enabled E2EE on stable device
+`HERMES_BOT`, completed initial sync, and rejected non-owner invitations. The
+existing-key operator gap required one `/key/update`; afterwards `/key/info`
+reported only the three intended aliases and a `planner-gpt-pro` probe failed
+with HTTP 403 `key_model_access_denied`. The short-lived update pod was deleted.
+
 ---
 
 ## 10. Matrix conventions

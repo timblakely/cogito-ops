@@ -37,3 +37,10 @@ escape-hatch models.
 The provider catalogue is deliberately static. This keeps a newly restored PVC
 and an old mutable one on the same v4 contract and prevents unrelated LiteLLM
 catalogue additions from becoming reachable through the direct-session key.
+
+The LiteLLM operator currently reconciles an edited `LiteLLMVirtualKey` object
+without updating the model list of an already-issued key in LiteLLM's database.
+The v4 rollout therefore applied `/key/update` once with the existing Hermes
+and master keys held only in a short-lived, no-service-account pod, then deleted
+that pod. Fresh key issuance uses the scoped CR directly; future scope edits
+must repeat the database update until the operator closes this gap.
