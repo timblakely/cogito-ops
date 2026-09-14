@@ -74,8 +74,8 @@ spec:
         - muse-glimmer-30b
       commitAuthorName: Cogito Foreman
       commitAuthorEmail: foreman@cogito.invalid
-      # Job-mode workers resolve their own projected credentials. The
-      # supervisor does not consume this rotating token directly.
+      # Pools opt in below. Keeping the shared default empty prevents the
+      # credential-free scout supervisor from inheriting this rotating token.
       githubToken:
         secretName: ""
       gateCache:
@@ -97,6 +97,11 @@ spec:
       execution:
         roles: [worker, coder, verifier, reviewer]
         maxSupervisedTasks: 2
+        # The in-process verifier clones the pushed coder branch before it
+        # starts the deterministic gate, so its supervisor needs read access.
+        githubToken:
+          secretName: foreman-github-token
+          secretKey: token
         coderGitSecret: foreman-github-token
         coderGitSecretKey: token
       scouts:
