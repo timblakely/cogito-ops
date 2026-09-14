@@ -1010,7 +1010,11 @@ class StateStore:
                         f"SELECT state,count(*) count FROM {table} GROUP BY state ORDER BY state"):
                     lines.append(f'cogito_gateway_objects{{kind="{kind}",state="{row["state"]}"}} {row["count"]}')
             failed = self.db.execute(
-                "SELECT count(*) FROM external_actions WHERE last_error IS NOT NULL").fetchone()[0]
+                "SELECT count(*) FROM external_actions action JOIN luna_turns turn "
+                "ON substr(action.action_key,1,length(turn.batch_id)+1)=turn.batch_id || ':' "
+                "WHERE action.last_error IS NOT NULL "
+                "AND turn.state IN ('pending','running')"
+            ).fetchone()[0]
             audits = self.db.execute("SELECT count(*) FROM audit_events").fetchone()[0]
             luna = self.db.execute(
                 "SELECT plan_id,count(*) turns,COALESCE(sum(input_tokens),0) input_tokens,"
