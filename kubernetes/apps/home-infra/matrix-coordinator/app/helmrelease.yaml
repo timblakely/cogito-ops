@@ -66,13 +66,13 @@ spec:
               MATRIX_ACTIVITY_ROOM_ID: "!5wS6Ha0iIA8OL4oWd1lYAqGubN1eXqN34ZDqmWIgbPU"
               MATRIX_IMPLEMENTATION_ROOM_ID:
                 valueFrom:
-                  secretKeyRef:
-                    name: matrix-rooms-outputs
+                  configMapKeyRef:
+                    name: matrix-room-ids
                     key: implementation_room_id
               MATRIX_PROJECT_ROOM_ID:
                 valueFrom:
-                  secretKeyRef:
-                    name: matrix-rooms-outputs
+                  configMapKeyRef:
+                    name: matrix-room-ids
                     key: cogito_project_room_id
               MATRIX_PROJECT_REPOSITORY: https://github.com/timblakely/cogito-ops.git
               LUNA_TURN_CAP: "200"
@@ -129,8 +129,8 @@ spec:
               PYTHONPATH: /opt/maubot
               MATRIX_PROJECT_ROOM_ID:
                 valueFrom:
-                  secretKeyRef:
-                    name: matrix-rooms-outputs
+                  configMapKeyRef:
+                    name: matrix-room-ids
                     key: cogito_project_room_id
             securityContext:
               allowPrivilegeEscalation: false
