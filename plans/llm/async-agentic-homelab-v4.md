@@ -1,6 +1,6 @@
 # Async Agentic Homelab: Matrix-driven planning and execution on a Talos Kubernetes cluster
 
-**Status:** core implementation deployed; a two-deliverable acceptance run completed on 2026-09-14. Hermes direct sessions (§9) are implemented pending the owner-device DM check. Phone image ingestion is implemented pending rollout and an owner-device check; optional persona polish and remaining owner-device checks are deferred. Supersedes v3 (2026-09-13), v2 (same day), and v1 (2026-09-12).
+**Status:** core implementation deployed; a two-deliverable acceptance run completed on 2026-09-14. Hermes direct sessions (§9) are implemented pending the owner-device DM check. Phone image ingestion is deployed and passed an in-cluster Muse vision probe; the owner-device encrypted-media check remains. Optional persona polish and remaining owner-device checks are deferred. Supersedes v3 (2026-09-13), v2 (same day), and v1 (2026-09-12).
 **Audience:** a reviewer with no prior context. Markers: `[VERIFY]` unverified, `[DECISION]` contestable choice, `[OBSERVED]` seen on the live cluster on 2026-09-13, `[INHERITED]` an upstream or colleague's default rather than a choice made here.
 
 ---
@@ -258,7 +258,7 @@ evidence.
 | Escalation and replanning | Partial | ~120 | Luna decides; gateway enforces limits; replanning reopens the plan issue and removes the label. |
 | Luna token accounting | Missing | ~60 | Turns and tokens per plan from LiteLLM usage fields; card and `/metrics`; cap → `NEEDS_INPUT`. |
 | Direct sessions (§9) | Implemented with Hermes | Existing isolated pod + backed-up PVC; scoped LiteLLM key. Owner-device DM remains to verify. |
-| Images from the phone | Implemented | ~120 | Bounded 8 MiB encrypted Matrix download; dedicated local Muse `image` alias/key; only the text description reaches Astra or Luna. Owner-device check remains. |
+| Images from the phone | Deployed | ~120 | Bounded 8 MiB encrypted Matrix download; dedicated local Muse `image` alias/key; only the text description reaches Astra or Luna. In-cluster vision and key-scope probes passed; owner-device check remains. |
 | Multi-persona senders | Missing | 0 now | Glyph prefixes. Appservice later. |
 
 Adapt total: roughly **2,000–2,400 lines** on top of 3.2k that stay. The Luna loop and the webhook path are the two new subsystems; everything else is extension.
@@ -500,7 +500,8 @@ Synapse → ntfy → UnifiedPush → Commet (done). Mentions only on `NEEDS_INPU
 | 5 | **Scouts on both cards, notes, prefix protocol, Qwen A/B** | Qwen and Muse scouts in one round; notes-based resume; prefix hit rate measured; `SPEC`/`CTX` A/B in `bench-notes.md`. |
 | 6 | **Escalation and replanning exercised** | Forced `BLOCKED`, `REPLANNING` via label removal, guardrail intercept, failed required check, turn cap. |
 | 7 | **Direct sessions** | Implemented with Hermes; owner-device E2EE DM check remains. |
-| 8 | **Polish** | Appservice personas optional; dashboards; retire the `!cogito` prefix. |
+| 8 | **Phone images** | Deployed; local Muse described a generated image through the scoped route, while the same key was denied access to `reviewer`. Owner-device encrypted-media check remains. |
+| 9 | **Polish** | Appservice personas optional; dashboards; retire the `!cogito` prefix. |
 
 ---
 
@@ -518,11 +519,14 @@ Synapse → ntfy → UnifiedPush → Commet (done). Mentions only on `NEEDS_INPU
 8. `[VERIFY]` Luna tokens per Workload-level deliverable at effort max, measured over the first real plan; decides whether coalescing or effort needs tuning.
 9. `[VERIFY]` Commet renders `m.poll`.
 10. `[VERIFY]` Complete an owner-device E2EE direct-session turn with `@hermes`.
-11. Measure: Qwen `SPEC`/`CTX` A/B; Muse Glimmer's DFlash boundary, real
+11. `[VERIFY]` Send an encrypted image from Commet in a planning and an
+    implementation thread; confirm only the bounded Muse description reaches
+    Astra or Luna.
+12. Measure: Qwen `SPEC`/`CTX` A/B; Muse Glimmer's DFlash boundary, real
     concurrent scout turn p95, prefix hit ratio, and mixed vision/text behavior
     on its RTX 3090; coder effort. The synthetic Glimmer capacity frontier is
     complete through 16 slots.
-12. Upstream: Foreman's no-diff gate on `freeform` tasks. Terminal-task drain and
+13. Upstream: Foreman's no-diff gate on `freeform` tasks. Terminal-task drain and
     orphaned in-cluster FleetNode cleanup shipped in Foreman 0.9.26 and are
     deployed here via 0.9.27.
 
