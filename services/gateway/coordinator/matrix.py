@@ -293,7 +293,7 @@ class MatrixCoordinator:
                     self.activity_room_id, "", body, root,
                 )
             status = task.get("status", {})
-            result = status.get("result", {})
+            result = status.get("result") or {}
             extra = result.get("extra", {}) if isinstance(result, dict) else {}
             metrics = []
             if extra.get("turnCount") is not None:
