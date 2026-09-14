@@ -6,9 +6,8 @@ This file records the measurements required by
 
 ## 2026-09-13 implementation baseline
 
-- Cluster measurements: **blocked**. The first read-only Kubernetes API call
-  could not resolve `k8s.internal` from the execution sandbox, so no live
-  measurement was retried.
+- Cluster measurements resumed on 2026-09-14 with authorized cluster access.
+  Glimmer results are recorded below; the Qwen and Hermes cells remain open.
 - Qwen profile under test: `SPEC=dflash2`, `CTX=long`, `PREFIX_CACHE=1`,
   `MAX_SEQS=5`, served as `qwen3-8-27b`.
 - Muse profile under test: two fixed 131,072-token slots in a 262,144-token
@@ -36,12 +35,12 @@ commit, sampling parameters, and at least five warm repetitions per cell.
 
 ## Muse Glimmer 30B capacity, concurrency, and prefix reuse
 
-The live 2026-09-14 baseline is `InferenceService/muse-glimmer-30b` generation
-6 on iggy's PCIe x4 RTX 3090 (`GPU-787b...`): llama.cpp digest
+The study started from `InferenceService/muse-glimmer-30b` generation 6 on
+iggy's PCIe x4 RTX 3090 (`GPU-787b...`): llama.cpp digest
 `sha256:6ac92152...`, Q4_K_M target plus DFlash drafter, Q8 KV, a 262,144-token
 arena divided into two fixed 131,072-token slots, and a 16 GiB container memory
-limit. The service being Ready proves only that this operating point loads; it
-does not establish usable context under simultaneous inference.
+limit. Temporary generations through 11 measured the capacity frontier; the
+GitOps baseline was restored after the run.
 
 llama.cpp divides `contextSize` by `parallelSlots`, so record both total arena
 and effective per-slot context. Run the following frontier in order. For each
@@ -51,18 +50,21 @@ column until the cause is understood.
 
 | Cell | Parallel slots | Total `contextSize` | Context per slot | Concurrent requests | Result | Artifact |
 |---|---:|---:|---:|---:|---|---|
-| G1 | 1 | 65,536 | 65,536 | 1 | pending | pending |
-| G2 | 1 | 131,072 | 131,072 | 1 | pending | pending |
-| G3 | 1 | 262,144 | 262,144 | 1 | pending | pending |
-| G4 | 2 | 65,536 | 32,768 | 2 | pending | pending |
-| G5 | 2 | 131,072 | 65,536 | 2 | pending | pending |
-| G6 (current config) | 2 | 262,144 | 131,072 | 2 | pending | pending |
-| G7 | 3 | 98,304 | 32,768 | 3 | pending | pending |
-| G8 | 3 | 196,608 | 65,536 | 3 | pending | pending |
-| G9 | 3 | 294,912 | 98,304 | 3 | pending | pending |
-| G10 | 4 | 131,072 | 32,768 | 4 | pending | pending |
-| G11 | 4 | 262,144 | 65,536 | 4 | pending | pending |
-| G12 | 4 | 393,216 | 98,304 | 4 | pending | pending |
+| G1 | 1 | 65,536 | 65,536 | 1 | not run; bounded by stronger passing cells | [report](glimmer-benchmark-2026-09-14.md) |
+| G2 | 1 | 131,072 | 131,072 | 1 | not run; bounded by G6 | [report](glimmer-benchmark-2026-09-14.md) |
+| G3 | 1 | 262,144 | 262,144 | 1 | not run; beyond the model's trained 131k context | [report](glimmer-benchmark-2026-09-14.md) |
+| G4 | 2 | 65,536 | 32,768 | 2 | not run; bounded by G6 | [report](glimmer-benchmark-2026-09-14.md) |
+| G5 | 2 | 131,072 | 65,536 | 2 | not run; bounded by G6 | [report](glimmer-benchmark-2026-09-14.md) |
+| G6 (restored config) | 2 | 262,144 | 131,072 | 2 | pass: 10/10 at 104,865 prompt tokens | [report](glimmer-benchmark-2026-09-14.md) |
+| G7 | 3 | 98,304 | 32,768 | 3 | not run; bounded by G11 | [report](glimmer-benchmark-2026-09-14.md) |
+| G8 | 3 | 196,608 | 65,536 | 3 | not run; bounded by G11 | [report](glimmer-benchmark-2026-09-14.md) |
+| G9 | 3 | 294,912 | 98,304 | 3 | not run; bounded by G12 | [report](glimmer-benchmark-2026-09-14.md) |
+| G10 | 4 | 131,072 | 32,768 | 4 | not run; bounded by G11 | [report](glimmer-benchmark-2026-09-14.md) |
+| G11 | 4 | 262,144 | 65,536 | 4 | pass: 20/20 at 52,439 prompt tokens | [report](glimmer-benchmark-2026-09-14.md) |
+| G12 | 4 | 393,216 | 98,304 | 4 | pass: 20/20 at 78,652 prompt tokens | [report](glimmer-benchmark-2026-09-14.md) |
+| G13 | 4 | 524,288 | 131,072 | 4 | pass: 20/20 at 104,865 prompt tokens | [report](glimmer-benchmark-2026-09-14.md) |
+| G14 | 8 | 524,288 | 65,536 | 8 | pass: 40/40 at 52,439 prompt tokens | [report](glimmer-benchmark-2026-09-14.md) |
+| G15 | 16 | 524,288 | 32,768 | 16 | pass: 80/80 at 26,226 prompt tokens | [report](glimmer-benchmark-2026-09-14.md) |
 
 Use one pinned text/reasoning corpus for every cell. Include a short request, a
 32k prompt, and a prompt at 80% of effective per-slot context where the corpus
@@ -86,10 +88,10 @@ not mix vision tokens into the text capacity comparison.
 
 | Check | Required evidence | Result | Artifact |
 |---|---|---|---|
-| Stable slot/context frontier | highest passing cell for each slot count with no restart or refusal | pending | pending |
-| Host pressure | container peak RSS and iggy memory pressure below limits | pending | pending |
-| Turn latency | scout p50/p95 and whether p95 exceeds 600 s | pending | pending |
-| Prefix reuse | identical recorded prefix hash plus cold/warm cache-hit metric or log | pending | pending |
+| Stable slot/context frontier | highest passing cell for each slot count with no restart or refusal | pass: 2x131k, 4x131k, 8x65k, and 16x32k | [report](glimmer-benchmark-2026-09-14.md) |
+| Host pressure | container peak RSS and iggy memory pressure below limits | pass: 14.52 GiB maximum RSS; no in-test OOM/restart; `MemoryPressure=False` | [report](glimmer-benchmark-2026-09-14.md) |
+| Turn latency | scout p50/p95 and whether p95 exceeds 600 s | synthetic capacity pass: worst cold-inclusive p95 401.41 s; real scout turns still pending | [report](glimmer-benchmark-2026-09-14.md) |
+| Prefix reuse | identical recorded prefix hash plus cold/warm cache-hit metric or log | partial: repeated-prefix warmup is large and cache eviction is logged; hit ratio was not exported | [report](glimmer-benchmark-2026-09-14.md) |
 | DFlash boundary tradeoff | paired boundary result with drafter enabled and disabled | pending | pending |
 | Mixed vision/text | one image request overlaps text traffic without starvation or failure | pending | pending |
 
