@@ -31,10 +31,6 @@ jobs:
     name: Flux Local Test
     needs: pre-job
     runs-on: ubuntu-latest
-    env:
-      DOMAIN_NAME: example.invalid
-      EMAIL: nobody@example.invalid
-      KEATON_EMAIL: nobody@example.invalid
     if: ${{ needs.pre-job.outputs.any_changed == 'true' }}
     steps:
       - name: Checkout
@@ -49,10 +45,6 @@ jobs:
     name: Flux Local Diff
     needs: pre-job
     runs-on: ubuntu-latest
-    env:
-      DOMAIN_NAME: example.invalid
-      EMAIL: nobody@example.invalid
-      KEATON_EMAIL: nobody@example.invalid
     permissions:
       contents: read
       pull-requests: write
