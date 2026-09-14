@@ -136,6 +136,29 @@ class LunaTests(unittest.TestCase):
         self.assertEqual(self.foreman.created[-1]["attempt"], 2)
         self.assertIn("Gate image", self.issues.comments[0][1])
 
+    def test_validation_rejection_is_a_durable_tool_result(self):
+        self.state.set_plan_state("plan-luna", "review")
+        plan = self.state.plan("plan-luna")
+        result = self.luna._execute(
+            plan, "invalid-batch", "create_workload",
+            {"issue": self.issues.children[0]}, "invalid-call",
+        )
+        self.assertEqual(result, {
+            "ok": False, "error": "plan state does not allow Workload creation",
+        })
+        row = self.state.db.execute(
+            "SELECT state,last_error FROM external_actions WHERE action_key=?",
+            ("invalid-batch:invalid-call:create_workload",),
+        ).fetchone()
+        self.assertEqual((row["state"], row["last_error"]), ("complete", None))
+        self.assertEqual(
+            self.luna._execute(
+                plan, "invalid-batch", "create_workload",
+                {"issue": self.issues.children[0]}, "invalid-call",
+            ),
+            result,
+        )
+
     def test_luna_replan_immediately_unfreezes_the_plan(self):
         result = self.luna._execute_once(
             self.state.plan("plan-luna"), "replan-batch", "request_replan",
