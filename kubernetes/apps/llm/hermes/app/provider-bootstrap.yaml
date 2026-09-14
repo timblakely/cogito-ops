@@ -1,0 +1,99 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hermes-provider-bootstrap
+data:
+  configure.py: |
+    """Reconcile the GitOps-owned part of Hermes' persistent configuration."""
+
+    import os
+    from pathlib import Path
+
+    import yaml
+
+
+    config_path = Path("/opt/data/config.yaml")
+    config = yaml.safe_load(config_path.read_text()) if config_path.exists() else {}
+    if not isinstance(config, dict):
+        config = {}
+
+    # Remove the provider retired with llm-switch. Leave any other providers a
+    # user added through Hermes intact.
+    legacy = config.get("custom_providers")
+    if isinstance(legacy, list):
+        config["custom_providers"] = [
+            entry
+            for entry in legacy
+            if not (
+                isinstance(entry, dict)
+                and entry.get("name") == "llm-proxy"
+            )
+        ]
+
+    providers = config.setdefault("providers", {})
+    if not isinstance(providers, dict):
+        providers = {}
+        config["providers"] = providers
+
+    # Luna's coordinator alias uses LiteLLM's Responses endpoint. The local
+    # Qwen and Muse aliases stay on chat completions, as required by the v4
+    # direct-session contract.
+    providers["litellm-responses"] = {
+        "name": "LiteLLM (coordinator)",
+        "api": "http://litellm.llm.svc.cluster.local:4000/v1",
+        "key_env": "LITELLM_API_KEY",
+        "transport": "codex_responses",
+        "default_model": "coordinator",
+        "discover_models": False,
+        "models": {"coordinator": {"context_length": 272000}},
+    }
+    providers["litellm-chat"] = {
+        "name": "LiteLLM (local)",
+        "api": "http://litellm.llm.svc.cluster.local:4000/v1",
+        "key_env": "LITELLM_API_KEY",
+        "transport": "chat_completions",
+        "default_model": "Qwen/Qwen3.8-27B-W4A16",
+        "discover_models": False,
+        "models": {
+            "Qwen/Qwen3.8-27B-W4A16": {"context_length": 262144},
+            "Muse-Glimmer-30B": {"context_length": 262144},
+        },
+    }
+
+    model = config.setdefault("model", {})
+    if not isinstance(model, dict):
+        model = {}
+        config["model"] = model
+    model.update(
+        {
+            "default": "coordinator",
+            "provider": "custom:litellm-responses",
+            "api_mode": "codex_responses",
+        }
+    )
+    model.pop("base_url", None)
+
+    aliases = config.setdefault("model_aliases", {})
+    if not isinstance(aliases, dict):
+        aliases = {}
+        config["model_aliases"] = aliases
+    aliases.update(
+        {
+            "qwen": {
+                "model": "Qwen/Qwen3.8-27B-W4A16",
+                "provider": "custom:litellm-chat",
+                "base_url": "http://litellm.llm.svc.cluster.local:4000/v1",
+            },
+            "muse": {
+                "model": "Muse-Glimmer-30B",
+                "provider": "custom:litellm-chat",
+                "base_url": "http://litellm.llm.svc.cluster.local:4000/v1",
+            },
+        }
+    )
+
+    temporary_path = config_path.with_suffix(".yaml.tmp")
+    temporary_path.write_text(yaml.safe_dump(config, sort_keys=False))
+    os.chmod(temporary_path, 0o600)
+    os.replace(temporary_path, config_path)

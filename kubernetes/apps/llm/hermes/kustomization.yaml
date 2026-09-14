@@ -15,6 +15,11 @@ patches:
         value:
           name: matrix
           namespace: home-infra
+      - op: add
+        path: /spec/dependsOn/-
+        value:
+          name: litellm
+          namespace: llm
     target:
       group: kustomize.toolkit.fluxcd.io
       kind: Kustomization

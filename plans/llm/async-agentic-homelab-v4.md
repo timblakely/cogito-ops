@@ -1,6 +1,6 @@
 # Async Agentic Homelab: Matrix-driven planning and execution on a Talos Kubernetes cluster
 
-**Status:** core implementation deployed; a two-deliverable acceptance run completed on 2026-09-14. Direct sessions (§9), phone image ingestion, optional persona polish, and owner-device checks remain deferred. Supersedes v3 (2026-09-13), v2 (same day), and v1 (2026-09-12).
+**Status:** core implementation deployed; a two-deliverable acceptance run completed on 2026-09-14. Hermes direct sessions (§9) are implemented pending the owner-device DM check; phone image ingestion, optional persona polish, and remaining owner-device checks are deferred. Supersedes v3 (2026-09-13), v2 (same day), and v1 (2026-09-12).
 **Audience:** a reviewer with no prior context. Markers: `[VERIFY]` unverified, `[DECISION]` contestable choice, `[OBSERVED]` seen on the live cluster on 2026-09-13, `[INHERITED]` an upstream or colleague's default rather than a choice made here.
 
 ---
@@ -65,7 +65,7 @@ All rows exist today at repo commit `5c850664`.
 | **Hookshot 7.4.4** | GitHub App 4906005 + generic webhooks. | The App's single webhook URL points at Hookshot. Events currently land in `#agent-runs`. |
 | **GitHub App 4906005** | Shared by Hookshot, the gateway and Foreman (installation tokens via the External Secrets generator). | One App has one webhook URL, so the gateway's webhook is a **repository webhook**, not the App's (§6.5). |
 | **CI on cogito-ops** | `.github/workflows/flux-local.yaml` on `pull_request` to `main`, summary job `flux-local-status`. | `main` is unprotected. |
-| **Hermes** | Matrix agent bot `@hermes`. | Provider config orphaned; candidate for §9. |
+| **Hermes** | Matrix agent bot `@hermes`. | v4 direct sessions: E2EE, owner-only, backed-up session state; `coordinator` via LiteLLM Responses by default, local Qwen/Muse aliases via chat completions. |
 | **Reloader** | Cluster-wide `autoReloadAll: true`. | Root cause of R1. |
 
 ### 1.3 Cluster hardware (as it is)
@@ -257,7 +257,7 @@ evidence.
 | `allowCloudReviewers: True` | One line | 1 | |
 | Escalation and replanning | Partial | ~120 | Luna decides; gateway enforces limits; replanning reopens the plan issue and removes the label. |
 | Luna token accounting | Missing | ~60 | Turns and tokens per plan from LiteLLM usage fields; card and `/metrics`; cap → `NEEDS_INPUT`. |
-| Direct sessions (§9) | Missing | ~400 + RBAC + PVC | |
+| Direct sessions (§9) | Implemented with Hermes | Existing isolated pod + backed-up PVC; scoped LiteLLM key. Owner-device DM remains to verify. |
 | Images from the phone | Missing | ~80 | |
 | Multi-persona senders | Missing | 0 now | Glyph prefixes. Appservice later. |
 
@@ -430,7 +430,18 @@ Not built in v4. If Workload-level supervision proves too coarse (for example, d
 
 ## 9. Direct coordinator sessions
 
-Evaluate Hermes first, reconnected to LiteLLM. If insufficient, the harness bridge (Codex or pi in a Foreman-managed pod, PVC session dir, bridged to a DM thread). Luna's `coordinator` alias is the model in either case; Qwen and Muse via chat completions; `[VERIFY]` LiteLLM's Responses translation only if Codex is chosen.
+Hermes was evaluated first and retained. Its existing Matrix adapter already
+provides E2EE, an owner allowlist, per-user/per-thread persistent sessions, model
+switching, and a backed-up PVC. The failed legacy `llm-switch` provider was the
+missing piece, not a capability gap requiring a new harness bridge.
+
+GitOps now reconciles the provider-owned portion of Hermes' mutable
+`config.yaml` at startup. Luna's `coordinator` alias is the default over
+LiteLLM's Responses endpoint; `/model qwen` and `/model muse` select the local
+models over chat completions. `litellm-key-hermes` is limited to exactly those
+three aliases, and the pod has no Kubernetes service-account token or GitHub
+credential. Session and Matrix crypto state remain on the VolSync/Kopia-backed
+PVC. `[VERIFY]` complete an owner-device E2EE DM turn with `@hermes`.
 
 ---
 
@@ -443,9 +454,9 @@ Evaluate Hermes first, reconnected to LiteLLM. If insufficient, the harness brid
 | `#github` (new) | Hookshot firehose | Muted; debugging stream |
 | `#agent-runs` | Scout transcripts | Muted |
 | `#agent-alerts` | alertmanager | Mentions only |
-| DM `@coordinator` | direct sessions (§9) | Normal |
+| DM `@hermes` | direct sessions (§9) | Normal |
 
-One account, glyph prefixes `◆ Astra`, `● Luna`, `▣ gateway`. Thread anatomy: root, card (edited), progress (edited), turns, links. Verbs: reactions ⏹ ⏸ 🔄 🔍 on the card; bare `status`, `stop`; `!cogito` kept as an alias. Routing by phase: planning-phase thread messages go to Astra (queued between rounds); implementation-thread messages go to Luna.
+The workflow personas share one `@coordinator` account with glyph prefixes `◆ Astra`, `● Luna`, `▣ gateway`; Hermes keeps its existing separate account for direct sessions. Thread anatomy: root, card (edited), progress (edited), turns, links. Verbs: reactions ⏹ ⏸ 🔄 🔍 on the card; bare `status`, `stop`; `!cogito` kept as an alias. Routing by phase: planning-phase thread messages go to Astra (queued between rounds); implementation-thread messages go to Luna.
 
 ---
 
@@ -478,7 +489,7 @@ Synapse → ntfy → UnifiedPush → Commet (done). Mentions only on `NEEDS_INPU
 | 4 | **Inline review + card + reactions + mentions** | Reviewer evidence appears as PR line comments; card edited on every transition; ⏹ ⏸ 🔄 🔍 work; pings only on the listed transitions. |
 | 5 | **Scouts on both cards, notes, prefix protocol, Qwen A/B** | Qwen and Muse scouts in one round; notes-based resume; prefix hit rate measured; `SPEC`/`CTX` A/B in `bench-notes.md`. |
 | 6 | **Escalation and replanning exercised** | Forced `BLOCKED`, `REPLANNING` via label removal, guardrail intercept, failed required check, turn cap. |
-| 7 | **Direct sessions** | Hermes evaluated or harness bridge. |
+| 7 | **Direct sessions** | Implemented with Hermes; owner-device E2EE DM check remains. |
 | 8 | **Polish** | Appservice personas optional; dashboards; retire the `!cogito` prefix. |
 
 ---
@@ -496,7 +507,7 @@ Synapse → ntfy → UnifiedPush → Commet (done). Mentions only on `NEEDS_INPU
 7. `[VERIFY]` GitHub Mobile: label application, body editing, and quote-reply are all usable one-handed.
 8. `[VERIFY]` Luna tokens per Workload-level deliverable at effort max, measured over the first real plan; decides whether coalescing or effort needs tuning.
 9. `[VERIFY]` Commet renders `m.poll`.
-10. `[VERIFY]` Hermes as a direct session.
+10. `[VERIFY]` Complete an owner-device E2EE direct-session turn with `@hermes`.
 11. Measure: Qwen `SPEC`/`CTX` A/B; Muse Glimmer's DFlash boundary, real
     concurrent scout turn p95, prefix hit ratio, and mixed vision/text behavior
     on its RTX 3090; coder effort. The synthetic Glimmer capacity frontier is
