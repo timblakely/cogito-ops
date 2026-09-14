@@ -234,6 +234,15 @@ class LunaCoordinator:
             return cached
         try:
             result = self._execute_once(plan, batch_id, name, args)
+        except ValidationError as exc:
+            # A rejected tool call is a durable model-visible result, not an
+            # infrastructure failure. Returning it lets Luna correct its next
+            # action instead of retrying the same invalid call forever.
+            result = {"ok": False, "error": str(exc)[:2_000]}
+            self.state.complete_action(key, result)
+            self.state.audit(
+                "luna", f"luna.{name}.rejected", plan["plan_id"], result)
+            return result
         except Exception as exc:
             self.state.fail_action(key, str(exc))
             raise
