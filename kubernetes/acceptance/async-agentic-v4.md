@@ -64,4 +64,5 @@ sanitized evidence reference (no secrets, tokens, or raw transcripts).
 - **Required before proceeding to Deliverable 2** (verify, do not assume):
   - [ ] Flux Local gate passes (or is skipped for this markdown-only path).
   - [ ] `git diff --check` passes.
-- **Diff scope:** this deliverable changes only `kubernetes/acceptance/async-agentic-v4.md`.
+- **Diff scope (verified):** this deliverable changes only
+  `kubernetes/acceptance/async-agentic-v4.md`; no other files are modified.
