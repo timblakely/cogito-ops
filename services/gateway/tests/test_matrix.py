@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 import json
+import base64
 
 from coordinator.core import Coordinator
 from coordinator.matrix import MatrixCoordinator
@@ -31,6 +32,15 @@ class FakePlanner:
         self.calls += 1
         suffix = " revised" if prior else ""
         return f"# Test{suffix}\n\n## Deliverables\n- [ ] Ship it\n"
+
+
+class FakeImages:
+    def __init__(self):
+        self.calls = []
+
+    def describe(self, mime_type, data, name, caption):
+        self.calls.append((mime_type, data, name, caption))
+        return "A dashboard shows a red CrashLoopBackOff status."
 
 
 class FakeIssues:
@@ -119,10 +129,11 @@ class MatrixTests(unittest.TestCase):
         self.tmp = tempfile.NamedTemporaryFile()
         self.state = StateStore(self.tmp.name)
         self.planner, self.issues, self.foreman = FakePlanner(), FakeIssues(), FakeForeman()
+        self.images = FakeImages()
         core = Coordinator(self.state, self.issues, {"@tim:matrix.example"})
         self.matrix = MatrixCoordinator(
             self.state, core, self.foreman, self.planner, {"@tim:matrix.example"},
-            "!activity:matrix.example",
+            "!activity:matrix.example", images=self.images,
         )
         self.base = {
             "room_id": "!room:matrix.example", "sender": "@tim:matrix.example",
@@ -131,10 +142,16 @@ class MatrixTests(unittest.TestCase):
 
     def tearDown(self): self.state.close(); self.tmp.close()
 
-    def event(self, event_id, body, thread_root=None):
+    def event(self, event_id, body, thread_root=None, image=None):
         value = {**self.base, "event_id": event_id, "body": body}
         if thread_root: value["thread_root"] = thread_root
+        if image: value["image"] = image
         return value
+
+    @staticmethod
+    def image():
+        return {"mime_type": "image/png", "name": "status.png",
+                "data": base64.b64encode(b"test png bytes").decode()}
 
     def test_plan_comment_revision_and_exact_approval(self):
         first = self.matrix.handle(self.event("$root", "!cogito plan Build it"))
@@ -168,6 +185,44 @@ class MatrixTests(unittest.TestCase):
         self.assertIn("https://github.com/t/c/issues/1", second["actions"][0]["body"])
         self.assertNotIn("# Namespaced", second["actions"][0]["body"])
         self.assertEqual(self.state.plan(row["plan_id"])["state"], "review")
+
+    def test_thread_image_is_described_locally_before_planner_storage(self):
+        self.planner.decisions = [
+            {"status": "clarify", "message": "Show me the current error."},
+            {"status": "ready", "message": "The image resolves it.",
+             "plan_markdown": "# Image plan\n\n## Deliverables\n- [ ] Fix it\n"},
+        ]
+        self.matrix.handle(self.event("$root", "!cogito plan Fix the dashboard"))
+        result = self.matrix.handle(
+            self.event("$image", "status.png", "$root", self.image()))
+        self.assertIn("Plan drafted", result["actions"][0]["body"])
+        self.assertEqual(len(self.images.calls), 1)
+        messages = self.state.intake_messages(
+            self.state.plan_for_thread("!room:matrix.example", "$root")["plan_id"])
+        self.assertIn("[Local Muse image description]", messages[-1]["body"])
+        self.assertIn("CrashLoopBackOff", messages[-1]["body"])
+
+    def test_unrelated_root_image_is_ignored_without_model_call(self):
+        result = self.matrix.handle(self.event("$image", "status.png", image=self.image()))
+        self.assertEqual(result, {"actions": []})
+        self.assertEqual(self.images.calls, [])
+
+    def test_image_during_research_is_retained_for_synthesis(self):
+        self.planner.decisions = [{
+            "status": "delegate", "message": "Checking.", "tasks": ["Inspect it."],
+        }]
+        self.matrix.handle(self.event("$root", "!cogito plan Fix the dashboard"))
+        result = self.matrix.handle(
+            self.event("$image", "status.png", "$root", self.image()))
+        self.assertIn("recorded for the pending synthesis", result["actions"][0]["body"])
+        row = self.state.plan_for_thread("!room:matrix.example", "$root")
+        self.assertEqual(self.state.intake_messages(row["plan_id"])[-1]["kind"], "owner_image")
+
+    def test_invalid_image_encoding_is_rejected(self):
+        with self.assertRaisesRegex(ValidationError, "image data"):
+            self.matrix.handle(self.event("$image", "!cogito plan inspect", image={
+                "mime_type": "image/png", "name": "x.png", "data": "not base64!",
+            }))
 
     def test_draft_command_forces_plan_during_intake(self):
         self.planner.decisions = [

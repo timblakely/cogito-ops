@@ -2,6 +2,7 @@
 
 from datetime import datetime, timezone
 import asyncio
+import base64
 import hashlib
 import hmac
 import json
@@ -9,6 +10,7 @@ import json
 from maubot import MessageEvent, Plugin
 from maubot.handlers import event
 from mautrix.errors import MUnknown
+from mautrix.crypto.attachments import decrypt_attachment
 from mautrix.types import Event, EventID, EventType, MessageType, RelationType, RoomID, TextMessageEventContent
 from mautrix.util.config import BaseProxyConfig, ConfigUpdateHelper
 
@@ -21,6 +23,9 @@ class Config(BaseProxyConfig):
 
 
 class CogitoBot(Plugin):
+    MAX_IMAGE_BYTES = 8 * 1024 * 1024
+    IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+
     async def start(self) -> None:
         self.log.info(
             "Matrix command receiver started for %d allowed sender(s)",
@@ -139,9 +144,11 @@ class CogitoBot(Plugin):
     async def on_message(self, evt: MessageEvent) -> None:
         if evt.sender == self.client.mxid or evt.sender not in self.config["allowed_senders"]:
             return
-        if getattr(evt.content, "msgtype", None) not in {MessageType.TEXT, MessageType.NOTICE}:
+        msgtype = getattr(evt.content, "msgtype", None)
+        if msgtype not in {MessageType.TEXT, MessageType.NOTICE, MessageType.IMAGE}:
             return
-        evt.content.trim_reply_fallback()
+        if hasattr(evt.content, "trim_reply_fallback"):
+            evt.content.trim_reply_fallback()
         body = getattr(evt.content, "body", "").strip()
         relation = getattr(evt.content, "relates_to", None)
         is_thread_reply = bool(relation and relation.rel_type == RelationType.THREAD)
@@ -168,6 +175,30 @@ class CogitoBot(Plugin):
             }
             if thread_root:
                 value["thread_root"] = thread_root
+            if msgtype == MessageType.IMAGE:
+                info = getattr(evt.content, "info", None)
+                mime_type = str(getattr(info, "mimetype", ""))
+                if mime_type not in self.IMAGE_TYPES:
+                    raise ValueError(f"unsupported image type: {mime_type or 'unknown'}")
+                size = int(getattr(info, "size", 0) or 0)
+                if size > self.MAX_IMAGE_BYTES:
+                    raise ValueError("image exceeds the 8 MiB limit")
+                encrypted = getattr(evt.content, "file", None)
+                if encrypted:
+                    ciphertext = await self.client.download_media(encrypted.url)
+                    data = decrypt_attachment(
+                        ciphertext, encrypted.key.key,
+                        encrypted.hashes["sha256"], encrypted.iv,
+                    )
+                else:
+                    data = await self.client.download_media(evt.content.url)
+                if not data or len(data) > self.MAX_IMAGE_BYTES:
+                    raise ValueError("image exceeds the 8 MiB limit")
+                value["image"] = {
+                    "mime_type": mime_type,
+                    "name": str(getattr(evt.content, "filename", None) or body)[:512],
+                    "data": base64.b64encode(data).decode("ascii"),
+                }
             await self._request("/v1/matrix/events", value)
             self.log.info("Completed Matrix command event %s", evt.event_id)
         except Exception as exc:

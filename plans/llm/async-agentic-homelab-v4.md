@@ -1,6 +1,6 @@
 # Async Agentic Homelab: Matrix-driven planning and execution on a Talos Kubernetes cluster
 
-**Status:** core implementation deployed; a two-deliverable acceptance run completed on 2026-09-14. Hermes direct sessions (§9) are implemented pending the owner-device DM check; phone image ingestion, optional persona polish, and remaining owner-device checks are deferred. Supersedes v3 (2026-09-13), v2 (same day), and v1 (2026-09-12).
+**Status:** core implementation deployed; a two-deliverable acceptance run completed on 2026-09-14. Hermes direct sessions (§9) are implemented pending the owner-device DM check. Phone image ingestion is implemented pending rollout and an owner-device check; optional persona polish and remaining owner-device checks are deferred. Supersedes v3 (2026-09-13), v2 (same day), and v1 (2026-09-12).
 **Audience:** a reviewer with no prior context. Markers: `[VERIFY]` unverified, `[DECISION]` contestable choice, `[OBSERVED]` seen on the live cluster on 2026-09-13, `[INHERITED]` an upstream or colleague's default rather than a choice made here.
 
 ---
@@ -258,7 +258,7 @@ evidence.
 | Escalation and replanning | Partial | ~120 | Luna decides; gateway enforces limits; replanning reopens the plan issue and removes the label. |
 | Luna token accounting | Missing | ~60 | Turns and tokens per plan from LiteLLM usage fields; card and `/metrics`; cap → `NEEDS_INPUT`. |
 | Direct sessions (§9) | Implemented with Hermes | Existing isolated pod + backed-up PVC; scoped LiteLLM key. Owner-device DM remains to verify. |
-| Images from the phone | Missing | ~80 | |
+| Images from the phone | Implemented | ~120 | Bounded 8 MiB encrypted Matrix download; dedicated local Muse `image` alias/key; only the text description reaches Astra or Luna. Owner-device check remains. |
 | Multi-persona senders | Missing | 0 now | Glyph prefixes. Appservice later. |
 
 Adapt total: roughly **2,000–2,400 lines** on top of 3.2k that stay. The Luna loop and the webhook path are the two new subsystems; everything else is extension.

@@ -7,12 +7,15 @@ from datetime import datetime
 from hashlib import sha256
 from threading import RLock
 from typing import Any
+import base64
+import binascii
 import json
 import re
 
 from .core import Coordinator
 from .foreman import ForemanClient
 from .github import deliverable_execution_intent, deliverable_specs
+from .image import ImageClient
 from .models import Approval, PlanVersion, ValidationError, canonical_json
 from .planner import PlannerClient
 from .state import StateStore
@@ -30,6 +33,8 @@ SECRET_PATTERNS = (
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----"),
 )
 MAX_TRACE_EVENTS = 80
+MAX_IMAGE_BYTES = 8 * 1024 * 1024
+IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 
 
 def _sanitize(value: Any, limit: int = 6000) -> str:
@@ -138,10 +143,12 @@ class MatrixEvent:
     body: str
     timestamp: str
     thread_root: str | None = None
+    image: dict[str, str] | None = None
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "MatrixEvent":
-        if set(value) - {"event_id", "room_id", "sender", "body", "timestamp", "thread_root"}:
+        if set(value) - {
+                "event_id", "room_id", "sender", "body", "timestamp", "thread_root", "image"}:
             raise ValidationError("unknown Matrix event field")
         event = cls(**value)
         if not event.event_id.startswith("$") or not event.room_id.startswith("!"):
@@ -150,17 +157,39 @@ class MatrixEvent:
             raise ValidationError("invalid Matrix sender")
         if not event.body.strip() or len(event.body) > 200_000:
             raise ValidationError("invalid Matrix body")
+        if event.image is not None:
+            if (not isinstance(event.image, dict)
+                    or set(event.image) - {"mime_type", "data", "name"}):
+                raise ValidationError("invalid Matrix image")
+            mime_type = event.image.get("mime_type")
+            encoded = event.image.get("data")
+            name = event.image.get("name", "")
+            if mime_type not in IMAGE_TYPES or not isinstance(encoded, str):
+                raise ValidationError("unsupported Matrix image")
+            if not isinstance(name, str) or len(name) > 512:
+                raise ValidationError("invalid Matrix image name")
+            try:
+                image = base64.b64decode(encoded, validate=True)
+            except (binascii.Error, ValueError) as exc:
+                raise ValidationError("invalid Matrix image data") from exc
+            if not image or len(image) > MAX_IMAGE_BYTES:
+                raise ValidationError("invalid Matrix image size")
         return event
+
+    def image_bytes(self) -> bytes:
+        return base64.b64decode(self.image["data"], validate=True) if self.image else b""
 
 
 class MatrixCoordinator:
     def __init__(self, state: StateStore, core: Coordinator, foreman: ForemanClient,
                  planner: PlannerClient, allowed_senders: set[str],
-                 activity_room_id: str = "", astra_turn_cap: int = 20):
+                 activity_room_id: str = "", astra_turn_cap: int = 20,
+                 images: ImageClient | None = None):
         self.state, self.core, self.foreman, self.planner = state, core, foreman, planner
         self.allowed_senders = frozenset(allowed_senders)
         self.activity_room_id = activity_room_id
         self.astra_turn_cap = max(1, astra_turn_cap)
+        self.images = images
         self.lock = RLock()
 
     @staticmethod
@@ -658,6 +687,17 @@ class MatrixCoordinator:
         root = event.thread_root or event.event_id
         if event.sender not in self.allowed_senders:
             raise ValidationError("Matrix sender is not allowlisted")
+        # Root-level images only belong to this workflow when their caption is
+        # a command. Thread images are contextual input. In both cases a local
+        # model reduces raw media to bounded text before Astra or Luna sees it.
+        if event.image and (event.thread_root or body.startswith("!cogito")):
+            if not self.images:
+                raise ValidationError("image description is not configured")
+            description = self.images.describe(
+                event.image["mime_type"], event.image_bytes(),
+                event.image.get("name", ""), body,
+            )
+            body += "\n\n[Local Muse image description]\n" + description
         if event.thread_root and body.lower() in {"status", "stop"}:
             body = "!cogito " + body.lower()
         if not body.startswith("!cogito"):
@@ -683,6 +723,14 @@ class MatrixCoordinator:
                     event.event_id, plan["plan_id"], event.sender, "user", "answer", body)
                 return self._continue_intake(event, plan)
             if plan["state"] in {"researching", "synthesizing"}:
+                if event.image:
+                    self.state.add_intake_message(
+                        event.event_id, plan["plan_id"], event.sender,
+                        "user", "owner_image", body)
+                    return self._message(
+                        "Image described locally and recorded for the pending synthesis. "
+                        "Send `!cogito status` for scout progress or `!cogito draft` to "
+                        "draft now from completed results.", root)
                 return self._message(
                     "Planning scouts are still working. Send `!cogito status` for progress or "
                     "`!cogito draft` to draft now from completed results.", root)

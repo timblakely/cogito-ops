@@ -12,6 +12,7 @@ import time
 from .core import Coordinator
 from .foreman import ForemanClient
 from .github import GitHubIssues
+from .image import ImageClient
 from .models import Approval, PlanVersion, ValidationError
 from .matrix import MatrixCoordinator
 from .luna import LunaClient, LunaCoordinator
@@ -51,6 +52,11 @@ class App:
             set(filter(None, os.environ.get("MATRIX_APPROVERS", "").split(","))),
             os.environ.get("MATRIX_ACTIVITY_ROOM_ID", ""),
             int(os.environ.get("ASTRA_TURN_CAP", "20")),
+            ImageClient(
+                os.environ["LITELLM_IMAGE_API_KEY"],
+                os.environ.get("LITELLM_BASE_URL", "https://litellm.timblakely.com/v1"),
+                os.environ.get("IMAGE_MODEL", "image"),
+            ),
         )
         self.luna = LunaCoordinator(
             self.state, self.coordinator, self.foreman, self.github, self.planner,
@@ -123,7 +129,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            if length <= 0 or length > 2_000_000:
+            max_body = int(os.environ.get("GATEWAY_MAX_BODY_BYTES", "12000000"))
+            if length <= 0 or length > max_body:
                 raise ValidationError("invalid body length")
             status, value = APP.handle(urlparse(self.path).path, self.headers, self.rfile.read(length))
         except (ValidationError, ValueError, KeyError, json.JSONDecodeError) as exc:
