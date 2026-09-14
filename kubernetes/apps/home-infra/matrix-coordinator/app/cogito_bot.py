@@ -6,6 +6,7 @@ import base64
 import hashlib
 import hmac
 import json
+import os
 
 from maubot import MessageEvent, Plugin
 from maubot.handlers import event
@@ -27,9 +28,12 @@ class CogitoBot(Plugin):
     IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 
     async def start(self) -> None:
+        self._project_rooms = set(filter(
+            None, os.environ.get("MATRIX_PROJECT_ROOM_ID", "").split(",")))
         self.log.info(
-            "Matrix command receiver started for %d allowed sender(s)",
+            "Matrix receiver started for %d allowed sender(s) and %d project room(s)",
             len(self.config["allowed_senders"]),
+            len(self._project_rooms),
         )
         self._planning_typing_rooms = set()
         self._outbox_task = asyncio.create_task(self._deliver_outbox())
@@ -152,7 +156,8 @@ class CogitoBot(Plugin):
         body = getattr(evt.content, "body", "").strip()
         relation = getattr(evt.content, "relates_to", None)
         is_thread_reply = bool(relation and relation.rel_type == RelationType.THREAD)
-        if not body.startswith("!cogito") and not is_thread_reply:
+        if (not body.startswith("!cogito") and not is_thread_reply
+                and str(evt.room_id) not in self._project_rooms):
             return
         self.log.info("Forwarding Matrix command event %s", evt.event_id)
         typing_task = None

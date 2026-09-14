@@ -184,12 +184,14 @@ class MatrixCoordinator:
     def __init__(self, state: StateStore, core: Coordinator, foreman: ForemanClient,
                  planner: PlannerClient, allowed_senders: set[str],
                  activity_room_id: str = "", astra_turn_cap: int = 20,
-                 images: ImageClient | None = None):
+                 images: ImageClient | None = None,
+                 project_rooms: dict[str, str] | None = None):
         self.state, self.core, self.foreman, self.planner = state, core, foreman, planner
         self.allowed_senders = frozenset(allowed_senders)
         self.activity_room_id = activity_room_id
         self.astra_turn_cap = max(1, astra_turn_cap)
         self.images = images
+        self.project_rooms = dict(project_rooms or {})
         self.lock = RLock()
 
     @staticmethod
@@ -687,10 +689,12 @@ class MatrixCoordinator:
         root = event.thread_root or event.event_id
         if event.sender not in self.allowed_senders:
             raise ValidationError("Matrix sender is not allowlisted")
-        # Root-level images only belong to this workflow when their caption is
-        # a command. Thread images are contextual input. In both cases a local
-        # model reduces raw media to bounded text before Astra or Luna sees it.
-        if event.image and (event.thread_root or body.startswith("!cogito")):
+        # Root-level images belong to the configured project room or require a
+        # command caption elsewhere. Thread images are contextual input. In all
+        # cases a local model reduces raw media to bounded text before Astra or
+        # Luna sees it.
+        if event.image and (event.thread_root or body.startswith("!cogito")
+                            or event.room_id in self.project_rooms):
             if not self.images:
                 raise ValidationError("image description is not configured")
             description = self.images.describe(
@@ -700,6 +704,9 @@ class MatrixCoordinator:
             body += "\n\n[Local Muse image description]\n" + description
         if event.thread_root and body.lower() in {"status", "stop"}:
             body = "!cogito " + body.lower()
+        if (not event.thread_root and not body.startswith("!cogito")
+                and event.room_id in self.project_rooms):
+            body = "!cogito plan " + body
         if not body.startswith("!cogito"):
             if not event.thread_root:
                 return {"actions": []}
@@ -774,7 +781,8 @@ class MatrixCoordinator:
             plan_id = "plan-" + sha256(event.event_id.encode()).hexdigest()[:16]
             self.state.begin_intake(
                 plan_id, event.room_id, event.event_id,
-                "https://github.com/timblakely/cogito-ops.git")
+                self.project_rooms.get(
+                    event.room_id, "https://github.com/timblakely/cogito-ops.git"))
             self.state.add_intake_message(
                 event.event_id, plan_id, event.sender, "user", "objective", argument.strip())
             return self._continue_intake(event, self.state.plan(plan_id))

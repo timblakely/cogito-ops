@@ -57,6 +57,10 @@ class App:
                 os.environ.get("LITELLM_BASE_URL", "https://litellm.timblakely.com/v1"),
                 os.environ.get("IMAGE_MODEL", "image"),
             ),
+            ({os.environ["MATRIX_PROJECT_ROOM_ID"]:
+              os.environ.get("MATRIX_PROJECT_REPOSITORY",
+                             "https://github.com/timblakely/cogito-ops.git")}
+             if os.environ.get("MATRIX_PROJECT_ROOM_ID") else {}),
         )
         self.luna = LunaCoordinator(
             self.state, self.coordinator, self.foreman, self.github, self.planner,

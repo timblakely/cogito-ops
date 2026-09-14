@@ -6,7 +6,9 @@ Foreman is authoritative for coding, gates, and review state.
 
 ## Commands
 
-- `!cogito plan <objective>` opens conversational intake in a new thread. The
+- A top-level owner message in the configured Cogito project room opens
+  conversational intake in a new thread. `!cogito plan <objective>` remains an
+  alias in any room where the bot is joined. The
   Astra planner may ask up to two rounds of material questions or push back. It
   delegates repository exploration, research, and command execution to local
   read-only Foreman scouts before posting version 1.
