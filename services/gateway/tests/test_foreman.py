@@ -27,7 +27,7 @@ class ForemanTests(unittest.TestCase):
         self.assertEqual(manifest["spec"]["gateProfile"]["language"], "generic")
         self.assertTrue(manifest["spec"]["allowCloudReviewers"])
         self.assertIn("@sha256:", manifest["spec"]["gateProfile"]["image"])
-        self.assertIn("cogito-gateway:gate-flux-local-v8.4.0-bash1",
+        self.assertIn("cogito-gateway:gate-flux-local-v8.4.0-bash2",
                       manifest["spec"]["gateProfile"]["image"])
         self.assertEqual(
             manifest["spec"]["gateProfile"]["commands"]["lint"],

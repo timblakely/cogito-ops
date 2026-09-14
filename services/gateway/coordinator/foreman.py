@@ -107,8 +107,8 @@ class ForemanClient:
     # which Foreman's clean-room runner uses as its fixed command entrypoint.
     # The digest is authority.
     gate_image: str = (
-        "ghcr.io/timblakely/cogito-gateway:gate-flux-local-v8.4.0-bash1@"
-        "sha256:01c30f8f36533e9a12c032ebd7ba89537fb33cb88b59bbcd4c0ca80ac4b77ea3"
+        "ghcr.io/timblakely/cogito-gateway:gate-flux-local-v8.4.0-bash2@"
+        "sha256:ee797dac5518d0f7eb71db30d3fac13a85ae276a1389a59275b7b0e620508465"
     )
 
     @property
