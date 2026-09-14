@@ -132,6 +132,33 @@ no secrets, tokens, or raw transcripts).
   `qwen3-8-27b` and `muse-glimmer-30b`. The separate scout FleetNode remains
   Ready with capacity 2 and no push-capable credential.
 
+## Pre-owner fresh-start cleanup
+
+- The clean-slate configuration merged in
+  [PR #123](https://github.com/timblakely/cogito-ops/pull/123) at
+  `2ae8fc4763275ca594ee4ff6f5c2907c02ab906f`; Flux applied that exact `main`
+  revision and both `home-infra` and Matrix Terraform returned Ready.
+- The unused `Agent Plans` and `Agent Alerts` rooms were removed from the
+  Terraform room map, detached from state, and purged from Synapse. Their
+  canonical aliases return HTTP 404. The retained agent rooms are Cogito,
+  Implementation, Agent Runs, GitHub, and Agent Control; Personal rooms were
+  not changed.
+- Before repairing a Matrix-provider destroy-order failure, the complete state
+  was copied to `tfstate-default-matrix-rooms-pre-cleanup-20260914`. The repair
+  removed only the two obsolete room instances and their remaining membership
+  instances; the next controller run produced a no-change, Ready state.
+- The retained rooms had 2,261 non-state timeline events redacted, then their
+  histories were purged. A client-API verification returned zero timeline
+  events in four rooms and one membership state event in GitHub, with no old
+  messages.
+- The gateway now opens `/data/gateway.sqlite3`; plans, outbox records, Luna
+  turns, and audit rows all started at zero. The prior
+  `/data/coordinator.sqlite3` remains on the backed-up PVC as a recoverable
+  archive.
+- The one-use Synapse cleanup administrator was deactivated and erased, its
+  access token and helper files were removed, and the temporary GitOps-account
+  rate-limit override was removed.
+
 ## Implementation handoff
 
 - **Repository gate selected for this path:** the `flux-local` job in
