@@ -1,6 +1,6 @@
 # Async Agentic Homelab: Matrix-driven planning and execution on a Talos Kubernetes cluster
 
-**Status:** core implementation deployed; a two-deliverable acceptance run completed on 2026-09-14. Hermes direct sessions (§9) are implemented pending the owner-device DM check. Phone image ingestion is deployed and passed an in-cluster Muse vision probe; the owner-device encrypted-media check remains. Optional persona polish and remaining owner-device checks are deferred. Supersedes v3 (2026-09-13), v2 (same day), and v1 (2026-09-12).
+**Status:** core implementation deployed; a two-deliverable acceptance run completed on 2026-09-14. Hermes direct sessions (§9) are implemented pending the owner-device DM check. Phone image ingestion is deployed and passed an in-cluster Muse vision probe; the owner-device encrypted-media check remains. Prefix-free project-room intake is deployed and accepted. No required implementation work remains; optional appservice personas and owner-device checks are deferred. Supersedes v3 (2026-09-13), v2 (same day), and v1 (2026-09-12).
 **Audience:** a reviewer with no prior context. Markers: `[VERIFY]` unverified, `[DECISION]` contestable choice, `[OBSERVED]` seen on the live cluster on 2026-09-13, `[INHERITED]` an upstream or colleague's default rather than a choice made here.
 
 ---
@@ -501,7 +501,7 @@ Synapse → ntfy → UnifiedPush → Commet (done). Mentions only on `NEEDS_INPU
 | 6 | **Escalation and replanning exercised** | Forced `BLOCKED`, `REPLANNING` via label removal, guardrail intercept, failed required check, turn cap. |
 | 7 | **Direct sessions** | Implemented with Hermes; owner-device E2EE DM check remains. |
 | 8 | **Phone images** | Deployed; local Muse described a generated image through the scoped route, while the same key was denied access to `reviewer`. Owner-device encrypted-media check remains. |
-| 9 | **Polish** | Appservice personas optional; dashboards; retire the `!cogito` prefix. |
+| 9 | **Polish** | Deployed dashboard and prefix-free `#project-cogito` intake; `!cogito` remains an alias. Appservice personas are explicitly optional and deferred. |
 
 ---
 
