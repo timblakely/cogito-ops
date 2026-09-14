@@ -27,6 +27,9 @@ patches:
           - name: flux-meta
         postBuild:
           substituteFrom:
+            - kind: ConfigMap
+              name: flux-local-settings
+              optional: true
             - kind: Secret
               name: cluster-settings
     target:

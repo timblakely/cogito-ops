@@ -1,15 +1,14 @@
 ---
 # CI-only substitution fixture. This directory is intentionally excluded from
 # kubernetes/flux/kustomization.yaml, so Flux never applies these placeholders.
-# flux-local scans the full tree and uses this Secret to resolve the same
-# postBuild substituteFrom reference that External Secrets supplies in-cluster.
+# flux-local scans the full tree and uses this optional ConfigMap before the
+# real Secret. In-cluster the ConfigMap is absent and cluster-settings wins.
 apiVersion: v1
-kind: Secret
+kind: ConfigMap
 metadata:
-  name: cluster-settings
+  name: flux-local-settings
   namespace: flux-system
-type: Opaque
-stringData:
+data:
   DOMAIN_NAME: example.invalid
   EMAIL: nobody@example.invalid
   KEATON_EMAIL: nobody@example.invalid
