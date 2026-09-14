@@ -1,9 +1,7 @@
 ---
-# The Hermes gateway's provider credential.
-# Note this resource only ISSUES the key and files it in 1Password -
-# Hermes stores its provider config on its own PVC, not in env, so pointing it
-# at this key is a one-off change inside Hermes rather than something Flux can
-# do. Until that happens this key exists and is simply unused.
+# The Hermes direct-session gateway's provider credential. Hermes consumes the
+# generated Secret directly; its init container declaratively reconciles the
+# matching provider entries into the otherwise mutable config on its PVC.
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMVirtualKey
 metadata:
@@ -13,12 +11,14 @@ spec:
   keyAlias: Hermes
   secretName: litellm-key-hermes
   secretKey: api-key
-  # No models scope, deliberately: this consumer chooses the frontier tier
-  # explicitly and needs it. The budget is what bounds the damage instead - an
-  # unscoped key can reach planner-gpt-pro, which is the most expensive thing
-  # this proxy fronts.
+  # Direct sessions default to Luna and may explicitly switch to either local
+  # scout model. Planning and metered escape-hatch aliases stay unreachable.
   maxBudget: "50"
   budgetDuration: 30d
+  models:
+    - coordinator
+    - Qwen/Qwen3.8-27B-W4A16
+    - Muse-Glimmer-30B
 ---
 apiVersion: external-secrets.io/v1alpha1
 kind: PushSecret
