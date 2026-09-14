@@ -97,15 +97,17 @@ vision/text cell. Those stay open in `bench-notes.md`.
 - The 16 GiB pod RAM limit is sufficient for these clean-pod runs. The highest
   observed RSS was 14.52 GiB on the older G6 process, so there is limited
   headroom but no evidence that a higher limit improves throughput.
-- The generated llama.cpp Deployment uses `RollingUpdate`. A configuration
-  change temporarily attempts to place old and new GPU replicas together on
-  one card, which cannot succeed. Each benchmark rollout therefore required
-  pausing the Deployment and scaling the exact old ReplicaSet to zero. The CRD
-  should expose or default to `Recreate` for exclusive-GPU services.
+- At benchmark time the generated llama.cpp Deployment used `RollingUpdate`.
+  A configuration change attempted to place old and new GPU replicas together
+  on one card, which cannot succeed, so each benchmark rollout required
+  pausing the Deployment and scaling the exact old ReplicaSet to zero.
+  Follow-up PR #110 installed a narrowly scoped native admission policy that
+  now forces `Recreate` for both UUID-bound GPU lanes.
 - Four stale Foreman Jobs were consuming Glimmer after their AgenticTasks were
   already terminal. Their Jobs were deleted while retaining CRs/results. This
-  reproduces the known terminal-task Job re-creation issue listed in the v4
-  plan and can otherwise invalidate capacity measurements.
+  reproduced the terminal-task Job re-creation issue listed in the v4 plan and
+  could otherwise invalidate capacity measurements. Follow-up PR #108 upgraded
+  Foreman to 0.9.27, whose drain and orphaned FleetNode fixes are now live.
 
 The GitOps configuration was returned to G6 (2 slots, total context 262,144)
 after recording these results.
