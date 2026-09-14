@@ -106,12 +106,12 @@ spec:
       value: GPU-787b1f07-4246-5ccd-5074-4bb2120f2c14
     - name: NVIDIA_DRIVER_CAPABILITIES
       value: compute,utility
-  # Two fixed 131k slots. Explicit parallelism avoids llama.cpp's automatic
-  # unified-KV mode and lets the two-scout round use the x4 lane concurrently.
+  # Temporary Glimmer G11 benchmark: four fixed 65k slots in the existing
+  # 262k arena. Restore the selected production frontier after measurement.
   contextSize: 262144
   flashAttention: true
   jinja: true
-  parallelSlots: 2
+  parallelSlots: 4
   rolloutPolicy:
     waitForIdle: true
   batchSize: 4096
