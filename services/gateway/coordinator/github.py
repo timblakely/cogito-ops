@@ -95,6 +95,19 @@ def deliverable_title(item: str) -> str:
     return title
 
 
+def deliverable_execution_intent(position: int, item: str) -> str:
+    """Bound a Foreman Workload to the one deliverable it is executing."""
+    if position < 1 or not item.strip():
+        raise ValidationError("deliverable execution intent requires a position and text")
+    return (
+        f"Implement and verify only approved deliverable {position}. "
+        "The linked GitHub deliverable issue is the executable scope; preserve "
+        "the parent-plan constraints expressed in this deliverable and do not "
+        "begin any later deliverable.\n\n"
+        f"{item.strip()}"
+    )
+
+
 def plan_issue_body(plan: PlanVersion) -> str:
     permalink = f"https://matrix.to/#/{plan.matrix_room_id}/{plan.matrix_event_id}"
     return (

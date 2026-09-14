@@ -3,7 +3,8 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from coordinator.github import (
-    GitHubIssues, deliverable_body, deliverable_specs, deliverable_title,
+    GitHubIssues, deliverable_body, deliverable_execution_intent,
+    deliverable_specs, deliverable_title,
 )
 from coordinator.models import ValidationError
 from coordinator.models import PlanVersion
@@ -40,6 +41,15 @@ class GitHubCredentialTests(unittest.TestCase):
         item = "**Deliverable 1 — Add evidence.** " + "Verify the path. " * 100
         self.assertEqual(deliverable_title(item), "Deliverable 1 — Add evidence.")
         self.assertLessEqual(len(deliverable_title("x" * 1000)), 240)
+
+    def test_execution_intent_contains_only_the_current_deliverable(self):
+        intent = deliverable_execution_intent(1, "Create the evidence document.")
+
+        self.assertIn("only approved deliverable 1", intent)
+        self.assertIn("Create the evidence document.", intent)
+        self.assertIn("do not begin any later deliverable", intent)
+        with self.assertRaises(ValidationError):
+            deliverable_execution_intent(0, "Invalid")
 
     def test_merge_is_pinned_to_reviewed_head_sha(self):
         github = GitHubIssues(token="test")
