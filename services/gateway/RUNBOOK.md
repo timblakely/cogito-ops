@@ -86,6 +86,9 @@ The acceptance path is complete when, in order:
 4. Coder, gate, and two distinct reviewers succeed; evidence appears on the PR.
 5. The required `Flux Local Success` check passes and the SHA-pinned merge lands.
 
+Acceptance evidence for this path is recorded in
+[Async agentic v4 acceptance evidence](../../kubernetes/acceptance/async-agentic-v4.md).
+
 ## Inspect and recover
 
 ```sh
