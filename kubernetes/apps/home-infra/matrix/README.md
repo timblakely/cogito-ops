@@ -35,11 +35,11 @@ for its name, topic, alias, membership, join rule, and power levels. New agent
 rooms and spaces belong in the same module. Agent harnesses remain ordinary
 Matrix members and need no Terraform awareness.
 
-The private `Agents` space contains `Agent Control`, `Agent Alerts`, `Agent
-Plans`, `Agent Runs`, and `Cogito`. The adopted Hermes room is now `Agent
-Control`; `#agent-control` is canonical and `#hermes-agent` remains a working
-alternate alias. Plans should use one Matrix thread per plan in the applicable
-project room, falling back to `Agent Plans` when no project room exists.
+The private `Agents` space contains `Agent Control`, `Agent Runs`,
+`Implementation`, `GitHub`, and `Cogito`. The adopted Hermes room is now
+`Agent Control`; `#agent-control` is canonical and `#hermes-agent` remains a
+working alternate alias. Plans use one Matrix thread per plan in the applicable
+project room.
 
 For Cogito automation, `Cogito` is the control room: planner conversation,
 approval, blockers, and overall completion remain in the originating plan
@@ -55,15 +55,15 @@ progress and failures still belong in the `Agents` space. Tim and Hermes are
 invited to each personal room. Their canonical aliases are `#personal-watches`
 and `#personal-money-making` on this homeserver.
 
-`prevent_destroy` blocks destructive replacement while an adopted room remains
-declared, and the Terraform custom resource sets
-`destroyResourcesOnDeletion: false` so deleting the controller object does not
-tear down Matrix resources. Matrix cannot delete rooms through the client API;
-removing a room resource from HCL can still make the service account leave it,
-so review those diffs with the same care as any other stateful GitOps change.
-Provider and controller versions, chart, and controller images are pinned. The
-Matrix provider is young, so its scope is deliberately limited to durable room
-state rather than messages or agent runtime behavior.
+`prevent_destroy` protects the adopted control room, spaces, and personal
+rooms. Project and operational agent rooms are removable so obsolete entries
+can first leave Terraform state and then be purged through the Synapse admin
+API. The Terraform custom resource still sets `destroyResourcesOnDeletion:
+false`, so deleting the controller object does not tear down Matrix resources.
+Review room-map removals with the same care as any other stateful GitOps
+change. Provider and controller versions, chart, and controller images are
+pinned. The Matrix provider is young, so its scope is deliberately limited to
+durable room state rather than messages or agent runtime behavior.
 
 ## Client enrollment
 
