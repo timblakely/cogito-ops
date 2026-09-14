@@ -1,6 +1,6 @@
 # Async Agentic Homelab: Matrix-driven planning and execution on a Talos Kubernetes cluster
 
-**Status:** design proposal, v4 (2026-09-13). Supersedes v3 (same day), v2 (same day), v1 (2026-09-12). All retained under `plans/llm/async-agentic-homelab-v*.md`.
+**Status:** core implementation deployed; a two-deliverable acceptance run completed on 2026-09-14. Direct sessions (§9), phone image ingestion, optional persona polish, and owner-device checks remain deferred. Supersedes v3 (2026-09-13), v2 (same day), and v1 (2026-09-12).
 **Audience:** a reviewer with no prior context. Markers: `[VERIFY]` unverified, `[DECISION]` contestable choice, `[OBSERVED]` seen on the live cluster on 2026-09-13, `[INHERITED]` an upstream or colleague's default rather than a choice made here.
 
 ---
@@ -223,7 +223,12 @@ vLLM pinned inside the syv-ai image; llama.cpp by digest; `--kv-unified` default
 
 9 stdlib-Python modules, 1,656 lines of source, 45 tests (~900 lines), a 152-line maubot plugin; 51 commits over three days. Durable outbox with deterministic `txn_id`s, replay idempotency, append-only audit, two-phase GitHub writes, Astra over Responses with SSE reassembly, deterministic scout task names, redacted transcripts, plan issue + sub-issues with `parent_issue_id` and `blocked_by`, SHA-pinned `merge-async`, serial Workloads, two-distinct-reviewer quorum, metrics, alerts, dashboard, RUNBOOK.
 
-### 5.2 Gap table against v4
+### 5.2 Gap table at proposal time
+
+This is the 2026-09-13 implementation baseline, retained for design review;
+`Missing` and `Partial` below do not describe the current deployed state. See
+the status header and `kubernetes/acceptance/async-agentic-v4.md` for current
+evidence.
 
 | Capability | Status | Adapt cost (est. lines) | Notes |
 |---|---|---|---|
