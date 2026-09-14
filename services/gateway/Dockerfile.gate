@@ -2,6 +2,10 @@ FROM ghcr.io/allenporter/flux-local:v8.4.0@sha256:c0be852e30f299ce6a220cc992b0c2
 
 USER root
 RUN apk add --no-cache bash=5.3.9-r1 \
-    && mkdir -p /work \
-    && chown 1001:1001 /work
+    && mkdir -p /work/.cache /work/.config /work/.local/share \
+    && chown -R 1001:1001 /work
+ENV HOME=/work \
+    XDG_CACHE_HOME=/work/.cache \
+    XDG_CONFIG_HOME=/work/.config \
+    XDG_DATA_HOME=/work/.local/share
 USER 1001

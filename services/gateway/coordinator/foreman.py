@@ -107,8 +107,8 @@ class ForemanClient:
     # which Foreman's clean-room runner uses as its fixed command entrypoint.
     # The digest is authority.
     gate_image: str = (
-        "ghcr.io/timblakely/cogito-gateway:gate-flux-local-v8.4.0-bash2@"
-        "sha256:ee797dac5518d0f7eb71db30d3fac13a85ae276a1389a59275b7b0e620508465"
+        "ghcr.io/timblakely/cogito-gateway:gate-flux-local-v8.4.0-bash4@"
+        "sha256:f2751cf764f8a4f90ccda098bfbbfa64387a05c41db3b2a3da469173e4d8b94d"
     )
 
     @property
@@ -189,9 +189,11 @@ class ForemanClient:
                             "grep -q '^services/gateway/'; then "
                             "(cd services/gateway && python -m unittest discover -s tests -v); fi && "
                             "if git diff --name-only HEAD^ HEAD -- | "
-                            "grep -q '^kubernetes/'; then "
+                            "grep '^kubernetes/' | grep -vq '\\.md$'; then "
+                            "PYTEST_ADDOPTS='--deselect=kubernetes/flux::pocket-id::home-infra/pocket-id-operator "
+                            "--deselect=kubernetes/flux::cloudflare-ddns::network/cloudflare-ddns' "
                             "flux-local test --enable-helm --all-namespaces "
-                            "--path kubernetes/flux/cluster -v; fi"
+                            "--path kubernetes/flux -v; fi"
                         )
                     },
                 },
