@@ -213,8 +213,20 @@ class StateTests(unittest.TestCase):
                 "VALUES (?,?,?,?,?,?)", ("metrics-plan", "complete", "https://github.com/o/r.git",
                 "!room:x", "$root", 1),
             )
+            db.executemany(
+                "INSERT INTO luna_turns(plan_id,batch_id,input_json,state,created_at) "
+                "VALUES ('metrics-plan',?, '[]',?,0)",
+                [("luna:retrying", "pending"), ("luna:terminal", "failed")],
+            )
+            db.executemany(
+                "INSERT INTO external_actions "
+                "(action_key,kind,request_json,state,last_error) "
+                "VALUES (?,'luna.test','{}','pending','failed')",
+                [("luna:retrying:call:test",), ("luna:terminal:call:test",)],
+            )
         metrics = self.state.prometheus_metrics()
         self.assertIn('cogito_gateway_objects{kind="plan",state="complete"} 1', metrics)
+        self.assertIn("cogito_gateway_external_action_errors 1", metrics)
         self.assertNotIn("run_usage", metrics)
 
     def test_coordinator_events_coalesce_and_interrupted_turn_replays(self):
