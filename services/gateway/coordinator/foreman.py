@@ -103,11 +103,12 @@ class ForemanClient:
     api_server: str = "https://kubernetes.default.svc"
     token_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/token"
     ca_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-    # The gate image contains git, kustomize, Helm and flux-local. The digest is
-    # authority; it matches the repository CI's v7.11.0 release.
+    # The gate image wraps the repository CI's flux-local toolchain with Bash,
+    # which Foreman's clean-room runner uses as its fixed command entrypoint.
+    # The digest is authority.
     gate_image: str = (
-        "ghcr.io/allenporter/flux-local:v7.11.0@"
-        "sha256:5e815fabc544d56adaed7b815c6243eca4776ef83b9a11bec370fd888196de03"
+        "ghcr.io/timblakely/cogito-gateway:gate-flux-local-v8.4.0-bash1@"
+        "sha256:01c30f8f36533e9a12c032ebd7ba89537fb33cb88b59bbcd4c0ca80ac4b77ea3"
     )
 
     @property
