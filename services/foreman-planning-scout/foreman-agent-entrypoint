@@ -4,6 +4,8 @@ set -eu
 task=""
 namespace=""
 workspace_root=""
+workspace=""
+reset_watcher=""
 expect=""
 for argument in "$@"; do
     if [ -n "$expect" ]; then
@@ -24,7 +26,19 @@ done
 
 if [ "${1:-}" = "run-task" ] && [ -n "$task" ] \
         && [ -n "$namespace" ] && [ -n "$workspace_root" ]; then
-    mkdir -p "$workspace_root/$namespace/$task"
+    workspace="$workspace_root/$namespace/$task"
+    mkdir -p "$workspace"
+
+    # Foreman v0.9.25 resets this leaf after startup, then skips both clone and
+    # recreation for anonymous freeform tasks. Wait for that single reset and
+    # restore the empty workspace before the model can invoke its tools.
+    (
+        while [ -d "$workspace" ]; do
+            sleep 0.05
+        done
+        mkdir -p "$workspace"
+    ) &
+    reset_watcher="$!"
 fi
 
 # The image workflow uses this only to assert workspace initialization without
@@ -33,7 +47,9 @@ if [ "${FOREMAN_WORKSPACE_INIT_ONLY:-0}" = "1" ]; then
     test -n "$task"
     test -n "$namespace"
     test -n "$workspace_root"
-    test -d "$workspace_root/$namespace/$task"
+    rmdir "$workspace"
+    wait "$reset_watcher"
+    test -d "$workspace"
     exit 0
 fi
 
