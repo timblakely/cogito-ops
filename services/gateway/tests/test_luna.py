@@ -23,7 +23,9 @@ class FakeIssues:
 
 
 class FakeForeman:
-    def __init__(self): self.created = []
+    def __init__(self):
+        self.created = []
+        self.task_items = []
 
     def ensure_workload(self, **values):
         self.created.append(values)
@@ -36,6 +38,9 @@ class FakeForeman:
         return {"phase": value.get("status", {}).get("phase", "Pending"),
                 "succeeded": 0, "failed": 0, "incomplete": 1,
                 "contradicted": 0, "review_iterations": 0, "conditions": []}
+
+    def tasks(self, workload_name):
+        return self.task_items
 
 
 class DispatchingLuna:
@@ -187,6 +192,28 @@ class LunaTests(unittest.TestCase):
             self.state.plan("plan-luna"), "packet", "task_packet", {"name": "scout-1"})
         self.assertEqual(result["packet"]["conclusion"], "Found it")
         self.assertEqual(result["packet"]["evidence"][0]["line"], 4)
+
+    def test_task_packet_accepts_workload_name_and_lists_children(self):
+        self.assertTrue(self.luna.reconcile_once())
+        self.foreman.task_items = [{
+            "metadata": {"name": "workload-1-verify-2", "labels": {
+                "cogito.dev/plan-id": "plan-luna"}},
+            "spec": {"kind": "gate", "agentRef": {"name": "cogito-gate"}},
+            "status": {"phase": "Succeeded", "verdict": "INCOMPLETE",
+                       "failureReason": "AuthUnavailable"},
+        }, {
+            "metadata": {"name": "workload-1-coder-2", "labels": {
+                "cogito.dev/plan-id": "plan-luna"}},
+            "spec": {"kind": "issue-fix", "agentRef": {"name": "cogito-coder"}},
+            "status": {"phase": "Succeeded", "verdict": "GO"},
+        }]
+        result = self.luna._execute_once(
+            self.state.plan("plan-luna"), "packet-index", "task_packet",
+            {"name": "workload-1"})
+        self.assertEqual([item["name"] for item in result["tasks"]],
+                         ["workload-1-coder-2", "workload-1-verify-2"])
+        self.assertEqual(result["tasks"][1]["failure_reason"], "AuthUnavailable")
+        self.assertFalse(result["truncated"])
 
 
 if __name__ == "__main__": unittest.main()

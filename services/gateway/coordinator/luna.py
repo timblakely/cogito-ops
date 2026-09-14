@@ -49,7 +49,8 @@ TOOLS = [
           ["issue", "diagnosis"]),
     _tool("workload_status", "Read a bounded status summary for this plan's Workload.",
           {"name": {"type": "string"}}, ["name"]),
-    _tool("task_packet", "Read a bounded Foreman task result packet, never raw transcript or logs.",
+    _tool("task_packet", "Read a bounded Foreman task result packet, never raw transcript or logs. "
+          "A Workload name returns its bounded child-task index; call again with a child name.",
           {"name": {"type": "string"}}, ["name"]),
     _tool("spawn_scout", "Start a read-only local diagnostic scout.", {
         "question": {"type": "string"},
@@ -306,6 +307,27 @@ class LunaCoordinator:
                 raise ValidationError("Workload does not belong to this plan")
             return self.foreman.summary(self.foreman.get(args["name"]))
         if name == "task_packet":
+            workload = self.state.workload_for_plan(plan_id)
+            if workload and workload["name"] == args["name"]:
+                tasks = self.foreman.tasks(args["name"])
+                children = []
+                for task in tasks:
+                    metadata = task.get("metadata") or {}
+                    if metadata.get("labels", {}).get("cogito.dev/plan-id") != plan_id:
+                        raise ValidationError("Workload child task does not belong to this plan")
+                    status = task.get("status") or {}
+                    spec = task.get("spec") or {}
+                    children.append({
+                        "name": str(metadata.get("name") or "")[:253],
+                        "phase": status.get("phase"),
+                        "kind": spec.get("kind"),
+                        "agent": (spec.get("agentRef") or {}).get("name"),
+                        "verdict": status.get("verdict"),
+                        "failure_reason": str(status.get("failureReason") or "")[:1_000],
+                    })
+                children.sort(key=lambda item: item["name"])
+                return {"workload": args["name"], "tasks": children[:16],
+                        "truncated": len(children) > 16}
             task = self.foreman.get_task(args["name"])
             if task.get("metadata", {}).get("labels", {}).get("cogito.dev/plan-id") != plan_id:
                 raise ValidationError("task does not belong to this plan")
