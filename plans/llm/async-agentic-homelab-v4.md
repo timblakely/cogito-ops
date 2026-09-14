@@ -490,7 +490,7 @@ Synapse → ntfy → UnifiedPush → Commet (done). Mentions only on `NEEDS_INPU
 8. `[VERIFY]` Luna tokens per Workload-level deliverable at effort max, measured over the first real plan; decides whether coalescing or effort needs tuning.
 9. `[VERIFY]` Commet renders `m.poll`.
 10. `[VERIFY]` Hermes as a direct session.
-11. Measure: Qwen `SPEC`/`CTX` A/B; Muse scout turn p95; coder effort.
+11. Measure: Qwen `SPEC`/`CTX` A/B; Muse Glimmer's 1–4 slot/context capacity frontier, concurrent scout turn p95, prefix reuse, and mixed vision/text behavior on its RTX 3090; coder effort.
 12. Upstream: Foreman's no-diff gate on `freeform` tasks; Job re-creation for terminal tasks on agent restart.
 
 ---
