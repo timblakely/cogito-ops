@@ -853,7 +853,8 @@ class StateStore:
                 "JOIN plans p ON p.plan_id=w.plan_id "
                 "JOIN plan_deliverables d ON d.plan_id=w.plan_id "
                 "AND d.position=w.deliverable_position "
-                "WHERE p.state='running' AND d.state='running' ORDER BY w.name").fetchall()
+                "WHERE p.state IN ('running','needs_input') AND d.state='running' "
+                "ORDER BY w.name").fetchall()
 
     def update_workload(self, name: str, status: dict[str, Any]) -> bool:
         encoded = json.dumps(status, sort_keys=True)

@@ -178,8 +178,12 @@ class StateTests(unittest.TestCase):
         self.state.register_deliverables("plan-workload", ["https://github.com/o/r/issues/1"])
         self.state.register_workload("workload-1", "plan-workload", {"phase": "Planning"})
         self.assertEqual(self.state.workload_for_plan("plan-workload")["name"], "workload-1")
+        # A Luna turn cap may move the plan to needs_input while Foreman is
+        # still running. The workload must remain reconcilable to terminal.
+        self.state.set_plan_state("plan-workload", "needs_input")
+        self.assertEqual([row["name"] for row in self.state.active_workloads()], ["workload-1"])
         self.assertTrue(self.state.update_workload("workload-1", {"phase": "Completed", "succeeded": 3}))
-        self.assertEqual(self.state.plan_for_thread("!r:x", "$root")["state"], "running")
+        self.assertEqual(self.state.plan_for_thread("!r:x", "$root")["state"], "needs_input")
         self.state.begin_merge(
             "plan-workload", 1, "https://github.com/o/r/pull/2", "a" * 40, "uuid-1",
             {"status": "pending"},
