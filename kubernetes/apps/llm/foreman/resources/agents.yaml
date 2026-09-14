@@ -157,7 +157,11 @@ spec:
   maxTurns: 80
   maxRetries: 3
   maxConcurrentTasks: 1
-  requestTurnTimeoutSeconds: 300
+  # Local reasoning can occasionally spend the full five-minute window on a
+  # single turn. Keep the overall request/Job bound at one hour, but allow a
+  # slow turn to finish instead of killing it and immediately retrying against
+  # the still-held LiteLLM concurrency slot.
+  requestTurnTimeoutSeconds: 600
   requestTimeoutSeconds: 3600
   bashTimeoutSeconds: 300
   tools:
