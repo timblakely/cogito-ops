@@ -12,6 +12,7 @@ import re
 
 from .core import Coordinator
 from .foreman import ForemanClient
+from .github import deliverable_execution_intent, deliverable_specs
 from .models import Approval, PlanVersion, ValidationError, canonical_json
 from .planner import PlannerClient
 from .state import StateStore
@@ -395,10 +396,12 @@ class MatrixCoordinator:
             return None
         plan = self.state.plan(plan_id)
         version = self.state.current_plan_version(plan_id)
+        item = deliverable_specs(
+            version["markdown"])[deliverable["position"] - 1][0]
         workload = self.foreman.ensure_workload(
             plan_id=plan_id,
             plan_hash=version["content_hash"],
-            intent=version["markdown"],
+            intent=deliverable_execution_intent(deliverable["position"], item),
             repository=plan["repository"],
             issue_urls=[deliverable["issue_url"]],
             room_id=plan["matrix_room_id"],

@@ -95,6 +95,8 @@ class LunaTests(unittest.TestCase):
     def test_approved_deliverables_are_dispatched_by_durable_luna_turns(self):
         self.assertTrue(self.luna.reconcile_once())
         self.assertEqual([item["deliverable_position"] for item in self.foreman.created], [1])
+        self.assertIn("First", self.foreman.created[0]["intent"])
+        self.assertNotIn("Second", self.foreman.created[0]["intent"])
         usage = self.state.luna_usage("plan-luna")
         self.assertEqual(usage, {"turns": 1, "input_tokens": 120, "output_tokens": 30})
         pending = self.state.pending_matrix(100)

@@ -10,7 +10,7 @@ import json
 import re
 
 from .foreman import result_packet
-from .github import deliverable_specs
+from .github import deliverable_execution_intent, deliverable_specs
 from .models import PlanVersion, ValidationError
 from .planner import PlannerClient
 
@@ -274,7 +274,8 @@ class LunaCoordinator:
                 return {"created": False, "guardrail": collisions}
             workload = self.foreman.ensure_workload(
                 plan_id=plan_id, plan_hash=version["content_hash"],
-                intent=version["markdown"], repository=plan["repository"],
+                intent=deliverable_execution_intent(pending["position"], item),
+                repository=plan["repository"],
                 issue_urls=[pending["issue_url"]], room_id=plan["matrix_room_id"],
                 thread_root=plan["root_event_id"],
                 deliverable_position=pending["position"],
