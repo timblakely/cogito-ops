@@ -1,7 +1,8 @@
----
-# yaml-language-server: $schema=https://json.schemastore.org/kustomization
 apiVersion: kustomize.config.k8s.io/v1beta1
+components:
+- ../../../../components/hr
 kind: Kustomization
+namespace: cluster-infra
 resources:
-  - repo.yaml
-  - helmrelease.yaml
+- repo.yaml
+- helmrelease.yaml

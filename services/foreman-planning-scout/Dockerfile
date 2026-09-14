@@ -1,4 +1,4 @@
-FROM ghcr.io/defilantech/llmkube-foreman-agent-coder@sha256:70622d517f626d8e25cb6a5c1d4a70dc5803ceaddf4615ef6d0e371fb8a68ba9
+FROM ghcr.io/defilantech/llmkube-foreman-agent-coder@sha256:7aa935563ab6a28e6bd8b28eef0fe22d9b87f002cc189e068094de64829a6c5c
 
 ARG GH_VERSION=2.82.1
 ARG GH_SHA256=afada88676dfccea384e6cc28ae990b3e31bbc55f9d75c4697f902c757fa462b
