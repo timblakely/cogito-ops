@@ -37,4 +37,5 @@ jobs:
         run: |
           docker build --pull --label "org.opencontainers.image.revision=$REVISION" --tag "$IMAGE:$REVISION" services/foreman-planning-scout
           docker run --rm --entrypoint sh "$IMAGE:$REVISION" -lc 'gh --version && jq --version && unzip -v'
+          docker run --rm --env FOREMAN_WORKSPACE_INIT_ONLY=1 "$IMAGE:$REVISION" run-task --task smoke --namespace llm --workspace-dir /tmp/workspace
           docker push "$IMAGE:$REVISION"

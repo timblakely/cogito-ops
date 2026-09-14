@@ -1,0 +1,40 @@
+#!/bin/sh
+set -eu
+
+task=""
+namespace=""
+workspace_root=""
+expect=""
+for argument in "$@"; do
+    if [ -n "$expect" ]; then
+        case "$expect" in
+            task) task="$argument" ;;
+            namespace) namespace="$argument" ;;
+            workspace_root) workspace_root="$argument" ;;
+        esac
+        expect=""
+        continue
+    fi
+    case "$argument" in
+        --task) expect="task" ;;
+        --namespace) expect="namespace" ;;
+        --workspace-dir) expect="workspace_root" ;;
+    esac
+done
+
+if [ "${1:-}" = "run-task" ] && [ -n "$task" ] \
+        && [ -n "$namespace" ] && [ -n "$workspace_root" ]; then
+    mkdir -p "$workspace_root/$namespace/$task"
+fi
+
+# The image workflow uses this only to assert workspace initialization without
+# requiring Kubernetes credentials. Normal Jobs never set it.
+if [ "${FOREMAN_WORKSPACE_INIT_ONLY:-0}" = "1" ]; then
+    test -n "$task"
+    test -n "$namespace"
+    test -n "$workspace_root"
+    test -d "$workspace_root/$namespace/$task"
+    exit 0
+fi
+
+exec /foreman-agent.real "$@"
