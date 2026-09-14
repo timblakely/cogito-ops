@@ -27,16 +27,19 @@ class ForemanTests(unittest.TestCase):
         self.assertEqual(manifest["spec"]["gateProfile"]["language"], "generic")
         self.assertTrue(manifest["spec"]["allowCloudReviewers"])
         self.assertIn("@sha256:", manifest["spec"]["gateProfile"]["image"])
-        self.assertIn("cogito-gateway:gate-flux-local-v8.4.0-bash2",
+        self.assertIn("cogito-gateway:gate-flux-local-v8.4.0-bash4",
                       manifest["spec"]["gateProfile"]["image"])
         self.assertEqual(
             manifest["spec"]["gateProfile"]["commands"]["lint"],
             "git fetch --deepen=1 origin && git diff --check HEAD^ HEAD -- . && "
             "if git diff --name-only HEAD^ HEAD -- | grep -q '^services/gateway/'; then "
             "(cd services/gateway && python -m unittest discover -s tests -v); fi && "
-            "if git diff --name-only HEAD^ HEAD -- | grep -q '^kubernetes/'; then "
+            "if git diff --name-only HEAD^ HEAD -- | grep '^kubernetes/' | "
+            "grep -vq '\\.md$'; then "
+            "PYTEST_ADDOPTS='--deselect=kubernetes/flux::pocket-id::home-infra/pocket-id-operator "
+            "--deselect=kubernetes/flux::cloudflare-ddns::network/cloudflare-ddns' "
             "flux-local test --enable-helm --all-namespaces "
-            "--path kubernetes/flux/cluster -v; fi",
+            "--path kubernetes/flux -v; fi",
         )
 
     def test_repository_and_issue_must_match(self):
