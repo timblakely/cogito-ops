@@ -74,6 +74,26 @@ no secrets, tokens, or raw transcripts).
   validation found two Ready FleetNodes with four aggregate slots, no active
   Foreman Jobs, and both inference lanes Ready after the strategy change.
 
+## Post-acceptance phone image path
+
+- Runtime and GitOps support merged in
+  [PR #115](https://github.com/timblakely/cogito-ops/pull/115) at
+  `2d5196c81aeb1f41e172bc515c2600794149a18a`; the immutable image pin merged in
+  [PR #116](https://github.com/timblakely/cogito-ops/pull/116) at
+  `33f04cc9ff443a329cf9be6f3a35ed09f3791d7c`.
+- Flux applied the exact pin revision. The replacement gateway pod became Ready
+  with both containers at zero restarts and main image digest
+  `sha256:fd19eb5d50b8967960a0abcbf18cd68594681688871dde3e7d89f31ea8ce0754`.
+- `LiteLLMModel/image`, `LiteLLMVirtualKey/image`, and its PushSecret reconciled;
+  the downstream gateway Secret contains `LITELLM_IMAGE_API_KEY`.
+- A generated 64 × 64 PNG split evenly between red and blue was described
+  correctly through the deployed gateway `ImageClient` and local Muse route.
+  The image-role key's attempt to call `reviewer` was rejected with HTTP 403.
+- The running maubot sidecar contains the `m.image` handler and encrypted
+  attachment decryption path. An owner-device Commet send remains the only
+  uncompleted media-path check because it requires an event from the owner's
+  logged-in device.
+
 ## Implementation handoff
 
 - **Repository gate selected for this path:** the `flux-local` job in
