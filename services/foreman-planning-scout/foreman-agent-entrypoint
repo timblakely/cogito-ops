@@ -29,7 +29,7 @@ if [ "${1:-}" = "run-task" ] && [ -n "$task" ] \
     workspace="$workspace_root/$namespace/$task"
     mkdir -p "$workspace"
 
-    # Foreman v0.9.25 resets this leaf after startup, then skips both clone and
+    # Foreman resets this leaf after startup, then skips both clone and
     # recreation for anonymous freeform tasks. Wait for that single reset and
     # restore the empty workspace before the model can invoke its tools.
     (

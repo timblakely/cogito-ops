@@ -1,17 +1,16 @@
----
-# yaml-language-server: $schema=https://json.schemastore.org/kustomization
 apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources:
-  - ./fan-control.yaml
-  - ./gpu-sharing-config.yaml
-  - ./helmrelease.yaml
-  - ./helmrepository.yaml
-  - ./power-limit.yaml
-  - ./runtimeclass.yaml
+components:
+- ../../../../components/hr
 configMapGenerator:
-  # Content-hashed: script edits change the ConfigMap name, which kustomize
-  # rewrites in the DaemonSet volume ref (same build), rolling the pod.
-  - name: fan-control-script
-    files:
-      - fanctl.py
+- files:
+  - fanctl.py
+  name: fan-control-script
+kind: Kustomization
+namespace: cluster-infra
+resources:
+- ./fan-control.yaml
+- ./gpu-sharing-config.yaml
+- ./helmrelease.yaml
+- ./helmrepository.yaml
+- ./power-limit.yaml
+- ./runtimeclass.yaml
