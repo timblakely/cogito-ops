@@ -1,0 +1,37 @@
+---
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: image
+spec:
+  proxyRef: litellm
+  keyAlias: role-image
+  secretName: litellm-key-image
+  secretKey: api-key
+  maxBudget: "1"
+  budgetDuration: 30d
+  rpmLimit: 6
+  maxParallelRequests: 1
+  models:
+    - image
+---
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: litellm-key-image
+spec:
+  refreshInterval: 1h
+  secretStoreRefs:
+    - kind: ClusterSecretStore
+      name: onepassword
+  selector:
+    secret:
+      name: litellm-key-image
+  updatePolicy: Replace
+  deletionPolicy: None
+  data:
+    - match:
+        secretKey: api-key
+        remoteRef:
+          remoteKey: litellm
+          property: LITELLM_IMAGE_API_KEY

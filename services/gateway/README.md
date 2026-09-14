@@ -11,6 +11,11 @@ to four focused tasks to local read-only Foreman planning scouts. The durable
 gateway passes only their bounded summaries back to Astra, permits at most
 two research rounds, and has no automatic paid-model fallback.
 
+Images up to 8 MiB sent in a Cogito plan or implementation thread are
+downloaded and decrypted by the maubot sidecar, described through the dedicated
+local Muse `image` alias, and reduced to bounded text before Astra or Luna sees
+them. A root-level image is handled only when its caption begins with `!cogito`.
+
 The `coordinator` role is Luna. Repository and Matrix events are durably
 coalesced into restart-safe Luna turns. Luna can act only through the gateway's
 bounded tools; it cannot merge, change approval labels, read raw transcripts or

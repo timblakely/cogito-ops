@@ -1,0 +1,25 @@
+---
+# Dedicated Muse vision route for owner-supplied Matrix images. The gateway
+# reduces raw media to bounded text here before Astra or Luna sees it.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: image
+  annotations:
+    cogito.dev/context-budget: deliberate
+spec:
+  modelName: image
+  proxyRef: litellm
+  params:
+    model: openai/muse-glimmer-30b
+    apiBase: http://muse-glimmer-30b.llm.svc.cluster.local:8080/v1
+    apiKey: not-needed
+    additional:
+      timeout: 900
+  info:
+    supportsVision: true
+    maxInputTokens: 131072
+    maxOutputTokens: 4096
+    extra:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
