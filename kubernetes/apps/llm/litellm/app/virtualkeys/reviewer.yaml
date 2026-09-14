@@ -4,11 +4,11 @@
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMVirtualKey
 metadata:
-  name: reviewer
+  name: reviewer-v2
 spec:
   proxyRef: litellm
   keyAlias: role-reviewer
-  secretName: litellm-key-reviewer
+  secretName: litellm-key-reviewer-v2
   secretKey: api-key
   maxBudget: "1"
   budgetDuration: 30d
@@ -20,7 +20,7 @@ spec:
 apiVersion: external-secrets.io/v1alpha1
 kind: PushSecret
 metadata:
-  name: litellm-key-reviewer
+  name: litellm-key-reviewer-v2
 spec:
   refreshInterval: 1h
   secretStoreRefs:
@@ -28,7 +28,7 @@ spec:
       name: onepassword
   selector:
     secret:
-      name: litellm-key-reviewer
+      name: litellm-key-reviewer-v2
   updatePolicy: Replace
   deletionPolicy: None
   data:
