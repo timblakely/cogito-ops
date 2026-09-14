@@ -22,18 +22,18 @@ The ntfy hostname resolves through Cogito's internal Envoy address. That one
 address is in Synapse's outbound IP whitelist so it can call ntfy's Matrix push
 gateway without allowing arbitrary private-network URL fetches.
 
-## Room GitOps
+## Room configuration
 
-Tofu Controller reconciles room and space state declared under `terraform/`
-through `raspbeguy/matrix`. The provider runs as the non-admin Matrix account
-`@agent-gitops:matrix.${DOMAIN_NAME}`. Its password and long-lived access token
-live in the `matrix-gitops` item in the 1Password `Kubernetes` vault; External
-Secrets exposes only the access token to the short-lived runner pod.
+Matrix rooms and spaces are durable Synapse state and are no longer reconciled
+by Terraform. `app/room-ids.yaml` publishes the two stable room IDs needed by
+the gateway as the `matrix-room-ids` ConfigMap. Update that ConfigMap only when
+one of those rooms is deliberately replaced.
 
-The existing encrypted `Hermes Agent` room is imported by room ID, then managed
-for its name, topic, alias, membership, join rule, and power levels. New agent
-rooms and spaces belong in the same module. Agent harnesses remain ordinary
-Matrix members and need no Terraform awareness.
+Names, topics, aliases, membership, join rules, power levels, and space
+hierarchy are administered directly in Matrix. The retired
+`@agent-gitops:matrix.${DOMAIN_NAME}` account remains the creator of some rooms
+and of the existing Hookshot repository connection, but Kubernetes no longer
+needs its access token.
 
 The private `Agents` space contains `Agent Control`, `Agent Runs`,
 `Implementation`, `GitHub`, and `Cogito`. The adopted Hermes room is now
@@ -55,25 +55,18 @@ progress and failures still belong in the `Agents` space. Tim and Hermes are
 invited to each personal room. Their canonical aliases are `#personal-watches`
 and `#personal-money-making` on this homeserver.
 
-`prevent_destroy` protects the adopted control room, spaces, and personal
-rooms. Project and operational agent rooms are removable so obsolete entries
-can first leave Terraform state and then be purged through the Synapse admin
-API. The Terraform custom resource still sets `destroyResourcesOnDeletion:
-false`, so deleting the controller object does not tear down Matrix resources.
-Review room-map removals with the same care as any other stateful GitOps
-change. Provider and controller versions, chart, and controller images are
-pinned. The Matrix provider is young, so its scope is deliberately limited to
-durable room state rather than messages or agent runtime behavior.
+Removing a room from `app/room-ids.yaml` does not remove it from Synapse.
+Obsolete rooms must be detached from their spaces and purged deliberately
+through the Synapse admin API. Treat room ID changes as stateful migrations:
+update memberships and aliases, then update the ConfigMap and verify the
+gateway before purging the old room.
 
 ## Client enrollment
 
-Matrix distinguishes `invite` from `join`: the controller sends the
-invitations, but only the invited account can accept them. The private
-`Agents` and `Personal` spaces, their child rooms, aliases, hierarchy, and
-invitations are all declared and reconciled through GitOps; none of that
-accepts a membership on an account's behalf. Tim accepts each outstanding
-invitation once in a Matrix client: the space invitation and, separately,
-every private child-room invitation.
+Matrix distinguishes `invite` from `join`: only the invited account can accept
+an invitation. Tim accepts each outstanding invitation once in a Matrix
+client: the space invitation and, separately, every private child-room
+invitation.
 
 Space membership does not imply membership in its private child rooms. Each
 room holds its own membership, so the child-room invitations must be accepted
@@ -82,18 +75,15 @@ room in the space hierarchy, which made the first enrollment confusing; if
 the hierarchy still does not redraw after accepting, refresh or restart the
 client.
 
-After the one-time joins, membership persists: later changes to room names,
-topics, aliases, and space hierarchy continue to reconcile through GitOps
-without further client action. The canonical aliases (`#agent-control`,
-`#personal-watches`, `#personal-money-making`) confirm that the intended
-rooms were joined.
+After the one-time joins, membership persists. The canonical aliases
+(`#agent-control`, `#personal-watches`, `#personal-money-making`) confirm that
+the intended rooms were joined.
 
 Service accounts may accept invitations automatically when their own runtime
-supports it. Hookshot does so only when the inviter has at least `login`
-permission. Cogito grants `@agent-gitops` the additive
-`generic: manageConnections` level, which includes invite permission while
-remaining confined to generic webhooks. Human accounts still accept their own
-invitations in a Matrix client.
+supports it. Human accounts still accept their own invitations in a Matrix
+client. Hookshot retains the narrowly scoped `@agent-gitops` permission needed
+by the existing repository connection; it does not grant that account cluster
+credentials.
 
 ## Android setup and acceptance
 
