@@ -94,7 +94,6 @@ class Coordinator:
         allowed = self.approvers if source == "matrix" else self.github_approvers
         if approval.approver not in allowed:
             raise ValidationError(f"{source.title()} user is not allowed to approve")
-        new_approval = False
         already_advanced = False
         with self.state.transaction() as db:
             plan_row = db.execute(
@@ -125,7 +124,6 @@ class Coordinator:
                 (approval.plan_id, approval.plan_hash, approval.matrix_event_id,
                  approval.approver, approval.approved_at),
                 )
-                new_approval = True
             if not already_advanced:
                 db.execute("UPDATE plans SET state='accepted' WHERE plan_id=?", (approval.plan_id,))
             plan = PlanVersion(
@@ -155,16 +153,15 @@ class Coordinator:
                 (issue_url, approval.plan_id),
             )
         self.state.register_deliverables(approval.plan_id, children)
-        if new_approval:
-            self.state.enqueue_coordinator_event(
-                f"approval:{approval.matrix_event_id}", approval.plan_id, source,
-                "plan.approved", {
-                    "actor": approval.approver,
-                    "plan_hash": approval.plan_hash,
-                    "plan_issue_url": issue_url,
-                    "deliverables": children,
-                }, delay_seconds=0,
-            )
+        self.state.enqueue_coordinator_event(
+            f"approval:{approval.matrix_event_id}", approval.plan_id, source,
+            "plan.approved", {
+                "actor": approval.approver,
+                "plan_hash": approval.plan_hash,
+                "plan_issue_url": issue_url,
+                "deliverables": children,
+            }, delay_seconds=0,
+        )
         self.state.audit(approval.approver, "plan.approved", approval.plan_id,
                          {**asdict(approval), "github_issue": issue_url, "sub_issues": children})
         self.state.enqueue_plan_card(approval.plan_id)

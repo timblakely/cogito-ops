@@ -2,7 +2,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from coordinator.github import GitHubIssues, deliverable_body, deliverable_specs
+from coordinator.github import (
+    GitHubIssues, deliverable_body, deliverable_specs, deliverable_title,
+)
 from coordinator.models import ValidationError
 from coordinator.models import PlanVersion
 
@@ -33,6 +35,11 @@ class GitHubCredentialTests(unittest.TestCase):
         self.assertTrue(body.startswith(f"## Deliverable\n\n{item}\n\n"))
         self.assertIn("<!-- cogito-plan-deliverable: plan-1:1 -->", body)
         self.assertIn(f"Accepted plan hash: `{plan.hash}`", body)
+
+    def test_deliverable_title_prefers_bounded_bold_heading(self):
+        item = "**Deliverable 1 — Add evidence.** " + "Verify the path. " * 100
+        self.assertEqual(deliverable_title(item), "Deliverable 1 — Add evidence.")
+        self.assertLessEqual(len(deliverable_title("x" * 1000)), 240)
 
     def test_merge_is_pinned_to_reviewed_head_sha(self):
         github = GitHubIssues(token="test")

@@ -18,6 +18,8 @@ DELIVERABLE = re.compile(r"^\s*[-*]\s+\[[ xX]\]\s+(.+?)\s*$")
 PULL_PATH = re.compile(r"^/([^/]+)/([^/]+)/pull/([1-9][0-9]*)$")
 ISSUE_URL_PATH = re.compile(r"^/([^/]+)/([^/]+)/issues/([1-9][0-9]*)$")
 PLAN_ID_MARKER = re.compile(r"<!--\s*cogito-plan-id:\s*([^\s]+)\s*-->")
+DELIVERABLE_HEADING = re.compile(r"^\*\*(.+?)\*\*(?:\s|$)")
+MAX_ISSUE_TITLE = 240
 
 
 def repository_slug(url: str) -> str:
@@ -81,6 +83,16 @@ def deliverable_body(plan: PlanVersion, index: int, item: str, parent_url: str) 
         f"Accepted plan hash: `{plan.hash}`\n\n"
         "## Acceptance criteria\n\n- [ ] Deliverable implemented\n- [ ] Checks recorded\n"
     )
+
+
+def deliverable_title(item: str) -> str:
+    """Build a bounded GitHub title while keeping the full ask in the body."""
+    match = DELIVERABLE_HEADING.match(item.strip())
+    title = match.group(1) if match else item
+    title = " ".join(title.split()).strip() or "Implement and verify the approved deliverable"
+    if len(title) > MAX_ISSUE_TITLE:
+        title = title[:MAX_ISSUE_TITLE - 3].rstrip() + "..."
+    return title
 
 
 def plan_issue_body(plan: PlanVersion) -> str:
@@ -331,20 +343,21 @@ class GitHubIssues:
         child_records = []
         specs = deliverable_specs(plan.markdown)
         for index, (item, parent_position) in enumerate(specs, 1):
+            title = deliverable_title(item)
             child_marker = f"<!-- cogito-plan-deliverable: {plan.plan_id}:{index} -->"
             child_body = deliverable_body(plan, index, item, parent["html_url"])
             child = next((issue for issue in existing if child_marker in (issue.get("body") or "")), None)
             if child is not None:
-                if child.get("title") != item or child.get("body") != child_body:
+                if child.get("title") != title or child.get("body") != child_body:
                     child = self._request(
                         "PATCH", f"/repos/{slug}/issues/{child['number']}",
-                        {"title": item, "body": child_body, "state": "open"},
+                        {"title": title, "body": child_body, "state": "open"},
                     )
                 children.append(child["html_url"])
                 child_records.append(child)
                 continue
             child = self._request("POST", f"/repos/{slug}/issues", {
-                "title": item,
+                "title": title,
                 "body": child_body,
                 "labels": ["workflow/deliverable"],
                 "parent_issue_id": (parent["id"] if parent_position is None
