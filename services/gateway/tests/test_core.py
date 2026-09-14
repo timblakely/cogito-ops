@@ -10,6 +10,7 @@ class FakeIssues:
     def __init__(self):
         self.publish_calls = 0
         self.deliverable_calls = 0
+        self.deliverable_errors = 0
 
     def publish_plan(self, plan):
         self.publish_calls += 1
@@ -17,6 +18,9 @@ class FakeIssues:
 
     def create_deliverables(self, plan, parent_url):
         self.deliverable_calls += 1
+        if self.deliverable_errors:
+            self.deliverable_errors -= 1
+            raise RuntimeError("transient GitHub failure")
         return ["https://github.com/timblakely/cogito/issues/11"]
 
     def checks_status(self, pr_url):
@@ -51,6 +55,19 @@ class CoreTests(unittest.TestCase):
         replay_parent, replay_children = self.core.approve(self.approval())
         self.assertEqual((replay_parent, replay_children), (parent, children))
         self.assertEqual(self.issues.deliverable_calls, 1)
+
+    def test_deliverable_retry_queues_luna_after_recorded_approval(self):
+        self.issues.deliverable_errors = 1
+        with self.assertRaisesRegex(RuntimeError, "transient GitHub failure"):
+            self.core.approve(self.approval())
+        self.assertEqual(self.state.plan("plan-1")["state"], "accepted")
+
+        self.core.approve(self.approval())
+
+        self.assertEqual(self.state.plan("plan-1")["state"], "decomposed")
+        batch = self.state.next_luna_batch()
+        self.assertEqual(batch["events"][0]["event_type"], "plan.approved")
+        self.assertEqual(self.issues.deliverable_calls, 2)
 
     def test_wrong_hash_and_wrong_actor_fail(self):
         with self.assertRaises(ValidationError):
