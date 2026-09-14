@@ -10,7 +10,11 @@ spec:
   secretKey: api-key
   maxBudget: "1"
   budgetDuration: 30d
-  maxParallelRequests: 1
+  # Foreman still permits only one cogito-coder task at a time. LiteLLM 1.97's
+  # limiter retained one stale in-flight slot across idle reset windows during
+  # v4 acceptance, so 2 provides one recovery slot without increasing actual
+  # coder concurrency. Re-test this workaround on the next LiteLLM upgrade.
+  maxParallelRequests: 2
   models:
     - coder
 ---
