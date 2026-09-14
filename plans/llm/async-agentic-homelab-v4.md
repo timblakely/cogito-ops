@@ -107,7 +107,7 @@ Prerequisites, unchanged from v3 except R2's target names.
 | **R4** | Muse Agents sample at 0.2 / 0.1; scouts looped 78 turns. | Delete `temperature` from Muse Agents; pin sampling at the alias; scout turn timeout 900. |
 | **R5** | Read-only scouts recorded NO-GO (coder no-diff gate on `freeform`). | Upstream issue; never key on scout `verdict`. |
 | **R6** | PR 22 cannot reach quorum (pre-falsifier Workload). | Merge or close by hand; delete the Workload. |
-| **R7** | GPU lanes roll with `RollingUpdate`; scouts got `connection refused`. | `rolloutPolicy.waitForIdle: true` on both GPU InferenceServices. |
+| **R7** | GPU lanes roll with `RollingUpdate`; scouts got `connection refused`. | `rolloutPolicy.waitForIdle: true` on both GPU InferenceServices, plus a narrowly scoped `MutatingAdmissionPolicy` that forces `Recreate` on the two UUID-bound Deployments. LLMKube only selects `Recreate` when it owns a GPU resource allocation; these lanes intentionally bind UUIDs without one. |
 | **R8** | `agent.maxSupervisedTasks: 1` serialises every task cluster-wide; the scout's `maxConcurrentTasks: 2` never applied. | `maxSupervisedTasks: 4`; re-check Muse host memory under a concurrent round. |
 | **R9** | Gate is `git diff --check`; `main` unprotected; merge does not wait for CI. | Gate runs flux-local for `kubernetes/` changes; ruleset on `main` requiring `flux-local-status`; gateway waits for checks before merge. |
 
@@ -496,7 +496,9 @@ Synapse → ntfy → UnifiedPush → Commet (done). Mentions only on `NEEDS_INPU
     concurrent scout turn p95, prefix hit ratio, and mixed vision/text behavior
     on its RTX 3090; coder effort. The synthetic Glimmer capacity frontier is
     complete through 16 slots.
-12. Upstream: Foreman's no-diff gate on `freeform` tasks; Job re-creation for terminal tasks on agent restart.
+12. Upstream: Foreman's no-diff gate on `freeform` tasks. Terminal-task drain and
+    orphaned in-cluster FleetNode cleanup shipped in Foreman 0.9.26 and are
+    deployed here via 0.9.27.
 
 ---
 
