@@ -1,6 +1,6 @@
 # Foreman migration pathway
 
-Status: Foreman migration implemented; quorum auto-merge acceptance remains
+Status: Foreman migration implemented; coordination model superseded by v4
 
 Owner: Tim
 
@@ -9,6 +9,12 @@ Target: LLMKube Foreman owns the coding pipeline after plan approval
 Primary human interface: Commet over Matrix
 
 Infrastructure source of truth: this repository
+
+> **v4 update (2026-09-13):** [Async Agentic Homelab v4](plans/llm/async-agentic-homelab-v4.md)
+> keeps Foreman's per-deliverable pipeline but changes the surrounding model:
+> the GitHub issue is the plan from first draft, approval is its
+> `workflow/approved` label, Luna coordinates Workloads, and the deterministic
+> process is named `gateway`. Sections below document the migration history.
 
 ## Decision
 

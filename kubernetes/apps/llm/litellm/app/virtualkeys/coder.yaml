@@ -1,0 +1,36 @@
+---
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: coder
+spec:
+  proxyRef: litellm
+  keyAlias: role-coder
+  secretName: litellm-key-coder
+  secretKey: api-key
+  maxBudget: "1"
+  budgetDuration: 30d
+  maxParallelRequests: 1
+  models:
+    - coder
+---
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: litellm-key-coder
+spec:
+  refreshInterval: 1h
+  secretStoreRefs:
+    - kind: ClusterSecretStore
+      name: onepassword
+  selector:
+    secret:
+      name: litellm-key-coder
+  updatePolicy: Replace
+  deletionPolicy: None
+  data:
+    - match:
+        secretKey: api-key
+        remoteRef:
+          remoteKey: litellm
+          property: LITELLM_CODER_API_KEY

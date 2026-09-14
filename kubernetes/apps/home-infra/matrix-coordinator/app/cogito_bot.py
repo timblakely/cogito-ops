@@ -1,4 +1,4 @@
-"""Thin encrypted Matrix transport for the durable Cogito coordinator."""
+"""Thin encrypted Matrix transport for the durable Cogito gateway."""
 
 from datetime import datetime, timezone
 import asyncio
@@ -15,8 +15,8 @@ from mautrix.util.config import BaseProxyConfig, ConfigUpdateHelper
 
 class Config(BaseProxyConfig):
     def do_update(self, helper: ConfigUpdateHelper) -> None:
-        helper.copy("coordinator_url")
-        helper.copy("coordinator_secret")
+        helper.copy("gateway_url")
+        helper.copy("gateway_secret")
         helper.copy("allowed_senders")
 
 
@@ -37,10 +37,10 @@ class CogitoBot(Plugin):
     async def _request(self, path: str, value: dict) -> dict:
         payload = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
         signature = "sha256=" + hmac.new(
-            self.config["coordinator_secret"].encode(), payload, hashlib.sha256
+            self.config["gateway_secret"].encode(), payload, hashlib.sha256
         ).hexdigest()
         async with self.http.post(
-            self.config["coordinator_url"].rstrip("/") + path,
+            self.config["gateway_url"].rstrip("/") + path,
             data=payload,
             headers={"Content-Type": "application/json", "X-Cogito-Signature-256": signature},
         ) as response:
@@ -63,6 +63,19 @@ class CogitoBot(Plugin):
                     await self.client.set_typing(RoomID(room_id), timeout=0)
                 self._planning_typing_rooms = typing_rooms
                 for item in result.get("notifications", []):
+                    if item.get("kind") == "edit":
+                        content = TextMessageEventContent(
+                            msgtype=MessageType.TEXT, body=item["body"])
+                        content.set_edit(EventID(item["target_event_id"]))
+                        event_id = await self.client.send_message_event(
+                            RoomID(item["room_id"]), EventType.ROOM_MESSAGE,
+                            content, txn_id=item["notification_id"],
+                        )
+                        await self._request("/v1/matrix/outbox", {
+                            "operation": "ack", "notification_id": item["notification_id"],
+                            "event_id": str(event_id),
+                        })
+                        continue
                     relates_to = None
                     if item["thread_root"]:
                         relation = TextMessageEventContent(msgtype=MessageType.TEXT, body="")
@@ -93,7 +106,7 @@ class CogitoBot(Plugin):
             except asyncio.CancelledError:
                 raise
             except Exception:
-                self.log.exception("coordinator outbox delivery failed")
+                self.log.exception("gateway outbox delivery failed")
             await asyncio.sleep(5)
 
     @classmethod
@@ -105,6 +118,20 @@ class CogitoBot(Plugin):
         # A global handler receives both the encrypted envelope and the decrypted
         # message emitted by mautrix's DecryptionDispatcher. Explicitly select the
         # latter here rather than depending on maubot's per-type handler routing.
+        if evt.type == EventType.REACTION:
+            relation = getattr(evt.content, "relates_to", None)
+            key = getattr(relation, "key", "")
+            target = str(getattr(relation, "event_id", ""))
+            if (evt.sender != self.client.mxid
+                    and evt.sender in self.config["allowed_senders"]
+                    and key in {"⏹", "⏸", "🔄", "🔍"} and target):
+                await self._request("/v1/matrix/events", {
+                    "event_id": str(evt.event_id), "room_id": str(evt.room_id),
+                    "sender": str(evt.sender), "body": f"!cogito react {key} {target}",
+                    "timestamp": datetime.fromtimestamp(
+                        evt.timestamp / 1000, timezone.utc).isoformat(),
+                })
+            return
         if not isinstance(evt, MessageEvent) or evt.type != EventType.ROOM_MESSAGE:
             return
         await self.on_message(evt)
@@ -144,8 +171,8 @@ class CogitoBot(Plugin):
             await self._request("/v1/matrix/events", value)
             self.log.info("Completed Matrix command event %s", evt.event_id)
         except Exception as exc:
-            self.log.exception("coordinator event failed")
-            await evt.respond(f"⚠️ Coordinator error: {exc}", in_thread=True)
+            self.log.exception("gateway event failed")
+            await evt.respond(f"⚠️ Gateway error: {exc}", in_thread=True)
         finally:
             if typing_task:
                 typing_task.cancel()

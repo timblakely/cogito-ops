@@ -1,0 +1,142 @@
+import unittest
+
+from coordinator.foreman import (ForemanClient, _issue_numbers, _repo_slug,
+                                 result_packet, workload_name)
+from coordinator.models import ValidationError
+
+
+class ForemanTests(unittest.TestCase):
+    def test_manifest_is_deterministic_and_uses_issue_shortcut(self):
+        client = ForemanClient()
+        values = dict(
+            plan_id="plan-abc", plan_hash="sha256:" + "a" * 64,
+            intent="# Do it\n", repository="https://github.com/timblakely/cogito-ops.git",
+            issue_urls=["https://github.com/timblakely/cogito-ops/issues/12"],
+            room_id="!room:example", thread_root="$root",
+        )
+        manifest = client.manifest(**values)
+        self.assertEqual(manifest["metadata"]["name"], workload_name(values["plan_id"], values["plan_hash"]))
+        self.assertEqual(manifest["spec"]["repo"], "timblakely/cogito-ops")
+        self.assertEqual(manifest["spec"]["issues"], [12])
+        self.assertEqual(manifest["spec"]["maxTasks"], 8)
+        self.assertEqual(manifest["spec"]["maxReviewIterations"], 1)
+        self.assertEqual(
+            [ref["name"] for ref in manifest["spec"]["reviewerAgentRefs"]],
+            ["cogito-reviewer", "cogito-reviewer-falsifier"],
+        )
+        self.assertEqual(manifest["spec"]["gateProfile"]["language"], "generic")
+        self.assertTrue(manifest["spec"]["allowCloudReviewers"])
+        self.assertIn("@sha256:", manifest["spec"]["gateProfile"]["image"])
+        self.assertEqual(
+            manifest["spec"]["gateProfile"]["commands"]["lint"],
+            "git fetch --deepen=1 origin && git diff --check HEAD^ HEAD -- . && "
+            "if git diff --name-only HEAD^ HEAD -- | grep -q '^services/gateway/'; then "
+            "(cd services/gateway && python -m unittest discover -s tests -v); fi && "
+            "if git diff --name-only HEAD^ HEAD -- | grep -q '^kubernetes/'; then "
+            "flux-local test --enable-helm --all-namespaces "
+            "--path kubernetes/flux/cluster -v; fi",
+        )
+
+    def test_repository_and_issue_must_match(self):
+        self.assertEqual(_repo_slug("https://github.com/O/R.git"), "O/R")
+        with self.assertRaises(ValidationError):
+            _repo_slug("https://gitlab.example/O/R.git")
+        with self.assertRaises(ValidationError):
+            _issue_numbers("O/R", ["https://github.com/O/else/issues/1"])
+
+    def test_summary_is_bounded_status(self):
+        self.assertEqual(ForemanClient.summary({"status": {
+            "phase": "Completed", "succeededTasks": 3, "failedTasks": 0,
+        }})["succeeded"], 3)
+
+    def test_research_manifest_alternates_read_only_scouts(self):
+        manifest = ForemanClient().research_manifest(
+            "plan-a-research-r1-1", "plan-a", "Inspect planning.",
+            "https://github.com/timblakely/cogito-ops.git",
+        )
+        self.assertEqual(manifest["spec"]["kind"], "freeform")
+        self.assertEqual(manifest["spec"]["agentRef"]["name"], "cogito-planning-scout")
+        self.assertEqual(manifest["spec"]["modelRef"], "scout")
+        self.assertEqual(manifest["spec"]["timeoutSeconds"], 3600)
+        self.assertNotIn("repo", manifest["spec"]["payload"])
+        self.assertNotIn("baseBranch", manifest["spec"]["payload"])
+        self.assertIn("https://github.com/timblakely/cogito-ops.git",
+                      manifest["spec"]["payload"]["prompt"])
+        self.assertIn("never authenticate", manifest["spec"]["payload"]["prompt"])
+        self.assertIn("Work read-only", manifest["spec"]["payload"]["prompt"])
+        self.assertRegex(manifest["metadata"]["annotations"][
+            "cogito.dev/prompt-prefix-hash"], r"^sha256:[0-9a-f]{64}$")
+
+        qwen = ForemanClient().research_manifest(
+            "plan-a-research-r1-2", "plan-a", "Inspect planning.",
+            "https://github.com/timblakely/cogito-ops.git",
+        )
+        self.assertEqual(qwen["spec"]["agentRef"]["name"], "cogito-planning-scout-qwen")
+        self.assertEqual(qwen["spec"]["modelRef"], "scout-qwen")
+
+    def test_transcript_reference_is_scoped_to_foreman_configmaps(self):
+        client = ForemanClient(namespace="llm")
+        calls = []
+        client._call = lambda method, path, body=None: calls.append((method, path)) or {
+            "data": {"transcript.json": "{}"},
+        }
+        value = client.get_transcript({"status": {
+            "result": {"extra": {"transcriptRef": {
+                "kind": "ConfigMap", "namespace": "llm",
+                "name": "foreman-transcript-plan-a-research-r1-1",
+            }}},
+        }})
+        self.assertEqual(value["data"]["transcript.json"], "{}")
+        self.assertEqual(calls, [("GET", "/api/v1/namespaces/llm/configmaps/"
+                                        "foreman-transcript-plan-a-research-r1-1")])
+
+        for reference in (
+            {"kind": "Secret", "namespace": "llm", "name": "foreman-transcript-x"},
+            {"kind": "ConfigMap", "namespace": "other", "name": "foreman-transcript-x"},
+            {"kind": "ConfigMap", "namespace": "llm", "name": "untrusted"},
+        ):
+            with self.assertRaisesRegex(RuntimeError, "invalid transcript reference"):
+                client.get_transcript({"status": {"transcriptRef": reference}})
+
+    def test_merge_candidate_requires_two_distinct_reviews_after_final_coder(self):
+        client = ForemanClient()
+        tasks = [
+            {"spec": {"kind": "issue-fix"}, "status": {
+                "phase": "Succeeded", "verdict": "GO", "finishedAt": "2026-01-01T00:00:01Z",
+                "branch": "foreman/plan/issue-1", "commitSHA": "a" * 40,
+            }},
+            *[{"spec": {"kind": "review", "agentRef": {"name": agent},
+                        "payload": {"branch": "foreman/plan/issue-1"}},
+               "status": {"phase": "Succeeded", "verdict": "GO",
+                          "startedAt": "2026-01-01T00:00:02Z",
+                          "result": {"extra": {"pullRequestURL":
+                              "https://github.com/o/r/pull/2"}}}}
+              for agent in ("reviewer", "falsifier")],
+        ]
+        client.tasks = lambda _: tasks
+        candidate = client.merge_candidate("workload")
+        self.assertEqual(candidate["head_sha"], "a" * 40)
+        self.assertEqual(candidate["reviewers"], ["falsifier", "reviewer"])
+
+        client.tasks = lambda _: tasks[:-1]
+        with self.assertRaises(RuntimeError):
+            client.merge_candidate("workload")
+
+    def test_reviewer_packet_is_bounded_and_line_addressable(self):
+        packet = result_packet({
+            "spec": {"agentRef": {"name": "falsifier"}},
+            "status": {"verdict": "NO-GO", "result": {"summary": __import__("json").dumps({
+                "conclusion": "Unsafe edge case",
+                "confidence": "high",
+                "evidence": [{"path": "/services/gateway/x.py", "line": 42,
+                              "note": "This branch skips validation."}],
+                "uncertainty": "none", "suggested_followups": [], "artifacts": [],
+            })}},
+        })
+        self.assertEqual(packet["agent"], "falsifier")
+        self.assertEqual(packet["evidence"][0]["path"], "services/gateway/x.py")
+        self.assertEqual(packet["evidence"][0]["line"], 42)
+
+
+if __name__ == "__main__":
+    unittest.main()

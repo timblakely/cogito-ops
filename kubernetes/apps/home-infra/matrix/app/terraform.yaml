@@ -16,6 +16,10 @@ spec:
     name: flux-system
     namespace: flux-system
   upgradeOnInit: false
+  writeOutputsToSecret:
+    name: matrix-rooms-outputs
+    outputs:
+      - implementation_room_id
   varsFrom:
     - kind: Secret
       name: matrix-gitops-credentials

@@ -31,6 +31,18 @@ locals {
       alias = "agent-runs"
       order = "40"
     }
+    implementation = {
+      name  = "Implementation"
+      topic = "One durable Luna-owned thread per approved implementation plan."
+      alias = "implementation"
+      order = "45"
+    }
+    github = {
+      name  = "GitHub"
+      topic = "Muted Hookshot mirror of repository issues, pull requests, and checks."
+      alias = "github"
+      order = "47"
+    }
     cogito = {
       name  = "Cogito"
       topic = "Design decisions, plans, and implementation work for the Cogito cluster."
@@ -248,7 +260,7 @@ resource "matrix_room_power_levels" "agent" {
 }
 
 resource "matrix_room_state" "cogito_github_repository" {
-  room_id    = matrix_room.agent["runs"].id
+  room_id    = matrix_room.agent["github"].id
   event_type = "uk.half-shot.matrix-hookshot.github.repository"
   state_key  = "timblakely/cogito-ops"
   content_json = jsonencode({
@@ -275,6 +287,11 @@ resource "matrix_room_state" "cogito_github_repository" {
   })
 
   depends_on = [matrix_room_power_levels.agent]
+}
+
+output "implementation_room_id" {
+  description = "Encrypted room used for Luna implementation threads."
+  value       = matrix_room.agent["implementation"].id
 }
 
 resource "matrix_room" "personal" {

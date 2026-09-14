@@ -1,0 +1,364 @@
+import tempfile
+import unittest
+import json
+
+from coordinator.core import Coordinator
+from coordinator.matrix import MatrixCoordinator
+from coordinator.models import ValidationError
+from coordinator.state import StateStore
+
+
+class FakePlanner:
+    def __init__(self):
+        self.calls = 0
+        self.decisions = []
+        self.research = []
+    def intake(self, messages, force=False, research=None):
+        self.calls += 1
+        self.research.append(research or [])
+        if self.decisions:
+            decision = self.decisions.pop(0)
+            if force and decision["status"] != "ready":
+                return {"status": "ready", "message": "Drafting with assumptions.",
+                        "plan_markdown": "# Forced\n\n## Deliverables\n- [ ] Ship it\n"}
+            return decision
+        if any(message.get("kind") == "prior_plan" for message in messages):
+            return {"status": "ready", "message": "Revision ready.",
+                    "plan_markdown": "# Test revised\n\n## Deliverables\n- [ ] Ship it\n"}
+        return {"status": "ready", "message": "This is ready to plan.",
+                "plan_markdown": "# Test\n\n## Deliverables\n- [ ] Ship it\n"}
+    def plan(self, objective, prior="", comments=None):
+        self.calls += 1
+        suffix = " revised" if prior else ""
+        return f"# Test{suffix}\n\n## Deliverables\n- [ ] Ship it\n"
+
+
+class FakeIssues:
+    def __init__(self):
+        self.calls = 0
+        self.children = ["https://github.com/t/c/issues/2"]
+        self.merge_requests = []
+    def publish_plan(self, plan):
+        self.calls += 1
+        return "https://github.com/t/c/issues/1"
+    def create_deliverables(self, plan, parent_url):
+        return self.children
+    def checks_status(self, pr_url):
+        return {"ready": True, "missing": [], "pending": [], "failed": []}
+    def request_merge(self, pr_url, head_sha, branch):
+        self.merge_requests.append((pr_url, head_sha, branch))
+        return {"status": "pending", "uuid": f"merge-{len(self.merge_requests)}"}
+    def merge_result(self, pr_url, merge_uuid):
+        return {"status": "merged", "details": {"sha": "f" * 40}}
+
+
+class FakeForeman:
+    def __init__(self):
+        self.created = []
+        self.research_created = []
+        self.research_phase = "Succeeded"
+        self.phase = "Dispatched"
+    def ensure_workload(self, **values):
+        self.created.append(values)
+        position = values.get("deliverable_position", 1)
+        return {"metadata": {"name": f"plan-test-d{position}"},
+                "status": {"phase": "Planning"}}
+    def get(self, name):
+        return {"metadata": {"name": name}, "status": {
+            "phase": self.phase, "succeededTasks": 4 if self.phase == "Completed" else 1,
+        }}
+    def ensure_research_task(self, **values):
+        self.research_created.append(values)
+        return {"metadata": {"name": values["task_name"]}, "status": {
+            "phase": self.research_phase,
+            "result": {"summary": "The relevant implementation is in coordinator/matrix.py."},
+        }}
+    def get_task(self, name):
+        return {"metadata": {"name": name}, "status": {
+            "phase": self.research_phase,
+            "assignedNode": "foreman-agent-a", "jobName": "foreman-scout-a",
+            "transcriptRef": f"foreman-transcript-{name}",
+            "result": {
+                "elapsedSec": 3.5,
+                "summary": "The relevant implementation is in coordinator/matrix.py.",
+                "extra": {"turnCount": 2},
+            },
+        }}
+    def get_transcript(self, task):
+        return {"data": {"transcript.json": json.dumps({"messages": [
+            {"role": "assistant", "content": "Checking the workflow.",
+             "reasoning_content": "private analysis must not appear",
+             "tool_calls": [{"id": "call-1", "function": {
+                 "name": "bash", "arguments": json.dumps({
+                     "command": "gh run view 123 --repo t/c",
+                 }),
+             }}]},
+            {"role": "tool", "tool_call_id": "call-1", "content": json.dumps({
+                "exit_code": 0, "stdout": "workflow failed token: very-secret-value",
+            })},
+        ]})}}
+    def merge_candidate(self, name, quorum=2):
+        position = name.rsplit("d", 1)[-1]
+        return {"pr_url": f"https://github.com/t/c/pull/{position}",
+                "head_sha": position * 40,
+                "branch": f"foreman/plan/issue-{position}",
+                "reviewers": ["reviewer", "falsifier"]}
+    @staticmethod
+    def summary(value):
+        status = value.get("status", {})
+        return {"phase": status.get("phase", "Pending"),
+                "succeeded": status.get("succeededTasks", 0),
+                "failed": status.get("failedTasks", 0),
+                "incomplete": status.get("incompleteTasks", 0),
+                "contradicted": 0, "review_iterations": 0, "conditions": []}
+
+
+class MatrixTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.NamedTemporaryFile()
+        self.state = StateStore(self.tmp.name)
+        self.planner, self.issues, self.foreman = FakePlanner(), FakeIssues(), FakeForeman()
+        core = Coordinator(self.state, self.issues, {"@tim:matrix.example"})
+        self.matrix = MatrixCoordinator(
+            self.state, core, self.foreman, self.planner, {"@tim:matrix.example"},
+            "!activity:matrix.example",
+        )
+        self.base = {
+            "room_id": "!room:matrix.example", "sender": "@tim:matrix.example",
+            "timestamp": "2026-09-10T00:00:00Z",
+        }
+
+    def tearDown(self): self.state.close(); self.tmp.close()
+
+    def event(self, event_id, body, thread_root=None):
+        value = {**self.base, "event_id": event_id, "body": body}
+        if thread_root: value["thread_root"] = thread_root
+        return value
+
+    def test_plan_comment_revision_and_exact_approval(self):
+        first = self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        digest = first["actions"][0]["body"].split("Plan hash: `", 1)[1].split("`", 1)[0]
+        self.matrix.handle(self.event("$comment", "Add rollback", "$root"))
+        plan = self.state.plan_for_thread("!room:matrix.example", "$root")
+        self.assertEqual(self.state.plan_comments(plan["plan_id"]), ["Add rollback"])
+        revised = self.matrix.handle(self.event("$revise", "!cogito revise", "$root"))
+        revised_hash = revised["actions"][0]["body"].split("Plan hash: `", 1)[1].split("`", 1)[0]
+        with self.assertRaises(ValidationError):
+            self.matrix.handle(self.event("$old", f"!cogito approve {digest}", "$root"))
+        accepted = self.matrix.handle(
+            self.event("$accepted", f"!cogito approve {revised_hash}", "$root"))
+        self.assertIn("Parent issue", accepted["actions"][0]["body"])
+        self.assertIn("Luna queued", accepted["actions"][0]["body"])
+        self.assertEqual(len(self.foreman.created), 0)
+        self.assertEqual(self.planner.calls, 2)
+        self.assertEqual(self.issues.calls, 2)
+
+    def test_intake_clarification_reply_then_plan(self):
+        self.planner.decisions = [
+            {"status": "clarify", "message": "Which namespace should own it?"},
+            {"status": "ready", "message": "That resolves the boundary.",
+             "plan_markdown": "# Namespaced\n\n## Deliverables\n- [ ] Ship it\n"},
+        ]
+        first = self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        self.assertIn("Which namespace", first["actions"][0]["body"])
+        row = self.state.plan_for_thread("!room:matrix.example", "$root")
+        self.assertEqual(row["state"], "intake")
+        second = self.matrix.handle(self.event("$answer", "Use home-infra", "$root"))
+        self.assertIn("https://github.com/t/c/issues/1", second["actions"][0]["body"])
+        self.assertNotIn("# Namespaced", second["actions"][0]["body"])
+        self.assertEqual(self.state.plan(row["plan_id"])["state"], "review")
+
+    def test_draft_command_forces_plan_during_intake(self):
+        self.planner.decisions = [
+            {"status": "clarify", "message": "Which namespace should own it?"},
+            {"status": "clarify", "message": "Still need a namespace."},
+        ]
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        result = self.matrix.handle(self.event("$draft", "!cogito draft", "$root"))
+        self.assertIn("Plan drafted", result["actions"][0]["body"])
+        row = self.state.plan_for_thread("!room:matrix.example", "$root")
+        self.assertIn("# Forced", self.state.current_plan_version(row["plan_id"])["markdown"])
+
+    def test_intake_automatically_drafts_after_two_rounds(self):
+        self.planner.decisions = [
+            {"status": "clarify", "message": "Question one?"},
+            {"status": "pushback", "message": "Concern two."},
+            {"status": "clarify", "message": "Would otherwise ask again."},
+        ]
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        self.matrix.handle(self.event("$answer1", "Answer one", "$root"))
+        result = self.matrix.handle(self.event("$answer2", "Proceed", "$root"))
+        self.assertIn("Plan drafted", result["actions"][0]["body"])
+
+    def test_research_is_delegated_to_foreman_then_synthesized(self):
+        self.planner.decisions = [
+            {"status": "delegate", "message": "I need the current boundaries.",
+             "tasks": ["Inspect the coordinator planning boundary."]},
+            {"status": "ready", "message": "Research resolved it.",
+             "plan_markdown": "# Researched\n\n## Deliverables\n- [ ] Ship it\n"},
+        ]
+        first = self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        self.assertIn("local planning scouts", first["actions"][0]["body"])
+        plan = self.state.plan_for_thread("!room:matrix.example", "$root")
+        self.assertEqual(plan["state"], "researching")
+        self.matrix.reconcile_once()
+        self.assertEqual(len(self.foreman.research_created), 1)
+        self.assertIn("coordinator/matrix.py", self.planner.research[-1][0]["summary"])
+        self.assertEqual(self.state.plan(plan["plan_id"])["state"], "review")
+        messages = [item["body"] for item in self.state.pending_matrix()]
+        self.assertTrue(any("Plan drafted" in body for body in messages))
+        self.assertIn("# Researched", self.state.current_plan_version(plan["plan_id"])["markdown"])
+
+    def test_research_agent_run_is_threaded_linked_and_sanitized(self):
+        self.planner.decisions = [
+            {"status": "delegate", "message": "I need evidence.",
+             "tasks": ["Inspect CI without changing it."]},
+            {"status": "ready", "message": "Evidence received.",
+             "plan_markdown": "# Evidence\n\n## Deliverables\n- [ ] Fix it\n"},
+        ]
+        self.matrix.handle(self.event("$root", "!cogito plan Fix CI"))
+        pending = self.state.pending_matrix()
+        agent_root = next(item for item in pending
+                          if item["room_id"] == "!activity:matrix.example")
+        self.assertIn("**Prompt**", agent_root["body"])
+        self.assertIn("Inspect CI", agent_root["body"])
+        self.assertIn("!activity:matrix.example", self.matrix.typing_rooms())
+
+        self.state.complete_matrix(agent_root["notification_id"], "$agent-root")
+        self.matrix.reconcile_once()
+        pending = self.state.pending_matrix(100)
+        linked = next(item for item in pending if "Agent Runs for research round" in item["body"])
+        self.assertIn("https://matrix.to/#/!activity:matrix.example/$agent-root", linked["body"])
+        replies = [item for item in pending if item["thread_root"] == "$agent-root"]
+        trace = "\n".join(item["body"] for item in replies)
+        self.assertIn("gh run view 123", trace)
+        self.assertIn("workflow failed", trace)
+        self.assertIn("[REDACTED]", trace)
+        self.assertNotIn("very-secret-value", trace)
+        self.assertNotIn("private analysis", trace)
+        self.assertIn("**Evidence summary**", trace)
+
+    def test_revision_can_delegate_before_creating_version_two(self):
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        self.matrix.handle(self.event("$comment", "Confirm current boundaries", "$root"))
+        self.planner.decisions = [
+            {"status": "delegate", "message": "Checking the revision.",
+             "tasks": ["Inspect the current boundary."]},
+            {"status": "ready", "message": "Revision ready.",
+             "plan_markdown": "# Version two\n\n## Deliverables\n- [ ] Ship it\n"},
+        ]
+        result = self.matrix.handle(self.event("$revise", "!cogito revise", "$root"))
+        self.assertIn("local planning scouts", result["actions"][0]["body"])
+        self.matrix.reconcile_once()
+        plan = self.state.plan_for_thread("!room:matrix.example", "$root")
+        self.assertEqual(plan["current_version"], 2)
+        self.assertEqual(self.state.current_plan_version(plan["plan_id"])["markdown"],
+                         "# Version two\n\n## Deliverables\n- [ ] Ship it\n")
+
+    def test_status_and_draft_work_while_scouts_are_running(self):
+        self.planner.decisions = [{
+            "status": "delegate", "message": "Checking.", "tasks": ["Inspect it."]}]
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        status = self.matrix.handle(self.event("$status", "!cogito status", "$root"))
+        self.assertIn("0/1 scout tasks", status["actions"][0]["body"])
+        drafted = self.matrix.handle(self.event("$draft", "!cogito draft", "$root"))
+        self.assertIn("Plan drafted", drafted["actions"][0]["body"])
+
+    def test_event_replay_returns_same_actions(self):
+        value = self.event("$root", "!cogito plan Build it")
+        first = self.matrix.handle(value)
+        self.assertEqual(first, self.matrix.handle(value))
+        self.assertEqual(self.planner.calls, 1)
+        pending = [item for item in self.state.pending_matrix()
+                   if item["notification_id"].startswith("command:")]
+        self.assertEqual(len(pending), 1)
+        self.assertEqual(pending[0]["room_id"], "!room:matrix.example")
+        self.assertEqual(pending[0]["thread_root"], "$root")
+        self.assertEqual(pending[0]["body"], first["actions"][0]["body"])
+
+    def test_command_response_is_durable_before_transport_delivery(self):
+        result = self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        pending = [item for item in self.state.pending_matrix()
+                   if item["notification_id"].startswith("command:")]
+        self.assertEqual(len(pending), 1)
+        self.assertEqual(pending[0]["body"], result["actions"][0]["body"])
+
+    def test_thread_approval_resolves_current_version(self):
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        value = self.event("$approve", "!cogito approve", "$root")
+        value["timestamp"] = "2099-01-01T00:00:00Z"
+        accepted = self.matrix.handle(value)
+        self.assertIn("Plan accepted", accepted["actions"][0]["body"])
+
+    def test_delayed_thread_approval_cannot_accept_newer_version(self):
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        with self.assertRaisesRegex(ValidationError, "plan changed"):
+            self.matrix.handle(self.event("$approve", "!cogito approve", "$root"))
+
+    def test_status_reads_foreman_workload(self):
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        approval = self.event("$approve", "!cogito approve", "$root")
+        approval["timestamp"] = "2099-01-01T00:00:00Z"
+        self.matrix.handle(approval)
+        result = self.matrix.handle(self.event("$status", "!cogito status", "$root"))
+        self.assertIn("queued for Luna", result["actions"][0]["body"])
+
+    def test_multi_deliverable_approval_queues_luna_without_eager_dispatch(self):
+        self.issues.children = [
+            "https://github.com/t/c/issues/2", "https://github.com/t/c/issues/3",
+        ]
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        approval = self.event("$approve", "!cogito approve", "$root")
+        approval["timestamp"] = "2099-01-01T00:00:00Z"
+        self.matrix.handle(approval)
+        plan = self.state.plan_for_thread("!room:matrix.example", "$root")
+        self.assertEqual(plan["state"], "decomposed")
+        self.assertEqual(self.state.plan_progress(plan["plan_id"])["total"], 2)
+        self.assertEqual(self.foreman.created, [])
+        batch = self.state.next_luna_batch()
+        self.assertEqual(batch["plan_id"], plan["plan_id"])
+        self.assertEqual(batch["events"][0]["event_type"], "plan.approved")
+
+    def test_non_command_outside_plan_thread_is_ignored(self):
+        self.assertEqual(self.matrix.handle(self.event("$chat", "ordinary chat")), {"actions": []})
+        self.assertEqual(
+            self.matrix.handle(self.event("$other", "thread chat", "$unrelated")),
+            {"actions": []},
+        )
+
+    def test_implementation_thread_messages_are_queued_for_luna(self):
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        plan = self.state.plan_for_thread("!room:matrix.example", "$root")
+        self.state.enqueue_matrix(
+            f"implementation:{plan['plan_id']}:root", "!implementation:matrix.example", "",
+            "● Luna: Implementing")
+        self.state.complete_matrix(
+            f"implementation:{plan['plan_id']}:root", "$implementation-root")
+        result = self.matrix.handle({
+            **self.base, "event_id": "$instruction", "room_id": "!implementation:matrix.example",
+            "thread_root": "$implementation-root", "body": "Pause after this deliverable",
+        })
+        self.assertIn("instruction queued", result["actions"][0]["body"])
+        batch = self.state.next_luna_batch(now=2**31)
+        self.assertEqual(batch["events"][0]["event_type"], "owner.instruction")
+
+    def test_plan_card_pause_and_resume_reactions(self):
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        plan = self.state.plan_for_thread("!room:matrix.example", "$root")
+        card_id = f"plan:{plan['plan_id']}:card"
+        self.state.complete_matrix(card_id, "$card")
+        paused = self.matrix.handle(self.event(
+            "$pause", "!cogito react ⏸ $card"))
+        self.assertIn("paused", paused["actions"][0]["body"])
+        self.assertEqual(self.state.plan(plan["plan_id"])["state"], "paused")
+        resumed = self.matrix.handle(self.event(
+            "$resume", "!cogito react 🔄 $card"))
+        self.assertIn("resumed", resumed["actions"][0]["body"])
+        self.assertEqual(self.state.plan(plan["plan_id"])["state"], "review")
+
+    def test_untrusted_sender_is_rejected(self):
+        value = self.event("$root", "!cogito help")
+        value["sender"] = "@mallory:matrix.example"
+        with self.assertRaises(ValidationError): self.matrix.handle(value)
+
+if __name__ == "__main__": unittest.main()

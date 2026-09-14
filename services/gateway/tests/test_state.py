@@ -1,0 +1,241 @@
+import sqlite3
+import tempfile
+import unittest
+from concurrent.futures import ThreadPoolExecutor
+
+from coordinator.state import StateStore
+
+
+class StateTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.NamedTemporaryFile()
+        self.state = StateStore(self.tmp.name)
+
+    def tearDown(self):
+        self.state.close()
+        self.tmp.close()
+
+    def test_event_replay_is_ignored(self):
+        self.assertTrue(self.state.accept_event("matrix", "$event", "sha256:a"))
+        self.assertFalse(self.state.accept_event("matrix", "$event", "sha256:a"))
+        self.assertTrue(self.state.release_event("matrix", "$event", "sha256:a"))
+        self.assertTrue(self.state.accept_event("matrix", "$event", "sha256:a"))
+
+    def test_concurrent_replay_is_recorded_once(self):
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            accepted = list(pool.map(
+                lambda _: self.state.accept_event("github", "delivery-1", "sha256:b"),
+                range(32),
+            ))
+        self.assertEqual(accepted.count(True), 1)
+
+    def test_audit_is_append_only(self):
+        sequence = self.state.audit("test", "created", "plan-1", {"safe": True})
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.state.db.execute("DELETE FROM audit_events WHERE sequence=?", (sequence,))
+
+    def test_astra_turn_cap_is_atomic_and_visible(self):
+        self.state.begin_intake(
+            "astra-plan", "!r:x", "$root", "https://github.com/o/r.git")
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            reserved = list(pool.map(
+                lambda _: self.state.reserve_astra_turn("astra-plan", "intake", cap=3),
+                range(8),
+            ))
+        self.assertEqual(reserved.count(True), 3)
+        self.assertEqual(self.state.astra_turns("astra-plan"), 3)
+        self.assertEqual(self.state.plan("astra-plan")["state"], "needs_input")
+        self.assertIn(
+            'cogito_gateway_astra_turns_total{plan="astra-plan"} 3',
+            self.state.prometheus_metrics(),
+        )
+
+    def test_v11_migration_drops_retired_tables_and_adds_coordination_state(self):
+        path = self.tmp.name
+        self.state.close()
+        db = sqlite3.connect(path)
+        db.executescript("""
+            DROP TABLE plan_deliverables;
+            DROP TABLE workloads;
+            CREATE TABLE workloads (
+              name TEXT PRIMARY KEY, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(plan_id),
+              state TEXT NOT NULL, status_json TEXT NOT NULL, updated_at INTEGER NOT NULL);
+            DELETE FROM migrations;
+            INSERT INTO migrations VALUES (6, 0);
+            CREATE TABLE runs (run_id TEXT);
+            CREATE TABLE deliveries (run_id TEXT);
+            CREATE TABLE work_items (external_id TEXT);
+            CREATE TABLE controls (key TEXT);
+            INSERT INTO plans(plan_id,state,repository,matrix_room_id,root_event_id,current_version)
+              VALUES ('old-plan','completed','https://github.com/o/r.git','!r:x','$root',1);
+            INSERT INTO workloads VALUES ('old-workload','old-plan','Completed','{}',0);
+        """)
+        db.close()
+        self.state = StateStore(path)
+        names = {row[0] for row in self.state.db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")}
+        self.assertTrue({"runs", "deliveries", "work_items", "controls"}.isdisjoint(names))
+        columns = {row[1] for row in self.state.db.execute("PRAGMA table_info(workloads)")}
+        self.assertIn("deliverable_position", columns)
+        self.assertIn("plan_intake", names)
+        self.assertIn("plan_research", names)
+        outbox_columns = {
+            row[1] for row in self.state.db.execute("PRAGMA table_info(matrix_outbox)")
+        }
+        self.assertIn("thread_notification_id", outbox_columns)
+        self.assertIn("kind", outbox_columns)
+        self.assertIn("target_notification_id", outbox_columns)
+        self.assertTrue({"coordinator_events", "luna_turns", "plan_notes"}.issubset(names))
+        migrated = self.state.db.execute(
+            "SELECT plan_id,deliverable_position,state FROM workloads WHERE name='old-workload'"
+        ).fetchone()
+        self.assertEqual(tuple(migrated), ("old-plan", 1, "Completed"))
+
+    def test_outbox_reply_waits_for_parent_matrix_ack(self):
+        self.state.enqueue_matrix("agent:root", "!agents:x", "", "Scout")
+        self.state.enqueue_matrix(
+            "agent:queued", "!agents:x", "", "Queued", "agent:root")
+        pending = self.state.pending_matrix()
+        self.assertEqual([item["notification_id"] for item in pending], ["agent:root"])
+        self.assertTrue(self.state.complete_matrix("agent:root", "$agent-root"))
+        pending = self.state.pending_matrix()
+        self.assertEqual([item["notification_id"] for item in pending], ["agent:queued"])
+        self.assertEqual(pending[0]["thread_root"], "$agent-root")
+
+    def test_card_updates_wait_for_original_event_and_use_matrix_edit(self):
+        self.state.begin_intake("card", "!r:x", "$root", "https://github.com/o/r.git")
+        self.state.enqueue_plan_card("card")
+        self.state.set_plan_state("card", "paused")
+        pending = self.state.pending_matrix(100)
+        self.assertEqual([item["kind"] for item in pending], ["message"])
+        self.state.complete_matrix("plan:card:card", "$card")
+        pending = self.state.pending_matrix(100)
+        edit = next(item for item in pending if item["kind"] == "edit")
+        self.assertEqual(edit["target_event_id"], "$card")
+        self.assertIn("PAUSED", edit["body"])
+
+    def test_intake_is_durable_and_ordered(self):
+        self.state.begin_intake(
+            "plan-intake", "!r:x", "$root", "https://github.com/o/r.git")
+        self.assertTrue(self.state.add_intake_message(
+            "$root", "plan-intake", "@tim:x", "user", "objective", "Build it"))
+        self.assertTrue(self.state.add_intake_message(
+            "$root:assistant", "plan-intake", "planner", "assistant", "clarify", "Where?"))
+        self.assertFalse(self.state.add_intake_message(
+            "$root:assistant", "plan-intake", "planner", "assistant", "clarify", "Where?"))
+        self.assertEqual([item["body"] for item in self.state.intake_messages("plan-intake")],
+                         ["Build it", "Where?"])
+        self.assertEqual(self.state.intake_rounds("plan-intake"), 1)
+
+    def test_research_rounds_are_durable_and_bounded_to_latest_round(self):
+        self.state.begin_intake(
+            "plan-research", "!r:x", "$root", "https://github.com/o/r.git")
+        self.assertEqual(self.state.planning_typing_rooms(), [])
+        round_one, names = self.state.register_research("plan-research", ["Inspect A", "Inspect B"])
+        self.assertEqual(round_one, 1)
+        self.assertEqual(self.state.planning_typing_rooms(), ["!r:x"])
+        self.state.update_research(names[0], {"phase": "Succeeded", "result": {"summary": "A"}})
+        self.assertEqual(self.state.research_ready(), [])
+        self.state.update_research(names[1], {"phase": "Failed", "failureReason": "blocked"})
+        self.assertEqual(self.state.research_ready()[0]["round"], 1)
+        _, newer = self.state.register_research("plan-research", ["Inspect C"])
+        self.assertEqual(self.state.research_ready(), [])
+        self.state.update_research(newer[0], {"phase": "Succeeded", "result": {
+            "summary": "model emitted GO but produced no diff",
+            "extra": {"outcome": "NO-CHANGES", "modelSummary": "C"},
+        }})
+        briefing = self.state.research_briefing("plan-research")
+        self.assertEqual([item["summary"] for item in briefing], ["A", "blocked", "C"])
+        self.state.set_plan_state("plan-research", "review")
+        self.assertEqual(self.state.planning_typing_rooms(), [])
+
+    def test_research_job_error_is_bounded_without_forwarding_raw_logs(self):
+        self.state.begin_intake(
+            "plan-error", "!r:x", "$root", "https://github.com/o/r.git")
+        _, names = self.state.register_research("plan-error", ["Inspect CI"])
+        self.state.update_research(names[0], {
+            "phase": "Succeeded",
+            "failureReason": "InfrastructureError",
+            "result": {
+                "summary": "coder Job failed before producing a verdict",
+                "extra": {
+                    "outcome": "JOB-ERROR",
+                    "logTail": "FOREMAN ERROR: chat endpoint token=do-not-forward connection refused",
+                },
+            },
+        })
+        summary = self.state.research_briefing("plan-error")[0]["summary"]
+        self.assertIn("could not reach its inference endpoint", summary)
+        self.assertNotIn("do-not-forward", summary)
+
+    def test_workload_status_is_correlated_to_plan(self):
+        with self.state.transaction() as db:
+            db.execute(
+                "INSERT INTO plans(plan_id,state,repository,matrix_room_id,root_event_id,current_version) "
+                "VALUES (?,?,?,?,?,?)",
+                ("plan-workload", "decomposed", "https://github.com/o/r.git", "!r:x", "$root", 1),
+            )
+        self.state.register_deliverables("plan-workload", ["https://github.com/o/r/issues/1"])
+        self.state.register_workload("workload-1", "plan-workload", {"phase": "Planning"})
+        self.assertEqual(self.state.workload_for_plan("plan-workload")["name"], "workload-1")
+        self.assertTrue(self.state.update_workload("workload-1", {"phase": "Completed", "succeeded": 3}))
+        self.assertEqual(self.state.plan_for_thread("!r:x", "$root")["state"], "running")
+        self.state.begin_merge(
+            "plan-workload", 1, "https://github.com/o/r/pull/2", "a" * 40, "uuid-1",
+            {"status": "pending"},
+        )
+        self.assertEqual(
+            self.state.finish_merge("plan-workload", 1, {"status": "merged"}), "completed")
+        self.assertEqual(self.state.plan_for_thread("!r:x", "$root")["state"], "completed")
+
+    def test_deliverables_are_dispatched_in_order(self):
+        with self.state.transaction() as db:
+            db.execute(
+                "INSERT INTO plans(plan_id,state,repository,matrix_room_id,root_event_id,current_version) "
+                "VALUES (?,?,?,?,?,?)",
+                ("serial", "decomposed", "https://github.com/o/r.git", "!r:x", "$root", 1),
+            )
+        self.state.register_deliverables("serial", [
+            "https://github.com/o/r/issues/1", "https://github.com/o/r/issues/2",
+        ])
+        self.assertEqual(self.state.next_deliverable("serial")["position"], 1)
+        self.state.register_workload("first", "serial", {"phase": "Planning"}, 1)
+        self.assertIsNone(self.state.next_deliverable("serial"))
+        self.state.begin_merge(
+            "serial", 1, "https://github.com/o/r/pull/1", "a" * 40, "u", {"status": "pending"})
+        self.state.finish_merge("serial", 1, {"status": "merged"})
+        self.assertEqual(self.state.next_deliverable("serial")["position"], 2)
+
+    def test_prometheus_metrics_report_state_usage_and_artifacts(self):
+        with self.state.transaction() as db:
+            db.execute(
+                "INSERT INTO plans(plan_id,state,repository,matrix_room_id,root_event_id,current_version) "
+                "VALUES (?,?,?,?,?,?)", ("metrics-plan", "complete", "https://github.com/o/r.git",
+                "!room:x", "$root", 1),
+            )
+        metrics = self.state.prometheus_metrics()
+        self.assertIn('cogito_gateway_objects{kind="plan",state="complete"} 1', metrics)
+        self.assertNotIn("run_usage", metrics)
+
+    def test_coordinator_events_coalesce_and_interrupted_turn_replays(self):
+        self.state.begin_intake(
+            "batch-plan", "!r:x", "$root", "https://github.com/o/r.git")
+        self.state.enqueue_coordinator_event(
+            "one", "batch-plan", "github", "issue_comment.created", {"body": "a"}, 0)
+        self.state.enqueue_coordinator_event(
+            "two", "batch-plan", "github", "issues.edited", {"body": "b"}, 0)
+        batch = self.state.next_luna_batch(now=2**31)
+        self.assertEqual(len(batch["events"]), 2)
+        self.state.fail_luna_turn(batch["sequence"])
+        replay = self.state.next_luna_batch(now=2**31)
+        self.assertEqual(replay["batch_id"], batch["batch_id"])
+        self.assertEqual(replay["events"], batch["events"])
+        self.state.finish_luna_turn(replay["sequence"], {"ok": True}, 10, 5)
+        self.assertEqual(self.state.luna_usage("batch-plan")["turns"], 1)
+        metrics = self.state.prometheus_metrics()
+        self.assertIn('cogito_gateway_webhook_batches_total{plan="batch-plan"} 1', metrics)
+        self.assertIn('cogito_gateway_coalesced_events_total{plan="batch-plan"} 2', metrics)
+
+
+if __name__ == "__main__":
+    unittest.main()

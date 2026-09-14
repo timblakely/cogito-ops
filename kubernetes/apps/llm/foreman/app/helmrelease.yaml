@@ -20,6 +20,19 @@ spec:
     timeout: 5m
     remediation:
       retries: 1
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              group: apps
+              version: v1
+              kind: Deployment
+              labelSelector: app.kubernetes.io/component=agent
+            patch: |-
+              - op: add
+                path: /metadata/annotations
+                value:
+                  reloader.stakater.com/auto: "false"
   values:
     operator:
       image:
@@ -32,7 +45,9 @@ spec:
       failurePolicy: Ignore
 
     foreman:
-      allowCloudProviders: false
+      # All role traffic goes through LiteLLM, including local GPU models.
+      # Role-scoped virtual keys are the egress and spend boundary.
+      allowCloudProviders: true
       crs:
         enabled: false
       archive:
@@ -51,16 +66,18 @@ spec:
         - reviewer
       taskNamespace: llm
       foremanNamespace: llm
-      maxSupervisedTasks: 1
+      # Multi-fleet entries below own the four-slot capacity budget.
+      maxSupervisedTasks: 0
       accelerator: cuda
       installedModels:
         - qwen3-8-27b
         - muse-glimmer-30b
       commitAuthorName: Cogito Foreman
       commitAuthorEmail: foreman@cogito.invalid
+      # Job-mode workers resolve their own projected credentials. The
+      # supervisor does not consume this rotating token directly.
       githubToken:
-        secretName: foreman-github-token
-        secretKey: token
+        secretName: ""
       gateCache:
         enabled: true
         size: 20Gi
@@ -69,10 +86,33 @@ spec:
           volume.kubernetes.io/selected-node: iggy
       nodeSelector:
         kubernetes.io/hostname: iggy
-      coderGitSecret: foreman-github-token
-      coderGitSecretKey: token
+      coderGitSecret: ""
+      coderGitSecretKey: ""
+
+    # Separate FleetNodes make the task role a credential boundary. The
+    # execution pool gets the push-capable App token; read-only scout Jobs do
+    # not receive GITHUB_TOKEN at all. Two slots per pool retain the cluster's
+    # four-task ceiling while allowing both reviewer/scout pairs to run.
+    agents:
+      execution:
+        roles: [worker, coder, verifier, reviewer]
+        maxSupervisedTasks: 2
+        coderGitSecret: foreman-github-token
+        coderGitSecretKey: token
+      scouts:
+        roles: [planner]
+        maxSupervisedTasks: 2
+        # The chart requires a Secret projection for every Job pool. This
+        # names an intentionally empty credential, so public read-only clones
+        # work while GitHub-authenticated fetches and pushes cannot.
+        coderGitSecret: foreman-scout-github-token
+        coderGitSecretKey: token
+        gateCache:
+          enabled: false
 
     coder:
+      # Credentials are pool-specific above. Leaving the chart-wide fallback
+      # empty prevents the scout pool from inheriting a push token.
       enabled: true
-      gitCredentialsSecret: foreman-github-token
-      gitCredentialsSecretKey: token
+      gitCredentialsSecret: ""
+      gitCredentialsSecretKey: ""

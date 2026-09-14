@@ -1,0 +1,43 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Gateway Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - services/gateway/**
+      - .github/workflows/gateway-image.yaml
+
+concurrency:
+  group: gateway-image-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  test-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Unit tests
+        working-directory: services/gateway
+        run: python -m unittest discover -s tests -v
+
+      - name: Authenticate to GHCR
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+
+      - name: Build and publish immutable revision
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/cogito-gateway
+          REVISION: ${{ github.sha }}
+        run: |
+          docker build --pull --label "org.opencontainers.image.revision=$REVISION" --tag "$IMAGE:$REVISION" services/gateway
+          docker push "$IMAGE:$REVISION"

@@ -3,7 +3,7 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: matrix-coordinator
+  name: gateway
 spec:
   interval: 1h
   maxHistory: 2
@@ -22,9 +22,14 @@ spec:
       retries: 3
   values:
     controllers:
-      coordinator:
+      gateway:
+        annotations:
+          # The projected GitHub App token rotates every 30 minutes. The
+          # process reads the token file per request, so a Reloader restart is
+          # unnecessary and would interrupt active planning/Workload state.
+          reloader.stakater.com/auto: "false"
         serviceAccount:
-          identifier: coordinator
+          identifier: gateway
         pod:
           automountServiceAccountToken: true
           securityContext:
@@ -48,13 +53,28 @@ spec:
         containers:
           main:
             image:
+              # Staged rename: the first cogito-gateway artifact is published
+              # only after this change reaches main. Switch this bootstrap pin
+              # to ghcr.io/timblakely/cogito-gateway in that image release.
               repository: ghcr.io/timblakely/cogito-matrix-coordinator
               tag: 15153e40b25376e14a68888446bbe88392a8abbe@sha256:dcd64cab50794f231f4b2a7d21b36c13508300886561e08091fd64002f52f5e2
             env:
+              # Preserve the existing SQLite file across the service rename.
+              GATEWAY_STATE_PATH: /data/coordinator.sqlite3
+              # Bootstrap compatibility for the last coordinator image.
+              # Remove with the first cogito-gateway image pin.
               COORDINATOR_STATE_PATH: /data/coordinator.sqlite3
               FOREMAN_NAMESPACE: llm
               MATRIX_APPROVERS: "@tim:matrix.${DOMAIN_NAME}"
+              GITHUB_APPROVERS: timblakely
               MATRIX_ACTIVITY_ROOM_ID: "!5wS6Ha0iIA8OL4oWd1lYAqGubN1eXqN34ZDqmWIgbPU"
+              MATRIX_IMPLEMENTATION_ROOM_ID:
+                valueFrom:
+                  secretKeyRef:
+                    name: matrix-rooms-outputs
+                    key: implementation_room_id
+              LUNA_TURN_CAP: "200"
+              ASTRA_TURN_CAP: "20"
               GITHUB_TOKEN_FILE: /run/secrets/github-app/token
               GITHUB_TOKEN:
                 valueFrom:
@@ -114,10 +134,10 @@ spec:
               limits:
                 memory: 512Mi
     serviceAccount:
-      coordinator: {}
+      gateway: {}
     service:
       main:
-        controller: coordinator
+        controller: gateway
         ports:
           http:
             port: *port
@@ -134,7 +154,7 @@ spec:
         type: configMap
         name: matrix-coordinator-bot-plugin
         advancedMounts:
-          coordinator:
+          gateway:
             bot:
               - path: /plugin/maubot.yaml
                 subPath: maubot.yaml
@@ -149,7 +169,7 @@ spec:
         type: secret
         name: matrix-coordinator-bot
         advancedMounts:
-          coordinator:
+          gateway:
             bot:
               - path: /plugin/config.yaml
                 subPath: config.yaml
@@ -158,7 +178,7 @@ spec:
         type: secret
         name: matrix-coordinator-github-token
         advancedMounts:
-          coordinator:
+          gateway:
             main:
               - path: /run/secrets/github-app/token
                 subPath: token
