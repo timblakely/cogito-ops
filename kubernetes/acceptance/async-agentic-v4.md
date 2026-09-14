@@ -114,6 +114,24 @@ no secrets, tokens, or raw transcripts).
   `https://github.com/timblakely/cogito-ops.git`; it did not create an issue or
   send a Matrix event.
 
+## Post-acceptance Foreman credential and fleet audit
+
+- The execution-supervisor credential fix merged in
+  [PR #121](https://github.com/timblakely/cogito-ops/pull/121) at
+  `60cf91c917d0c89ba89087244b0a4100e7dc734a`; Flux applied that exact `main`
+  revision and Foreman reconciled at 0.9.27.
+- The replacement execution Deployment became Ready with zero restarts. Its
+  environment contains only `FLEET_NODE_NAME` and `POD_NAMESPACE`; it retains
+  `--coder-git-secret=foreman-github-token` so new coder/reviewer Jobs receive
+  the current rotating App token without projecting it into the long-lived
+  supervisor.
+- From the credential-free execution pod, anonymous `git ls-remote` resolved
+  the public repository's `HEAD` to the exact merged revision above.
+- The replacement FleetNode is Ready with roles worker, coder, verifier, and
+  reviewer; maximum supervision capacity 2; and installed models
+  `qwen3-8-27b` and `muse-glimmer-30b`. The separate scout FleetNode remains
+  Ready with capacity 2 and no push-capable credential.
+
 ## Implementation handoff
 
 - **Repository gate selected for this path:** the `flux-local` job in
