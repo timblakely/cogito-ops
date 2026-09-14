@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import statistics
 import threading
@@ -212,6 +213,7 @@ def main() -> None:
         "concurrency": args.concurrency,
         "target_prompt_tokens": args.target_prompt_tokens,
         "actual_prompt_tokens": prompt_tokens,
+        "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
         "repetitions": args.repetitions,
         "max_tokens": args.max_tokens,
         "seed": args.seed,

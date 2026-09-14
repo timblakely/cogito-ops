@@ -482,7 +482,9 @@ Synapse → ntfy → UnifiedPush → Commet (done). Mentions only on `NEEDS_INPU
 
 1. `[VERIFY]` R1 token handling in the foreman-agent process.
 2. `[VERIFY]` cloud-proxy Agents and FleetNode `installedModels`; whether `inferenceServiceRef` can be dropped.
-3. `[VERIFY]` Muse two-slot VRAM and host RSS under a concurrent round.
+3. `[VERIFIED 2026-09-14]` Muse capacity: 2x131k through 16x32k passed on the
+   RTX 3090; see `glimmer-benchmark-2026-09-14.md`. Real scout quality remains
+   part of the milestone-5 exercise.
 4. `[VERIFY]` Gate image for flux-local under Foreman's single `gateProfile.image`.
 5. `[VERIFY]` Scout pods carry no push-capable token.
 6. `[VERIFY]` A repository webhook alongside the App's Hookshot webhook delivers all subscribed events without duplication.
@@ -490,7 +492,10 @@ Synapse → ntfy → UnifiedPush → Commet (done). Mentions only on `NEEDS_INPU
 8. `[VERIFY]` Luna tokens per Workload-level deliverable at effort max, measured over the first real plan; decides whether coalescing or effort needs tuning.
 9. `[VERIFY]` Commet renders `m.poll`.
 10. `[VERIFY]` Hermes as a direct session.
-11. Measure: Qwen `SPEC`/`CTX` A/B; Muse Glimmer's 1–4 slot/context capacity frontier, concurrent scout turn p95, prefix reuse, and mixed vision/text behavior on its RTX 3090; coder effort.
+11. Measure: Qwen `SPEC`/`CTX` A/B; Muse Glimmer's DFlash boundary, real
+    concurrent scout turn p95, prefix hit ratio, and mixed vision/text behavior
+    on its RTX 3090; coder effort. The synthetic Glimmer capacity frontier is
+    complete through 16 slots.
 12. Upstream: Foreman's no-diff gate on `freeform` tasks; Job re-creation for terminal tasks on agent restart.
 
 ---
