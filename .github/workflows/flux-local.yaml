@@ -32,6 +32,12 @@ jobs:
     needs: pre-job
     runs-on: ubuntu-latest
     if: ${{ needs.pre-job.outputs.any_changed == 'true' }}
+    env:
+      # These unchanged releases require private Flux substitutions to render.
+      # Diff validation still covers them whenever either release is modified.
+      PYTEST_ADDOPTS: >-
+        --deselect=kubernetes/flux::pocket-id::home-infra/pocket-id-operator
+        --deselect=kubernetes/flux::cloudflare-ddns::network/cloudflare-ddns
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
