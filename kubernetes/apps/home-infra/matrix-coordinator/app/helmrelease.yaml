@@ -56,8 +56,10 @@ spec:
               repository: ghcr.io/timblakely/cogito-gateway
               tag: c431555c7d0f93635a299697a11693b0890264bf@sha256:d62ee4ea6fc28ded0390b890334746f77d2c4c9c1491e45f018635baa312f3f2
             env:
-              # Preserve the existing SQLite file across the service rename.
-              GATEWAY_STATE_PATH: /data/coordinator.sqlite3
+              # Start the accepted v4 workflow with an empty durable store.
+              # The pre-acceptance coordinator.sqlite3 remains on the PVC as
+              # a recoverable archive and is no longer opened by the gateway.
+              GATEWAY_STATE_PATH: /data/gateway.sqlite3
               FOREMAN_NAMESPACE: llm
               MATRIX_APPROVERS: "@tim:matrix.${DOMAIN_NAME}"
               GITHUB_APPROVERS: timblakely

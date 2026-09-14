@@ -13,18 +13,6 @@ locals {
   })
 
   agent_rooms = {
-    alerts = {
-      name  = "Agent Alerts"
-      topic = "Failures, blocked work, approval requests, and important completions."
-      alias = "agent-alerts"
-      order = "20"
-    }
-    plans = {
-      name  = "Agent Plans"
-      topic = "Plan review threads that do not yet belong to a dedicated project room."
-      alias = "agent-plans"
-      order = "30"
-    }
     runs = {
       name  = "Agent Runs"
       topic = "Detailed progress and results for agent and cluster automation runs."
@@ -206,8 +194,10 @@ resource "matrix_room" "agent" {
   history_visibility = "shared"
   visibility         = "private"
 
+  # Obsolete rooms can be removed from the for_each map before Synapse purges
+  # their history. Review for_each removals closely.
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
 
