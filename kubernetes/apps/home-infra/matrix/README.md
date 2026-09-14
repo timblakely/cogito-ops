@@ -43,7 +43,8 @@ project room, falling back to `Agent Plans` when no project room exists.
 
 For Cogito automation, `Cogito` is the control room: planner conversation,
 approval, blockers, and overall completion remain in the originating plan
-thread. `Agent Runs` is the muteable activity room for Foreman progress,
+thread. A top-level owner message starts plan intake without a command prefix;
+`!cogito plan` remains an explicit alias. `Agent Runs` is the muteable activity room for Foreman progress,
 review/merge updates, and the Hookshot repository connection. Matrix room
 notification settings are the reliable client-wide boundary; activity is not
 hidden in a thread that may notify differently across clients.

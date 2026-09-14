@@ -294,6 +294,11 @@ output "implementation_room_id" {
   value       = matrix_room.agent["implementation"].id
 }
 
+output "cogito_project_room_id" {
+  description = "Encrypted project room whose top-level owner messages start Cogito plans."
+  value       = matrix_room.agent["cogito"].id
+}
+
 resource "matrix_room" "personal" {
   for_each = local.personal_rooms
 

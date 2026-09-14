@@ -134,6 +134,7 @@ class MatrixTests(unittest.TestCase):
         self.matrix = MatrixCoordinator(
             self.state, core, self.foreman, self.planner, {"@tim:matrix.example"},
             "!activity:matrix.example", images=self.images,
+            project_rooms={"!room:matrix.example": "https://github.com/t/c.git"},
         )
         self.base = {
             "room_id": "!room:matrix.example", "sender": "@tim:matrix.example",
@@ -171,6 +172,17 @@ class MatrixTests(unittest.TestCase):
         self.assertEqual(self.planner.calls, 2)
         self.assertEqual(self.issues.calls, 2)
 
+    def test_top_level_project_message_starts_plan_without_prefix(self):
+        result = self.matrix.handle(self.event("$root", "Build a safer controller"))
+        self.assertIn("Plan drafted", result["actions"][0]["body"])
+        row = self.state.plan_for_thread("!room:matrix.example", "$root")
+        self.assertEqual(row["repository"], "https://github.com/t/c.git")
+
+    def test_top_level_message_outside_project_room_is_ignored(self):
+        value = self.event("$root", "This is ordinary conversation")
+        value["room_id"] = "!other:matrix.example"
+        self.assertEqual(self.matrix.handle(value), {"actions": []})
+
     def test_intake_clarification_reply_then_plan(self):
         self.planner.decisions = [
             {"status": "clarify", "message": "Which namespace should own it?"},
@@ -203,7 +215,9 @@ class MatrixTests(unittest.TestCase):
         self.assertIn("CrashLoopBackOff", messages[-1]["body"])
 
     def test_unrelated_root_image_is_ignored_without_model_call(self):
-        result = self.matrix.handle(self.event("$image", "status.png", image=self.image()))
+        value = self.event("$image", "status.png", image=self.image())
+        value["room_id"] = "!other:matrix.example"
+        result = self.matrix.handle(value)
         self.assertEqual(result, {"actions": []})
         self.assertEqual(self.images.calls, [])
 
@@ -400,7 +414,9 @@ class MatrixTests(unittest.TestCase):
         self.assertEqual(batch["events"][0]["event_type"], "plan.approved")
 
     def test_non_command_outside_plan_thread_is_ignored(self):
-        self.assertEqual(self.matrix.handle(self.event("$chat", "ordinary chat")), {"actions": []})
+        chat = self.event("$chat", "ordinary chat")
+        chat["room_id"] = "!other:matrix.example"
+        self.assertEqual(self.matrix.handle(chat), {"actions": []})
         self.assertEqual(
             self.matrix.handle(self.event("$other", "thread chat", "$unrelated")),
             {"actions": []},

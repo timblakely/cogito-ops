@@ -67,6 +67,12 @@ spec:
                   secretKeyRef:
                     name: matrix-rooms-outputs
                     key: implementation_room_id
+              MATRIX_PROJECT_ROOM_ID:
+                valueFrom:
+                  secretKeyRef:
+                    name: matrix-rooms-outputs
+                    key: cogito_project_room_id
+              MATRIX_PROJECT_REPOSITORY: https://github.com/timblakely/cogito-ops.git
               LUNA_TURN_CAP: "200"
               ASTRA_TURN_CAP: "20"
               IMAGE_MODEL: image
@@ -119,6 +125,11 @@ spec:
             workingDir: /plugin
             env:
               PYTHONPATH: /opt/maubot
+              MATRIX_PROJECT_ROOM_ID:
+                valueFrom:
+                  secretKeyRef:
+                    name: matrix-rooms-outputs
+                    key: cogito_project_room_id
             securityContext:
               allowPrivilegeEscalation: false
               capabilities:
