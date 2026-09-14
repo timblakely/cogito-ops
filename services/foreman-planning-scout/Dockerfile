@@ -12,5 +12,7 @@ RUN apt-get update \
     && echo "${GH_SHA256}  /tmp/gh.tar.gz" | sha256sum --check - \
     && tar --extract --gzip --file /tmp/gh.tar.gz --directory /usr/local/bin \
       --strip-components=2 "gh_${GH_VERSION}_linux_amd64/bin/gh" \
-    && rm -rf /var/lib/apt/lists/* /tmp/gh.tar.gz
+    && rm -rf /var/lib/apt/lists/* /tmp/gh.tar.gz \
+    && cp /foreman-agent /foreman-agent.real
+COPY --chmod=0755 foreman-agent-entrypoint /foreman-agent
 USER 65532:0
