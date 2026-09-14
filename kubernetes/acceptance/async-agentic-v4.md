@@ -94,6 +94,26 @@ no secrets, tokens, or raw transcripts).
   uncompleted media-path check because it requires an event from the owner's
   logged-in device.
 
+## Post-acceptance prefix-free project intake
+
+- Prefix-free room routing merged in
+  [PR #118](https://github.com/timblakely/cogito-ops/pull/118) at
+  `c431555c7d0f93635a299697a11693b0890264bf`; its immutable image pin merged in
+  [PR #119](https://github.com/timblakely/cogito-ops/pull/119) at
+  `3a0679ff8d260d2b8ce4c085703bf2af21b90f8e`.
+- The Matrix Terraform resource reconciled the exact source revision and wrote
+  `cogito_project_room_id` to `matrix-rooms-outputs`. The bot and gateway each
+  receive that output; ordinary top-level owner messages elsewhere stay ignored.
+- Flux applied the exact pin revision. The replacement pod became Ready with
+  zero restarts and main image digest
+  `sha256:d62ee4ea6fc28ded0390b890334746f77d2c4c9c1491e45f018635baa312f3f2`.
+  The bot startup log reports one configured project room.
+- A side-effect-free probe against the running image used fake state and no
+  network clients. The deployed handler converted `prefix free acceptance`
+  into a plan objective and selected
+  `https://github.com/timblakely/cogito-ops.git`; it did not create an issue or
+  send a Matrix event.
+
 ## Implementation handoff
 
 - **Repository gate selected for this path:** the `flux-local` job in
