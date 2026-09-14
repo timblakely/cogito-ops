@@ -101,7 +101,7 @@ Prerequisites, unchanged from v3 except R2's target names.
 
 | # | Fault | Fix |
 |---|---|---|
-| **R1** | `foreman-agent` and the gateway Deployments roll every 30 min (GitHub token secret refresh × Reloader `autoReloadAll`). Rolls drain the FleetNode, expire scout claims, and re-create Jobs for every AgenticTask including day-old successes. | `reloader.stakater.com/auto: "false"` on both Deployments (app-template `controllers.<name>.annotations`; kustomize patch for `Deployment/foreman-agent`). `[VERIFY]` the foreman-agent process does not itself need a fresh `GITHUB_TOKEN`. |
+| **R1** | `foreman-agent` and the gateway Deployments roll every 30 min (GitHub token secret refresh × Reloader `autoReloadAll`). Rolls drain the FleetNode, expire scout claims, and re-create Jobs for every AgenticTask including day-old successes. | `reloader.stakater.com/auto: "false"` on both Deployments (app-template `controllers.<name>.annotations`; kustomize patch for agent Deployments). `[VERIFIED 2026-09-14]` the long-lived supervisors need no `GITHUB_TOKEN`; execution Jobs receive the current App token at creation through `coderGitSecret`, and verifier clones of this public repository are anonymous. |
 | **R2** | Coder and reviewer 404 (`qwen3-8-27b` requested, `qwen3.8-27b` served). | (a) `SERVED_MODEL_NAME=qwen3-8-27b` on the Qwen InferenceService; revert the three LiteLLM backends to `openai/qwen3-8-27b`. (b) All LLM-backed Agents to `provider: cloud-proxy` against LiteLLM with per-role aliases and keys (§3.3). |
 | **R3** | Flux `llm` unhealthy since 09-08 (`flashnext-stage-v1` Failed); flashnext rollout stuck on a 76 Gi surge. | Remove flashnext manifests and the LiteLLM alias; delete the Job and ConfigMap; keep the PVC. |
 | **R4** | Muse Agents sample at 0.2 / 0.1; scouts looped 78 turns. | Delete `temperature` from Muse Agents; pin sampling at the alias; scout turn timeout 900. |
@@ -324,7 +324,7 @@ Scouts and reviewers return v1's packet shape in the `submit_result` summary: `c
 
 ### 6.4 Worker pods
 
-One Job per task; all LLM-backed Agents use the derived image (`gh`, `jq`, `unzip`), renamed `cogito-foreman-agent`; `[VERIFY]` scout pods carry no push-capable token.
+One Job per task; all LLM-backed Agents use the derived image (`gh`, `jq`, `unzip`), renamed `cogito-foreman-agent`; `[VERIFIED 2026-09-14]` scout Jobs project only the intentionally empty credential Secret and the scout supervisor has no `GITHUB_TOKEN`.
 
 ### 6.5 GitHub client and webhook
 
@@ -507,16 +507,25 @@ Synapse → ntfy → UnifiedPush → Commet (done). Mentions only on `NEEDS_INPU
 
 ## 14. Open items to verify
 
-1. `[VERIFY]` R1 token handling in the foreman-agent process.
-2. `[VERIFY]` cloud-proxy Agents and FleetNode `installedModels`; whether `inferenceServiceRef` can be dropped.
+1. `[VERIFIED 2026-09-14]` R1 token handling: neither long-lived supervisor
+   receives `GITHUB_TOKEN`; execution coder/reviewer Jobs project the rotating
+   App token at creation through `coderGitSecret`. A credential-free execution
+   supervisor resolved the public repository at the exact deployed `main` SHA.
+2. `[VERIFIED 2026-09-14]` all LLM-backed Agents use `cloud-proxy`; both Ready
+   FleetNodes advertise `qwen3-8-27b` and `muse-glimmer-30b` without an
+   `inferenceServiceRef` dependency.
 3. `[VERIFIED 2026-09-14]` Muse capacity: 2x131k through 16x32k passed on the
    RTX 3090; see `glimmer-benchmark-2026-09-14.md`. Real scout quality remains
    part of the milestone-5 exercise.
-4. `[VERIFY]` Gate image for flux-local under Foreman's single `gateProfile.image`.
-5. `[VERIFY]` Scout pods carry no push-capable token.
+4. `[VERIFIED 2026-09-14]` the single `gateProfile.image` ran the repository's
+   flux-local gate successfully for both accepted deliverables (PRs #98 and
+   #100).
+5. `[VERIFIED 2026-09-14]` the scout supervisor has no `GITHUB_TOKEN`, and its
+   Job projection names the intentionally empty `foreman-scout-github-token`.
 6. `[VERIFY]` A repository webhook alongside the App's Hookshot webhook delivers all subscribed events without duplication.
 7. `[VERIFY]` GitHub Mobile: label application, body editing, and quote-reply are all usable one-handed.
-8. `[VERIFY]` Luna tokens per Workload-level deliverable at effort max, measured over the first real plan; decides whether coalescing or effort needs tuning.
+8. `[VERIFIED 2026-09-14]` the first accepted two-deliverable plan used 56 Luna
+   turns, 1,472,890 input tokens, and 28,419 output tokens at effort max.
 9. `[VERIFY]` Commet renders `m.poll`.
 10. `[VERIFY]` Complete an owner-device E2EE direct-session turn with `@hermes`.
 11. `[VERIFY]` Send an encrypted image from Commet in a planning and an
