@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-artifact_id="${FA2_ARTIFACT_ID:?FA2_ARTIFACT_ID is required}"
-artifact_manifest="/opt/club3090/fa2-artifacts/${artifact_id}/manifest.json"
+artifact_id="$${FA2_ARTIFACT_ID:?FA2_ARTIFACT_ID is required}"
+artifact_manifest="/opt/club3090/fa2-artifacts/$${artifact_id}/manifest.json"
 
 # Flux creates the artifact-export Job and this workload in one apply. Wait for
 # the digest-pinned exporter to finish rather than racing it into CrashLoopBackOff.
 for _ in $(seq 1 450); do
-  test -f "${artifact_manifest}" && break
+  test -f "$${artifact_manifest}" && break
   sleep 2
 done
-test -f "${artifact_manifest}" || {
-  echo "[fa2] artifact export did not complete: ${artifact_manifest}" >&2
+test -f "$${artifact_manifest}" || {
+  echo "[fa2] artifact export did not complete: $${artifact_manifest}" >&2
   exit 1
 }
 
@@ -38,8 +38,8 @@ if nvidia-smi topo -p2p r 2>/dev/null | awk '
   END { exit (rows > 0 && !bad) ? 0 : 1 }
 '; then
   export NCCL_P2P_DISABLE=0
-  export NCCL_P2P_LEVEL="${NCCL_P2P_LEVEL:-PHB}"
-  echo "[p2p] driver confirms PCIe peer access; NCCL P2P enabled at ${NCCL_P2P_LEVEL}"
+  export NCCL_P2P_LEVEL="$${NCCL_P2P_LEVEL:-PHB}"
+  echo "[p2p] driver confirms PCIe peer access; NCCL P2P enabled at $${NCCL_P2P_LEVEL}"
 else
   export NCCL_P2P_DISABLE=1
   unset NCCL_P2P_LEVEL || true
