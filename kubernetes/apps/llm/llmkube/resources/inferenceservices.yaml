@@ -1,55 +1,112 @@
 ---
-# Text/tool lane on iggy's PCIe x16 RTX 3090. This follows Jory's Syv AI
-# profile: W4A16 AutoRound, DFlash2, long context, prefix cache, and five
-# admitted requests. MAX_SEQS is admission, not a promise that five long
-# requests fit simultaneously.
+# Primary text/tool/vision lane on both of iggy's RTX 3090s. This ports the
+# reviewed club-3090 dual-ultramax profile merged in PR #1274: stock vLLM
+# 0.29.0, official Qwen FP8 target, W4A16 DFlash2 n=7, FP8 E4M3 KV, and the
+# digest-pinned FlashAttention plugin for SM86. The fixed KV reservation and
+# single admitted sequence are part of the validated 262144-token profile.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: InferenceService
 metadata:
   name: qwen3-8-27b
-  annotations:
-    inference.llmkube.dev/idle-endpoint: /health
 spec:
   modelRef: qwen3-8-27b
   replicas: 1
   runtime: generic
-  image: ghcr.io/syv-ai/qwen38-27b-rtx3090@sha256:8382b69916f413a8580f3117b6dc353bba6fb3ace94810c91c945ba7bdee8096
+  image: vllm/vllm-openai@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1
   skipModelInit: true
   runtimeClassName: nvidia
   nodeSelector:
     kubernetes.io/hostname: iggy
   env:
-    # Direct UUID binding is the pragmatic non-DRA experiment path. Kubernetes
-    # does not account for this device, so no other GPU workload may run on
-    # iggy while these two serving lanes are active.
-    - name: NVIDIA_VISIBLE_DEVICES
-      value: GPU-a5982685-6ed7-6fce-8096-52d29e241396
     - name: NVIDIA_DRIVER_CAPABILITIES
       value: compute,utility
-    - name: SPEC
-      value: dflash2
-    - name: PREFIX_CACHE
-      value: "1"
-    - name: CTX
-      value: long
-    - name: MAX_SEQS
-      value: "5"
-    - name: VISION
+    - name: FA2_ARTIFACT_ID
+      value: 731d1942112a7cf35be4f0add0919072c06cac47e3bad4f674ff0157edad0e3f
+    - name: VLLM_WORKER_MULTIPROC_METHOD
+      value: spawn
+    - name: VLLM_USE_FLASHINFER_SAMPLER
       value: "0"
+    - name: VLLM_NO_USAGE_STATS
+      value: "1"
+    - name: NCCL_CUMEM_ENABLE
+      value: "0"
+    - name: OMP_NUM_THREADS
+      value: "1"
+    - name: PYTORCH_CUDA_ALLOC_CONF
+      value: expandable_segments:True
+    - name: VLLM_CACHE_ROOT
+      value: /runtime-cache/vllm
+    - name: TRITON_CACHE_DIR
+      value: /runtime-cache/triton
   rolloutPolicy:
     waitForIdle: true
   resources:
+    gpu: 2
     cpu: "2"
-    # The Syv entrypoint materializes the public checkpoint before serving.
-    # Its parallel download and lm_head quantization exceeded both 16Gi and a
-    # hard 20Gi cgroup. Upstream's example is 20 GB plus 8 GB swap; 24Gi gives
-    # the no-swap Kubernetes pod working headroom while keeping iggy below its
-    # allocatable-memory ceiling.
-    memory: 24Gi
+    memory: 16Gi
+  command:
+    - /bin/bash
+    - /runtime/start.sh
+  args:
+    - --model
+    - /model-cache/qwen-3-8-fp8
+    - --served-model-name
+    - qwen3.8-27b
+    - --quantization
+    - fp8
+    - --dtype
+    - bfloat16
+    - --tensor-parallel-size
+    - "2"
+    - --pipeline-parallel-size
+    - "1"
+    - --max-model-len
+    - "262144"
+    # Fixed bytes bypass gpu-memory-utilization profiling and yielded a
+    # measured 267493-token pool in the accepted profile.
+    - --kv-cache-memory-bytes
+    - "6335076762"
+    - --max-num-seqs
+    - "1"
+    - --max-num-batched-tokens
+    - "2048"
+    - --long-prefill-token-threshold
+    - "0"
+    - --kv-cache-dtype
+    - fp8_e4m3
+    - --attention-backend
+    - FLASH_ATTN
+    - --speculative-config
+    - '{"method":"dflash","model":"/model-cache/Qwen3.8-27B-DFlash2-W4A16","num_speculative_tokens":7,"attention_backend":"FLASH_ATTN","kv_cache_dtype":"fp8_e4m3"}'
+    - --limit-mm-per-prompt
+    - '{"image":1,"video":0}'
+    - --mm-processor-kwargs
+    - '{"size":{"longest_edge":4194304,"shortest_edge":65536}}'
+    - --compilation-config
+    - '{"cudagraph_capture_sizes":[1,2,4,8],"max_cudagraph_capture_size":8}'
+    - --trust-remote-code
+    - --reasoning-parser
+    - qwen3
+    - --enable-auto-tool-choice
+    - --tool-call-parser
+    - qwen3_coder
+    - --default-chat-template-kwargs
+    - '{"enable_thinking":true,"reasoning_effort":"low"}'
+    - --enable-prefix-caching
+    - --enable-chunked-prefill
+    - --enable-prompt-tokens-details
+    - --host
+    - 0.0.0.0
+    - --port
+    - "18020"
   extraVolumes:
-    - name: models
+    - name: model-cache
       persistentVolumeClaim:
         claimName: llmkube-model-cache
+    - name: runtime
+      configMap:
+        name: qwen38-vllm-029-runtime
+        defaultMode: 0555
     - name: runtime-cache
       emptyDir:
         sizeLimit: 16Gi
@@ -58,10 +115,17 @@ spec:
         medium: Memory
         sizeLimit: 8Gi
   extraVolumeMounts:
-    - name: models
-      mountPath: /app/models
+    - name: model-cache
+      mountPath: /model-cache
+      readOnly: true
+    - name: model-cache
+      mountPath: /opt/club3090/fa2-artifacts
+      readOnly: true
+    - name: runtime
+      mountPath: /runtime
+      readOnly: true
     - name: runtime-cache
-      mountPath: /cache
+      mountPath: /runtime-cache
     - name: shm
       mountPath: /dev/shm
   endpoint:
@@ -96,6 +160,9 @@ metadata:
 spec:
   modelRef: muse-glimmer-30b
   replicas: 1
+  # Retained as a one-field rollback definition. Suspend removes the live pod
+  # without discarding its desired replica count or cached model artifacts.
+  suspend: true
   runtime: llamacpp
   image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:6ac921528d613deb0fd142c654735e594a446a1c37a069eeab08d8fd974d4bec
   runtimeClassName: nvidia

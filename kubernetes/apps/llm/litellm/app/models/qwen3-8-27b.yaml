@@ -4,7 +4,7 @@ kind: LiteLLMModel
 metadata:
   name: qwen3-8-27b
 spec:
-  modelName: Qwen/Qwen3.8-27B-W4A16
+  modelName: Qwen/Qwen3.8-27B-FP8
   proxyRef: litellm
   params:
     model: openai/qwen3.8-27b
@@ -15,7 +15,8 @@ spec:
         - reasoning_effort
   info:
     supportsFunctionCalling: true
-    maxInputTokens: 131072
+    supportsVision: true
+    maxInputTokens: 262144
     maxOutputTokens: 16384
     extra:
       input_cost_per_token: 0

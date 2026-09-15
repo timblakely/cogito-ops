@@ -7,6 +7,7 @@ resources:
   - ./model-archive.yaml
   - ./models.yaml
   - ./inferenceservices.yaml
+  - ./qwen38-fa2-artifact.yaml
   - ./retrieval-floor.yaml
   - ./vision-cpu.yaml
   - ./cache-prime-vision.yaml
@@ -14,3 +15,13 @@ resources:
   - ./single-card-models.yaml
   - ./cache-prime-single-card.yaml
   - ./flashnext.yaml
+configMapGenerator:
+  - name: qwen38-vllm-029-runtime
+    files:
+      - start.sh=./runtime/qwen38-vllm-029/start.sh
+      - install_artifact.py=./runtime/qwen38-vllm-029/install_artifact.py
+      - patch_dflash_dense_kv.py=./runtime/qwen38-vllm-029/patch_dflash_dense_kv.py
+      - patch_mamba_drop_eagle_block.py=./runtime/qwen38-vllm-029/patch_mamba_drop_eagle_block.py
+      - patch_gdn_mtp_async_spec_order.py=./runtime/qwen38-vllm-029/patch_gdn_mtp_async_spec_order.py
+generatorOptions:
+  disableNameSuffixHash: true

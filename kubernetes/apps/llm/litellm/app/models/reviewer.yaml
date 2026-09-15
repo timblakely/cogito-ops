@@ -1,6 +1,8 @@
 ---
-# Generic review traffic uses Muse, independent from the Qwen worker/coder
-# lane. Foreman's concrete reviewers are split across both model families.
+# Generic review traffic temporarily shares the Qwen backend while Glimmer is
+# suspended. Foreman still requires both reviewer Agents to return GO; the
+# independent falsification prompt remains distinct even without family
+# diversity.
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:
@@ -11,11 +13,13 @@ spec:
   modelName: reviewer
   proxyRef: litellm
   params:
-    model: openai/muse-glimmer-30b
-    apiBase: http://muse-glimmer-30b.llm.svc.cluster.local:8080/v1
+    model: openai/qwen3.8-27b
+    apiBase: http://qwen3-8-27b.llm.svc.cluster.local:18020/v1
     apiKey: not-needed
     additional:
-      timeout: 900
+      timeout: 1800
+      allowed_openai_params:
+        - reasoning_effort
   info:
     supportsFunctionCalling: true
     supportsVision: true

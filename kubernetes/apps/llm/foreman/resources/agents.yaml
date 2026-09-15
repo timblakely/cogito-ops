@@ -213,8 +213,9 @@ metadata:
     foreman.llmkube.dev/role: reviewer
 spec:
   role: reviewer
-  # Match the coder here; the falsifier below runs Muse, so a two-review
-  # quorum cannot be satisfied by one model family alone.
+  # The falsifier remains a separate required reviewer. Both temporarily use
+  # Qwen while Glimmer is suspended, so quorum remains two independent runs
+  # even though model-family diversity is unavailable.
   model: reviewer-qwen
   provider: cloud-proxy
   providerConfig:

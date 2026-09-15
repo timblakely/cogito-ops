@@ -1,18 +1,22 @@
 ---
-# Syv AI's single-3090 Qwen recipe prepares this checkpoint inside its image.
-# skipModelInit prevents LLMKube from duplicating that work. Hardware remains
-# scheduler-neutral because direct UUID binding is intentionally outside
-# LLMKube's legacy extended-resource and DRA allocation paths.
+# Official Qwen FP8 target, already staged on the NVMe hot tier. The serving
+# profile mounts the complete cache because its external DFlash2 drafter and
+# FA2 artifact live alongside this model.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: Model
 metadata:
   name: qwen3-8-27b
 spec:
-  source: dbirks/Qwen3.8-27B-W4A16-AutoRound
+  source: pvc://llmkube-model-cache/qwen-3-8-fp8
   format: safetensors
-  quantization: compressed-tensors
+  quantization: fp8
   hardware:
-    accelerator: cpu
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 2
 ---
 # Muse's target, DFlash draft, and projector are already staged together in
 # the hot cache. GPU offload is supplied explicitly by the InferenceService;
