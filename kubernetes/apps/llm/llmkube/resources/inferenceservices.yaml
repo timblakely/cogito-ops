@@ -8,6 +8,8 @@ apiVersion: inference.llmkube.dev/v1alpha1
 kind: InferenceService
 metadata:
   name: qwen3-8-27b
+  annotations:
+    inference.llmkube.dev/idle-endpoint: /health
 spec:
   modelRef: qwen3-8-27b
   replicas: 1
