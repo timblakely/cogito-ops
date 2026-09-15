@@ -82,11 +82,9 @@ not copied into paid-model context.
 
 The acceptance path is complete when, in order:
 
-1. Astra's draft appears as the plan issue and Matrix link.
-2. GitHub label or `/approve` freezes its current hash and creates sub-issues.
-3. Luna opens an implementation thread and dispatches one Workload.
-4. Coder, gate, and two distinct reviewers succeed; evidence appears on the PR.
-5. The required `Flux Local Success` check passes and the SHA-pinned merge lands.
+1. Plan accepted.
+2. Foreman Workload completes with three successful tasks.
+3. A draft pull request is opened.
 
 [Async agentic v4 acceptance evidence](../../kubernetes/acceptance/async-agentic-v4.md)
 
