@@ -1,0 +1,93 @@
+---
+# Pin and stage the experimental vLLM GGUF target in both tiers. Hugging Face
+# revision 4ca7207 contains the 21,983,677,344-byte UD-Q6_K backbone and the
+# 931,146,432-byte BF16 vision projector. Each file is verified in the archive
+# and again after its atomic install into iggy's NVMe hot cache.
+#
+# Job pod templates are immutable; rotate metadata.name when changing this
+# file. The serving wrapper waits for the two final hot-tier paths.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cache-prime-qwen38-q6-v1
+  annotations:
+    kustomize.toolkit.fluxcd.io/force: Enabled
+  labels:
+    app.kubernetes.io/name: cache-prime-qwen38-q6
+spec:
+  activeDeadlineSeconds: 21600
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cache-prime-qwen38-q6
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: iggy
+      containers:
+        - name: download
+          image: docker.io/library/python:3.13-slim
+          env:
+            - name: HOME
+              value: /tmp
+            - name: HF_HOME
+              value: /tmp/huggingface
+            - name: PIP_DISABLE_PIP_VERSION_CHECK
+              value: "1"
+          command:
+            - sh
+            - -ec
+            - |
+              repo=unsloth/Qwen3.8-27B-GGUF
+              revision=4ca720788d1e01f1bff70c033e0d0028fd02e502
+              target=Qwen3.8-27B-UD-Q6_K.gguf
+              target_sha=c9c206812fbe4ac7b76a729e25928b63f2ae89d37f69da7a71c20aec763cd436
+              mmproj=mmproj-BF16.gguf
+              mmproj_sha=83ee4f4f205fa514161778c41df1ea14144faa0f713510893b63c2395f5c2d53
+              archive=/models/llmkube/qwen-3-8-ud-q6
+              hot=/hot/qwen-3-8-ud-q6
+
+              python -m venv /tmp/venv
+              /tmp/venv/bin/pip install --no-cache-dir "huggingface_hub[cli]"
+              mkdir -p "$archive" "$hot"
+              /tmp/venv/bin/hf download "$repo" "$target" "$mmproj" config.json \
+                --revision "$revision" --local-dir "$archive" --max-workers 2
+
+              printf '%s  %s\n%s  %s\n' \
+                "$target_sha" "$archive/$target" \
+                "$mmproj_sha" "$archive/$mmproj" | sha256sum --check --strict
+
+              for file in "$target" "$mmproj" config.json; do
+                cp "$archive/$file" "$hot/$file.partial"
+                mv "$hot/$file.partial" "$hot/$file"
+              done
+              printf '%s  %s\n%s  %s\n' \
+                "$target_sha" "$hot/$target" \
+                "$mmproj_sha" "$hot/$mmproj" | sha256sum --check --strict
+              du -sh "$archive" "$hot"
+              ls -lh "$hot/$target" "$hot/$mmproj" "$hot/config.json"
+          resources:
+            requests:
+              cpu: "2"
+              memory: 2Gi
+            limits:
+              memory: 16Gi
+          volumeMounts:
+            - name: archive
+              mountPath: /models
+            - name: hot-cache
+              mountPath: /hot
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: archive
+          persistentVolumeClaim:
+            claimName: llm-model-archive
+        - name: hot-cache
+          persistentVolumeClaim:
+            claimName: llmkube-model-cache
+        - name: tmp
+          emptyDir: {}

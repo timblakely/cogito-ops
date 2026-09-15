@@ -1,15 +1,14 @@
 ---
-# Official Qwen FP8 target, already staged on the NVMe hot tier. The serving
-# profile mounts the complete cache because its external DFlash2 drafter and
-# FA2 artifact live alongside this model.
+# Unsloth UD-Q6_K GGUF target. Its BF16 projector is staged beside it while
+# DFlash2 and the FA2 artifact remain shared objects in the same hot cache.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: Model
 metadata:
   name: qwen3-8-27b
 spec:
-  source: pvc://llmkube-model-cache/qwen-3-8-fp8
-  format: safetensors
-  quantization: fp8
+  source: pvc://llmkube-model-cache/qwen-3-8-ud-q6/Qwen3.8-27B-UD-Q6_K.gguf
+  format: gguf
+  quantization: Q6_K
   hardware:
     accelerator: cuda
     gpu:
