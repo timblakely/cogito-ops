@@ -1,0 +1,150 @@
+---
+# Disabled 2026-09-15. Exact rollback InferenceService for the reviewed
+# club-3090 vLLM 0.29.0 official-FP8 + DFlash2 profile; intentionally absent
+# from resources/kustomization.yaml.
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: InferenceService
+metadata:
+  name: qwen3-8-27b
+  annotations:
+    inference.llmkube.dev/idle-endpoint: /health
+spec:
+  modelRef: qwen3-8-27b
+  replicas: 1
+  runtime: generic
+  image: vllm/vllm-openai@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1
+  skipModelInit: true
+  runtimeClassName: nvidia
+  nodeSelector:
+    kubernetes.io/hostname: iggy
+  env:
+    - name: NVIDIA_DRIVER_CAPABILITIES
+      value: compute,utility
+    - name: FA2_ARTIFACT_ID
+      value: 731d1942112a7cf35be4f0add0919072c06cac47e3bad4f674ff0157edad0e3f
+    - name: VLLM_WORKER_MULTIPROC_METHOD
+      value: spawn
+    - name: VLLM_USE_FLASHINFER_SAMPLER
+      value: "0"
+    - name: VLLM_NO_USAGE_STATS
+      value: "1"
+    - name: NCCL_CUMEM_ENABLE
+      value: "0"
+    - name: OMP_NUM_THREADS
+      value: "1"
+    - name: PYTORCH_CUDA_ALLOC_CONF
+      value: expandable_segments:True
+    - name: VLLM_CACHE_ROOT
+      value: /runtime-cache/vllm
+    - name: TRITON_CACHE_DIR
+      value: /runtime-cache/triton
+  rolloutPolicy:
+    waitForIdle: true
+  resources:
+    gpu: 2
+    cpu: "2"
+    memory: 16Gi
+  command:
+    - /bin/bash
+    - /runtime/start.sh
+  args:
+    - --model
+    - /model-cache/qwen-3-8-fp8
+    - --served-model-name
+    - qwen3.8-27b
+    - --quantization
+    - fp8
+    - --dtype
+    - bfloat16
+    - --tensor-parallel-size
+    - "2"
+    - --pipeline-parallel-size
+    - "1"
+    - --max-model-len
+    - "262144"
+    - --kv-cache-memory-bytes
+    - "6335076762"
+    - --max-num-seqs
+    - "1"
+    - --max-num-batched-tokens
+    - "2048"
+    - --long-prefill-token-threshold
+    - "0"
+    - --kv-cache-dtype
+    - fp8_e4m3
+    - --attention-backend
+    - FLASH_ATTN
+    - --speculative-config
+    - '{"method":"dflash","model":"/model-cache/Qwen3.8-27B-DFlash2-W4A16","num_speculative_tokens":7,"attention_backend":"FLASH_ATTN","kv_cache_dtype":"fp8_e4m3"}'
+    - --limit-mm-per-prompt
+    - '{"image":1,"video":0}'
+    - --mm-processor-kwargs
+    - '{"size":{"longest_edge":4194304,"shortest_edge":65536}}'
+    - --compilation-config
+    - '{"cudagraph_capture_sizes":[1,2,4,8],"max_cudagraph_capture_size":8}'
+    - --trust-remote-code
+    - --reasoning-parser
+    - qwen3
+    - --enable-auto-tool-choice
+    - --tool-call-parser
+    - qwen3_coder
+    - --default-chat-template-kwargs
+    - '{"enable_thinking":true,"reasoning_effort":"low"}'
+    - --enable-prefix-caching
+    - --enable-chunked-prefill
+    - --enable-prompt-tokens-details
+    - --host
+    - 0.0.0.0
+    - --port
+    - "18020"
+  extraVolumes:
+    - name: model-cache
+      persistentVolumeClaim:
+        claimName: llmkube-model-cache
+    - name: runtime
+      configMap:
+        name: qwen38-vllm-029-runtime
+        defaultMode: 0555
+    - name: runtime-cache
+      emptyDir:
+        sizeLimit: 16Gi
+    - name: shm
+      emptyDir:
+        medium: Memory
+        sizeLimit: 8Gi
+  extraVolumeMounts:
+    - name: model-cache
+      mountPath: /model-cache
+      readOnly: true
+    - name: model-cache
+      mountPath: /opt/club3090/fa2-artifacts
+      readOnly: true
+    - name: runtime
+      mountPath: /runtime
+      readOnly: true
+    - name: runtime-cache
+      mountPath: /runtime-cache
+    - name: shm
+      mountPath: /dev/shm
+  endpoint:
+    port: 18020
+    type: ClusterIP
+  probeOverrides:
+    startup:
+      tcpSocket:
+        port: 18020
+      periodSeconds: 10
+      failureThreshold: 360
+    liveness:
+      tcpSocket:
+        port: 18020
+      initialDelaySeconds: 60
+      periodSeconds: 30
+      failureThreshold: 6
+    readiness:
+      httpGet:
+        path: /health
+        port: 18020
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      failureThreshold: 6
