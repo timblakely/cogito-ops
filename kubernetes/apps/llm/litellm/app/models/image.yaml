@@ -1,6 +1,6 @@
 ---
-# Dedicated Muse vision route for owner-supplied Matrix images. The gateway
-# reduces raw media to bounded text here before Astra or Luna sees it.
+# Dedicated local vision route for owner-supplied Matrix images. Qwen's
+# dual-card profile keeps the vision tower enabled while Glimmer is suspended.
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:
@@ -11,11 +11,11 @@ spec:
   modelName: image
   proxyRef: litellm
   params:
-    model: openai/muse-glimmer-30b
-    apiBase: http://muse-glimmer-30b.llm.svc.cluster.local:8080/v1
+    model: openai/qwen3.8-27b
+    apiBase: http://qwen3-8-27b.llm.svc.cluster.local:18020/v1
     apiKey: not-needed
     additional:
-      timeout: 900
+      timeout: 1800
   info:
     supportsVision: true
     maxInputTokens: 131072

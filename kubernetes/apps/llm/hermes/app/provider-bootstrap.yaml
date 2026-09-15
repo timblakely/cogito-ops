@@ -37,8 +37,8 @@ data:
         config["providers"] = providers
 
     # Luna's coordinator alias uses LiteLLM's Responses endpoint. The local
-    # Qwen and Muse aliases stay on chat completions, as required by the v4
-    # direct-session contract.
+    # The local Qwen alias stays on chat completions, as required by the v4
+    # direct-session contract. Glimmer is suspended and removed here for now.
     providers["litellm-responses"] = {
         "name": "LiteLLM (coordinator)",
         "api": "http://litellm.llm.svc.cluster.local:4000/v1",
@@ -53,11 +53,10 @@ data:
         "api": "http://litellm.llm.svc.cluster.local:4000/v1",
         "key_env": "LITELLM_API_KEY",
         "transport": "chat_completions",
-        "default_model": "Qwen/Qwen3.8-27B-W4A16",
+        "default_model": "Qwen/Qwen3.8-27B-FP8",
         "discover_models": False,
         "models": {
-            "Qwen/Qwen3.8-27B-W4A16": {"context_length": 262144},
-            "Muse-Glimmer-30B": {"context_length": 262144},
+            "Qwen/Qwen3.8-27B-FP8": {"context_length": 262144},
         },
     }
 
@@ -81,17 +80,13 @@ data:
     aliases.update(
         {
             "qwen": {
-                "model": "Qwen/Qwen3.8-27B-W4A16",
-                "provider": "custom:litellm-chat",
-                "base_url": "http://litellm.llm.svc.cluster.local:4000/v1",
-            },
-            "muse": {
-                "model": "Muse-Glimmer-30B",
+                "model": "Qwen/Qwen3.8-27B-FP8",
                 "provider": "custom:litellm-chat",
                 "base_url": "http://litellm.llm.svc.cluster.local:4000/v1",
             },
         }
     )
+    aliases.pop("muse", None)
 
     temporary_path = config_path.with_suffix(".yaml.tmp")
     temporary_path.write_text(yaml.safe_dump(config, sort_keys=False))

@@ -1,0 +1,25 @@
+---
+# One-shot export of the reviewed FA2 FP8-KV plugin. The serving pod waits for
+# this exact artifact ID and then verifies its manifest, payload hashes, ABI,
+# vLLM interface, GPU architecture, and device count before loading weights.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: qwen38-fa2-fp8kv-731d1942
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: iggy
+      containers:
+        - name: export
+          image: ghcr.io/antonprokopyev/fa2-fp8kv-sm86@sha256:da040941fa048fd5fdfce520503341c0beda4ce41436a1c1fecaf3f8a99777c7
+          volumeMounts:
+            - name: model-cache
+              mountPath: /export
+      volumes:
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: llmkube-model-cache
