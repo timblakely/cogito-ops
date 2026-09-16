@@ -68,10 +68,6 @@ CREATE TABLE IF NOT EXISTS matrix_outbox (
   kind TEXT NOT NULL DEFAULT 'message', target_notification_id TEXT NOT NULL DEFAULT '',
   sender TEXT NOT NULL DEFAULT 'gateway', mention INTEGER NOT NULL DEFAULT 0,
   plan_id TEXT);
-CREATE INDEX IF NOT EXISTS matrix_outbox_pending
-  ON matrix_outbox(state, sender, created_at);
-CREATE INDEX IF NOT EXISTS matrix_outbox_sent
-  ON matrix_outbox(room_id, sent_event_id);
 CREATE TABLE IF NOT EXISTS external_actions (
   action_key TEXT PRIMARY KEY, kind TEXT NOT NULL, request_json TEXT NOT NULL,
   state TEXT NOT NULL, result_json TEXT, last_error TEXT);
@@ -102,6 +98,16 @@ CREATE TRIGGER IF NOT EXISTS audit_no_update
 BEFORE UPDATE ON audit_events BEGIN SELECT RAISE(ABORT, 'audit is append-only'); END;
 CREATE TRIGGER IF NOT EXISTS audit_no_delete
 BEFORE DELETE ON audit_events BEGIN SELECT RAISE(ABORT, 'audit is append-only'); END;
+"""
+
+# Indexes over columns that migrations add. CREATE TABLE IF NOT EXISTS is a
+# no-op on an existing table, so indexing those columns from DDL would fail on
+# every database that predates them.
+INDEXES = """
+CREATE INDEX IF NOT EXISTS matrix_outbox_pending
+  ON matrix_outbox(state, sender, created_at);
+CREATE INDEX IF NOT EXISTS matrix_outbox_sent
+  ON matrix_outbox(room_id, sent_event_id);
 """
 
 
@@ -206,6 +212,7 @@ class StateStore:
         # results. Re-entering research is safe: Foreman task names and Matrix
         # notifications are deterministic, while a stuck plan is not useful.
         self.db.execute("UPDATE plans SET state='researching' WHERE state='synthesizing'")
+        self.db.executescript(INDEXES)
         self.db.execute("INSERT OR IGNORE INTO migrations VALUES (?,?)",
                         (SCHEMA_VERSION, int(time.time())))
 

@@ -253,5 +253,49 @@ class StateTests(unittest.TestCase):
         self.assertIn('cogito_gateway_coalesced_events_total{plan="batch-plan"} 2', metrics)
 
 
+class SchemaUpgradeTests(unittest.TestCase):
+    """Open a database shaped like the previous schema and upgrade it.
+
+    A store built from current DDL always has every column, so only this path
+    catches a migration that indexes or reads a column before adding it.
+    """
+
+    V11_OUTBOX = (
+        "CREATE TABLE matrix_outbox ("
+        "notification_id TEXT PRIMARY KEY, room_id TEXT NOT NULL, thread_root TEXT NOT NULL,"
+        "body TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL,"
+        "sent_event_id TEXT, thread_notification_id TEXT NOT NULL DEFAULT '',"
+        "kind TEXT NOT NULL DEFAULT 'message', target_notification_id TEXT NOT NULL DEFAULT '')"
+    )
+
+    def test_v11_database_upgrades_and_keeps_its_rows(self):
+        import sqlite3
+        with tempfile.NamedTemporaryFile() as handle:
+            legacy = sqlite3.connect(handle.name, isolation_level=None)
+            legacy.execute(
+                "CREATE TABLE migrations (version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)")
+            legacy.execute("INSERT INTO migrations VALUES (11, 0)")
+            legacy.execute(self.V11_OUTBOX)
+            legacy.execute(
+                "INSERT INTO matrix_outbox(notification_id,room_id,thread_root,body,created_at) "
+                "VALUES ('old','!r:x','$root','carried over',1)")
+            legacy.close()
+
+            state = StateStore(handle.name)
+            try:
+                carried = state.pending_matrix(10)
+                self.assertEqual([row["notification_id"] for row in carried], ["old"])
+                # Rows written before the split default to the gateway identity.
+                self.assertEqual(carried[0]["sender"], "gateway")
+                self.assertEqual(carried[0]["mention"], 0)
+                self.assertTrue(state.enqueue_matrix(
+                    "new", "!r:x", "", "after upgrade", sender="planner", mention=True))
+                self.assertEqual(
+                    [row["notification_id"] for row in state.pending_matrix(10, "planner")],
+                    ["new"])
+            finally:
+                state.close()
+
+
 if __name__ == "__main__":
     unittest.main()
