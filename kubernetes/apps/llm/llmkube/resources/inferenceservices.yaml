@@ -92,8 +92,11 @@ spec:
     - "8"
     - --max-num-batched-tokens
     - "2048"
+    # Keep two long agent prefills resident in the same scheduler step. A zero
+    # threshold lets the first request consume the entire 2048-token budget,
+    # leaving the second capacity-waiting until the first prefill completes.
     - --long-prefill-token-threshold
-    - "0"
+    - "1024"
     - --kv-cache-dtype
     - fp8_e4m3
     - --attention-backend
