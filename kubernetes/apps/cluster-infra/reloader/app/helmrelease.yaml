@@ -21,6 +21,10 @@ spec:
   values:
     reloader:
       autoReloadAll: true
+      # Jobs are immutable, one-shot execution records. Reloading them on a
+      # Secret rotation deletes and recreates completed Jobs, which can replay
+      # terminal Foreman AgenticTasks with stale executor images and inputs.
+      ignoreJobs: true
       watchGlobally: true
       ignoreNamespaces: "cilium,rook-ceph,kube-system"
       readOnlyRootFileSystem: true
