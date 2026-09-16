@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -71,18 +72,33 @@ token = sys.argv[1]
 apply = "--dry-run" not in sys.argv
 
 
-def call(method: str, path: str, body=None):
+def call(method: str, path: str, body=None, attempts: int = 6):
+    """Issue one request, waiting out Synapse's rate limiter.
+
+    A whole-space reconcile is a burst of state events and reliably trips
+    M_LIMIT_EXCEEDED partway through, which would otherwise leave the rooms
+    half-renamed and require a careful re-run.
+    """
     data = json.dumps(body).encode() if body is not None else None
-    request = urllib.request.Request(
-        BASE + path, data=data, method=method,
-        headers={"Authorization": "Bearer " + token,
-                 "Content-Type": "application/json"})
-    try:
-        with urllib.request.urlopen(request) as response:
-            raw = response.read()
-            return json.loads(raw) if raw else {}
-    except urllib.error.HTTPError as exc:
-        return {"_error": exc.code, "_body": exc.read().decode()[:300]}
+    for attempt in range(attempts):
+        request = urllib.request.Request(
+            BASE + path, data=data, method=method,
+            headers={"Authorization": "Bearer " + token,
+                     "Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(request) as response:
+                raw = response.read()
+                return json.loads(raw) if raw else {}
+        except urllib.error.HTTPError as exc:
+            payload = exc.read().decode()[:300]
+            if exc.code == 429 and attempt < attempts - 1:
+                try:
+                    delay = json.loads(payload).get("retry_after_ms", 1000) / 1000
+                except ValueError:
+                    delay = 1.0
+                time.sleep(delay + 0.25)
+                continue
+            return {"_error": exc.code, "_body": payload}
 
 
 def state(room: str, kind: str, key: str = ""):
@@ -135,17 +151,20 @@ def reconcile_room(room: dict) -> None:
     desired[GATEWAY] = 100
     for bot in room["bots"]:
         desired.setdefault(bot, 0)
-    if HOOKSHOT in desired and HOOKSHOT not in room["bots"]:
-        desired.pop(HOOKSHOT)
-    desired.pop(HERMES, None)
-    desired.pop(AGENT_GITOPS, None)
+    for absent in (HOOKSHOT, HERMES):
+        if absent not in room["bots"]:
+            desired.pop(absent, None)
     if desired != users:
         levels["users"] = desired
         say("power levels", put_state(room["id"], "m.room.power_levels", levels))
 
     # Membership: the room's own bots, plus Tim. Everything else is removed so
     # a room's member list says what actually operates in it.
-    allowed = {OWNER, *room["bots"]}
+    # These are room version 12 rooms, where the creator holds an immutable
+    # infinite power level. @agent-gitops created them, so it can be neither
+    # demoted nor kicked; listing it as allowed keeps the run quiet about a
+    # thing the protocol will not let anyone change.
+    allowed = {OWNER, AGENT_GITOPS, *room["bots"]}
     members = call("GET", f"/_matrix/client/v3/rooms/{urllib.parse.quote(room['id'])}"
                           "/joined_members").get("joined", {})
     for member in members:
