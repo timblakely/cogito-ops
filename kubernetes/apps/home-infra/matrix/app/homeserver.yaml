@@ -42,17 +42,50 @@ enable_registration: false
 password_config:
   enabled: true
 
+# Synapse's rate limits defend a public homeserver against hostile users. This
+# one has seven accounts, all Tim's, and is reachable only through the internal
+# Envoy gateway, so the defaults buy no safety here and actively break the
+# workload: rc_message defaults to 0.2/s with a burst of 10, while publishing a
+# single scout transcript is a ~70-message burst. That throttling stalled the
+# first live plan's status updates for minutes behind a transcript flood.
+#
+# These are raised by two to three orders of magnitude rather than removed:
+# Synapse has no global off switch, and a very high ceiling still catches a
+# genuine runaway loop before it fills the database.
+rc_message:
+  per_second: 100
+  burst_count: 5000
+rc_joins:
+  local:
+    per_second: 100
+    burst_count: 1000
+  remote:
+    per_second: 100
+    burst_count: 1000
 # Room GitOps can legitimately invite the same user to several rooms in one
 # reconciliation. Synapse's defaults replenish that receiver bucket only once
 # every several minutes, so give this small private homeserver enough burst for
 # a complete room-set rollout while retaining steady-state throttling.
 rc_invites:
   per_user:
-    per_second: 1
-    burst_count: 50
+    per_second: 100
+    burst_count: 1000
   per_issuer:
-    per_second: 1
-    burst_count: 50
+    per_second: 100
+    burst_count: 1000
+# Three bot accounts re-authenticate together on every gateway rollout.
+# failed_attempts stays comparatively tight: it is the only one of these that
+# guards a real credential, since the service accounts use password login.
+rc_login:
+  address:
+    per_second: 10
+    burst_count: 100
+  account:
+    per_second: 10
+    burst_count: 100
+  failed_attempts:
+    per_second: 0.5
+    burst_count: 10
 
 oidc_providers:
   - idp_id: pocket_id
