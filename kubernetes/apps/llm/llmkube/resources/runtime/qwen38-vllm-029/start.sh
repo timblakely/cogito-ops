@@ -46,7 +46,6 @@ fi
 python3 /runtime/patch_mamba_drop_eagle_block.py
 python3 /runtime/patch_gdn_mtp_async_spec_order.py
 python3 /runtime/patch_dflash_dense_kv.py
-python3 /runtime/patch_gguf_dflash2_arch.py
 mkdir -p /etc/club3090
 python3 /runtime/install_artifact.py --tp 2
 source /etc/club3090/fa2-runtime.env
