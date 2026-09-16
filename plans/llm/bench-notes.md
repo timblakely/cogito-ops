@@ -49,11 +49,13 @@ plugin `731d1942...`, four anchor-checked overlays (pr48375, gdn-async-order,
 | profile | target | drafter | seqs | GPU KV cache size |
 |---|---|---|---:|---:|
 | previous | Qwen FP8 | W4A16 DFlash2 n=7 | 1 | 267,493 |
-| **current** | **INT8 W8A16 (MTP build)** | **native MTP n=3** | **8** | **392,483** |
+| **current** | **INT8 W8A16 (MTP build)** | **native MTP n=3** | **8** | **360,264** |
+| same, vision tower dropped | INT8 W8A16 (MTP build) | native MTP n=3 | 8 | 392,483 |
 | rejected | INT8 W8A16 (MTP build) | DFlash2-W8 n=7 | 8 | would not start |
 
-Per card at the current profile: 14.68 GiB weights + non-torch, 0.73 GiB peak
-activation, 0.23 GiB CUDA graphs, 6.97 GiB KV, 0.54 GiB spare of 23.56 GiB.
+Per card at the current profile: 15.23 GiB weights + non-torch, 0.75 GiB peak
+activation, 0.23 GiB CUDA graphs, 6.40 GiB KV, of 23.56 GiB. Without the
+vision tower it is 14.68 / 0.73 / 0.23 / 6.97 with 0.54 GiB spare.
 19,067 B/token/card, against 23,940 with an external DFlash2 drafter.
 
 Two non-obvious constraints, both measured, both worth not rediscovering:
@@ -101,6 +103,9 @@ Same profile, `--kv-cache-dtype` unset (`auto` = bf16) and `--max-model-len`
 lowered to 131072, because bf16 cannot hold a 262144-token sequence. Same two
 greedy prompts (119,046 and 123,869 tokens), thinking disabled.
 
+Both cells were taken on the `--language-model-only` profile, so the pool
+figures here are the no-vision ones; the dtype ratio is what matters.
+
 | | fp8_e4m3 | bf16 |
 |---|---:|---:|
 | GPU KV cache size | 392,483 | 199,170 |
@@ -134,9 +139,9 @@ quality at this length.
 
 Caveat: the checkpoint declares `kv_cache_scheme: null` - no dataset-calibrated
 K/V scales - and its card states plainly that "long-context KV accuracy is not
-[verified] ... no saturation probe was performed". The 392,483-token pool makes
-200K+ single sessions reachable for the first time, so re-run this needle test
-at that length before trusting fp8 KV up there.
+[verified] ... no saturation probe was performed". The pool now makes 200K+
+single sessions reachable for the first time, so re-run this needle test at
+that length before trusting fp8 KV up there.
 
 ### Untried levers
 
@@ -149,8 +154,13 @@ Enumerated rather than tested, because the >= 340K goal was already met:
 - `--kv-cache-memory 7896748032` (vLLM's "fully utilize" suggestion) in place
   of `--gpu-memory-utilization 0.95`, worth roughly +21,000 tokens, at the cost
   of the 0.54 GiB/card margin and of a reservation that cannot adapt.
-- Restoring the vision tower costs ~24,000 tokens of pool; see
-  `litellm/app/models/image.yaml` for what was traded away.
+- `--language-model-only` is worth a MEASURED 32,219 tokens (392,483 without
+  the vision tower against 360,264 with) and is NOT taken. The `image` alias
+  is the Matrix gateway's owner-image path
+  (`services/gateway/coordinator/image.py`), and the only other local vision
+  lane is kristeva's CPU one at a measured 8.16 tok/s decode plus tens of
+  seconds of image encode - minutes per Matrix image instead of seconds.
+  360,264 still holds both target shapes, so the tower stays.
 - The `lued/...-INT8-W8A16-DFlash2` build's packed embedding would return
   ~1.12 GiB if vLLM could load it; see `llmkube/resources/models.yaml`.
 

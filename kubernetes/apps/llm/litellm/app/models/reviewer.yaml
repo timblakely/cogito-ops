@@ -22,11 +22,7 @@ spec:
         - reasoning_effort
   info:
     supportsFunctionCalling: true
-    # false since 2026-09-16: the backend runs --language-model-only, so the
-    # vision tower is not loaded at all. Image traffic goes to the `vision`
-    # alias on kristeva's CPU lane. Leaving this true would advertise a
-    # capability the backend answers with a 400.
-    supportsVision: false
+    supportsVision: true
     maxInputTokens: 131072
     maxOutputTokens: 16384
     extra:

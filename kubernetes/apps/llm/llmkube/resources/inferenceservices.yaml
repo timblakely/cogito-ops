@@ -24,9 +24,16 @@
 #     17), leaving only 6.25% mamba padding. Measured cost per token per card:
 #     19,067 B with MTP against 23,940 B with DFlash2.
 #
-# Vision is dropped (--language-model-only): the 0.858 GiB BF16 tower plus its
-# encoder cache budget are worth more to this lane as KV. Image traffic goes to
-# kristeva's CPU vision lane via the `vision` and `image` aliases.
+# Vision stays loaded. Dropping the tower (--language-model-only) is worth a
+# MEASURED 32,219 tokens of pool (392,483 against 360,264), but the `image`
+# alias is the Matrix gateway's owner-image path
+# (services/gateway/coordinator/image.py, model "image", max_tokens 4096) and
+# the only other local vision lane is kristeva's
+# CPU one at ~8 tok/s decode plus tens of seconds of image encode - minutes per
+# Matrix image instead of seconds. 360,264 still clears the >=340K target and
+# still holds both target shapes (3 x 110K = 330K, 8 x 42K = 336K), so the
+# tower is the better use of the memory. kristeva's lane remains the
+# deliberate `/model vision` path for pi, which is what it was built for.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: InferenceService
 metadata:
@@ -116,7 +123,10 @@ spec:
     - fp8_e4m3
     - --attention-backend
     - FLASH_ATTN
-    - --language-model-only
+    - --limit-mm-per-prompt
+    - '{"image":1,"video":0}'
+    - --mm-processor-kwargs
+    - '{"size":{"longest_edge":4194304,"shortest_edge":65536}}'
     # n=3 is the MTP head's measured default. Measured against the former
     # DFlash2 n=7 profile on 40,890-token prose: 85.34 against 86.70 decode
     # tok/s, acceptance 52.2% at 2.57 accepted tokens per step against 27.3%
