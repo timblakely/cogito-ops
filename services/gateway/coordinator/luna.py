@@ -165,21 +165,27 @@ class LunaCoordinator:
     def _root_id(plan_id: str) -> str:
         return f"implementation:{plan_id}:root"
 
-    def _ensure_thread(self, plan) -> None:
+    def _ensure_opening(self, plan) -> None:
+        """Post, and pin, the one message that anchors a plan in the room."""
         room = self.implementation_room_id or plan["matrix_room_id"]
         original = f"https://matrix.to/#/{plan['matrix_room_id']}/{plan['root_event_id']}"
-        self.state.enqueue_matrix(
-            self._root_id(plan["plan_id"]), room, "",
-            f"● Luna: **Implementing plan `{plan['plan_id']}`**\n\n"
-            f"Plan issue: {plan['github_issue_url']}\n\nPlanning thread: {original}",
-        )
+        root = self._root_id(plan["plan_id"])
+        if self.state.enqueue_matrix(
+                root, room, "",
+                f"**Implementing plan `{plan['plan_id']}`**\n\n"
+                f"Plan issue: {plan['github_issue_url']}\n\nPlanning message: {original}",
+                sender="coordinator", plan_id=plan["plan_id"]):
+            self.state.enqueue_matrix(
+                f"implementation:{plan['plan_id']}:pin", room, "", "", kind="pin",
+                target_notification_id=root, plan_id=plan["plan_id"])
 
-    def _post(self, plan, key: str, text: str) -> dict[str, Any]:
-        self._ensure_thread(plan)
+    def _post(self, plan, key: str, text: str, mention: bool = False) -> dict[str, Any]:
+        self._ensure_opening(plan)
         room = self.implementation_room_id or plan["matrix_room_id"]
         self.state.enqueue_matrix(
             f"implementation:{plan['plan_id']}:{key}", room, "",
-            "● Luna: " + str(text).strip()[:8_000], self._root_id(plan["plan_id"]),
+            str(text).strip()[:8_000], sender="coordinator", mention=mention,
+            plan_id=plan["plan_id"],
         )
         return {"queued": True}
 
@@ -277,7 +283,7 @@ class LunaCoordinator:
                 intent=deliverable_execution_intent(pending["position"], item),
                 repository=plan["repository"],
                 issue_urls=[pending["issue_url"]], room_id=plan["matrix_room_id"],
-                thread_root=plan["root_event_id"],
+                anchor_event_id=plan["root_event_id"],
                 deliverable_position=pending["position"],
                 attempt=pending["attempt"],
             )
@@ -296,7 +302,7 @@ class LunaCoordinator:
             if not diagnosis:
                 raise ValidationError("retry requires a bounded diagnosis")
             self.issues.comment(
-                args["issue"], "● Luna retry diagnosis\n\n" + diagnosis,
+                args["issue"], "**Luna** retry diagnosis\n\n" + diagnosis,
                 f"{batch_id}:retry-diagnosis")
             self.state.prepare_deliverable_retry(plan_id, args["issue"])
             refreshed = self.state.plan(plan_id)
@@ -359,7 +365,7 @@ class LunaCoordinator:
             if not self._belongs(plan_id, args["issue"]):
                 raise ValidationError("issue does not belong to this plan")
             return {"url": self.issues.comment(
-                args["issue"], "● Luna\n\n" + str(args["text"]).strip()[:8_000],
+                args["issue"], "**Luna**\n\n" + str(args["text"]).strip()[:8_000],
                 f"{batch_id}:issue-comment:{sha256(str(args['text']).encode()).hexdigest()[:12]}")}
         if name in {"pr_summary", "checks_status"}:
             url = args["pull_request"]
@@ -372,19 +378,20 @@ class LunaCoordinator:
                               args["text"])
         if name == "ask_owner":
             self.state.set_plan_state(plan_id, "needs_input")
-            return self._post(plan, f"{batch_id}:question", "**Needs input:** " + args["question"])
+            return self._post(plan, f"{batch_id}:question",
+                              "**Needs input:** " + args["question"], mention=True)
         if name == "ask_astra":
             if not self.state.reserve_astra_turn(
                     plan_id, "answer", self.astra_turn_cap):
                 self._post(plan, f"{batch_id}:astra-cap",
                            f"**Needs input:** Astra reached the "
-                           f"{self.astra_turn_cap}-turn plan cap.")
+                           f"{self.astra_turn_cap}-turn plan cap.", mention=True)
                 return {"blocked": "astra_turn_cap"}
             version = self.state.current_plan_version(plan_id)
             answer = self.planner.answer(
                 args["question"], version["markdown"], self.state.plan_notes(plan_id))
             self.issues.comment(
-                plan["github_issue_url"], "◆ Astra\n\n" + answer,
+                plan["github_issue_url"], "**Astra**\n\n" + answer,
                 f"{batch_id}:astra-answer")
             return {"answer": answer[:8_000]}
         if name == "request_revision":
@@ -392,7 +399,7 @@ class LunaCoordinator:
                     plan_id, "revision", self.astra_turn_cap):
                 self._post(plan, f"{batch_id}:astra-cap",
                            f"**Needs input:** Astra reached the "
-                           f"{self.astra_turn_cap}-turn plan cap.")
+                           f"{self.astra_turn_cap}-turn plan cap.", mention=True)
                 return {"blocked": "astra_turn_cap"}
             version = self.state.current_plan_version(plan_id)
             revised = self.planner.plan(
@@ -404,7 +411,7 @@ class LunaCoordinator:
             self.core.record_plan(candidate)
             self.issues.comment(
                 plan["github_issue_url"],
-                f"◆ Astra revised the plan to version {candidate.version}.",
+                f"**Astra** revised the plan to version {candidate.version}.",
                 f"{batch_id}:astra-revision")
             return {"version": candidate.version, "hash": candidate.hash}
         if name == "request_replan":
@@ -420,7 +427,8 @@ class LunaCoordinator:
                               "Approval removed; Astra replanning requested: " + args["reason"])
         if name == "escalate":
             self.state.set_plan_state(plan_id, "needs_input")
-            return self._post(plan, f"{batch_id}:blocked", "**Blocked:** " + args["reason"])
+            return self._post(plan, f"{batch_id}:blocked",
+                              "**Blocked:** " + args["reason"], mention=True)
         if name == "update_notes":
             self.state.update_plan_notes(plan_id, args["markdown"])
             return {"updated": True}
@@ -435,10 +443,11 @@ class LunaCoordinator:
         if usage["turns"] >= self.turn_cap:
             self.state.set_plan_state(batch["plan_id"], "needs_input")
             self._post(plan, f"{batch['batch_id']}:cap",
-                       f"**Needs input:** Luna reached the {self.turn_cap}-turn plan cap.")
+                       f"**Needs input:** Luna reached the {self.turn_cap}-turn plan cap.",
+                       mention=True)
             self.state.finish_luna_turn(batch["sequence"], {"turn_cap": True}, 0, 0)
             return True
-        self._ensure_thread(plan)
+        self._ensure_opening(plan)
         try:
             result = self.client.run(
                 self._context(batch["plan_id"], batch["events"]),

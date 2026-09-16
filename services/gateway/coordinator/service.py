@@ -61,6 +61,7 @@ class App:
               os.environ.get("MATRIX_PROJECT_REPOSITORY",
                              "https://github.com/timblakely/cogito-ops.git")}
              if os.environ.get("MATRIX_PROJECT_ROOM_ID") else {}),
+            os.environ.get("MATRIX_IMPLEMENTATION_ROOM_ID", ""),
         )
         self.luna = LunaCoordinator(
             self.state, self.coordinator, self.foreman, self.github, self.planner,
@@ -85,10 +86,15 @@ class App:
         if path == "/v1/matrix/outbox":
             operation = value.get("operation")
             if operation == "poll":
+                # Each persona bot polls for its own sender identity only, so
+                # three Matrix accounts share one durable outbox without
+                # competing for the same rows.
+                sender = value.get("sender")
                 return 200, {
                     "notifications": self.state.pending_matrix(
-                        min(max(int(value.get("limit", 20)), 1), 100)),
-                    "typing_rooms": self.matrix.typing_rooms(),
+                        min(max(int(value.get("limit", 20)), 1), 100), sender),
+                    "typing_rooms": (self.matrix.typing_rooms()
+                                     if sender in (None, "gateway") else []),
                 }
             if operation == "ack":
                 return 200, {"completed": self.state.complete_matrix(

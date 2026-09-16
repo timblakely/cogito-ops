@@ -135,6 +135,7 @@ class MatrixTests(unittest.TestCase):
             self.state, core, self.foreman, self.planner, {"@tim:matrix.example"},
             "!activity:matrix.example", images=self.images,
             project_rooms={"!room:matrix.example": "https://github.com/t/c.git"},
+            implementation_room_id="!implementation:matrix.example",
         )
         self.base = {
             "room_id": "!room:matrix.example", "sender": "@tim:matrix.example",
@@ -143,9 +144,9 @@ class MatrixTests(unittest.TestCase):
 
     def tearDown(self): self.state.close(); self.tmp.close()
 
-    def event(self, event_id, body, thread_root=None, image=None):
+    def event(self, event_id, body, reply_to=None, image=None):
         value = {**self.base, "event_id": event_id, "body": body}
-        if thread_root: value["thread_root"] = thread_root
+        if reply_to: value["reply_to"] = reply_to
         if image: value["image"] = image
         return value
 
@@ -157,17 +158,17 @@ class MatrixTests(unittest.TestCase):
     def test_plan_comment_revision_and_exact_approval(self):
         first = self.matrix.handle(self.event("$root", "!cogito plan Build it"))
         digest = first["actions"][0]["body"].split("Plan hash: `", 1)[1].split("`", 1)[0]
-        self.matrix.handle(self.event("$comment", "Add rollback", "$root"))
-        plan = self.state.plan_for_thread("!room:matrix.example", "$root")
+        self.matrix.handle(self.event("$comment", "Add rollback"))
+        plan = self.state.active_plan_for_room("!room:matrix.example")
         self.assertEqual(self.state.plan_comments(plan["plan_id"]), ["Add rollback"])
-        revised = self.matrix.handle(self.event("$revise", "!cogito revise", "$root"))
+        revised = self.matrix.handle(self.event("$revise", "!cogito revise"))
         revised_hash = revised["actions"][0]["body"].split("Plan hash: `", 1)[1].split("`", 1)[0]
         with self.assertRaises(ValidationError):
             self.matrix.handle(self.event("$old", f"!cogito approve {digest}", "$root"))
         accepted = self.matrix.handle(
             self.event("$accepted", f"!cogito approve {revised_hash}", "$root"))
         self.assertIn("Parent issue", accepted["actions"][0]["body"])
-        self.assertIn("Luna queued", accepted["actions"][0]["body"])
+        self.assertIn("serial execution", accepted["actions"][0]["body"])
         self.assertEqual(len(self.foreman.created), 0)
         self.assertEqual(self.planner.calls, 2)
         self.assertEqual(self.issues.calls, 2)
@@ -175,7 +176,7 @@ class MatrixTests(unittest.TestCase):
     def test_top_level_project_message_starts_plan_without_prefix(self):
         result = self.matrix.handle(self.event("$root", "Build a safer controller"))
         self.assertIn("Plan drafted", result["actions"][0]["body"])
-        row = self.state.plan_for_thread("!room:matrix.example", "$root")
+        row = self.state.active_plan_for_room("!room:matrix.example")
         self.assertEqual(row["repository"], "https://github.com/t/c.git")
 
     def test_top_level_message_outside_project_room_is_ignored(self):
@@ -191,9 +192,9 @@ class MatrixTests(unittest.TestCase):
         ]
         first = self.matrix.handle(self.event("$root", "!cogito plan Build it"))
         self.assertIn("Which namespace", first["actions"][0]["body"])
-        row = self.state.plan_for_thread("!room:matrix.example", "$root")
+        row = self.state.active_plan_for_room("!room:matrix.example")
         self.assertEqual(row["state"], "intake")
-        second = self.matrix.handle(self.event("$answer", "Use home-infra", "$root"))
+        second = self.matrix.handle(self.event("$answer", "Use home-infra"))
         self.assertIn("https://github.com/t/c/issues/1", second["actions"][0]["body"])
         self.assertNotIn("# Namespaced", second["actions"][0]["body"])
         self.assertEqual(self.state.plan(row["plan_id"])["state"], "review")
@@ -206,11 +207,11 @@ class MatrixTests(unittest.TestCase):
         ]
         self.matrix.handle(self.event("$root", "!cogito plan Fix the dashboard"))
         result = self.matrix.handle(
-            self.event("$image", "status.png", "$root", self.image()))
+            self.event("$image", "status.png", image=self.image()))
         self.assertIn("Plan drafted", result["actions"][0]["body"])
         self.assertEqual(len(self.images.calls), 1)
         messages = self.state.intake_messages(
-            self.state.plan_for_thread("!room:matrix.example", "$root")["plan_id"])
+            self.state.active_plan_for_room("!room:matrix.example")["plan_id"])
         self.assertIn("[Local Muse image description]", messages[-1]["body"])
         self.assertIn("CrashLoopBackOff", messages[-1]["body"])
 
@@ -227,9 +228,9 @@ class MatrixTests(unittest.TestCase):
         }]
         self.matrix.handle(self.event("$root", "!cogito plan Fix the dashboard"))
         result = self.matrix.handle(
-            self.event("$image", "status.png", "$root", self.image()))
+            self.event("$image", "status.png", image=self.image()))
         self.assertIn("recorded for the pending synthesis", result["actions"][0]["body"])
-        row = self.state.plan_for_thread("!room:matrix.example", "$root")
+        row = self.state.active_plan_for_room("!room:matrix.example")
         self.assertEqual(self.state.intake_messages(row["plan_id"])[-1]["kind"], "owner_image")
 
     def test_invalid_image_encoding_is_rejected(self):
@@ -244,9 +245,9 @@ class MatrixTests(unittest.TestCase):
             {"status": "clarify", "message": "Still need a namespace."},
         ]
         self.matrix.handle(self.event("$root", "!cogito plan Build it"))
-        result = self.matrix.handle(self.event("$draft", "!cogito draft", "$root"))
+        result = self.matrix.handle(self.event("$draft", "!cogito draft"))
         self.assertIn("Plan drafted", result["actions"][0]["body"])
-        row = self.state.plan_for_thread("!room:matrix.example", "$root")
+        row = self.state.active_plan_for_room("!room:matrix.example")
         self.assertIn("# Forced", self.state.current_plan_version(row["plan_id"])["markdown"])
 
     def test_intake_automatically_drafts_after_two_rounds(self):
@@ -256,8 +257,8 @@ class MatrixTests(unittest.TestCase):
             {"status": "clarify", "message": "Would otherwise ask again."},
         ]
         self.matrix.handle(self.event("$root", "!cogito plan Build it"))
-        self.matrix.handle(self.event("$answer1", "Answer one", "$root"))
-        result = self.matrix.handle(self.event("$answer2", "Proceed", "$root"))
+        self.matrix.handle(self.event("$answer1", "Answer one"))
+        result = self.matrix.handle(self.event("$answer2", "Proceed"))
         self.assertIn("Plan drafted", result["actions"][0]["body"])
 
     def test_research_is_delegated_to_foreman_then_synthesized(self):
@@ -269,7 +270,7 @@ class MatrixTests(unittest.TestCase):
         ]
         first = self.matrix.handle(self.event("$root", "!cogito plan Build it"))
         self.assertIn("local planning scouts", first["actions"][0]["body"])
-        plan = self.state.plan_for_thread("!room:matrix.example", "$root")
+        plan = self.state.active_plan_for_room("!room:matrix.example")
         self.assertEqual(plan["state"], "researching")
         self.matrix.reconcile_once()
         self.assertEqual(len(self.foreman.research_created), 1)
@@ -328,23 +329,23 @@ class MatrixTests(unittest.TestCase):
         messages = [item["body"] for item in self.state.pending_matrix(100)]
         self.assertTrue(any("**Evidence summary**" in body for body in messages))
         self.assertEqual(
-            self.state.plan_for_thread("!room:matrix.example", "$root")["state"],
+            self.state.active_plan_for_room("!room:matrix.example")["state"],
             "review",
         )
 
     def test_revision_can_delegate_before_creating_version_two(self):
         self.matrix.handle(self.event("$root", "!cogito plan Build it"))
-        self.matrix.handle(self.event("$comment", "Confirm current boundaries", "$root"))
+        self.matrix.handle(self.event("$comment", "Confirm current boundaries"))
         self.planner.decisions = [
             {"status": "delegate", "message": "Checking the revision.",
              "tasks": ["Inspect the current boundary."]},
             {"status": "ready", "message": "Revision ready.",
              "plan_markdown": "# Version two\n\n## Deliverables\n- [ ] Ship it\n"},
         ]
-        result = self.matrix.handle(self.event("$revise", "!cogito revise", "$root"))
+        result = self.matrix.handle(self.event("$revise", "!cogito revise"))
         self.assertIn("local planning scouts", result["actions"][0]["body"])
         self.matrix.reconcile_once()
-        plan = self.state.plan_for_thread("!room:matrix.example", "$root")
+        plan = self.state.active_plan_for_room("!room:matrix.example")
         self.assertEqual(plan["current_version"], 2)
         self.assertEqual(self.state.current_plan_version(plan["plan_id"])["markdown"],
                          "# Version two\n\n## Deliverables\n- [ ] Ship it\n")
@@ -353,9 +354,9 @@ class MatrixTests(unittest.TestCase):
         self.planner.decisions = [{
             "status": "delegate", "message": "Checking.", "tasks": ["Inspect it."]}]
         self.matrix.handle(self.event("$root", "!cogito plan Build it"))
-        status = self.matrix.handle(self.event("$status", "!cogito status", "$root"))
+        status = self.matrix.handle(self.event("$status", "!cogito status"))
         self.assertIn("0/1 scout tasks", status["actions"][0]["body"])
-        drafted = self.matrix.handle(self.event("$draft", "!cogito draft", "$root"))
+        drafted = self.matrix.handle(self.event("$draft", "!cogito draft"))
         self.assertIn("Plan drafted", drafted["actions"][0]["body"])
 
     def test_event_replay_returns_same_actions(self):
@@ -367,7 +368,7 @@ class MatrixTests(unittest.TestCase):
                    if item["notification_id"].startswith("command:")]
         self.assertEqual(len(pending), 1)
         self.assertEqual(pending[0]["room_id"], "!room:matrix.example")
-        self.assertEqual(pending[0]["thread_root"], "$root")
+        self.assertEqual(pending[0]["thread_root"], "")
         self.assertEqual(pending[0]["body"], first["actions"][0]["body"])
 
     def test_command_response_is_durable_before_transport_delivery(self):
@@ -379,7 +380,7 @@ class MatrixTests(unittest.TestCase):
 
     def test_thread_approval_resolves_current_version(self):
         self.matrix.handle(self.event("$root", "!cogito plan Build it"))
-        value = self.event("$approve", "!cogito approve", "$root")
+        value = self.event("$approve", "!cogito approve")
         value["timestamp"] = "2099-01-01T00:00:00Z"
         accepted = self.matrix.handle(value)
         self.assertIn("Plan accepted", accepted["actions"][0]["body"])
@@ -387,14 +388,14 @@ class MatrixTests(unittest.TestCase):
     def test_delayed_thread_approval_cannot_accept_newer_version(self):
         self.matrix.handle(self.event("$root", "!cogito plan Build it"))
         with self.assertRaisesRegex(ValidationError, "plan changed"):
-            self.matrix.handle(self.event("$approve", "!cogito approve", "$root"))
+            self.matrix.handle(self.event("$approve", "!cogito approve"))
 
     def test_status_reads_foreman_workload(self):
         self.matrix.handle(self.event("$root", "!cogito plan Build it"))
-        approval = self.event("$approve", "!cogito approve", "$root")
+        approval = self.event("$approve", "!cogito approve")
         approval["timestamp"] = "2099-01-01T00:00:00Z"
         self.matrix.handle(approval)
-        result = self.matrix.handle(self.event("$status", "!cogito status", "$root"))
+        result = self.matrix.handle(self.event("$status", "!cogito status"))
         self.assertIn("queued for Luna", result["actions"][0]["body"])
 
     def test_multi_deliverable_approval_queues_luna_without_eager_dispatch(self):
@@ -402,10 +403,10 @@ class MatrixTests(unittest.TestCase):
             "https://github.com/t/c/issues/2", "https://github.com/t/c/issues/3",
         ]
         self.matrix.handle(self.event("$root", "!cogito plan Build it"))
-        approval = self.event("$approve", "!cogito approve", "$root")
+        approval = self.event("$approve", "!cogito approve")
         approval["timestamp"] = "2099-01-01T00:00:00Z"
         self.matrix.handle(approval)
-        plan = self.state.plan_for_thread("!room:matrix.example", "$root")
+        plan = self.state.active_plan_for_room("!room:matrix.example")
         self.assertEqual(plan["state"], "decomposed")
         self.assertEqual(self.state.plan_progress(plan["plan_id"])["total"], 2)
         self.assertEqual(self.foreman.created, [])
@@ -413,34 +414,34 @@ class MatrixTests(unittest.TestCase):
         self.assertEqual(batch["plan_id"], plan["plan_id"])
         self.assertEqual(batch["events"][0]["event_type"], "plan.approved")
 
-    def test_non_command_outside_plan_thread_is_ignored(self):
+    def test_non_command_outside_a_conversational_room_is_ignored(self):
         chat = self.event("$chat", "ordinary chat")
         chat["room_id"] = "!other:matrix.example"
         self.assertEqual(self.matrix.handle(chat), {"actions": []})
-        self.assertEqual(
-            self.matrix.handle(self.event("$other", "thread chat", "$unrelated")),
-            {"actions": []},
-        )
+        reply = self.event("$other", "replying elsewhere", "$unrelated")
+        reply["room_id"] = "!other:matrix.example"
+        self.assertEqual(self.matrix.handle(reply), {"actions": []})
 
-    def test_implementation_thread_messages_are_queued_for_luna(self):
+    def test_implementation_room_messages_are_queued_for_luna(self):
         self.matrix.handle(self.event("$root", "!cogito plan Build it"))
-        plan = self.state.plan_for_thread("!room:matrix.example", "$root")
+        plan = self.state.active_plan_for_room("!room:matrix.example")
         self.state.enqueue_matrix(
             f"implementation:{plan['plan_id']}:root", "!implementation:matrix.example", "",
-            "● Luna: Implementing")
+            "Implementing", sender="coordinator", plan_id=plan["plan_id"])
         self.state.complete_matrix(
             f"implementation:{plan['plan_id']}:root", "$implementation-root")
         result = self.matrix.handle({
             **self.base, "event_id": "$instruction", "room_id": "!implementation:matrix.example",
-            "thread_root": "$implementation-root", "body": "Pause after this deliverable",
+            "body": "Pause after this deliverable",
         })
-        self.assertIn("instruction queued", result["actions"][0]["body"])
+        self.assertIn("Instruction queued", result["actions"][0]["body"])
+        self.assertEqual(result["actions"][0]["sender"], "coordinator")
         batch = self.state.next_luna_batch(now=2**31)
         self.assertEqual(batch["events"][0]["event_type"], "owner.instruction")
 
     def test_plan_card_pause_and_resume_reactions(self):
         self.matrix.handle(self.event("$root", "!cogito plan Build it"))
-        plan = self.state.plan_for_thread("!room:matrix.example", "$root")
+        plan = self.state.active_plan_for_room("!room:matrix.example")
         card_id = f"plan:{plan['plan_id']}:card"
         self.state.complete_matrix(card_id, "$card")
         paused = self.matrix.handle(self.event(
@@ -451,6 +452,82 @@ class MatrixTests(unittest.TestCase):
             "$resume", "!cogito react 🔄 $card"))
         self.assertIn("resumed", resumed["actions"][0]["body"])
         self.assertEqual(self.state.plan(plan["plan_id"])["state"], "review")
+
+    def test_open_plan_card_is_pinned_and_released_when_terminal(self):
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        plan = self.state.active_plan_for_room("!room:matrix.example")
+        card_id = f"plan:{plan['plan_id']}:card"
+        pin_id = f"plan:{plan['plan_id']}:pin"
+        pending = {item["notification_id"]: item for item in self.state.pending_matrix(100)}
+        self.assertIn(card_id, pending)
+        # The pin is withheld until the card it targets has a real event id.
+        self.assertNotIn(pin_id, pending)
+
+        self.state.complete_matrix(card_id, "$card")
+        pending = {item["notification_id"]: item for item in self.state.pending_matrix(100)}
+        self.assertEqual(pending[pin_id]["kind"], "pin")
+        self.assertEqual(pending[pin_id]["target_event_id"], "$card")
+        self.assertEqual(pending[pin_id]["room_id"], "!room:matrix.example")
+        # The card is edited in place, so the pinned event carries live state
+        # and the issue link once the plan has one.
+        edits = [item for item in pending.values()
+                 if item["kind"] == "edit" and item["target_event_id"] == "$card"]
+        self.assertTrue(edits)
+        self.assertIn("https://github.com/t/c/issues/1", edits[-1]["body"])
+
+        self.state.complete_matrix(pin_id, "$card")
+        self.matrix.handle(self.event("$stop", "!cogito stop"))
+        unpin = [item for item in self.state.pending_matrix(100)
+                 if item["kind"] == "unpin"]
+        self.assertEqual(len(unpin), 1)
+        self.assertEqual(unpin[0]["target_event_id"], "$card")
+
+    def test_drafted_and_blocked_transitions_carry_a_mention(self):
+        result = self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        self.assertTrue(result["actions"][0]["mention"])
+        self.assertEqual(result["actions"][0]["sender"], "planner")
+        queued = next(item for item in self.state.pending_matrix(100)
+                      if item["notification_id"].startswith("command:"))
+        self.assertEqual(queued["mention"], 1)
+        self.assertEqual(queued["sender"], "planner")
+
+    def test_routine_acknowledgements_do_not_mention(self):
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        comment = self.matrix.handle(self.event("$comment", "Add rollback"))
+        self.assertFalse(comment["actions"][0]["mention"])
+        self.assertEqual(comment["actions"][0]["sender"], "gateway")
+
+    def test_each_persona_polls_only_its_own_outbox_rows(self):
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        for sender in ("gateway", "planner", "coordinator"):
+            for item in self.state.pending_matrix(100, sender):
+                self.assertEqual(item["sender"], sender)
+        everything = len(self.state.pending_matrix(100))
+        per_sender = sum(len(self.state.pending_matrix(100, sender))
+                         for sender in ("gateway", "planner", "coordinator"))
+        self.assertEqual(everything, per_sender)
+
+    def test_reply_addresses_the_plan_of_the_message_replied_to(self):
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        first = self.state.active_plan_for_room("!room:matrix.example")
+        self.state.complete_matrix(f"plan:{first['plan_id']}:card", "$first-card")
+
+        self.planner.decisions = [
+            {"status": "ready", "message": "Second plan ready.",
+             "plan_markdown": "# Second\n\n## Deliverables\n- [ ] Ship the second\n"}]
+        self.matrix.handle(self.event("$root2", "!cogito plan Build another"))
+        second = self.state.active_plan_for_room("!room:matrix.example")
+        self.assertNotEqual(first["plan_id"], second["plan_id"])
+
+        # A bare message lands on the room's newest open plan.
+        self.matrix.handle(self.event("$bare", "Add rollback"))
+        self.assertEqual(self.state.plan_comments(second["plan_id"]), ["Add rollback"])
+        self.assertEqual(self.state.plan_comments(first["plan_id"]), [])
+
+        # Replying to one of its messages reaches the older plan instead.
+        self.matrix.handle(self.event("$reply", "Reconsider the rollout", "$first-card"))
+        self.assertEqual(self.state.plan_comments(first["plan_id"]),
+                         ["Reconsider the rollout"])
 
     def test_untrusted_sender_is_rejected(self):
         value = self.event("$root", "!cogito help")

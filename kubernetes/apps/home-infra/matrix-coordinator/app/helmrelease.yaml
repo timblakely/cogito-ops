@@ -45,7 +45,10 @@ spec:
             image:
               repository: dock.mau.dev/maubot/maubot
               tag: v0.6.0@sha256:6968ddea1e08aa7f8ac70ac7a706663fe8d7b4d6f96cd7a6bb8548637fb8cd17
-            command: [mkdir, -p, /data/maubot]
+            # The coordinator keeps its established store at /data/maubot so
+            # its registered device keys stay valid; the new identities get
+            # their own directories beside it.
+            command: [mkdir, -p, /data/maubot, /data/maubot/gateway, /data/maubot/planner]
             securityContext:
               allowPrivilegeEscalation: false
               capabilities:
@@ -63,7 +66,11 @@ spec:
               FOREMAN_NAMESPACE: llm
               MATRIX_APPROVERS: "@tim:matrix.${DOMAIN_NAME}"
               GITHUB_APPROVERS: timblakely
-              MATRIX_ACTIVITY_ROOM_ID: "!5wS6Ha0iIA8OL4oWd1lYAqGubN1eXqN34ZDqmWIgbPU"
+              MATRIX_ACTIVITY_ROOM_ID:
+                valueFrom:
+                  configMapKeyRef:
+                    name: matrix-room-ids
+                    key: runs_room_id
               MATRIX_IMPLEMENTATION_ROOM_ID:
                 valueFrom:
                   configMapKeyRef:
@@ -112,7 +119,10 @@ spec:
                 memory: 64Mi
               limits:
                 memory: 256Mi
-          bot:
+          # One maubot process per Matrix identity. The MXID carries the role so
+          # the agent behind a role can change without Tim losing the sender he
+          # recognises; only bot-gateway receives events and writes room state.
+          bot-gateway: &bot
             image:
               repository: dock.mau.dev/maubot/maubot
               tag: v0.6.0@sha256:6968ddea1e08aa7f8ac70ac7a706663fe8d7b4d6f96cd7a6bb8548637fb8cd17
@@ -125,23 +135,43 @@ spec:
                 --base-config /opt/maubot/maubot/standalone/example-config.yaml
                 --meta /plugin/maubot.yaml
             workingDir: /plugin
-            env:
+            env: &botenv
               PYTHONPATH: /opt/maubot
+              COGITO_BOT_ROLE: gateway
               MATRIX_PROJECT_ROOM_ID:
                 valueFrom:
                   configMapKeyRef:
                     name: matrix-room-ids
                     key: cogito_project_room_id
-            securityContext:
+              MATRIX_IMPLEMENTATION_ROOM_ID:
+                valueFrom:
+                  configMapKeyRef:
+                    name: matrix-room-ids
+                    key: implementation_room_id
+            securityContext: &botsecurity
               allowPrivilegeEscalation: false
               capabilities:
                 drop: [ALL]
-            resources:
+            resources: &botresources
               requests:
                 cpu: 25m
                 memory: 128Mi
               limits:
                 memory: 512Mi
+          bot-planner:
+            <<: *bot
+            env:
+              <<: *botenv
+              COGITO_BOT_ROLE: planner
+            securityContext: *botsecurity
+            resources: *botresources
+          bot-coordinator:
+            <<: *bot
+            env:
+              <<: *botenv
+              COGITO_BOT_ROLE: coordinator
+            securityContext: *botsecurity
+            resources: *botresources
     serviceAccount:
       gateway: {}
     service:
@@ -164,7 +194,7 @@ spec:
         name: matrix-coordinator-bot-plugin
         advancedMounts:
           gateway:
-            bot:
+            bot-gateway: &plugin
               - path: /plugin/maubot.yaml
                 subPath: maubot.yaml
                 readOnly: true
@@ -174,12 +204,34 @@ spec:
               - path: /plugin/cogito_bot.py
                 subPath: cogito_bot.py
                 readOnly: true
-      bot-config:
+            bot-planner: *plugin
+            bot-coordinator: *plugin
+      # Each identity keeps its own credentials, device and Olm store; a shared
+      # maubot database would give three accounts one crypto identity.
+      bot-config-gateway:
+        type: secret
+        name: matrix-gateway-bot
+        advancedMounts:
+          gateway:
+            bot-gateway:
+              - path: /plugin/config.yaml
+                subPath: config.yaml
+                readOnly: true
+      bot-config-planner:
+        type: secret
+        name: matrix-planner-bot
+        advancedMounts:
+          gateway:
+            bot-planner:
+              - path: /plugin/config.yaml
+                subPath: config.yaml
+                readOnly: true
+      bot-config-coordinator:
         type: secret
         name: matrix-coordinator-bot
         advancedMounts:
           gateway:
-            bot:
+            bot-coordinator:
               - path: /plugin/config.yaml
                 subPath: config.yaml
                 readOnly: true

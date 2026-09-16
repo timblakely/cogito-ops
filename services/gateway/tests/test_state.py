@@ -183,14 +183,14 @@ class StateTests(unittest.TestCase):
         self.state.set_plan_state("plan-workload", "needs_input")
         self.assertEqual([row["name"] for row in self.state.active_workloads()], ["workload-1"])
         self.assertTrue(self.state.update_workload("workload-1", {"phase": "Completed", "succeeded": 3}))
-        self.assertEqual(self.state.plan_for_thread("!r:x", "$root")["state"], "needs_input")
+        self.assertEqual(self.state.plan_for_anchor("!r:x", "$root")["state"], "needs_input")
         self.state.begin_merge(
             "plan-workload", 1, "https://github.com/o/r/pull/2", "a" * 40, "uuid-1",
             {"status": "pending"},
         )
         self.assertEqual(
             self.state.finish_merge("plan-workload", 1, {"status": "merged"}), "completed")
-        self.assertEqual(self.state.plan_for_thread("!r:x", "$root")["state"], "completed")
+        self.assertEqual(self.state.plan_for_anchor("!r:x", "$root")["state"], "completed")
 
     def test_deliverables_are_dispatched_in_order(self):
         with self.state.transaction() as db:

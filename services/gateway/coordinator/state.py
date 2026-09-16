@@ -10,7 +10,11 @@ from typing import Any, Iterator
 import json
 import time
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
+
+# Matrix sender identities. The MXID encodes the role so the backing agent can
+# change without renaming the account Tim already trusts in his client.
+SENDERS = ("gateway", "planner", "coordinator")
 
 DDL = """
 PRAGMA journal_mode=WAL;
@@ -61,7 +65,13 @@ CREATE TABLE IF NOT EXISTS matrix_outbox (
   notification_id TEXT PRIMARY KEY, room_id TEXT NOT NULL, thread_root TEXT NOT NULL,
   body TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL,
   sent_event_id TEXT, thread_notification_id TEXT NOT NULL DEFAULT '',
-  kind TEXT NOT NULL DEFAULT 'message', target_notification_id TEXT NOT NULL DEFAULT '');
+  kind TEXT NOT NULL DEFAULT 'message', target_notification_id TEXT NOT NULL DEFAULT '',
+  sender TEXT NOT NULL DEFAULT 'gateway', mention INTEGER NOT NULL DEFAULT 0,
+  plan_id TEXT);
+CREATE INDEX IF NOT EXISTS matrix_outbox_pending
+  ON matrix_outbox(state, sender, created_at);
+CREATE INDEX IF NOT EXISTS matrix_outbox_sent
+  ON matrix_outbox(room_id, sent_event_id);
 CREATE TABLE IF NOT EXISTS external_actions (
   action_key TEXT PRIMARY KEY, kind TEXT NOT NULL, request_json TEXT NOT NULL,
   state TEXT NOT NULL, result_json TEXT, last_error TEXT);
@@ -180,6 +190,18 @@ class StateStore:
             self.db.execute(
                 "UPDATE luna_turns SET state='pending' WHERE state='running'"
             )
+        if current < 12:
+            columns = {row[1] for row in self.db.execute("PRAGMA table_info(matrix_outbox)")}
+            for name, declaration in {
+                "sender": "TEXT NOT NULL DEFAULT 'gateway'",
+                "mention": "INTEGER NOT NULL DEFAULT 0",
+                "plan_id": "TEXT",
+            }.items():
+                if name not in columns:
+                    self.db.execute(f"ALTER TABLE matrix_outbox ADD COLUMN {name} {declaration}")
+            # Conversations are flat from v12 on. Existing rows keep their
+            # thread_root as a historical anchor but are never re-sent, so
+            # clearing it here would only lose the permalink.
         # A process can disappear while Astra is synthesizing completed scout
         # results. Re-entering research is safe: Foreman task names and Matrix
         # notifications are deterministic, while a stuck plan is not useful.
@@ -469,19 +491,12 @@ class StateStore:
             db.execute("INSERT OR IGNORE INTO matrix_event_results VALUES (?,?)",
                        (event_id, json.dumps(result, sort_keys=True)))
 
-    def plan_for_thread(self, room_id: str, root_event_id: str):
-        with self.lock:
-            return self.db.execute("SELECT * FROM plans WHERE matrix_room_id=? AND root_event_id=?",
-                                   (room_id, root_event_id)).fetchone()
-
-    def plan_for_implementation_thread(self, room_id: str, root_event_id: str):
+    def plan_for_anchor(self, room_id: str, anchor_event_id: str):
+        """The plan started by a specific owner message."""
         with self.lock:
             return self.db.execute(
-                "SELECT p.* FROM plans p JOIN matrix_outbox o "
-                "ON o.notification_id=('implementation:' || p.plan_id || ':root') "
-                "WHERE o.room_id=? AND o.sent_event_id=? LIMIT 1",
-                (room_id, root_event_id),
-            ).fetchone()
+                "SELECT * FROM plans WHERE matrix_room_id=? AND root_event_id=?",
+                (room_id, anchor_event_id)).fetchone()
 
     def plan_for_card_event(self, room_id: str, event_id: str):
         with self.lock:
@@ -536,10 +551,14 @@ class StateStore:
                 "AND kind IN ('clarify','pushback')", (plan_id,),
             ).fetchone()[0])
 
+    TERMINAL_STATES = frozenset({"complete", "cancelled", "failed"})
+
     def set_plan_state(self, plan_id: str, state: str) -> None:
         with self.transaction() as db:
             db.execute("UPDATE plans SET state=? WHERE plan_id=?", (state, plan_id))
         self.enqueue_plan_card(plan_id)
+        if state in self.TERMINAL_STATES:
+            self.enqueue_unpin(plan_id)
 
     def pause_plan(self, plan_id: str) -> None:
         with self.transaction() as db:
@@ -934,16 +953,21 @@ class StateStore:
 
     def enqueue_matrix(self, notification_id: str, room_id: str, thread_root: str,
                        body: str, thread_notification_id: str = "",
-                       kind: str = "message", target_notification_id: str = "") -> bool:
-        if kind not in {"message", "edit"}:
+                       kind: str = "message", target_notification_id: str = "",
+                       sender: str = "gateway", mention: bool = False,
+                       plan_id: str | None = None) -> bool:
+        if kind not in {"message", "edit", "pin", "unpin"}:
             raise ValueError("unsupported Matrix outbox action")
+        if sender not in SENDERS:
+            raise ValueError("unknown Matrix sender identity")
         with self.transaction() as db:
             return db.execute(
                 "INSERT OR IGNORE INTO matrix_outbox(notification_id,room_id,thread_root,body,"
-                "created_at,thread_notification_id,kind,target_notification_id) "
-                "VALUES (?,?,?,?,?,?,?,?)",
+                "created_at,thread_notification_id,kind,target_notification_id,sender,mention,"
+                "plan_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 (notification_id, room_id, thread_root, body, int(time.time()),
-                 thread_notification_id, kind, target_notification_id)).rowcount == 1
+                 thread_notification_id, kind, target_notification_id, sender,
+                 1 if mention else 0, plan_id)).rowcount == 1
 
     def enqueue_plan_card(self, plan_id: str) -> bool:
         plan = self.plan(plan_id)
@@ -953,10 +977,11 @@ class StateStore:
         research = self.research_progress(plan_id)
         usage = self.luna_usage(plan_id)
         astra_turns = self.astra_turns(plan_id)
+        issue = plan["github_issue_url"] or ""
         body = (
-            f"▣ gateway · **{plan['state'].upper()}**\n\n"
-            f"Plan `{plan_id}` · version {plan['current_version']}\n\n"
-            f"Deliverables: {progress.get('merged', 0)}/{progress.get('total', 0)} merged · "
+            f"**{plan['state'].upper()}** · plan `{plan_id}` · version {plan['current_version']}\n\n"
+            + (f"Plan issue: {issue}\n\n" if issue else "")
+            + f"Deliverables: {progress.get('merged', 0)}/{progress.get('total', 0)} merged · "
             f"Scouts: {research.get('Succeeded', 0) + research.get('Failed', 0)}/"
             f"{research.get('total', 0)} finished\n\n"
             f"Astra: {astra_turns} turns · "
@@ -969,20 +994,46 @@ class StateStore:
                 "SELECT 1 FROM matrix_outbox WHERE notification_id=?", (root_id,)
             ).fetchone()
         if not existing:
-            return self.enqueue_matrix(
-                root_id, plan["matrix_room_id"], plan["root_event_id"], body)
+            # The card is the pinned object for the life of the plan: one
+            # edited message carrying state and the issue link, so an open plan
+            # stays reachable from the room header instead of scrolling away.
+            queued = self.enqueue_matrix(
+                root_id, plan["matrix_room_id"], "", body, plan_id=plan_id)
+            self.enqueue_pin(plan_id, plan["matrix_room_id"], root_id)
+            return queued
         digest = __import__("hashlib").sha256(body.encode()).hexdigest()[:20]
         return self.enqueue_matrix(
-            f"{root_id}:edit:{digest}", plan["matrix_room_id"], plan["root_event_id"],
-            body, kind="edit", target_notification_id=root_id,
+            f"{root_id}:edit:{digest}", plan["matrix_room_id"], "",
+            body, kind="edit", target_notification_id=root_id, plan_id=plan_id,
         )
 
-    def pending_matrix(self, limit: int = 20) -> list[dict[str, Any]]:
+    def enqueue_pin(self, plan_id: str, room_id: str, target_notification_id: str) -> bool:
+        return self.enqueue_matrix(
+            f"plan:{plan_id}:pin", room_id, "", "", kind="pin",
+            target_notification_id=target_notification_id, plan_id=plan_id)
+
+    def enqueue_unpin(self, plan_id: str) -> bool:
+        """Release the room pin once a plan can no longer need attention."""
+        with self.lock:
+            row = self.db.execute(
+                "SELECT room_id,target_notification_id FROM matrix_outbox "
+                "WHERE notification_id=?", (f"plan:{plan_id}:pin",)).fetchone()
+        if not row:
+            return False
+        return self.enqueue_matrix(
+            f"plan:{plan_id}:unpin", row["room_id"], "", "", kind="unpin",
+            target_notification_id=row["target_notification_id"], plan_id=plan_id)
+
+    def pending_matrix(self, limit: int = 20,
+                       sender: str | None = None) -> list[dict[str, Any]]:
+        if sender is not None and sender not in SENDERS:
+            raise ValueError("unknown Matrix sender identity")
         with self.lock:
             return [dict(row) for row in self.db.execute(
                 "SELECT child.notification_id,child.room_id,"
                 "CASE WHEN child.thread_root != '' THEN child.thread_root "
                 "ELSE COALESCE(parent.sent_event_id,'') END thread_root,child.body,child.kind,"
+                "child.sender,child.mention,"
                 "COALESCE(target.sent_event_id,'') target_event_id "
                 "FROM matrix_outbox child LEFT JOIN matrix_outbox parent "
                 "ON parent.notification_id=child.thread_notification_id "
@@ -990,7 +1041,33 @@ class StateStore:
                 "WHERE child.state='pending' AND (child.thread_notification_id='' "
                 "OR parent.sent_event_id IS NOT NULL) AND (child.target_notification_id='' "
                 "OR target.sent_event_id IS NOT NULL) "
-                "ORDER BY child.created_at,child.notification_id LIMIT ?", (limit,)).fetchall()]
+                "AND (? IS NULL OR child.sender=?) "
+                "ORDER BY child.created_at,child.notification_id LIMIT ?",
+                (sender, sender, limit)).fetchall()]
+
+    def plan_for_sent_event(self, room_id: str, event_id: str):
+        """Resolve the plan a bot message belonged to, for flat rich replies."""
+        with self.lock:
+            return self.db.execute(
+                "SELECT p.* FROM plans p JOIN matrix_outbox o ON o.plan_id=p.plan_id "
+                "WHERE o.room_id=? AND o.sent_event_id=?", (room_id, event_id)).fetchone()
+
+    def active_plan_for_room(self, room_id: str):
+        """The plan a bare message in a flat room is about.
+
+        Rooms carry one live plan at a time, so an unaddressed message belongs
+        to the most recently created plan that has not reached a terminal
+        state. A plan counts as present in a room when it either started there
+        or has posted there, which is what makes the implementation room
+        resolvable without threads. Explicit `!cogito <command> <plan-id>`
+        remains the recovery path when that guess is wrong.
+        """
+        with self.lock:
+            return self.db.execute(
+                "SELECT p.* FROM plans p WHERE p.state NOT IN ('complete','cancelled','failed') "
+                "AND (p.matrix_room_id=? OR EXISTS (SELECT 1 FROM matrix_outbox o "
+                "WHERE o.plan_id=p.plan_id AND o.room_id=?)) "
+                "ORDER BY p.rowid DESC LIMIT 1", (room_id, room_id)).fetchone()
 
     def complete_matrix(self, notification_id: str, event_id: str) -> bool:
         with self.transaction() as db:
