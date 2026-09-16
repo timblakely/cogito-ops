@@ -1,9 +1,9 @@
 ---
-# Experimental text/tool/vision lane on both of iggy's RTX 3090s: vLLM 0.29.0
-# plus its out-of-tree CUDA GGUF loader, Unsloth UD-Q6_K target, BF16 vision
-# projector, W4A16 DFlash2 n=7, FP8 E4M3 target/draft KV, and the reviewed
-# FlashAttention SM86 artifact. The former official-FP8 profile is preserved
-# under resources/disabled as rollback definitions.
+# Primary text/tool/vision lane on both of iggy's RTX 3090s. This ports the
+# reviewed club-3090 dual-ultramax profile merged in PR #1274: stock vLLM
+# 0.29.0, official Qwen FP8 target, W4A16 DFlash2 n=7, FP8 E4M3 KV, and the
+# digest-pinned FlashAttention plugin for SM86. The fixed KV reservation and
+# single admitted sequence are part of the validated 262144-token profile.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: InferenceService
 metadata:
@@ -14,7 +14,7 @@ spec:
   modelRef: qwen3-8-27b
   replicas: 1
   runtime: generic
-  image: ghcr.io/timblakely/vllm-openai@sha256:1f80a3af3de773393052af2c3f8dff2ecb2c5dee5af58e808d2562230f29a75d
+  image: vllm/vllm-openai@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1
   skipModelInit: true
   runtimeClassName: nvidia
   nodeSelector:
@@ -24,16 +24,6 @@ spec:
       value: compute,utility
     - name: FA2_ARTIFACT_ID
       value: 731d1942112a7cf35be4f0add0919072c06cac47e3bad4f674ff0157edad0e3f
-    - name: QWEN38_TARGET_PATH
-      value: /model-cache/qwen-3-8-ud-q6/Qwen3.8-27B-UD-Q6_K.gguf
-    - name: QWEN38_TARGET_SHA256
-      value: c9c206812fbe4ac7b76a729e25928b63f2ae89d37f69da7a71c20aec763cd436
-    - name: QWEN38_MMPROJ_PATH
-      value: /model-cache/qwen-3-8-ud-q6/mmproj-BF16.gguf
-    - name: QWEN38_MMPROJ_SHA256
-      value: 83ee4f4f205fa514161778c41df1ea14144faa0f713510893b63c2395f5c2d53
-    - name: VLLM_GGUF_USE_CUDA
-      value: "1"
     - name: VLLM_WORKER_MULTIPROC_METHOD
       value: spawn
     - name: VLLM_USE_FLASHINFER_SAMPLER
@@ -61,21 +51,11 @@ spec:
     - /runtime/start.sh
   args:
     - --model
-    - /model-cache/qwen-3-8-ud-q6/Qwen3.8-27B-UD-Q6_K.gguf
-    # Reuse the official cached tokenizer/config rather than asking the GGUF
-    # tokenizer conversion path to reconstruct them at every pod start.
-    - --tokenizer
-    - /model-cache/qwen-3-8-fp8
-    - --hf-config-path
     - /model-cache/qwen-3-8-fp8
     - --served-model-name
     - qwen3.8-27b
-    - --load-format
-    - gguf
     - --quantization
-    - gguf
-    - --model-loader-extra-config
-    - '{"mm_proj":"/model-cache/qwen-3-8-ud-q6/mmproj-BF16.gguf"}'
+    - fp8
     - --dtype
     - bfloat16
     - --tensor-parallel-size
@@ -84,12 +64,12 @@ spec:
     - "1"
     - --max-model-len
     - "262144"
-    # Do not inherit the FP8 profile's 6.335GB hard KV cap. Profile all memory
-    # left by the smaller Q6_K target/projector/drafter stack on each card.
-    - --gpu-memory-utilization
-    - "0.95"
+    # Fixed bytes bypass gpu-memory-utilization profiling and yielded a
+    # measured 267493-token pool in the accepted profile.
+    - --kv-cache-memory-bytes
+    - "6335076762"
     - --max-num-seqs
-    - "8"
+    - "1"
     - --max-num-batched-tokens
     - "2048"
     - --long-prefill-token-threshold

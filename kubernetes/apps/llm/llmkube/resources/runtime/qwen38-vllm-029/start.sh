@@ -15,32 +15,6 @@ test -f "$${artifact_manifest}" || {
   exit 1
 }
 
-if test -n "$${QWEN38_TARGET_PATH:-}"; then
-  target_path="$${QWEN38_TARGET_PATH}"
-  target_sha256="$${QWEN38_TARGET_SHA256:?QWEN38_TARGET_SHA256 is required}"
-  mmproj_path="$${QWEN38_MMPROJ_PATH:?QWEN38_MMPROJ_PATH is required}"
-  mmproj_sha256="$${QWEN38_MMPROJ_SHA256:?QWEN38_MMPROJ_SHA256 is required}"
-
-  # The cache-prime Job and serving object reconcile together. Wait for its
-  # atomic hot-tier installs, then reject a truncated or replaced model before
-  # vLLM allocates either GPU.
-  for _ in $(seq 1 1800); do
-    test -f "$${target_path}" && test -f "$${mmproj_path}" && break
-    sleep 2
-  done
-  test -f "$${target_path}" && test -f "$${mmproj_path}" || {
-    echo "[gguf] Q6_K target or BF16 projector did not arrive in the hot cache" >&2
-    exit 1
-  }
-  printf '%s  %s\n%s  %s\n' \
-    "$${target_sha256}" "$${target_path}" \
-    "$${mmproj_sha256}" "$${mmproj_path}" | sha256sum --check --strict
-
-  # Fail closed if a future image rebuild omits the pinned CUDA extension or
-  # silently changes the vLLM base underneath these source overlays.
-  python3 -c 'from importlib.metadata import version; assert version("vllm") == "0.29.0"; import vllm_gguf_plugin.ops as ops; assert ops._CUDA_AVAILABLE'
-fi
-
 # These anchor-checked overlays are the exact club-3090 v0.29.0 profile set.
 # Every script is idempotent and refuses startup if the vLLM source has drifted.
 python3 /runtime/patch_mamba_drop_eagle_block.py

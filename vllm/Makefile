@@ -17,7 +17,7 @@ build-openai:
 	docker build --tag $(OPENAI_IMAGE) vllm-openai
 
 push-openai:
-	docker buildx build --platform linux/amd64 --push --tag $(OPENAI_IMAGE) vllm-openai
+	docker buildx build --push --tag $(OPENAI_IMAGE) vllm-openai
 
 build-laguna:
 	docker build --file .devops/cuda.Dockerfile --target server --build-arg CUDA_DOCKER_ARCH=86 --tag $(LAGUNA_IMAGE) "$(LAGUNA_CONTEXT)"
