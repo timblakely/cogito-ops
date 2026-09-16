@@ -12,7 +12,7 @@ class ForemanTests(unittest.TestCase):
             plan_id="plan-abc", plan_hash="sha256:" + "a" * 64,
             intent="# Do it\n", repository="https://github.com/timblakely/cogito-ops.git",
             issue_urls=["https://github.com/timblakely/cogito-ops/issues/12"],
-            room_id="!room:example", thread_root="$root",
+            room_id="!room:example", anchor_event_id="$root",
         )
         manifest = client.manifest(**values)
         self.assertEqual(manifest["metadata"]["name"], workload_name(values["plan_id"], values["plan_hash"]))

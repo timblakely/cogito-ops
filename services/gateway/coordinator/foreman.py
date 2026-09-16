@@ -137,7 +137,7 @@ class ForemanClient:
             return json.loads(raw) if raw else {}
 
     def manifest(self, plan_id: str, plan_hash: str, intent: str, repository: str,
-                 issue_urls: list[str], room_id: str, thread_root: str,
+                 issue_urls: list[str], room_id: str, anchor_event_id: str,
                  deliverable_position: int | None = None, attempt: int = 1) -> dict:
         repo = _repo_slug(repository)
         issues = _issue_numbers(repo, issue_urls)
@@ -157,7 +157,7 @@ class ForemanClient:
                 "annotations": {
                     "cogito.dev/plan-hash": plan_hash,
                     "cogito.dev/matrix-room": room_id,
-                    "cogito.dev/matrix-thread": thread_root,
+                    "cogito.dev/matrix-anchor": anchor_event_id,
                     "cogito.dev/deliverable-position": str(deliverable_position or 1),
                     "cogito.dev/attempt": str(attempt),
                 },

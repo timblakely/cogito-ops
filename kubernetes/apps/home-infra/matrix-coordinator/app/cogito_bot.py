@@ -1,4 +1,11 @@
-"""Thin encrypted Matrix transport for the durable Cogito gateway."""
+"""Thin encrypted Matrix transport for the durable Cogito gateway.
+
+One process runs per Matrix identity. The MXID encodes the role — `@gateway`,
+`@planner`, `@coordinator` — so the agent backing a role can be swapped without
+Tim losing the sender he already recognises in his client. Only the `gateway`
+role receives: it owns inbound events, room state and the typing indicator,
+while the persona roles drain their own slice of the shared outbox.
+"""
 
 from datetime import datetime, timezone
 import asyncio
@@ -10,9 +17,10 @@ import os
 
 from maubot import MessageEvent, Plugin
 from maubot.handlers import event
-from mautrix.errors import MUnknown
+from mautrix.errors import MNotFound, MUnknown
 from mautrix.crypto.attachments import decrypt_attachment
-from mautrix.types import Event, EventID, EventType, MessageType, RelationType, RoomID, TextMessageEventContent
+from mautrix.types import (Event, EventID, EventType, MessageType, RelationType, RoomID,
+                           TextMessageEventContent)
 from mautrix.util.config import BaseProxyConfig, ConfigUpdateHelper
 
 
@@ -26,13 +34,23 @@ class Config(BaseProxyConfig):
 class CogitoBot(Plugin):
     MAX_IMAGE_BYTES = 8 * 1024 * 1024
     IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+    PINNED = EventType.find("m.room.pinned_events", EventType.Class.STATE)
 
     async def start(self) -> None:
+        self._role = os.environ.get("COGITO_BOT_ROLE", "gateway")
+        self._receives = self._role == "gateway"
         self._project_rooms = set(filter(
             None, os.environ.get("MATRIX_PROJECT_ROOM_ID", "").split(",")))
+        # Rooms where a bare message is a conversation rather than noise: the
+        # project rooms for planning, the implementation room for Luna.
+        self._conversational_rooms = self._project_rooms | set(filter(
+            None, os.environ.get("MATRIX_IMPLEMENTATION_ROOM_ID", "").split(",")))
+        self._mention_users = [
+            user for user in self.config["allowed_senders"] if user]
         self.log.info(
-            "Matrix receiver started for %d allowed sender(s) and %d project room(s)",
-            len(self.config["allowed_senders"]),
+            "Matrix %s bot started (receiving=%s) for %d allowed sender(s) "
+            "and %d project room(s)",
+            self._role, self._receives, len(self.config["allowed_senders"]),
             len(self._project_rooms),
         )
         self._planning_typing_rooms = set()
@@ -58,21 +76,64 @@ class CogitoBot(Plugin):
                 raise RuntimeError(result.get("error", f"HTTP {response.status}"))
             return result
 
+    async def _set_pinned(self, room_id: str, event_id: str, pinned: bool) -> str:
+        """Add or remove one event in the room's pin list, preserving the rest.
+
+        An open plan's card is pinned so it stays reachable from the room
+        header once the conversation has scrolled past it.
+        """
+        room = RoomID(room_id)
+        try:
+            current = await self.client.get_state_event(room, self.PINNED)
+            existing = list(getattr(current, "pinned", None) or current.get("pinned", []))
+        except MNotFound:
+            # No pin list yet. Any other failure must propagate rather than be
+            # read as "empty", which would silently drop existing pins.
+            existing = []
+        existing = [str(item) for item in existing]
+        if pinned and event_id not in existing:
+            existing.append(event_id)
+        elif not pinned and event_id in existing:
+            existing.remove(event_id)
+        else:
+            return event_id
+        await self.client.send_state_event(room, self.PINNED, {"pinned": existing})
+        return event_id
+
     async def _deliver_outbox(self) -> None:
         while True:
             try:
-                result = await self._request("/v1/matrix/outbox", {"operation": "poll", "limit": 20})
+                result = await self._request("/v1/matrix/outbox", {
+                    "operation": "poll", "limit": 20, "sender": self._role})
                 typing_rooms = set(result.get("typing_rooms", []))
                 for room_id in typing_rooms:
-                    # Matrix typing is room-scoped, not thread-scoped. Refresh
-                    # a short lease on every poll while any planning scout or
-                    # Astra synthesis for that room remains active.
+                    # Matrix typing is room-scoped. Refresh a short lease on
+                    # every poll while any planning scout or Astra synthesis
+                    # for that room remains active.
                     await self.client.set_typing(RoomID(room_id), timeout=15000)
                 for room_id in self._planning_typing_rooms - typing_rooms:
                     await self.client.set_typing(RoomID(room_id), timeout=0)
                 self._planning_typing_rooms = typing_rooms
                 for item in result.get("notifications", []):
-                    if item.get("kind") == "edit":
+                    kind = item.get("kind")
+                    if kind in {"pin", "unpin"}:
+                        # A pin is a convenience and needs power level 50 the
+                        # bot may not hold. Never let one stall the messages
+                        # queued behind it: log, leave it pending, move on.
+                        try:
+                            event_id = await self._set_pinned(
+                                item["room_id"], item["target_event_id"], kind == "pin")
+                        except Exception:
+                            self.log.exception(
+                                "could not %s %s in %s", kind,
+                                item["target_event_id"], item["room_id"])
+                            continue
+                        await self._request("/v1/matrix/outbox", {
+                            "operation": "ack", "notification_id": item["notification_id"],
+                            "event_id": str(event_id),
+                        })
+                        continue
+                    if kind == "edit":
                         content = TextMessageEventContent(
                             msgtype=MessageType.TEXT, body=item["body"])
                         content.set_edit(EventID(item["target_event_id"]))
@@ -86,28 +147,21 @@ class CogitoBot(Plugin):
                         })
                         continue
                     relates_to = None
-                    if item["thread_root"]:
+                    if item.get("thread_root"):
                         relation = TextMessageEventContent(msgtype=MessageType.TEXT, body="")
                         relation.set_thread_parent(EventID(item["thread_root"]), reply_fallback=True)
                         relates_to = relation.relates_to
                     try:
-                        event_id = await self.client.send_markdown(
-                            RoomID(item["room_id"]), item["body"], allow_html=False,
-                            relates_to=relates_to,
-                            txn_id=item["notification_id"],
-                        )
+                        event_id = await self._send(item, relates_to)
                     except MUnknown as exc:
                         if "unknown event" not in str(exc).lower():
                             raise
-                        # Imported or synthetic legacy plans can reference a root
-                        # the bot never saw. Preserve the notification at room level;
-                        # newly created plans always retain their real thread root.
-                        event_id = await self.client.send_markdown(
-                            RoomID(item["room_id"]),
-                            "[Original plan thread unavailable] " + item["body"],
-                            allow_html=False,
-                            txn_id=item["notification_id"] + "-fallback",
-                        )
+                        # A referenced root the bot never saw must not strand the
+                        # notification; deliver it at room level instead.
+                        event_id = await self._send(
+                            dict(item, body="[Original context unavailable] " + item["body"],
+                                 notification_id=item["notification_id"] + "-fallback"),
+                            None)
                     await self._request("/v1/matrix/outbox", {
                         "operation": "ack", "notification_id": item["notification_id"],
                         "event_id": str(event_id),
@@ -118,6 +172,21 @@ class CogitoBot(Plugin):
                 self.log.exception("gateway outbox delivery failed")
             await asyncio.sleep(5)
 
+    async def _send(self, item: dict, relates_to) -> EventID:
+        """Send one outbox message, pinging the owner when it needs a decision.
+
+        Rooms that carry status are set to mentions-only on the phone, so a
+        transition Tim has to act on only reaches him if the event itself
+        carries `m.mentions`.
+        """
+        extra_content = None
+        if item.get("mention") and self._mention_users:
+            extra_content = {"m.mentions": {"user_ids": list(self._mention_users)}}
+        return await self.client.send_markdown(
+            RoomID(item["room_id"]), item["body"], allow_html=False,
+            relates_to=relates_to, extra_content=extra_content,
+            txn_id=item["notification_id"])
+
     @classmethod
     def get_config_class(cls):
         return Config
@@ -127,6 +196,8 @@ class CogitoBot(Plugin):
         # A global handler receives both the encrypted envelope and the decrypted
         # message emitted by mautrix's DecryptionDispatcher. Explicitly select the
         # latter here rather than depending on maubot's per-type handler routing.
+        if not self._receives:
+            return
         if evt.type == EventType.REACTION:
             relation = getattr(evt.content, "relates_to", None)
             key = getattr(relation, "key", "")
@@ -155,9 +226,18 @@ class CogitoBot(Plugin):
             evt.content.trim_reply_fallback()
         body = getattr(evt.content, "body", "").strip()
         relation = getattr(evt.content, "relates_to", None)
-        is_thread_reply = bool(relation and relation.rel_type == RelationType.THREAD)
-        if (not body.startswith("!cogito") and not is_thread_reply
-                and str(evt.room_id) not in self._project_rooms):
+        # Conversations are flat. A rich reply carries no rel_type, only
+        # `m.in_reply_to`, and is how Tim addresses a specific earlier message.
+        # A thread relation is still resolved so a client that opens one does
+        # not silently drop the message.
+        reply_to = ""
+        if relation is not None:
+            in_reply_to = getattr(relation, "in_reply_to", None)
+            if in_reply_to is not None and in_reply_to.event_id:
+                reply_to = str(in_reply_to.event_id)
+            elif relation.rel_type == RelationType.THREAD and relation.event_id:
+                reply_to = str(relation.event_id)
+        if not body.startswith("!cogito") and str(evt.room_id) not in self._conversational_rooms:
             return
         self.log.info("Forwarding Matrix command event %s", evt.event_id)
         typing_task = None
@@ -168,9 +248,6 @@ class CogitoBot(Plugin):
                     await asyncio.sleep(45)
 
             typing_task = asyncio.create_task(keep_typing())
-            thread_root = None
-            if is_thread_reply:
-                thread_root = str(relation.event_id)
             value = {
                 "event_id": str(evt.event_id),
                 "room_id": str(evt.room_id),
@@ -178,8 +255,8 @@ class CogitoBot(Plugin):
                 "body": body,
                 "timestamp": datetime.fromtimestamp(evt.timestamp / 1000, timezone.utc).isoformat(),
             }
-            if thread_root:
-                value["thread_root"] = thread_root
+            if reply_to:
+                value["reply_to"] = reply_to
             if msgtype == MessageType.IMAGE:
                 info = getattr(evt.content, "info", None)
                 mime_type = str(getattr(info, "mimetype", ""))
@@ -208,7 +285,7 @@ class CogitoBot(Plugin):
             self.log.info("Completed Matrix command event %s", evt.event_id)
         except Exception as exc:
             self.log.exception("gateway event failed")
-            await evt.respond(f"⚠️ Gateway error: {exc}", in_thread=True)
+            await evt.respond(f"⚠️ Gateway error: {exc}")
         finally:
             if typing_task:
                 typing_task.cancel()

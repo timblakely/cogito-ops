@@ -25,9 +25,9 @@ gateway without allowing arbitrary private-network URL fetches.
 ## Room configuration
 
 Matrix rooms and spaces are durable Synapse state and are no longer reconciled
-by Terraform. `app/room-ids.yaml` publishes the two stable room IDs needed by
-the gateway as the `matrix-room-ids` ConfigMap. Update that ConfigMap only when
-one of those rooms is deliberately replaced.
+by Terraform. `app/room-ids.yaml` publishes the stable room IDs the gateway
+needs as the `matrix-room-ids` ConfigMap. Update that ConfigMap only when one of
+those rooms is deliberately replaced.
 
 Names, topics, aliases, membership, join rules, power levels, and space
 hierarchy are administered directly in Matrix. The retired
@@ -35,25 +35,56 @@ hierarchy are administered directly in Matrix. The retired
 and of the existing Hookshot repository connection, but Kubernetes no longer
 needs its access token.
 
-The private `Agents` space contains `Agent Control`, `Agent Runs`,
-`Implementation`, `GitHub`, and `Cogito`. The adopted Hermes room is now
-`Agent Control`; `#agent-control` is canonical and `#hermes-agent` remains a
-working alternate alias. Plans use one Matrix thread per plan in the applicable
-project room.
+The private `Agents` space is ordered for a phone, most-touched first, with one
+notification decision per room. `m.space.child` carries an explicit `order`, so
+the list does not re-sort alphabetically as rooms are renamed.
 
-For Cogito automation, `Cogito` is the control room: planner conversation,
-approval, blockers, and overall completion remain in the originating plan
-thread. A top-level owner message starts plan intake without a command prefix;
-`!cogito plan` remains an explicit alias. `Agent Runs` is the muteable activity room for Foreman progress,
-review/merge updates, and the Hookshot repository connection. Matrix room
-notification settings are the reliable client-wide boundary; activity is not
-hidden in a thread that may notify differently across clients.
+| Order | Room | Alias | Notifications | Contents |
+| --- | --- | --- | --- | --- |
+| 10 | `Cogito` | `#project-cogito` | all messages | Planning conversation with Astra; a bare message starts or continues a plan |
+| 20 | `Implementation` | `#implementation` | all messages | Luna's execution updates and Tim's instructions |
+| 30 | `Alerts` | `#alerts` | all messages, high priority | Only things that are broken |
+| 40 | `GitHub` | `#github` | muted | The Hookshot repository firehose |
+| 50 | `Runs` | `#agent-runs` | muted | Foreman Workload and scout transcripts |
+
+Muting is only safe because `Alerts` stays audible; without it a failure would
+land in a muted room and go unseen. Nothing else is wired to `Alerts` yet —
+Alertmanager has no receiver configured on this cluster.
+
+Conversations are flat. A plan is correlated to a message by explicit plan id,
+then by the message a rich reply points at, then by the room's one open plan.
+Threads remain only in `Runs`, where they group a scout's transcript in a room
+that never notifies; a thread in a room that does notify behaves differently
+across clients, which is exactly the ambiguity a phone surface cannot afford.
+
+The gateway pins the plan card for every open plan and unpins it when the plan
+reaches a terminal state, so an open plan stays reachable from the room header
+instead of scrolling away.
 
 The separate private `Personal` space contains `Watches` and `Money Making`.
 These rooms hold durable topic context that may span many agent runs; operational
-progress and failures still belong in the `Agents` space. Tim and Hermes are
-invited to each personal room. Their canonical aliases are `#personal-watches`
-and `#personal-money-making` on this homeserver.
+progress and failures still belong in the `Agents` space. Their canonical
+aliases are `#personal-watches` and `#personal-money-making`.
+
+## Bot identities
+
+Three Matrix accounts serve the workflow, one per role. The MXID is the role so
+the agent backing it can be swapped without Tim losing the sender he recognises
+in his client; the display name carries the current agent.
+
+| MXID | Display name | Device | Role |
+| --- | --- | --- | --- |
+| `@gateway` | `Gateway` | `COGITO_GATEWAY` | Receives every event, owns room state and pins, posts deterministic status |
+| `@planner` | `Astra` | `COGITO_PLANNER` | Posts plan drafts, questions and revisions |
+| `@coordinator` | `Luna` | existing | Posts execution updates |
+
+Each runs as its own maubot container with its own credentials, device and Olm
+store; a shared maubot database would give three accounts one crypto identity.
+Only `@gateway` receives, so an inbound event is handled exactly once.
+
+`@gateway` needs power level 100 in every room it administers — pinning is a
+state event, and the default `state_default` is 50. `@hermes` keeps its own
+account for direct sessions and does not belong in these rooms.
 
 Removing a room from `app/room-ids.yaml` does not remove it from Synapse.
 Obsolete rooms must be detached from their spaces and purged deliberately
@@ -76,8 +107,9 @@ the hierarchy still does not redraw after accepting, refresh or restart the
 client.
 
 After the one-time joins, membership persists. The canonical aliases
-(`#agent-control`, `#personal-watches`, `#personal-money-making`) confirm that
-the intended rooms were joined.
+(`#project-cogito`, `#implementation`, `#alerts`, `#github`, `#agent-runs`,
+`#personal-watches`, `#personal-money-making`) confirm that the intended rooms
+were joined.
 
 Service accounts may accept invitations automatically when their own runtime
 supports it. Human accounts still accept their own invitations in a Matrix

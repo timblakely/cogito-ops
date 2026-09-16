@@ -142,13 +142,13 @@ class MatrixEvent:
     sender: str
     body: str
     timestamp: str
-    thread_root: str | None = None
+    reply_to: str | None = None
     image: dict[str, str] | None = None
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "MatrixEvent":
         if set(value) - {
-                "event_id", "room_id", "sender", "body", "timestamp", "thread_root", "image"}:
+                "event_id", "room_id", "sender", "body", "timestamp", "reply_to", "image"}:
             raise ValidationError("unknown Matrix event field")
         event = cls(**value)
         if not event.event_id.startswith("$") or not event.room_id.startswith("!"):
@@ -185,18 +185,22 @@ class MatrixCoordinator:
                  planner: PlannerClient, allowed_senders: set[str],
                  activity_room_id: str = "", astra_turn_cap: int = 20,
                  images: ImageClient | None = None,
-                 project_rooms: dict[str, str] | None = None):
+                 project_rooms: dict[str, str] | None = None,
+                 implementation_room_id: str = ""):
         self.state, self.core, self.foreman, self.planner = state, core, foreman, planner
         self.allowed_senders = frozenset(allowed_senders)
         self.activity_room_id = activity_room_id
         self.astra_turn_cap = max(1, astra_turn_cap)
         self.images = images
         self.project_rooms = dict(project_rooms or {})
+        self.implementation_room_id = implementation_room_id
         self.lock = RLock()
 
     @staticmethod
-    def _message(body: str, root: str) -> dict[str, Any]:
-        return {"actions": [{"kind": "message", "body": body, "thread_root": root}]}
+    def _message(body: str, sender: str = "gateway", mention: bool = False,
+                 plan_id: str | None = None) -> dict[str, Any]:
+        return {"actions": [{"kind": "message", "body": body, "sender": sender,
+                             "mention": mention, "plan_id": plan_id}]}
 
     def _enqueue_actions(self, event: MatrixEvent, result: dict[str, Any]) -> None:
         for index, action in enumerate(result.get("actions", [])):
@@ -208,8 +212,11 @@ class MatrixCoordinator:
             self.state.enqueue_matrix(
                 notification_id,
                 event.room_id,
-                action.get("thread_root") or event.thread_root or event.event_id,
+                "",
                 action["body"],
+                sender=action.get("sender", "gateway"),
+                mention=bool(action.get("mention")),
+                plan_id=action.get("plan_id"),
             )
 
     def handle(self, value: dict[str, Any]) -> dict[str, Any]:
@@ -225,12 +232,27 @@ class MatrixCoordinator:
             self._enqueue_actions(event, result)
             return result
 
-    def _thread_plan(self, event: MatrixEvent):
-        root = event.thread_root or event.event_id
-        row = (self.state.plan_for_thread(event.room_id, root)
-               or self.state.plan_for_implementation_thread(event.room_id, root))
+    def _event_plan(self, event: MatrixEvent, argument: str = ""):
+        """Resolve the plan a flat-room message refers to.
+
+        Rooms are flat, so correlation runs explicit identifier first, then the
+        message a rich reply points at, then the room's one open plan.
+        """
+        plan_id = argument.strip()
+        if plan_id:
+            row = self.state.plan(plan_id)
+            if not row:
+                raise ValidationError(f"unknown plan `{plan_id}`")
+            return row
+        if event.reply_to:
+            row = self.state.plan_for_sent_event(event.room_id, event.reply_to)
+            if row:
+                return row
+        row = self.state.active_plan_for_room(event.room_id)
         if not row:
-            raise ValidationError("this thread has no plan")
+            raise ValidationError(
+                "this room has no open plan; start one with `!cogito plan <objective>` "
+                "or name the plan, for example `!cogito status plan-abc123`")
         return row
 
     def _activity(self, notification_id: str, body: str) -> None:
@@ -285,8 +307,9 @@ class MatrixCoordinator:
             ]
             self.state.enqueue_matrix(
                 f"plan:{group['plan_id']}:research:{group['round']}:agent-links",
-                group["matrix_room_id"], group["root_event_id"],
+                group["matrix_room_id"], "",
                 f"Agent Runs for research round {group['round']}: " + " · ".join(lines),
+                plan_id=group["plan_id"],
             )
 
     def _enqueue_research_status(self, row, task: dict[str, Any]) -> None:
@@ -348,7 +371,7 @@ class MatrixCoordinator:
     @staticmethod
     def _plan_message(plan: PlanVersion, issue_url: str) -> str:
         return (
-            f"◆ Astra: **Plan drafted** → {issue_url}\n\n"
+            f"**Plan drafted** → {issue_url}\n\n"
             f"Plan `{plan.plan_id}` · version {plan.version} · Plan hash: `{plan.hash}`\n\n"
             "Review or edit the issue body on GitHub. Approve the exact current body by "
             "applying `workflow/approved` or commenting `/approve` on the issue."
@@ -369,7 +392,7 @@ class MatrixCoordinator:
                 f"\n\nDelegated {len(names)} focused read-only task(s) to local planning "
                 "scouts. Their Agent Runs threads will be linked here after Matrix acknowledges "
                 "them. I’ll post the draft or a substantive question here when they finish.",
-                row["root_event_id"],
+                "planner", plan_id=row["plan_id"],
             )
         if decision["status"] == "ready":
             version = row["current_version"] + 1
@@ -380,15 +403,18 @@ class MatrixCoordinator:
             self.core.record_plan(plan)
             transition = decision["message"].strip()
             issue_url = self.state.plan(plan.plan_id)["github_issue_url"]
+            # DRAFTED is a notifying transition: the plan now waits on Tim.
             return self._message(
-                f"{transition}\n\n{self._plan_message(plan, issue_url)}", row["root_event_id"])
+                f"{transition}\n\n{self._plan_message(plan, issue_url)}",
+                "planner", mention=True, plan_id=row["plan_id"])
         self.state.add_intake_message(
             event_id + ":assistant", row["plan_id"], "planner",
             "assistant", decision["status"], decision["message"],
         )
         self.state.set_plan_state(row["plan_id"], "intake")
         suffix = "\n\nReply here, or send `!cogito draft` to proceed with stated assumptions."
-        return self._message(decision["message"].strip() + suffix, row["root_event_id"])
+        return self._message(decision["message"].strip() + suffix, "planner",
+                             mention=True, plan_id=row["plan_id"])
 
     def _planner_messages(self, row) -> list[dict[str, str]]:
         messages = self.state.intake_messages(row["plan_id"])
@@ -410,10 +436,10 @@ class MatrixCoordinator:
         if not self.state.reserve_astra_turn(
                 row["plan_id"], "intake", self.astra_turn_cap):
             return self._message(
-                f"◆ Astra: **Needs input:** this plan reached the "
+                f"**Needs input:** this plan reached the "
                 f"{self.astra_turn_cap}-turn planning cap. "
                 "Raise the configured cap or cancel the plan before continuing.",
-                row["root_event_id"],
+                "planner", mention=True, plan_id=row["plan_id"],
             )
         decision = self.planner.intake(
             self._planner_messages(row), force=force,
@@ -436,7 +462,7 @@ class MatrixCoordinator:
             repository=plan["repository"],
             issue_urls=[deliverable["issue_url"]],
             room_id=plan["matrix_room_id"],
-            thread_root=plan["root_event_id"],
+            anchor_event_id=plan["root_event_id"],
             deliverable_position=deliverable["position"],
         )
         status = self.foreman.summary(workload)
@@ -465,8 +491,9 @@ class MatrixCoordinator:
         if outcome == "completed":
             self.state.enqueue_matrix(
                 f"plan:{row['plan_id']}:completed",
-                row["matrix_room_id"], row["root_event_id"],
+                row["matrix_room_id"], "",
                 f"Plan `{row['plan_id']}` is **Completed**; every approved deliverable merged.",
+                mention=True, plan_id=row["plan_id"],
             )
 
     def _synthesize_research(self, ready) -> None:
@@ -482,9 +509,10 @@ class MatrixCoordinator:
                         row["plan_id"], "synthesis", self.astra_turn_cap):
                     self.state.enqueue_matrix(
                         f"plan:{row['plan_id']}:astra-cap",
-                        row["matrix_room_id"], row["root_event_id"],
-                        f"◆ Astra: **Needs input:** this plan reached the "
+                        row["matrix_room_id"], "",
+                        f"**Needs input:** this plan reached the "
                         f"{self.astra_turn_cap}-turn planning cap.",
+                        sender="planner", mention=True, plan_id=row["plan_id"],
                     )
                     return
                 decision = self.planner.intake(
@@ -498,16 +526,20 @@ class MatrixCoordinator:
                 self.state.set_plan_state(row["plan_id"], "research_failed")
                 self.state.enqueue_matrix(
                     f"plan:{row['plan_id']}:research:{ready['round']}:failed",
-                    row["matrix_room_id"], row["root_event_id"],
+                    row["matrix_room_id"], "",
                     f"Planning synthesis is **Blocked**: {type(exc).__name__}. "
                     "Send `!cogito draft` to retry with the completed scout summaries.",
+                    mention=True, plan_id=row["plan_id"],
                 )
                 return
             for index, action in enumerate(result.get("actions", [])):
                 if action.get("kind") == "message":
                     self.state.enqueue_matrix(
                         f"plan:{row['plan_id']}:research:{ready['round']}:result:{index}",
-                        row["matrix_room_id"], row["root_event_id"], action["body"],
+                        row["matrix_room_id"], "", action["body"],
+                        sender=action.get("sender", "gateway"),
+                        mention=bool(action.get("mention")),
+                        plan_id=row["plan_id"],
                     )
 
     def reconcile_once(self) -> None:
@@ -552,9 +584,10 @@ class MatrixCoordinator:
                 )
                 self.state.enqueue_matrix(
                     f"deliverable:{row['plan_id']}:{row['deliverable_position']}:failed",
-                    row["matrix_room_id"], row["root_event_id"],
+                    row["matrix_room_id"], "",
                     f"Deliverable {row['deliverable_position']} is **Blocked**: Foreman Workload "
                     f"`{row['name']}` failed. Use `!cogito status` for task counts.",
+                    mention=True, plan_id=row["plan_id"],
                 )
             elif status["phase"] == "Completed":
                 try:
@@ -603,8 +636,9 @@ class MatrixCoordinator:
                     )
                     self.state.enqueue_matrix(
                         f"deliverable:{row['plan_id']}:{row['deliverable_position']}:quorum-failed",
-                        row["matrix_room_id"], row["root_event_id"],
+                        row["matrix_room_id"], "",
                         f"Deliverable {row['deliverable_position']} is **Blocked**: {exc}.",
+                        mention=True, plan_id=row["plan_id"],
                     )
                     continue
                 self.state.begin_merge(
@@ -641,8 +675,9 @@ class MatrixCoordinator:
                 )
                 self.state.enqueue_matrix(
                     f"merge:{row['plan_id']}:{row['position']}:failed",
-                    row["matrix_room_id"], row["root_event_id"],
+                    row["matrix_room_id"], "",
                     f"Deliverable {row['position']} is **Blocked**: {detail}",
+                    mention=True, plan_id=row["plan_id"],
                 )
 
         # Crash recovery never bypasses Luna: reconstruct only the durable
@@ -686,15 +721,15 @@ class MatrixCoordinator:
 
     def _handle(self, event: MatrixEvent) -> dict[str, Any]:
         body = event.body.strip()
-        root = event.thread_root or event.event_id
         if event.sender not in self.allowed_senders:
             raise ValidationError("Matrix sender is not allowlisted")
-        # Root-level images belong to the configured project room or require a
-        # command caption elsewhere. Thread images are contextual input. In all
-        # cases a local model reduces raw media to bounded text before Astra or
-        # Luna sees it.
-        if event.image and (event.thread_root or body.startswith("!cogito")
-                            or event.room_id in self.project_rooms):
+        implementation_room = bool(self.implementation_room_id) and (
+            event.room_id == self.implementation_room_id)
+        conversational = event.room_id in self.project_rooms or implementation_room
+        # Images in a conversational room are contextual input; elsewhere they
+        # need a command caption. In all cases a local model reduces raw media
+        # to bounded text before Astra or Luna sees it.
+        if event.image and (conversational or body.startswith("!cogito")):
             if not self.images:
                 raise ValidationError("image description is not configured")
             description = self.images.describe(
@@ -702,47 +737,57 @@ class MatrixCoordinator:
                 event.image.get("name", ""), body,
             )
             body += "\n\n[Local Muse image description]\n" + description
-        if event.thread_root and body.lower() in {"status", "stop"}:
+        if conversational and body.lower() in {"status", "stop"}:
             body = "!cogito " + body.lower()
-        if (not event.thread_root and not body.startswith("!cogito")
-                and event.room_id in self.project_rooms):
-            body = "!cogito plan " + body
         if not body.startswith("!cogito"):
-            if not event.thread_root:
+            if not conversational:
                 return {"actions": []}
-            plan = self.state.plan_for_thread(event.room_id, event.thread_root)
-            implementation = False
-            if not plan:
-                plan = self.state.plan_for_implementation_thread(
-                    event.room_id, event.thread_root)
-                implementation = bool(plan)
-            if not plan:
-                return {"actions": []}
-            if implementation:
+            if implementation_room:
+                plan = self.state.active_plan_for_room(event.room_id)
+                if event.reply_to:
+                    plan = self.state.plan_for_sent_event(
+                        event.room_id, event.reply_to) or plan
+                if not plan:
+                    return {"actions": []}
                 self.state.enqueue_coordinator_event(
                     f"matrix:{event.event_id}", plan["plan_id"], "matrix",
                     "owner.instruction", {"actor": event.sender, "body": body[:8_000]},
                     delay_seconds=0,
                 )
-                return self._message("● Luna: instruction queued.", root)
-            if plan["state"] in {"intake", "research_failed"}:
-                self.state.add_intake_message(
-                    event.event_id, plan["plan_id"], event.sender, "user", "answer", body)
-                return self._continue_intake(event, plan)
-            if plan["state"] in {"researching", "synthesizing"}:
-                if event.image:
+                return self._message("Instruction queued.", "coordinator",
+                                     plan_id=plan["plan_id"])
+            plan = None
+            if event.reply_to:
+                plan = self.state.plan_for_sent_event(event.room_id, event.reply_to)
+            plan = plan or self.state.active_plan_for_room(event.room_id)
+            # A project room with no plan in flight treats a bare message as a
+            # new objective, which is the prefix-free intake Tim uses from the
+            # phone. Everything else continues the plan already in the room.
+            if not plan:
+                body = "!cogito plan " + body
+            else:
+                plan_id = plan["plan_id"]
+                if plan["state"] in {"intake", "research_failed"}:
                     self.state.add_intake_message(
-                        event.event_id, plan["plan_id"], event.sender,
-                        "user", "owner_image", body)
+                        event.event_id, plan_id, event.sender, "user", "answer", body)
+                    return self._continue_intake(event, plan)
+                if plan["state"] in {"researching", "synthesizing"}:
+                    if event.image:
+                        self.state.add_intake_message(
+                            event.event_id, plan_id, event.sender,
+                            "user", "owner_image", body)
+                        return self._message(
+                            "Image described locally and recorded for the pending synthesis. "
+                            "Send `!cogito status` for scout progress or `!cogito draft` to "
+                            "draft now from completed results.", plan_id=plan_id)
                     return self._message(
-                        "Image described locally and recorded for the pending synthesis. "
-                        "Send `!cogito status` for scout progress or `!cogito draft` to "
-                        "draft now from completed results.", root)
+                        "Planning scouts are still working. Send `!cogito status` for progress "
+                        "or `!cogito draft` to draft now from completed results.",
+                        plan_id=plan_id)
+                self.state.add_plan_comment(event.event_id, plan_id, event.sender, body)
                 return self._message(
-                    "Planning scouts are still working. Send `!cogito status` for progress or "
-                    "`!cogito draft` to draft now from completed results.", root)
-            self.state.add_plan_comment(event.event_id, plan["plan_id"], event.sender, body)
-            return self._message("Review comment recorded. Send `!cogito revise` when ready.", root)
+                    "Review comment recorded. Send `!cogito revise` when ready.",
+                    plan_id=plan_id)
         command, _, argument = body.removeprefix("!cogito").strip().partition(" ")
         command = command.lower()
         if command == "react":
@@ -755,10 +800,10 @@ class MatrixCoordinator:
                 self.state.enqueue_coordinator_event(
                     f"matrix:{event.event_id}:cancel", row["plan_id"], "matrix",
                     "owner.cancelled", {"actor": event.sender}, delay_seconds=0)
-                return self._message("▣ gateway: plan cancelled.", row["root_event_id"])
+                return self._message("Plan cancelled.", plan_id=row["plan_id"])
             if reaction == "⏸":
                 self.state.pause_plan(row["plan_id"])
-                return self._message("▣ gateway: plan paused.", row["root_event_id"])
+                return self._message("Plan paused.", plan_id=row["plan_id"])
             if reaction == "🔄":
                 if row["state"] == "paused":
                     state = self.state.resume_plan(row["plan_id"])
@@ -768,12 +813,13 @@ class MatrixCoordinator:
                 self.state.enqueue_coordinator_event(
                     f"matrix:{event.event_id}:retry", row["plan_id"], "matrix",
                     "owner.retry", {"actor": event.sender}, delay_seconds=0)
-                return self._message("▣ gateway: " + text, row["root_event_id"])
+                return self._message(text, plan_id=row["plan_id"])
             if reaction == "🔍":
                 self.state.enqueue_coordinator_event(
                     f"matrix:{event.event_id}:investigate", row["plan_id"], "matrix",
                     "owner.investigate", {"actor": event.sender}, delay_seconds=0)
-                return self._message("● Luna: investigation queued.", row["root_event_id"])
+                return self._message("Investigation queued.", "coordinator",
+                                     plan_id=row["plan_id"])
             raise ValidationError("unsupported plan-card reaction")
         if command == "plan":
             if not argument.strip():
@@ -787,23 +833,26 @@ class MatrixCoordinator:
                 event.event_id, plan_id, event.sender, "user", "objective", argument.strip())
             return self._continue_intake(event, self.state.plan(plan_id))
         if command == "draft":
-            row = self._thread_plan(event)
+            row = self._event_plan(event, argument)
             if row["state"] not in {"intake", "researching", "synthesizing", "research_failed"}:
                 raise ValidationError("this plan already has a draft")
             return self._continue_intake(event, row, force=True)
         if command == "revise":
-            row = self._thread_plan(event)
+            row = self._event_plan(event, argument)
             comments = self.state.plan_comments(row["plan_id"])
             if not comments:
                 raise ValidationError("no review comments have been recorded")
             return self._continue_intake(event, row)
         if command == "approve":
-            row = self._thread_plan(event)
-            digest = argument.strip()
-            if digest:
-                if not HASH.fullmatch(digest):
-                    raise ValidationError("usage: !cogito approve [sha256:<64 hex characters>]")
-            else:
+            # The optional argument is either the exact content hash being
+            # approved or, flat-room style, the plan identifier to disambiguate.
+            argument = argument.strip()
+            digest = argument if HASH.fullmatch(argument) else ""
+            if argument and not digest and not argument.startswith("plan-"):
+                raise ValidationError(
+                    "usage: !cogito approve [sha256:<64 hex characters> | <plan-id>]")
+            row = self._event_plan(event, "" if digest else argument)
+            if not digest:
                 version = self.state.current_plan_version(row["plan_id"])
                 try:
                     sent_at = datetime.fromisoformat(event.timestamp.replace("Z", "+00:00"))
@@ -821,48 +870,54 @@ class MatrixCoordinator:
             links = "\n".join(f"- {child}" for child in children)
             return self._message(
                 f"Plan accepted at `{digest}`.\n\nParent issue: {parent}\n\nDeliverables:\n{links}"
-                "\n\n● Luna queued the approved plan for serial execution. The gateway will "
-                "merge only after two independent reviewer approvals and required checks.", root)
+                "\n\nQueued for serial execution. The gateway will merge only after two "
+                "independent reviewer approvals and required checks.",
+                plan_id=row["plan_id"])
         if command == "status":
             name = argument.strip()
-            if not name:
-                row = self._thread_plan(event)
+            row = None
+            if not name or name.startswith("plan-"):
+                row = self._event_plan(event, name)
+                name = ""
                 if row["state"] in {"researching", "synthesizing", "research_failed"}:
                     progress = self.state.research_progress(row["plan_id"])
                     complete = progress.get("Succeeded", 0) + progress.get("Failed", 0)
                     return self._message(
                         f"Planning research is **{row['state']}**: {complete}/"
                         f"{progress['total']} scout tasks finished "
-                        f"({progress.get('Failed', 0)} failed).", root)
+                        f"({progress.get('Failed', 0)} failed).", plan_id=row["plan_id"])
                 saved = self.state.workload_for_plan(row["plan_id"])
                 if not saved:
                     if row["state"] in {"accepted", "decomposed"}:
                         usage = self.state.luna_usage(row["plan_id"])
                         return self._message(
                             f"Plan is **{row['state']}** and queued for Luna coordination. "
-                            f"Luna turns: {usage['turns']}.", root)
+                            f"Luna turns: {usage['turns']}.", plan_id=row["plan_id"])
                     raise ValidationError("this plan has no Foreman Workload")
                 name = saved["name"]
             workload = self.foreman.get(name)
             status = self.foreman.summary(workload)
             self.state.update_workload(name, status)
-            progress = self.state.plan_progress(row["plan_id"]) if not argument.strip() else {}
+            progress = self.state.plan_progress(row["plan_id"]) if row else {}
             progress_text = (f" Plan progress: {progress.get('merged', 0)}/"
                              f"{progress.get('total', 0)} deliverables merged.") if progress else ""
             return self._message(
                 f"Workload `{name}` is **{status['phase']}**: "
                 f"{status['succeeded']} succeeded, {status['failed']} failed, "
-                f"{status['incomplete']} incomplete.{progress_text}", root)
+                f"{status['incomplete']} incomplete.{progress_text}",
+                plan_id=row["plan_id"] if row else None)
         if command == "stop":
-            row = self._thread_plan(event)
+            row = self._event_plan(event, argument)
             self.state.set_plan_state(row["plan_id"], "cancelled")
             self.state.enqueue_coordinator_event(
                 f"matrix:{event.event_id}:cancel", row["plan_id"], "matrix",
                 "owner.cancelled", {"actor": event.sender}, delay_seconds=0)
-            return self._message("▣ gateway: plan cancelled.", root)
+            return self._message("Plan cancelled.", plan_id=row["plan_id"])
         if command in {"help", ""}:
             return self._message(
-                "Commands: `plan <objective>`, `draft`, `revise`, `approve [hash]`, "
-                "`status [workload]`, `stop`. During intake, ordinary thread replies continue the "
-                "planner conversation; after a draft, they become review comments.", root)
+                "Commands: `plan <objective>`, `draft`, `revise`, `approve [hash|plan-id]`, "
+                "`status [workload|plan-id]`, `stop`. In this room an ordinary message "
+                "continues the open plan: during intake it answers the planner, after a draft "
+                "it becomes a review comment. Reply to a specific message to address an older "
+                "plan, or name it as `plan-<id>`.")
         raise ValidationError("unknown !cogito command")
