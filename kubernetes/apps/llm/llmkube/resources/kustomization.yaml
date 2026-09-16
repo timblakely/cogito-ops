@@ -14,6 +14,7 @@ resources:
   - ./cache-prime-retrieval.yaml
   - ./single-card-models.yaml
   - ./cache-prime-single-card.yaml
+  - ./cache-prime-qwen38-int8.yaml
   - ./flashnext.yaml
 configMapGenerator:
   - name: qwen38-vllm-029-runtime
@@ -23,5 +24,6 @@ configMapGenerator:
       - patch_dflash_dense_kv.py=./runtime/qwen38-vllm-029/patch_dflash_dense_kv.py
       - patch_mamba_drop_eagle_block.py=./runtime/qwen38-vllm-029/patch_mamba_drop_eagle_block.py
       - patch_gdn_mtp_async_spec_order.py=./runtime/qwen38-vllm-029/patch_gdn_mtp_async_spec_order.py
+      - patch_gdn_spec_state_bounds.py=./runtime/qwen38-vllm-029/patch_gdn_spec_state_bounds.py
 generatorOptions:
   disableNameSuffixHash: true
