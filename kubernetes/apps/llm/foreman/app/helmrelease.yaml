@@ -90,8 +90,14 @@ spec:
 
     # Separate FleetNodes make the task role a credential boundary. The
     # execution pool gets the push-capable App token; read-only scout Jobs do
-    # not receive GITHUB_TOKEN at all. Two slots per pool retain the cluster's
-    # four-task ceiling while allowing both reviewer/scout pairs to run.
+    # not receive GITHUB_TOKEN at all.
+    #
+    # Splitting the pools turned R8's cluster-wide four-task ceiling into a
+    # static 2+2, which silently halved planning concurrency: during a research
+    # round the execution pool sits idle at 0/2 and scouts cannot borrow its
+    # slots, so Astra's third scout queued behind the first two. Measured with
+    # two scouts on the Qwen lane: ~15% of a 360,264-token KV pool, zero
+    # preemptions, Waiting: 0. The serving lane was never the constraint.
     agents:
       execution:
         roles: [worker, coder, verifier, reviewer]
@@ -105,7 +111,9 @@ spec:
         coderGitSecretKey: token
       scouts:
         roles: [planner]
-        maxSupervisedTasks: 2
+        # Astra dispatches at most four scouts per round; eight leaves room for
+        # a second round to overlap the first without queueing.
+        maxSupervisedTasks: 8
         # The chart requires a Secret projection for every Job pool. This
         # names an intentionally empty credential, so public read-only clones
         # work while GitHub-authenticated fetches and pushes cannot.

@@ -14,10 +14,12 @@ import hashlib
 import hmac
 import json
 import os
+import re
+from typing import Any
 
 from maubot import MessageEvent, Plugin
 from maubot.handlers import event
-from mautrix.errors import MNotFound, MUnknown
+from mautrix.errors import MLimitExceeded, MNotFound, MUnknown
 from mautrix.crypto.attachments import decrypt_attachment
 from mautrix.types import (Event, EventID, EventType, MessageType, RelationType, RoomID,
                            TextMessageEventContent)
@@ -35,6 +37,10 @@ class CogitoBot(Plugin):
     MAX_IMAGE_BYTES = 8 * 1024 * 1024
     IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
     PINNED = EventType.find("m.room.pinned_events", EventType.Class.STATE)
+    # Synapse rate-limits bursts. Pace ordinary sends and wait out the limiter
+    # rather than letting one throttled write wedge the strictly ordered queue.
+    SEND_PACE = 0.3
+    RATE_LIMIT_ATTEMPTS = 8
 
     async def start(self) -> None:
         self._role = os.environ.get("COGITO_BOT_ROLE", "gateway")
@@ -134,17 +140,21 @@ class CogitoBot(Plugin):
                         })
                         continue
                     if kind == "edit":
-                        content = TextMessageEventContent(
-                            msgtype=MessageType.TEXT, body=item["body"])
-                        content.set_edit(EventID(item["target_event_id"]))
-                        event_id = await self.client.send_message_event(
-                            RoomID(item["room_id"]), EventType.ROOM_MESSAGE,
-                            content, txn_id=item["notification_id"],
-                        )
+                        def edit() -> Any:
+                            content = TextMessageEventContent(
+                                msgtype=MessageType.TEXT, body=item["body"])
+                            content.set_edit(EventID(item["target_event_id"]))
+                            return self.client.send_message_event(
+                                RoomID(item["room_id"]), EventType.ROOM_MESSAGE,
+                                content, txn_id=item["notification_id"],
+                            )
+
+                        event_id = await self._patiently(edit, item["notification_id"])
                         await self._request("/v1/matrix/outbox", {
                             "operation": "ack", "notification_id": item["notification_id"],
                             "event_id": str(event_id),
                         })
+                        await asyncio.sleep(self.SEND_PACE)
                         continue
                     relates_to = None
                     if item.get("thread_root"):
@@ -152,25 +162,53 @@ class CogitoBot(Plugin):
                         relation.set_thread_parent(EventID(item["thread_root"]), reply_fallback=True)
                         relates_to = relation.relates_to
                     try:
-                        event_id = await self._send(item, relates_to)
+                        event_id = await self._patiently(
+                            lambda: self._send(item, relates_to), item["notification_id"])
                     except MUnknown as exc:
                         if "unknown event" not in str(exc).lower():
                             raise
                         # A referenced root the bot never saw must not strand the
                         # notification; deliver it at room level instead.
-                        event_id = await self._send(
-                            dict(item, body="[Original context unavailable] " + item["body"],
-                                 notification_id=item["notification_id"] + "-fallback"),
-                            None)
+                        fallback = dict(
+                            item, body="[Original context unavailable] " + item["body"],
+                            notification_id=item["notification_id"] + "-fallback")
+                        event_id = await self._patiently(
+                            lambda: self._send(fallback, None), fallback["notification_id"])
                     await self._request("/v1/matrix/outbox", {
                         "operation": "ack", "notification_id": item["notification_id"],
                         "event_id": str(event_id),
                     })
+                    await asyncio.sleep(self.SEND_PACE)
             except asyncio.CancelledError:
                 raise
             except Exception:
                 self.log.exception("gateway outbox delivery failed")
             await asyncio.sleep(5)
+
+    @staticmethod
+    def _retry_after(exc: Exception, attempt: int) -> float:
+        found = re.search(r'"?retry_after_ms"?[:=]\s*(\d+)', str(exc))
+        if found:
+            return min(int(found.group(1)) / 1000 + 0.25, 60.0)
+        return min(2.0 ** attempt, 60.0)
+
+    async def _patiently(self, action, description: str):
+        """Run one Matrix write, waiting out Synapse's rate limiter.
+
+        Publishing a scout transcript is a burst of ~70 messages and reliably
+        trips M_LIMIT_EXCEEDED. Retrying the individual write matters because
+        the outbox is strictly ordered: without it the batch aborts on the same
+        head item every cycle and the queue never drains again.
+        """
+        for attempt in range(self.RATE_LIMIT_ATTEMPTS):
+            try:
+                return await action()
+            except MLimitExceeded as exc:
+                delay = self._retry_after(exc, attempt)
+                self.log.warning(
+                    "rate limited delivering %s; retrying in %.1fs", description, delay)
+                await asyncio.sleep(delay)
+        return await action()
 
     async def _send(self, item: dict, relates_to) -> EventID:
         """Send one outbox message, pinging the owner when it needs a decision.
