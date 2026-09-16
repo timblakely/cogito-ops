@@ -69,7 +69,7 @@ and the two differ whenever an alias pins `reasoning_effort` in
 Measured 2026-08-28: a server-side `reasoning_effort` overwrites whatever the
 client puts in `chat_template_kwargs`. The clean proof is the template-invalid
 value `high` — sent to `worker` it returns 200, because the pin replaced it
-before the template ever saw it; sent to `Qwen/Qwen3.8-27B-FP8`, which pins
+before the template ever saw it; sent to `Qwen/Qwen3.8-27B-INT8-W8A16`, which pins
 nothing, it 400s out of the Jinja. `enable_thinking` is *not* overwritten (the
 pin does not set it), so a client can still turn thinking off on a pinned alias.
 
@@ -92,7 +92,7 @@ mirroring is a standing maintenance cost rather than a bug to fix.
 
 The mirror is not strict equality in one direction. An alias may advertise
 **less** than its backend serves, which is how several aliases can share one
-backend at different context budgets: `Qwen/Qwen3.8-27B-FP8` publishes the full
+backend at different context budgets: `Qwen/Qwen3.8-27B-INT8-W8A16` publishes the full
 262144 ceiling for interactive use, while `worker` and `reviewer` publish 131072
 so coordinated fan-out plans against a window the ~275k-token KV pool can
 actually hold several of. That gap has to be declared with

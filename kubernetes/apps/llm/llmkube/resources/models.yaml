@@ -1,15 +1,27 @@
 ---
-# Official Qwen FP8 target, already staged on the NVMe hot tier. The serving
-# profile mounts the complete cache because its external DFlash2 drafter and
-# FA2 artifact live alongside this model.
+# Weight-only INT8 (compressed-tensors W8A16) Qwen 3.8 target, staged on the
+# NVMe hot tier. SM86 has no FP8 compute, so 8-bit weights are served through
+# Marlin either way; INT8 W8A16 is the documented near-lossless build of that
+# path (98.1% top-1 agreement, 0.0007 mean KLD against BF16).
+#
+# This is the MTP build, not the DFlash2 build, for two measured reasons.
+# First, the DFlash2 build also packs its EMBEDDING table, and vLLM 0.29.0
+# cannot load that ("no module or parameter named embed_tokens.weight_packed"
+# in VocabParallelEmbedding); the club-3090 patch the model card credits for it
+# does not exist in that repo's current tree. Second, this build's BF16
+# embedding is the higher-precision half of that difference. The Linear
+# quantization - the part that carries the accuracy claim - is identical.
+#
+# The serving profile mounts the complete cache because the FA2 artifact and
+# the staged DFlash2 drafters live alongside this model.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: Model
 metadata:
   name: qwen3-8-27b
 spec:
-  source: pvc://llmkube-model-cache/qwen-3-8-fp8
+  source: pvc://llmkube-model-cache/qwen-3-8-int8-w8a16-mtp
   format: safetensors
-  quantization: fp8
+  quantization: compressed-tensors
   hardware:
     accelerator: cuda
     gpu:

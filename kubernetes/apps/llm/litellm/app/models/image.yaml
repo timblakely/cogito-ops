@@ -1,6 +1,21 @@
 ---
-# Dedicated local vision route for owner-supplied Matrix images. Qwen's
-# dual-card profile keeps the vision tower enabled while Glimmer is suspended.
+# Dedicated local vision route for owner-supplied Matrix images.
+#
+# Re-pointed 2026-09-16 from the Qwen dual-card lane to kristeva's CPU vision
+# lane. The Qwen profile now runs --language-model-only: its vision tower costs
+# 0.858 GiB of BF16 weights plus an encoder cache budget, and that memory is
+# worth more to the concurrent-session KV pool than an image path that was
+# already duplicated by the `vision` alias. This alias therefore now shares the
+# vision-cpu backend with `vision`, and keeps its own virtual key and the long
+# timeout that CPU vision needs.
+#
+# CAPABILITY CHANGE: the context ceiling drops from 131072 to the CPU lane's
+# real 16384. Nothing in this repo consumed the larger figure - the alias's
+# only in-repo reference is its own virtual key - but a client that sized
+# prompts against 131072 will now be told 16384. If large-context image work
+# comes back, the options are un-suspending muse-glimmer-30b (which keeps a
+# projector in host RAM) or restoring the Qwen vision tower by dropping
+# --language-model-only, at a measured ~24,000 tokens of KV pool.
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:
@@ -11,14 +26,14 @@ spec:
   modelName: image
   proxyRef: litellm
   params:
-    model: openai/qwen3.8-27b
-    apiBase: http://qwen3-8-27b.llm.svc.cluster.local:18020/v1
+    model: openai/vision-cpu
+    apiBase: http://vision-cpu.llm.svc.cluster.local:8080/v1
     apiKey: not-needed
     additional:
       timeout: 1800
   info:
     supportsVision: true
-    maxInputTokens: 131072
+    maxInputTokens: 16384
     maxOutputTokens: 4096
     extra:
       input_cost_per_token: 0

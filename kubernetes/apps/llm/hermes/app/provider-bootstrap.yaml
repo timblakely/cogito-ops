@@ -53,10 +53,10 @@ data:
         "api": "http://litellm.llm.svc.cluster.local:4000/v1",
         "key_env": "LITELLM_API_KEY",
         "transport": "chat_completions",
-        "default_model": "Qwen/Qwen3.8-27B-FP8",
+        "default_model": "Qwen/Qwen3.8-27B-INT8-W8A16",
         "discover_models": False,
         "models": {
-            "Qwen/Qwen3.8-27B-FP8": {"context_length": 262144},
+            "Qwen/Qwen3.8-27B-INT8-W8A16": {"context_length": 262144},
         },
     }
 
@@ -80,7 +80,7 @@ data:
     aliases.update(
         {
             "qwen": {
-                "model": "Qwen/Qwen3.8-27B-FP8",
+                "model": "Qwen/Qwen3.8-27B-INT8-W8A16",
                 "provider": "custom:litellm-chat",
                 "base_url": "http://litellm.llm.svc.cluster.local:4000/v1",
             },
