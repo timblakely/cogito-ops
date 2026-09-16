@@ -4,7 +4,7 @@ kind: LiteLLMModel
 metadata:
   name: qwen3-8-27b
 spec:
-  modelName: Qwen/Qwen3.8-27B-FP8
+  modelName: Qwen/Qwen3.8-27B-INT8-W8A16
   proxyRef: litellm
   params:
     model: openai/qwen3.8-27b
@@ -15,7 +15,11 @@ spec:
         - reasoning_effort
   info:
     supportsFunctionCalling: true
-    supportsVision: true
+    # false since 2026-09-16: the backend runs --language-model-only, so the
+    # vision tower is not loaded at all. Image traffic goes to the `vision`
+    # alias on kristeva's CPU lane. Leaving this true would advertise a
+    # capability the backend answers with a 400.
+    supportsVision: false
     maxInputTokens: 262144
     maxOutputTokens: 16384
     extra:
