@@ -95,6 +95,49 @@ Cold prefill runs ~1,200 tok/s aggregate, so a 110K prompt is ~95 s alone and
 three concurrent cold ones are ~7 minutes. Prefix caching is therefore
 load-bearing for multi-turn sessions, not an optimisation.
 
+### fp8 vs bf16 KV cache
+
+Same profile, `--kv-cache-dtype` unset (`auto` = bf16) and `--max-model-len`
+lowered to 131072, because bf16 cannot hold a 262144-token sequence. Same two
+greedy prompts (119,046 and 123,869 tokens), thinking disabled.
+
+| | fp8_e4m3 | bf16 |
+|---|---:|---:|
+| GPU KV cache size | 392,483 | 199,170 |
+| TTFT p50 | 137.68 s | 126.20 s |
+| **decode tok/s p50 at ~120K** | **53.26** | **13.24** |
+| acceptance | 55.1% | 53.6% |
+
+The decode figure inverts the usual worry about fp8 KV on Ampere. Both runs
+selected `AttentionBackendEnum.FLASH_ATTN`, so this is not a backend fallback:
+long-context decode is bandwidth-bound on the KV read, and the SM86 FA2+fp8-KV
+plugin halves the bytes moved per step. bf16 KV is worse on every axis that
+matters here - half the pool, a quarter of the long-context decode rate, and it
+cannot serve the 262144 ceiling at all.
+
+**Quality.** A free-form greedy diff is the WRONG instrument: the two dtypes
+diverged at near-tie word choices ("the vLLM inference engine" vs "the vLLM
+paper" at char 40; "the initial prompt processing (prefill phase)" vs "the
+initial prompt tokens" at char 1,057), both continuations staying coherent.
+That cannot separate flipped near-ties from lost information.
+
+Retrieval can. Five unguessable codes planted at 8/28/50/72/93% depth in a
+111,001-token prompt, greedy, scored on exact match:
+
+| KV dtype | retrieved |
+|---|---:|
+| bf16 | 5/5 |
+| fp8_e4m3 | 5/5 |
+
+Both returned the same five lines in the same order. fp8 KV is not costing
+quality at this length.
+
+Caveat: the checkpoint declares `kv_cache_scheme: null` - no dataset-calibrated
+K/V scales - and its card states plainly that "long-context KV accuracy is not
+[verified] ... no saturation probe was performed". The 392,483-token pool makes
+200K+ single sessions reachable for the first time, so re-run this needle test
+at that length before trusting fp8 KV up there.
+
 ### Untried levers
 
 Enumerated rather than tested, because the >= 340K goal was already met:

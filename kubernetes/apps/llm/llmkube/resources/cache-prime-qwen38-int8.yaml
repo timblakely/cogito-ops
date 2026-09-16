@@ -1,9 +1,18 @@
 ---
-# Stage the INT8 W8A16 Qwen 3.8 target and its matching DFlash2 drafter into
-# the NFS archive and iggy's NVMe hot tier. The target is weight-only INT8
-# served through Marlin, which is the only 8-bit path SM86 has; the W8 drafter
-# is the one named by the target's own model card, not the upstream incoai
-# BF16 drafter, and the two are versioned together.
+# Stage the INT8 W8A16 DFlash2 build and its matching W8 drafter into the NFS
+# archive and iggy's NVMe hot tier.
+#
+# NEITHER IS CURRENTLY SERVED. The lane runs the sibling INT8-W8A16-MTP build
+# (see models.yaml) because this build packs its embedding table and vLLM
+# 0.29.0 cannot load that: "no module or parameter named
+# embed_tokens.weight_packed in Qwen3_5Model". The club-3090 patch the model
+# card credits for it does not exist in that repo's current tree.
+#
+# They are staged anyway, and deliberately: the packed embedding is worth
+# ~1.12 GiB of KV pool if vLLM ever grows support, and re-pulling 30 GB to
+# test that later is the expensive part. Deleting this Job would also delete
+# the weights, so remove it only together with that entry in the untried-lever
+# list in plans/llm/bench-notes.md.
 #
 # Both repos are pinned by revision and every LFS blob is verified by sha256
 # in the archive and again after its atomic install into the hot cache.
