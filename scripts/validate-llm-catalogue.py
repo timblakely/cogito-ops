@@ -88,8 +88,8 @@ def parse_raw(paths):
 
 
 def collect(docs):
-    state = {"models": {}, "keys": {}, "backends": {}, "proxies": [],
-             "routers": set(), "env_refs": []}
+    state = {"models": {}, "keys": {}, "key_roles": {}, "backends": {},
+             "proxies": [], "routers": set(), "env_refs": []}
     for d in docs:
         kind = d.get("kind")
         spec = d.get("spec", {}) or {}
@@ -107,7 +107,18 @@ def collect(docs):
             }
             state["models"].setdefault(spec.get("modelName"), []).append(entry)
         elif kind == "LiteLLMVirtualKey":
-            state["keys"][meta.get("name")] = spec.get("models")
+            name = meta.get("name")
+            state["keys"][name] = spec.get("models")
+            # The k8s object name carries rotation suffixes - reviewer.yaml is
+            # metadata.name reviewer-v2 after a credential rotation - while
+            # keyAlias is the stable role identity LiteLLM actually sees. Index
+            # roles off the alias so rotating a key does not read as a missing
+            # one. Consumer keys (Hermes, open-webui, pi) do not use the role-
+            # prefix and fall back to the object name, which is already their
+            # role identity.
+            alias = spec.get("keyAlias") or ""
+            role = alias[len("role-"):] if alias.startswith("role-") else name
+            state["key_roles"][role] = name
         elif kind == "InferenceService":
             vc = spec.get("vllmConfig") or {}
             state["backends"][meta.get("name")] = (
@@ -249,16 +260,18 @@ def check(state):
         "reviewer": {"reviewer", "reviewer-qwen"},
         "escalation": {"worker-escalated", "reviewer-escalated"},
     }
-    for key, expected in expected_role_scopes.items():
-        if key not in state["keys"]:
-            errors.append(f"required workflow role key '{key}' is missing")
+    for role, expected in expected_role_scopes.items():
+        key = state["key_roles"].get(role)
+        if key is None:
+            errors.append(f"required workflow role key '{role}' is missing")
             continue
         actual = state["keys"][key]
+        where = f"'{role}' (LiteLLMVirtualKey/{key})"
         if actual is None:
-            errors.append(f"workflow role key '{key}' must have a model scope")
+            errors.append(f"workflow role key {where} must have a model scope")
         elif set(actual) != expected:
             errors.append(
-                f"workflow role key '{key}' scope is {sorted(actual)}, "
+                f"workflow role key {where} scope is {sorted(actual)}, "
                 f"expected {sorted(expected)}")
 
     return errors, warnings
@@ -286,6 +299,38 @@ def main():
             errors.append("self-test")
         else:
             print("self-test: broken scope correctly detected")
+
+        # Check 9 keyed off the k8s object name, so a rotated credential
+        # (reviewer -> reviewer-v2) read as a MISSING role key and the whole
+        # catalogue failed validation while being perfectly correct. That shape
+        # of bug is a false positive, which no "assert the error fires" case
+        # can catch - so assert the opposite here: a role whose object name
+        # differs from it must still resolve.
+        rotated = {r: k for r, k in state["key_roles"].items() if r != k}
+        if not rotated:
+            print("self-test: no rotated role key present to exercise the role index")
+        else:
+            st_errors, _ = check(state)
+            unresolved = [r for r in rotated
+                          if any(f"role key '{r}' is missing" in e for e in st_errors)]
+            if unresolved:
+                print(f"FAIL: self-test - rotated role key(s) read as missing: {unresolved}")
+                errors.append("self-test")
+            else:
+                pairs = ", ".join(f"{r} -> {k}" for r, k in sorted(rotated.items()))
+                print(f"self-test: rotated role key(s) resolve ({pairs})")
+
+        # Assert check 9 still fires when a role key is genuinely absent.
+        broken = deepcopy(state)
+        victim = next(iter(sorted(broken["key_roles"])))
+        broken["key_roles"].pop(victim)
+        st_errors, _ = check(broken)
+        if not any(f"required workflow role key '{victim}' is missing" in e
+                   for e in st_errors):
+            print(f"FAIL: self-test - absent role key '{victim}' not detected")
+            errors.append("self-test")
+        else:
+            print(f"self-test: absent role key '{victim}' correctly detected")
 
         # The context mirror has two failure shapes now; assert both fire.
         for label, mutate, needle in (
