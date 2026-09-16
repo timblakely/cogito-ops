@@ -18,11 +18,13 @@
 # in the archive and again after its atomic install into the hot cache.
 #
 # Job pod templates are immutable and Flux prunes the old Job after applying
-# the new one: rotate metadata.name when changing this file.
+# the new one: rotate metadata.name when changing this file. Note that YAML
+# comments are stripped from the rendered object, so editing only comments
+# does NOT trigger that recreation.
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: cache-prime-qwen38-int8-v1
+  name: cache-prime-qwen38-int8-v2
   annotations:
     kustomize.toolkit.fluxcd.io/force: Enabled
   labels:
@@ -64,15 +66,6 @@ spec:
               draft_archive=/models/llmkube/Qwen3.8-27B-DFlash2-W8
               draft_hot=/hot/Qwen3.8-27B-DFlash2-W8
 
-              python -m venv /tmp/venv
-              /tmp/venv/bin/pip install --no-cache-dir "huggingface_hub[cli]"
-              mkdir -p "$target_archive" "$target_hot" "$draft_archive" "$draft_hot"
-
-              /tmp/venv/bin/hf download "$target_repo" --revision "$target_rev" \
-                --local-dir "$target_archive" --max-workers 2
-              /tmp/venv/bin/hf download "$draft_repo" --revision "$draft_rev" \
-                --local-dir "$draft_archive" --max-workers 2
-
               cat > /tmp/target.sha <<'SHA'
               3e0f762d406c083575c6346889016ae1ed0e173282be93b2224f82a3d4352cd7  model-00001-of-00006.safetensors
               b04d10bfe7b6432774ed1b37719d0fd8cddfa19439d5897f5a156921ddb60ac6  model-00002-of-00006.safetensors
@@ -86,6 +79,32 @@ spec:
               72223787fbfe7e01c4a940f80f98cf3d7a803e9b79aa4ec7bc28a461d767fa18  model.safetensors
               SHA
               sed -i 's/^ *//' /tmp/target.sha /tmp/draft.sha
+
+              # Fast path. This Job carries `force: Enabled`, so Flux deletes
+              # and recreates it whenever the rendered object changes, and the
+              # naive script then re-copied and re-verified 30 GB. Observed
+              # 2026-09-16: that re-run competed with a serving pod loading 28
+              # GB of weights off the same NVMe and was killed mid-copy, which
+              # left the Kustomization red even though both tiers were already
+              # byte-correct. Verify first, and do nothing if there is nothing
+              # to do. A sha mismatch or a missing file falls through to the
+              # full path below.
+              if [ -f "$target_hot/.promoted" ] && [ -f "$draft_hot/.promoted" ] &&
+                 (cd "$target_hot" && sha256sum --check --status --strict /tmp/target.sha) &&
+                 (cd "$draft_hot" && sha256sum --check --status --strict /tmp/draft.sha); then
+                echo "hot tier already holds both repos, sha256-verified; nothing to do"
+                du -sh "$target_hot" "$draft_hot"
+                exit 0
+              fi
+
+              python -m venv /tmp/venv
+              /tmp/venv/bin/pip install --no-cache-dir "huggingface_hub[cli]"
+              mkdir -p "$target_archive" "$target_hot" "$draft_archive" "$draft_hot"
+
+              /tmp/venv/bin/hf download "$target_repo" --revision "$target_rev" \
+                --local-dir "$target_archive" --max-workers 2
+              /tmp/venv/bin/hf download "$draft_repo" --revision "$draft_rev" \
+                --local-dir "$draft_archive" --max-workers 2
 
               (cd "$target_archive" && sha256sum --check --strict /tmp/target.sha)
               (cd "$draft_archive" && sha256sum --check --strict /tmp/draft.sha)
