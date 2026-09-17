@@ -401,8 +401,16 @@ class StateStore:
                     "UPDATE luna_turns SET state='failed',last_error=? WHERE sequence=?",
                     (str(error)[-2_000:], sequence),
                 )
-                db.execute("UPDATE plans SET state='needs_input' WHERE plan_id=?",
-                           (row["plan_id"],))
+                # A cancelled or completed plan stays that way. Without this
+                # guard a single failing turn resurrected a cancelled plan into
+                # needs_input, which is attributable again, so the next
+                # repository event re-queued it and the cycle repeated.
+                placeholders = ",".join("?" * len(self.TERMINAL_STATES))
+                db.execute(
+                    f"UPDATE plans SET state='needs_input' "
+                    f"WHERE plan_id=? AND state NOT IN ({placeholders})",
+                    (row["plan_id"], *sorted(self.TERMINAL_STATES)),
+                )
             else:
                 delay = min(300, 15 * (2 ** max(0, row["attempts"] - 1)))
                 db.execute(
