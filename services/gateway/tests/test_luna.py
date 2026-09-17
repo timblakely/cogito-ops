@@ -270,6 +270,36 @@ class PhaseGuardTests(unittest.TestCase):
                 [])
             state.close()
 
+    def test_review_comment_reaches_luna_without_announcing_implementation(self):
+        """A comment on the plan issue during review is Luna's to route.
+
+        It must not open an implementation thread: nothing is approved yet,
+        and doing so once posted a pinned "Plan issue: None" to the room.
+        """
+        with tempfile.NamedTemporaryFile() as tmp:
+            state = StateStore(tmp.name)
+            issues = FakeIssues()
+            core = Coordinator(state, issues, set(), {"tim"})
+            core.record_plan(PlanVersion(
+                "plan-review", 1, "# Draft\n", "!room:x", "$root",
+                "https://github.com/t/c.git"))
+            self.assertEqual(state.plan("plan-review")["state"], "review")
+            state.enqueue_coordinator_event(
+                "gh:c1", "plan-review", "github", "github.issue_comment.created",
+                {"comment": "please add a dedupe key"}, 0)
+
+            luna = LunaCoordinator(
+                state, core, None, issues, None, _RecordingClient(),
+                implementation_room_id="!impl:x")
+            luna.reconcile_once()
+
+            # Luna ran, and nothing was posted to the implementation room.
+            self.assertEqual(luna.client.calls, 1)
+            self.assertEqual(
+                [row for row in state.pending_matrix(50)
+                 if row["room_id"] == "!impl:x"], [])
+            state.close()
+
     def test_needs_input_card_edit_carries_a_mention(self):
         with tempfile.NamedTemporaryFile() as tmp:
             state = StateStore(tmp.name)
@@ -285,11 +315,23 @@ class PhaseGuardTests(unittest.TestCase):
             state.close()
 
 
+class _RecordingClient:
+    """Counts turns so a test can assert Luna actually ran."""
+
+    def __init__(self):
+        self.calls = 0
+
+    def run(self, context, execute):
+        self.calls += 1
+        return {"summary": "no action needed", "actions": [],
+                "input_tokens": 0, "output_tokens": 0}
+
+
 class _ExplodingClient:
     """Any call here means the guard failed to stop the turn."""
 
     def run(self, *args, **kwargs):
-        raise AssertionError("Luna ran a turn for a plan not under execution")
+        raise AssertionError("Luna ran a turn for a plan it should have skipped")
 
 
 

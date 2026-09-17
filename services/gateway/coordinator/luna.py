@@ -443,7 +443,7 @@ class LunaCoordinator:
         if not batch:
             return False
         plan = self.state.plan(batch["plan_id"])
-        if plan["state"] not in self.state.IMPLEMENTATION_STATES:
+        if plan["state"] not in self.state.COORDINATED_STATES:
             # The plan went back to planning, or an event reached it before
             # approval. Retire the batch without spending a turn or opening an
             # implementation thread for work that does not exist yet.
@@ -459,7 +459,10 @@ class LunaCoordinator:
                        mention=True)
             self.state.finish_luna_turn(batch["sequence"], {"turn_cap": True}, 0, 0)
             return True
-        self._ensure_opening(plan)
+        if plan["state"] in self.state.IMPLEMENTATION_STATES:
+            # Only once there is approved work. Triaging a review comment must
+            # not announce an implementation that has not been approved.
+            self._ensure_opening(plan)
         try:
             result = self.client.run(
                 self._context(batch["plan_id"], batch["events"]),

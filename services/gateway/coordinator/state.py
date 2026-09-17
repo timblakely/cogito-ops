@@ -577,15 +577,26 @@ class StateStore:
                 "AND kind IN ('clarify','pushback')", (plan_id,),
             ).fetchone()[0])
 
-    TERMINAL_STATES = frozenset({"complete", "cancelled", "failed"})
+    # finish_merge writes 'completed'. These must agree with it: while they
+    # said 'complete' a successfully finished plan was not terminal, so it was
+    # never unpinned, never pinged, and a failing turn could drag it back into
+    # needs_input.
+    TERMINAL_STATES = frozenset({"completed", "cancelled", "failed"})
     # Luna supervises execution. Before approval a plan has no frozen version
     # and no deliverables, so there is nothing for it to coordinate.
     IMPLEMENTATION_STATES = frozenset({
         "accepted", "decomposed", "running", "repairing", "needs_input", "paused"})
+    # States where Luna may take a turn. review is included because that is
+    # exactly when the owner comments on the plan issue, and routing those
+    # comments to Astra is Luna's job. Unattributed repository traffic still
+    # cannot reach a plan in review: active_plans_for_repository only returns
+    # IMPLEMENTATION_STATES, so an event arrives here only when it named this
+    # plan's own issue.
+    COORDINATED_STATES = IMPLEMENTATION_STATES | frozenset({"review"})
     # Transitions that must reach Tim's phone even when the only thing that
     # changed is the pinned card.
     NOTIFYING_STATES = frozenset({
-        "needs_input", "blocked", "failed", "complete", "cancelled"})
+        "needs_input", "blocked", "failed", "completed", "cancelled"})
 
     def set_plan_state(self, plan_id: str, state: str) -> None:
         with self.transaction() as db:
@@ -963,6 +974,11 @@ class StateStore:
             else:
                 outcome = new_state
         self.enqueue_plan_card(plan_id)
+        if outcome == "completed":
+            # This path updates the row directly rather than through
+            # set_plan_state, so the pin has to be released here or a finished
+            # plan's card stays pinned to the room forever.
+            self.enqueue_unpin(plan_id)
         return outcome
 
     def fail_deliverable(self, plan_id: str, position: int, status: dict[str, Any]) -> None:
@@ -1099,7 +1115,7 @@ class StateStore:
         """
         with self.lock:
             return self.db.execute(
-                "SELECT p.* FROM plans p WHERE p.state NOT IN ('complete','cancelled','failed') "
+                "SELECT p.* FROM plans p WHERE p.state NOT IN ('completed','cancelled','failed') "
                 "AND (p.matrix_room_id=? OR EXISTS (SELECT 1 FROM matrix_outbox o "
                 "WHERE o.plan_id=p.plan_id AND o.room_id=?)) "
                 "ORDER BY p.rowid DESC LIMIT 1", (room_id, room_id)).fetchone()
