@@ -244,6 +244,32 @@ class PhaseGuardTests(unittest.TestCase):
                  if row["room_id"] == "!impl:x"], [])
             state.close()
 
+    def test_a_failing_turn_cannot_resurrect_a_cancelled_plan(self):
+        """A terminal plan must stay terminal.
+
+        needs_input is an attributable state, so resurrecting a cancelled plan
+        re-opened it to repository events; the next push queued another turn,
+        which failed and resurrected it again.
+        """
+        with tempfile.NamedTemporaryFile() as tmp:
+            state = StateStore(tmp.name)
+            state.begin_intake(
+                "plan-gone", "!room:x", "$root", "https://github.com/t/c.git")
+            state.enqueue_coordinator_event(
+                "gh:1", "plan-gone", "github", "github.push.event", {}, 0)
+            batch = state.next_luna_batch(now=2**31)
+            state.set_plan_state("plan-gone", "cancelled")
+
+            for _ in range(6):
+                state.fail_luna_turn(batch["sequence"], "boom")
+
+            self.assertEqual(state.plan("plan-gone")["state"], "cancelled")
+            self.assertEqual(
+                [row["plan_id"] for row
+                 in state.active_plans_for_repository("https://github.com/t/c")],
+                [])
+            state.close()
+
     def test_needs_input_card_edit_carries_a_mention(self):
         with tempfile.NamedTemporaryFile() as tmp:
             state = StateStore(tmp.name)
