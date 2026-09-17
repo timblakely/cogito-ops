@@ -218,4 +218,53 @@ class LunaTests(unittest.TestCase):
         self.assertFalse(result["truncated"])
 
 
+class PhaseGuardTests(unittest.TestCase):
+    """Luna must only act on plans that are actually under execution."""
+
+    def test_batch_for_an_unapproved_plan_is_retired_without_a_turn(self):
+        with tempfile.NamedTemporaryFile() as tmp:
+            state = StateStore(tmp.name)
+            state.begin_intake(
+                "plan-drafting", "!room:x", "$root", "https://github.com/t/c.git")
+            state.set_plan_state("plan-drafting", "researching")
+            state.enqueue_coordinator_event(
+                "gh:1", "plan-drafting", "github", "github.push.event", {}, 0)
+
+            luna = LunaCoordinator(
+                state, None, None, None, None, _ExplodingClient(),
+                implementation_room_id="!impl:x")
+            self.assertTrue(luna.reconcile_once())
+
+            # No turn spent, no implementation thread opened, state untouched.
+            self.assertEqual(state.luna_usage("plan-drafting")["turns"], 0)
+            self.assertEqual(state.luna_usage("plan-drafting")["input_tokens"], 0)
+            self.assertEqual(state.plan("plan-drafting")["state"], "researching")
+            self.assertEqual(
+                [row for row in state.pending_matrix(50)
+                 if row["room_id"] == "!impl:x"], [])
+            state.close()
+
+    def test_needs_input_card_edit_carries_a_mention(self):
+        with tempfile.NamedTemporaryFile() as tmp:
+            state = StateStore(tmp.name)
+            state.begin_intake(
+                "plan-x", "!room:x", "$root", "https://github.com/t/c.git")
+            state.set_plan_state("plan-x", "researching")
+            state.complete_matrix("plan:plan-x:card", "$card")
+            state.set_plan_state("plan-x", "needs_input")
+            edits = [row for row in state.pending_matrix(50) if row["kind"] == "edit"]
+            self.assertTrue(edits)
+            self.assertIn("NEEDS_INPUT", edits[-1]["body"])
+            self.assertEqual(edits[-1]["mention"], 1)
+            state.close()
+
+
+class _ExplodingClient:
+    """Any call here means the guard failed to stop the turn."""
+
+    def run(self, *args, **kwargs):
+        raise AssertionError("Luna ran a turn for a plan not under execution")
+
+
+
 if __name__ == "__main__": unittest.main()

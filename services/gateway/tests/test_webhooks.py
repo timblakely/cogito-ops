@@ -107,7 +107,7 @@ class WebhookTests(unittest.TestCase):
                              "github.issue_comment.created")
             state.close()
 
-    def test_repository_event_wakes_each_active_plan_without_becoming_feedback(self):
+    def test_repository_event_wakes_each_plan_under_execution(self):
         with tempfile.NamedTemporaryFile() as tmp:
             state = StateStore(tmp.name)
             issues = FakeIssues()
@@ -116,6 +116,7 @@ class WebhookTests(unittest.TestCase):
                 core.record_plan(PlanVersion(
                     f"plan-{index}", 1, f"# Plan {index}\n", "!room:example",
                     f"$root-{index}", "https://github.com/t/c.git"))
+                state.set_plan_state(f"plan-{index}", "running")
             payload = {
                 "ref": "refs/heads/main", "after": "a" * 40,
                 "sender": {"login": "tim"},
@@ -131,6 +132,37 @@ class WebhookTests(unittest.TestCase):
             ).fetchone()[0]
             self.assertEqual(count, 2)
             self.assertEqual(state.plan_comments("plan-1"), [])
+            state.close()
+
+    def test_repository_event_leaves_a_plan_still_being_drafted_alone(self):
+        """Unattributed repo traffic must not derail a plan before approval.
+
+        A plan in research has no frozen version, so handing it to Luna
+        crashed the reconciler and forced the plan into needs_input while
+        Astra was still waiting on its scouts.
+        """
+        with tempfile.NamedTemporaryFile() as tmp:
+            state = StateStore(tmp.name)
+            issues = FakeIssues()
+            core = Coordinator(state, issues, set(), {"tim"})
+            state.begin_intake(
+                "plan-drafting", "!room:example", "$root", "https://github.com/t/c.git")
+            state.set_plan_state("plan-drafting", "researching")
+            core.record_plan(PlanVersion(
+                "plan-running", 1, "# Running\n", "!room:example",
+                "$root-r", "https://github.com/t/c.git"))
+            state.set_plan_state("plan-running", "running")
+            payload = {
+                "ref": "refs/heads/main", "after": "b" * 40,
+                "sender": {"login": "tim"},
+                "repository": {"html_url": "https://github.com/t/c"},
+            }
+            body = json.dumps(payload).encode()
+            status, result = GitHubWebhook(b"secret", state, core, issues).handle(
+                self.headers("push-2", "push", body), body)
+            self.assertEqual(status, 202)
+            self.assertEqual(result["plan_ids"], ["plan-running"])
+            self.assertEqual(state.plan("plan-drafting")["state"], "researching")
             state.close()
 
     def test_gateway_comment_wakes_luna_without_feedback_loop(self):
