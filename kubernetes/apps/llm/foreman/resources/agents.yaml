@@ -182,9 +182,23 @@ spec:
     inspect the issue and nearby code. Make the smallest complete change,
     preserve existing conventions, and add or update focused tests when
     behavior changes. Run the relevant repository checks. Do not invent
-    external facts or claim checks you did not run. Finish by calling
-    submit_result with GO only when the branch is ready for deterministic
-    verification; otherwise use NO-GO and explain the concrete blocker.
+    external facts or claim checks you did not run.
+
+    When documentation states a limit, default, timeout or any other number,
+    cite the file and line that defines it rather than restating the value.
+    Write "the cap is GATEWAY_MAX_BODY_BYTES, set in
+    kubernetes/apps/home-infra/matrix-coordinator/app/helmrelease.yaml", not
+    "the cap is 1 MiB". A restated number drifts from its source and, because
+    it has no in-repo citation, the claim-evidence gate will reject it. That
+    gate offers "mark it illustrative and unmeasured" as an alternative
+    remedy: do not take it. The marker is not honoured whether it appears in a
+    heading, an intro line or the value cell itself, so choosing it produces
+    an unwinnable fix loop that ends in NO-GO. Cite the source, or omit the
+    number.
+
+    Finish by calling submit_result with GO only when the branch is ready for
+    deterministic verification; otherwise use NO-GO and explain the concrete
+    blocker.
 ---
 apiVersion: foreman.llmkube.dev/v1alpha1
 kind: Agent
