@@ -200,7 +200,11 @@ class LunaCoordinator:
         return {
             "plan": {"id": plan_id, "state": plan["state"],
                      "issue": plan["github_issue_url"],
-                     "approved_markdown": version["markdown"][:24_000],
+                     # A plan with no frozen version should never reach Luna,
+                     # but an unguarded subscript here took the whole
+                     # reconciler down once rather than failing one turn.
+                     "approved_markdown": (version["markdown"][:24_000]
+                                           if version else ""),
                      "notes": self.state.plan_notes(plan_id)},
             "deliverables": deliverables,
             "usage": self.state.luna_usage(plan_id),
@@ -439,6 +443,14 @@ class LunaCoordinator:
         if not batch:
             return False
         plan = self.state.plan(batch["plan_id"])
+        if plan["state"] not in self.state.IMPLEMENTATION_STATES:
+            # The plan went back to planning, or an event reached it before
+            # approval. Retire the batch without spending a turn or opening an
+            # implementation thread for work that does not exist yet.
+            self.state.finish_luna_turn(
+                batch["sequence"], {"skipped": "not_in_implementation"}, 0, 0,
+                state="skipped")
+            return True
         usage = self.state.luna_usage(batch["plan_id"])
         if usage["turns"] >= self.turn_cap:
             self.state.set_plan_state(batch["plan_id"], "needs_input")

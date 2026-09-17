@@ -263,9 +263,13 @@ class StateStore:
     def active_plans_for_repository(self, repository_url: str):
         target = str(repository_url).rstrip("/").removesuffix(".git").lower()
         with self.lock:
+            # Only plans under execution. An unattributed push or PR must not
+            # derail a plan still in intake, research or review: Luna would be
+            # handed a plan with no approved version and crash on it.
+            placeholders = ",".join("?" * len(self.IMPLEMENTATION_STATES))
             rows = self.db.execute(
-                "SELECT * FROM plans WHERE state NOT IN ('completed','cancelled') "
-                "ORDER BY plan_id"
+                f"SELECT * FROM plans WHERE state IN ({placeholders}) ORDER BY plan_id",
+                tuple(sorted(self.IMPLEMENTATION_STATES)),
             ).fetchall()
         return [row for row in rows
                 if str(row["repository"]).rstrip("/").removesuffix(".git").lower() == target]
@@ -354,7 +358,14 @@ class StateStore:
                     "batch_id": batch_id, "events": events}
 
     def finish_luna_turn(self, sequence: int, output: dict[str, Any],
-                         input_tokens: int, output_tokens: int) -> None:
+                         input_tokens: int, output_tokens: int,
+                         state: str = "complete") -> None:
+        """Retire a batch. `state` is 'skipped' when no model call was made.
+
+        The turn cap bounds model spend, so a batch discarded without reaching
+        the model must not consume any of it; luna_usage counts only
+        'complete'.
+        """
         now = int(time.time())
         encoded = json.dumps(output, sort_keys=True, ensure_ascii=False)
         with self.transaction() as db:
@@ -364,10 +375,10 @@ class StateStore:
             if not row:
                 raise ValueError("unknown Luna turn")
             db.execute(
-                "UPDATE luna_turns SET state='complete',output_json=?,input_tokens=?,"
+                "UPDATE luna_turns SET state=?,output_json=?,input_tokens=?,"
                 "output_tokens=?,completed_at=? WHERE sequence=?",
-                (encoded[:64_000], max(0, input_tokens), max(0, output_tokens),
-                 now, sequence),
+                (state, encoded[:64_000], max(0, input_tokens),
+                 max(0, output_tokens), now, sequence),
             )
             db.execute(
                 "UPDATE coordinator_events SET processed_at=? WHERE batch_id=?",
@@ -559,6 +570,14 @@ class StateStore:
             ).fetchone()[0])
 
     TERMINAL_STATES = frozenset({"complete", "cancelled", "failed"})
+    # Luna supervises execution. Before approval a plan has no frozen version
+    # and no deliverables, so there is nothing for it to coordinate.
+    IMPLEMENTATION_STATES = frozenset({
+        "accepted", "decomposed", "running", "repairing", "needs_input", "paused"})
+    # Transitions that must reach Tim's phone even when the only thing that
+    # changed is the pinned card.
+    NOTIFYING_STATES = frozenset({
+        "needs_input", "blocked", "failed", "complete", "cancelled"})
 
     def set_plan_state(self, plan_id: str, state: str) -> None:
         with self.transaction() as db:
@@ -1012,6 +1031,7 @@ class StateStore:
         return self.enqueue_matrix(
             f"{root_id}:edit:{digest}", plan["matrix_room_id"], "",
             body, kind="edit", target_notification_id=root_id, plan_id=plan_id,
+            mention=plan["state"] in self.NOTIFYING_STATES,
         )
 
     def enqueue_pin(self, plan_id: str, room_id: str, target_notification_id: str) -> bool:
