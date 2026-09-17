@@ -582,6 +582,11 @@ class StateStore:
     # never unpinned, never pinged, and a failing turn could drag it back into
     # needs_input.
     TERMINAL_STATES = frozenset({"completed", "cancelled", "failed"})
+    # Releasing the pin means "you are done with this plan". A failed plan is
+    # not done with: it is the one terminal state that still wants an explicit
+    # retry, and the conversation is flat, so unpinning it is exactly how it
+    # gets lost in the stream.
+    RESOLVED_STATES = frozenset({"completed", "cancelled"})
     # Luna supervises execution. Before approval a plan has no frozen version
     # and no deliverables, so there is nothing for it to coordinate.
     IMPLEMENTATION_STATES = frozenset({
@@ -592,7 +597,10 @@ class StateStore:
     # cannot reach a plan in review: active_plans_for_repository only returns
     # IMPLEMENTATION_STATES, so an event arrives here only when it named this
     # plan's own issue.
-    COORDINATED_STATES = IMPLEMENTATION_STATES | frozenset({"review"})
+    # failed is terminal for anything automatic — no unattributed traffic, no
+    # resurrection by a failing turn — but the owner's explicit 🔄 retry has to
+    # reach Luna, or the documented Failed -> Running transition is unreachable.
+    COORDINATED_STATES = IMPLEMENTATION_STATES | frozenset({"review", "failed"})
     # Transitions that must reach Tim's phone even when the only thing that
     # changed is the pinned card.
     NOTIFYING_STATES = frozenset({
@@ -602,7 +610,7 @@ class StateStore:
         with self.transaction() as db:
             db.execute("UPDATE plans SET state=? WHERE plan_id=?", (state, plan_id))
         self.enqueue_plan_card(plan_id)
-        if state in self.TERMINAL_STATES:
+        if state in self.RESOLVED_STATES:
             self.enqueue_unpin(plan_id)
 
     def pause_plan(self, plan_id: str) -> None:

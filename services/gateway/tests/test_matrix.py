@@ -529,6 +529,32 @@ class MatrixTests(unittest.TestCase):
         self.assertEqual(self.state.plan_comments(first["plan_id"]),
                          ["Reconsider the rollout"])
 
+    def test_retry_command_reaches_a_failed_plan(self):
+        """The typed command is the retry path that survives a long room.
+
+        The only other trigger is a reaction on the status message, which is
+        edited in place: it never resurfaces and a terminal state unpins it, so
+        it is buried exactly when a failure makes it needed.
+        """
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        plan = self.state.active_plan_for_room("!room:matrix.example")
+        self.state.set_plan_state(plan["plan_id"], "failed")
+
+        result = self.matrix.handle(
+            self.event("$retry", f"!cogito retry {plan['plan_id']}"))
+
+        self.assertIn("Retry requested", result["actions"][0]["body"])
+        batch = self.state.next_luna_batch(now=2**31)
+        self.assertEqual(batch["events"][0]["event_type"], "owner.retry")
+
+    def test_retry_refuses_a_cancelled_plan(self):
+        self.matrix.handle(self.event("$root", "!cogito plan Build it"))
+        plan = self.state.active_plan_for_room("!room:matrix.example")
+        self.state.set_plan_state(plan["plan_id"], "cancelled")
+        with self.assertRaisesRegex(ValidationError, "start a new plan"):
+            self.matrix.handle(
+                self.event("$retry", f"!cogito retry {plan['plan_id']}"))
+
     def test_untrusted_sender_is_rejected(self):
         value = self.event("$root", "!cogito help")
         value["sender"] = "@mallory:matrix.example"
