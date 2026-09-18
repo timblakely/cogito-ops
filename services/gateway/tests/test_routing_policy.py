@@ -43,10 +43,13 @@ POLICY = {
     "repairing":       (True,  True,  True),
     "needs_input":     (True,  True,  True),
     "paused":          (True,  True,  True),
-    # Finished. Nothing reopens these; a late event must not revive them.
+    # Finished. No unattributed traffic reaches these and no failing turn may
+    # revive them. `failed` is the one exception to being fully inert: the
+    # owner's explicit retry has to reach Luna, or Failed -> Running is
+    # unreachable and a failed plan is a dead end.
     "completed":       (False, False, False),
     "cancelled":       (False, False, False),
-    "failed":          (False, False, False),
+    "failed":          (False, True,  False),
 }
 
 
@@ -101,12 +104,46 @@ class RoutingPolicyTests(unittest.TestCase):
                     f"the implementation thread would {'open' if opens else 'stay shut'} "
                     f"in {state!r} per POLICY; IMPLEMENTATION_STATES disagrees")
 
-    def test_a_terminal_plan_is_never_reachable_or_coordinated(self):
-        """Terminal is terminal: no late event may revive a finished plan."""
+    def test_no_terminal_plan_is_reachable_by_unattributed_traffic(self):
+        """A stray push must never revive a finished plan, however it ended."""
         for state in StateStore.TERMINAL_STATES:
             with self.subTest(state=state):
-                reachable, coordinated, opens = POLICY[state]
-                self.assertFalse(reachable or coordinated or opens)
+                reachable, _, opens = POLICY[state]
+                self.assertFalse(reachable or opens)
+
+    def test_only_failed_among_terminal_states_accepts_an_explicit_retry(self):
+        """A failed plan must not become a dead end.
+
+        The owner's retry reaction enqueues owner.retry for Luna. If `failed`
+        is not coordinated, Luna skips it and the documented Failed -> Running
+        transition cannot happen. Completed and cancelled stay fully inert.
+        """
+        self.assertIn("failed", StateStore.COORDINATED_STATES)
+        for state in ("completed", "cancelled"):
+            with self.subTest(state=state):
+                self.assertNotIn(state, StateStore.COORDINATED_STATES)
+
+    def test_a_failed_plan_keeps_its_pin(self):
+        """Pinning is the mitigation for a flat room; failure must not undo it.
+
+        The conversation has no threads, so the pin is how an open plan stays
+        findable. A failed plan still wants an explicit retry, so releasing its
+        pin loses it in the stream at the one moment it needs attention.
+        Completed and cancelled are genuinely done and do release it.
+        """
+        for state, should_unpin in (("failed", False),
+                                    ("completed", True), ("cancelled", True)):
+            with self.subTest(state=state):
+                store = self._store("running")
+                try:
+                    store.complete_matrix("plan:plan-x:card", "$card")
+                    store.complete_matrix("plan:plan-x:pin", "$card")
+                    store.set_plan_state("plan-x", state)
+                    unpins = [row for row in store.pending_matrix(50)
+                              if row["kind"] == "unpin"]
+                    self.assertEqual(bool(unpins), should_unpin)
+                finally:
+                    store.close()
 
     def test_the_terminal_vocabulary_matches_what_completion_writes(self):
         """finish_merge writes 'completed'; the constant must agree.

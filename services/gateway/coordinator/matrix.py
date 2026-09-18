@@ -913,11 +913,29 @@ class MatrixCoordinator:
                 f"matrix:{event.event_id}:cancel", row["plan_id"], "matrix",
                 "owner.cancelled", {"actor": event.sender}, delay_seconds=0)
             return self._message("Plan cancelled.", plan_id=row["plan_id"])
+        if command in {"retry", "resume"}:
+            # The reaction on the status message is the only other way in, and
+            # that message is edited in place: it never resurfaces, and a
+            # terminal state unpins it. A typed command is the affordance that
+            # survives a plan failing at the bottom of a long conversation.
+            row = self._event_plan(event, argument)
+            if row["state"] == "paused":
+                state = self.state.resume_plan(row["plan_id"])
+                text = f"Plan resumed in **{state}**."
+            elif row["state"] in self.state.TERMINAL_STATES - {"failed"}:
+                raise ValidationError(
+                    f"plan `{row['plan_id']}` is {row['state']}; start a new plan instead")
+            else:
+                text = "Retry requested."
+            self.state.enqueue_coordinator_event(
+                f"matrix:{event.event_id}:retry", row["plan_id"], "matrix",
+                "owner.retry", {"actor": event.sender}, delay_seconds=0)
+            return self._message(text, plan_id=row["plan_id"])
         if command in {"help", ""}:
             return self._message(
                 "Commands: `plan <objective>`, `draft`, `revise`, `approve [hash|plan-id]`, "
-                "`status [workload|plan-id]`, `stop`. In this room an ordinary message "
-                "continues the open plan: during intake it answers the planner, after a draft "
-                "it becomes a review comment. Reply to a specific message to address an older "
-                "plan, or name it as `plan-<id>`.")
+                "`status [workload|plan-id]`, `retry [plan-id]`, `stop`. In this room an "
+                "ordinary message continues the open plan: during intake it answers the "
+                "planner, after a draft it becomes a review comment. Reply to a specific "
+                "message to address an older plan, or name it as `plan-<id>`.")
         raise ValidationError("unknown !cogito command")
