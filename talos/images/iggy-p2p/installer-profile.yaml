@@ -1,0 +1,36 @@
+arch: amd64
+platform: metal
+secureboot: false
+version: v1.13.5
+customization:
+  extraKernelArgs:
+    - -init_on_alloc
+    - -init_on_free
+    - -selinux
+    - apparmor=0
+    - i915.enable_guc=3
+    - init_on_alloc=0
+    - init_on_free=0
+    - amd_iommu=on
+    - iommu=pt
+    - mitigations=off
+    - security=none
+    - sysctl.kernel.kexec_load_disabled=1
+    - talos.auditd.disabled=1
+    - -module.sig_enforce
+input:
+  kernel:
+    path: /usr/install/amd64/vmlinuz
+  initramfs:
+    path: /usr/install/amd64/initramfs.xz
+  baseInstaller:
+    imageRef: ghcr.io/siderolabs/installer-base:v1.13.5
+  systemExtensions:
+    - imageRef: ghcr.io/siderolabs/amd-ucode:20260519@sha256:4727bcdcd647ec48f4c3870559c2321a437e657ce993342ddb1ce3da6d91e827
+    - tarballPath: /input/iggy-p2p-extension.tar
+    - imageRef: ghcr.io/siderolabs/realtek-firmware:20260519@sha256:7efb21c4049312a2495f05338f2331d5f8d82c99964beae60e3b0ba0674da5c5
+    - imageRef: ghcr.io/siderolabs/nut-client:2.8.5@sha256:183c8479a3ffad650a6c31eb8f728b4fb88f0aa77f72a2d3d953592ef4ccea31
+    - imageRef: ghcr.io/siderolabs/nvidia-container-toolkit-production:595.71.05-v1.19.1@sha256:91e6bb19cefddd5322ffa5aa98bf665ccb862b44aadac5438c27979189194cee
+output:
+  kind: installer
+  outFormat: raw
