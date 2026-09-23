@@ -101,10 +101,9 @@ invitation.
 
 Space membership does not imply membership in its private child rooms. Each
 room holds its own membership, so the child-room invitations must be accepted
-on their own. In Commet an unaccepted invitation does not appear as a joined
-room in the space hierarchy, which made the first enrollment confusing; if
-the hierarchy still does not redraw after accepting, refresh or restart the
-client.
+on their own. A pending invitation may not appear among joined rooms in a
+client's space hierarchy. If the hierarchy does not redraw after accepting all
+invitations, refresh or restart the client.
 
 After the one-time joins, membership persists. The canonical aliases
 (`#project-cogito`, `#implementation`, `#alerts`, `#github`, `#agent-runs`,
@@ -117,20 +116,43 @@ client. Hookshot retains the narrowly scoped `@agent-gitops` permission needed
 by the existing repository connection; it does not grant that account cluster
 credentials.
 
-## Android setup and acceptance
+## Android push setup and acceptance
 
-1. Install the ntfy Android distributor and set its default server to
-   `https://ntfy.${DOMAIN_NAME}` before registering a Matrix client.
-2. Sign in to `https://matrix.${DOMAIN_NAME}` from Commet and FluffyChat using
-   Pocket ID.
-3. Enable UnifiedPush in each client and select the ntfy distributor/custom
-   gateway. Confirm Synapse records a pusher whose URL is the self-hosted ntfy
-   gateway.
-4. Use a private E2EE room and enable cross-signing/key backup in the selected
-   client before adding an agent bot.
+Cogito runs ntfy as both the UnifiedPush server and a Matrix push gateway.
+Synapse is allowed to reach the private ntfy hostname, but each Matrix client
+registers its own pusher with Synapse. The ntfy Android app supplies that client
+with a push endpoint and receives notifications on the phone. The client may
+discover ntfy's Matrix gateway from the endpoint; configuring the ntfy server
+does not require a gateway URL override in every client.
+
+1. In the ntfy Android app, set the default server to
+   `https://ntfy.${DOMAIN_NAME}` and sign in to that server as `tim`. The app
+   needs LAN or WireGuard access. Its UnifiedPush topics are registered
+   automatically; do not subscribe to one manually.
+2. Sign in to `https://matrix.${DOMAIN_NAME}` in the Matrix client using Pocket
+   ID. For encrypted rooms, verify this device can decrypt messages and set up
+   cross-signing and key backup.
+3. In Sable for Android, enable **Background Push Notifications**, set
+   **Transport Mode** to **UnifiedPush**, and select the installed **ntfy** app
+   under **UnifiedPush Distributor**. Leave **UnifiedPush Gateway URL** empty.
+   Sable v1.22.6 probes the ntfy endpoint for its Matrix gateway and registers
+   the discovered URL with Synapse. **Built-in** is a separate distributor
+   choice, configured by **Built-in distributor server**. Its unauthenticated
+   subscription cannot read Cogito's `up*` topics under the current ntfy
+   access rules.
+4. Check Sable's **Delivery Route** after registration. It should use Cogito's
+   ntfy host, rather than `matrix.gateway.unifiedpush.org` or another public
+   gateway. If discovery falls back to a public gateway, set **UnifiedPush
+   Gateway URL** to
+   `https://ntfy.${DOMAIN_NAME}/_matrix/push/v1/notify`, then re-enable
+   background push and check the route again. This URL is the Matrix gateway
+   endpoint; the ntfy Android app's default server remains the base URL above.
 5. Test locked-screen delivery, Wi-Fi/cellular and WireGuard transitions,
-   overnight idle, phone restart, server restart, and offline replay.
+   overnight idle, phone restart, server restart, and offline replay. If a push
+   fails, compare Sable's delivery route and ntfy distributor registration
+   before changing server configuration.
 
-Commet remains provisional because its current upstream tracker has open Android
-UnifiedPush failures. Keep FluffyChat installed during acceptance so client and
-server failures can be distinguished.
+The Sable behavior above is based on its [v1.22.6 gateway discovery and pusher
+registration](https://github.com/SableClient/Sable/blob/v1.22.6/src/app/features/settings/notifications/UnifiedPushNotifications.ts)
+and the [Android distributor implementation pinned by that
+release](https://github.com/SableClient/tauri-plugin-notifications/blob/92c96b300517c49024a48aaff863338e3bd63616/android/src/main/java/app/tauri/notification/EmbeddedPushService.kt).

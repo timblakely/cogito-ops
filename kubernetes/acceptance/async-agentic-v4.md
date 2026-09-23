@@ -90,9 +90,10 @@ no secrets, tokens, or raw transcripts).
   correctly through the deployed gateway `ImageClient` and local Muse route.
   The image-role key's attempt to call `reviewer` was rejected with HTTP 403.
 - The running maubot sidecar contains the `m.image` handler and encrypted
-  attachment decryption path. An owner-device Commet send remains the only
-  uncompleted media-path check because it requires an event from the owner's
-  logged-in device.
+  attachment decryption path. The owner-device encrypted-media check remains
+  open because it requires an event from the owner's logged-in device. Run
+  that check from Sable, the current Android client; the original acceptance
+  plan named Commet before the client change.
 
 ## Post-acceptance prefix-free project intake
 

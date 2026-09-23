@@ -78,7 +78,7 @@ retaining repeated-call and context guards. Inference-connectivity failures are
 reduced to a bounded classification before Astra sees them; raw Job logs are
 not copied into paid-model context.
 
-## Commet acceptance check v2
+## Plan-to-merge acceptance check
 
 The acceptance path is complete when, in order:
 

@@ -3,6 +3,12 @@
 **Status:** core implementation deployed; a two-deliverable acceptance run completed on 2026-09-14. Hermes direct sessions (§9) are implemented pending the owner-device DM check. Phone image ingestion is deployed and passed an in-cluster Muse vision probe; the owner-device encrypted-media check remains. Prefix-free project-room intake is deployed and accepted. No required implementation work remains; optional appservice personas and owner-device checks are deferred. Supersedes v3 (2026-09-13), v2 (same day), and v1 (2026-09-12).
 **Audience:** a reviewer with no prior context. Markers: `[VERIFY]` unverified, `[DECISION]` contestable choice, `[OBSERVED]` seen on the live cluster on 2026-09-13, `[INHERITED]` an upstream or colleague's default rather than a choice made here.
 
+**Client update (2026-09-22):** Sable is the Android Matrix client for new setup
+and remaining owner-device checks. Earlier Commet references below describe
+the original inventory, design, or completed runs. Follow the current
+[Android push setup](../../kubernetes/apps/home-infra/matrix/README.md#android-push-setup-and-acceptance)
+for Sable and ntfy configuration.
+
 ---
 
 ## Changelog v3 → v4
@@ -472,7 +478,13 @@ The workflow personas share one `@coordinator` account with glyph prefixes `◆ 
 
 ## 11. Notifications
 
-Synapse → ntfy → UnifiedPush → Commet (done). Mentions only on `NEEDS_INPUT`, `DRAFTED`, `BLOCKED`, `DONE`, `CANCELLED`, and on every Astra revision link. GitHub's own notifications for the repo can be muted on the phone; everything arrives in Matrix, with `#github` as the muted mirror.
+The original Commet push path was accepted. For Sable, Synapse → ntfy's Matrix
+gateway → ntfy Android distributor → Sable still needs owner-device acceptance
+using the current [Android push setup](../../kubernetes/apps/home-infra/matrix/README.md#android-push-setup-and-acceptance).
+Mentions are intended only on `NEEDS_INPUT`, `DRAFTED`, `BLOCKED`, `DONE`,
+`CANCELLED`, and every Astra revision link. GitHub's own notifications for the
+repo can be muted on the phone; everything arrives in Matrix, with `#github`
+as the muted mirror.
 
 ---
 
@@ -526,9 +538,9 @@ Synapse → ntfy → UnifiedPush → Commet (done). Mentions only on `NEEDS_INPU
 7. `[VERIFY]` GitHub Mobile: label application, body editing, and quote-reply are all usable one-handed.
 8. `[VERIFIED 2026-09-14]` the first accepted two-deliverable plan used 56 Luna
    turns, 1,472,890 input tokens, and 28,419 output tokens at effort max.
-9. `[VERIFY]` Commet renders `m.poll`.
+9. `[VERIFY]` Sable renders `m.poll`.
 10. `[VERIFY]` Complete an owner-device E2EE direct-session turn with `@hermes`.
-11. `[VERIFY]` Send an encrypted image from Commet in a planning and an
+11. `[VERIFY]` Send an encrypted image from Sable in a planning and an
     implementation thread; confirm only the bounded Muse description reaches
     Astra or Luna.
 12. Measure: Qwen `SPEC`/`CTX` A/B; Muse Glimmer's DFlash boundary, real

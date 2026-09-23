@@ -6,7 +6,8 @@ Owner: Tim
 
 Target: LLMKube Foreman owns the coding pipeline after plan approval
 
-Primary human interface: Commet over Matrix
+Historical Android client for this pathway: Commet. Current setup: Sable; see
+[Android push setup](kubernetes/apps/home-infra/matrix/README.md#android-push-setup-and-acceptance).
 
 Infrastructure source of truth: this repository
 
