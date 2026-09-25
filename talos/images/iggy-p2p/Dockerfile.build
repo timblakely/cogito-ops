@@ -1,0 +1,11 @@
+FROM alpine:3.23
+
+RUN apk add --no-cache \
+    bash bc binutils bison coreutils cpio diffutils elfutils-dev findutils \
+    flex g++ gawk git grep linux-headers make openssl openssl-dev pahole \
+    patch perl python3 sed xz zstd
+
+COPY --from=ghcr.io/siderolabs/llvm:v1.13.0-6-g9b78252 /usr /usr
+
+ENV LLVM=1
+WORKDIR /work

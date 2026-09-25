@@ -36,8 +36,9 @@ gen-schematic-id node:
 
 [doc('Reboot a node')]
 reboot-node node *args:
-    gum confirm "Reboot node {{ node }}?" --default="No" && \
-        talosctl -n {{ node }} reboot -m powercycle {{ args }} || exit 0
+    if gum confirm "Reboot node {{ node }}?" --default="No"; then \
+        talosctl -n "{{ node }}" reboot -m default {{ args }}; \
+    fi
 
 [doc('Render Talos config for a node')]
 render-config node:
@@ -70,6 +71,10 @@ full-reset:
 
 [doc('Shutdown a node')]
 shutdown-node node *args:
+    @if [ "{{ node }}" = iggy ]; then \
+        echo 'Iggy must only be restarted; shutdown-node is disabled for it.' >&2; \
+        exit 1; \
+    fi
     gum confirm "Shutdown node {{ node }}?" --default="No" && \
         talosctl -n "{{ node }}" shutdown --force {{ args }} || exit 0
 
@@ -79,7 +84,11 @@ upgrade-k8s version:
 
 [doc('Upgrade Talos version on a node')]
 upgrade-node node *args:
-    talosctl -n "{{ node }}" upgrade -i "$(just talos machine-image {{ node }})" -m powercycle --timeout=10m {{ args }}
+    @if [ "{{ node }}" = iggy ]; then \
+        echo 'Iggy runs a private P2P installer; see plans/talos/2026-09-iggy-gpu-p2p.md before upgrading.' >&2; \
+        exit 1; \
+    fi
+    talosctl -n "{{ node }}" upgrade -i "$(just talos machine-image {{ node }})" -m default --timeout=10m {{ args }}
 
 # gum confirm "Generate config, blowing away previous talosconfig?" --default="No" && \
 private_talos_dir := justfile_dir() + '/.private/talos'

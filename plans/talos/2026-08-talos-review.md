@@ -5,7 +5,17 @@ release up to the latest stable (**v1.13.9**, 2026-08-19) and the latest
 pre-release (**v1.14.0-rc.2**, 2026-08-25; 1.14.0 GA is slated for 2026-08-27
 but is not tagged yet). Nothing was changed.
 
-## 1. Where we are
+> **Update, 2026-09-23:** This is the 2026-08-28 audit snapshot, not the
+> current Iggy upgrade procedure. Iggy now runs a private Talos v1.13.5 image
+> with patched NVIDIA 595.71.05 open modules and working PCIe GPU P2P. Its
+> checked-in factory schematic and install image are corrected but serve as a
+> **rollback**, not the running image. `just talos upgrade-node iggy` refuses
+> the operation to prevent a driver rollback. The `reboot-node` and other-node
+> `upgrade-node` recipes now use normal reboot mode. **Never powercycle or
+> shut down Iggy; only restart it.** See the [Iggy P2P record and operating
+> procedure](2026-09-iggy-gpu-p2p.md).
+
+## 1. Where we were on 2026-08-28
 
 | Node | Talos | Kernel | containerd | Install image path | Schematic in git == running? |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -37,9 +47,9 @@ More concretely, the v1.12.8 release note says verbatim:
 `kristeva`, `nuc-1`, `nuc-2`, `nuc-3` are all still on **containerd 2.1.6**.
 That alone justifies a roll, independent of any feature work.
 
-### 2.2 `iggy`'s committed schematic does not match the machine that is running
+### 2.2 Historical: `iggy`'s committed schematic did not match the running machine
 
-This is the highest-risk item in the repo.
+This was the highest-risk item in the repo at review time:
 
 * `talos/schematics/iggy.yaml.j2` asks for `siderolabs/nonfree-kmod-nvidia` and
   `siderolabs/nvidia-container-toolkit` → schematic `e817517519355d95c2…`,
@@ -53,10 +63,10 @@ extension list for 1.12, 1.13 or 1.14 — only `-lts` (580.x) and `-production`
 (595.x) are published. So the committed schematic is at best relying on a
 factory alias that resolves to the LTS line.
 
-`just talos upgrade-node iggy` reads `.machine.install.image` straight out of
-git. **The next upgrade of `iggy` would therefore push it off the 595 production
-driver it is running today**, underneath the vLLM/llmkube stack, with no warning.
-Fix the schematic and regenerate the ID *before* any upgrade touches `iggy`.
+The schematic and install-image ID have since been corrected to the
+`cfd03958…` factory image. Iggy now runs a separate private P2P installer, so
+that factory image is a rollback target. The generic upgrade recipe refuses
+Iggy; use the [P2P procedure](2026-09-iggy-gpu-p2p.md) for future upgrades.
 
 ### 2.3 Renovate is not watching `talos/`
 
@@ -81,14 +91,16 @@ the only one getting kernel and containerd fixes. Worth closing.
 
 ## 3. Things 1.13 already offers that we are not using
 
-These apply today; `iggy` is already on 1.13 and the rest get them on upgrade.
+These applied at review time; `iggy` was already on 1.13 and the rest would
+gain them on upgrade.
 
 **`talosctl reboot --drain` / `talosctl upgrade --drain`** (new in 1.13, with
 `--drain-timeout`, default 5m). `upgrade` defaults to `--drain=true`; `reboot`
-defaults to false. Our `just talos reboot-node` is a bare
-`talosctl reboot -m powercycle` with no cordon and no drain — the exact manual
-dance the node-reboot procedure requires. Adding `--drain` to that recipe folds
-the cordon/drain/uncordon cycle into the tool.
+defaults to false. At review time `just talos reboot-node` used
+`talosctl reboot -m powercycle` with no drain. The recipe now uses normal
+`-m default` reboot mode; adding `--drain` remains a separate improvement.
+Never select `powercycle` for Iggy: an installer reboot in that mode left it
+powered off and required manual recovery.
 
 **New streaming upgrade API** (`LifecycleService.Upgrade`) with `--progress` and
 safe parallel upgrades. There is a known limitation —
@@ -208,13 +220,13 @@ resolvers, veth pairs, dedicated ETCD/CRI/KUBELET/LOG partitions.
   the cluster. Harmless, but it is a live Talos-API grant to namespaces nobody
   owns — either deploy something there or drop them.
 * **`kexec_load_disabled=1` on every node.** Talos normally reboots via `kexec`,
-  which is why the docs say the extra reboot "adds very little time". With kexec
-  disabled *and* `-m powercycle` hard-coded in `upgrade-node`, every upgrade is
-  two full cold boots per node. The kernel arg is inherited from an upstream
-  home-ops schematic where it is commented "Meteor Lake CPU & Intel iGPU" — but
-  `iggy` is AMD + RTX 3090 and none of the NUCs are Meteor Lake. If the
-  powercycle is not deliberately there for the Thunderbolt ring or the NVMe APST
-  quirk, dropping both would make rolls dramatically faster.
+  which is why the docs say the extra reboot "adds very little time". At review
+  time `-m powercycle` was also hard-coded in `upgrade-node`; that has been
+  changed to normal `-m default` mode. Do not restore `powercycle` for Iggy.
+  The kernel arg is inherited from an upstream home-ops schematic where it is
+  commented "Meteor Lake CPU & Intel iGPU" — but `iggy` is AMD + RTX 3090 and
+  none of the NUCs are Meteor Lake. Reassess the argument separately before
+  changing it.
 * Comment drift in the schematics: `iggy` carries `i915.enable_guc=3 # Meteor
   Lake CPU & Intel iGPU` on an AMD/NVIDIA box; `kristeva` has
   `siderolabs/intel-ucode # AMD CPU`; `iggy` has `siderolabs/amd-ucode # AMD CPU`
@@ -223,20 +235,27 @@ resolvers, veth pairs, dedicated ETCD/CRI/KUBELET/LOG partitions.
 * `talosctl` is `latest` in `.mise.toml` but the installed binary is v1.13.5 —
   `mise up talosctl` gets 1.13.9.
 
-## 6. Suggested sequence (nothing done yet)
+## 6. Suggested sequence from the audit (status updated 2026-09-23)
 
-1. `mise up talosctl` → v1.13.9.
-2. **Fix `talos/schematics/iggy.yaml.j2`** to name the `-production` extensions,
-   regenerate the schematic ID (`just talos gen-schematic-id iggy`, expect
-   `cfd03958b772d5edc19…`) and update `.machine.install.image`, so git matches
-   the running node. Do this *before* anything upgrades `iggy`.
+Re-evaluate target release versions before carrying out the remaining steps;
+the version numbers below were the 2026-08-28 recommendations.
+
+1. Update `talosctl` to a version compatible with the target nodes (v1.13.9
+   was the audit target).
+2. **Completed for the factory rollback:** `talos/schematics/iggy.yaml.j2` now
+   names the `-production` extensions and `.machine.install.image` uses
+   `cfd03958b772d5edc19…`. Iggy's running P2P image is separate; see the
+   [Iggy procedure](2026-09-iggy-gpu-p2p.md).
 3. Normalize `nuc-1/2/3` from `factory.talos.dev/installer/…` to
    `factory.talos.dev/metal-installer/…`.
 4. Roll the 1.12.5 nodes. Sidero's supported path is "latest patch of every
    intermediate minor", so **1.12.5 → 1.12.11 → 1.13.9**. Order:
    `kristeva` first, then `nuc-1`, `nuc-2`, `nuc-3` strictly one at a time,
-   waiting for Ceph `HEALTH_OK` and etcd quorum between each. Then `iggy`
-   1.13.5 → 1.13.9. Use `--drain` (or the existing drain procedure).
+   waiting for Ceph `HEALTH_OK` and etcd quorum between each. Iggy's 1.13.5
+   upgrade requires a newly built patched installer for the target Talos kernel
+   and temporary private-registry authentication. Restart it normally; never
+   use `powercycle` or the generic `upgrade-node` recipe. Use `--drain` (or the
+   existing drain procedure).
 5. Add the Renovate manager for `talos/**` so this does not silently drift again.
 6. Then consider Kubernetes 1.34 → 1.36 (`just talos upgrade-k8s`). **Audit
    `base.yaml.j2`'s apiServer `extraArgs` first**: both `ImageVolume` and

@@ -4,6 +4,15 @@ This file records the measurements required by
 `async-agentic-homelab-v4.md`. Do not promote inherited serving knobs from
 "profile" to "validated" without filling in the raw artifact links below.
 
+**Hardware update (2026-09-23):** Iggy's two RTX 3090s now have working PCIe
+P2P through a patched Talos NVIDIA driver and 32 GiB BAR1 windows. CUDA peer
+copies and a two-rank NCCL `P2P/IPC` all-reduce passed. The Qwen measurements
+below predate this change. A [post-P2P Qwen run](qwen-p2p-benchmark-2026-09-23.md)
+passed 5 single-session and 32 eight-session requests at the same configured
+250 W per-card cap, but used a new synthetic prompt because the original
+corpus was not retained. Do not infer a speedup or regression from the rates.
+See the [Iggy P2P record](../talos/2026-09-iggy-gpu-p2p.md).
+
 ## 2026-09-13 implementation baseline
 
 - Cluster measurements resumed on 2026-09-14 with authorized cluster access.
@@ -40,9 +49,12 @@ and fills the capacity question the SPEC/CTX table does not ask. The SPEC/CTX
 A/B below remains open and is a separate study.
 
 Backend: `InferenceService/qwen3-8-27b` on iggy's two RTX 3090s (SM86, no
-NVLink/P2P), vLLM 0.29.0, TP=2, FP8 E4M3 KV, digest-pinned SM86 FA2+fp8-KV
+NVLink or driver-enabled PCIe P2P **at benchmark time**), vLLM 0.29.0, TP=2,
+FP8 E4M3 KV, digest-pinned SM86 FA2+fp8-KV
 plugin `731d1942...`, four anchor-checked overlays (pr48375, gdn-async-order,
 51581, and the newly vendored vllm#50021).
+The configured power cap was 250 W per card; Git changed it from 280 W on
+2026-07-13, and retained power telemetry for this study peaked near 250 W.
 
 ### Capacity
 

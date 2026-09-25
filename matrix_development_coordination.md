@@ -4,7 +4,8 @@ Status: historical implementation record; interaction model superseded by v4
 
 Owner: Tim
 
-Primary human interface: Commet over Matrix
+Historical Android client for this plan: Commet. Current setup: Sable; see
+[Android push setup](kubernetes/apps/home-infra/matrix/README.md#android-push-setup-and-acceptance).
 
 Infrastructure source of truth: this repository
 

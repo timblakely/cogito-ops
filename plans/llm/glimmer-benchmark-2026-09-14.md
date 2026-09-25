@@ -19,6 +19,8 @@ agent setting.
 ## Fixed configuration and method
 
 - Hardware: NVIDIA RTX 3090, 24 GiB, PCIe x4, UUID `GPU-787b...`, node `iggy`.
+- Configured GPU power limit: 250 W. The limit had been lowered from 280 W in
+  Git on 2026-07-13; this run's observed draw peaks are recorded below.
 - Target: Muse Glimmer 30B Q4_K_M with DFlash draft model, Q8 K/V cache, and
   projector in host RAM.
 - Runtime: `ghcr.io/ggml-org/llama.cpp:server-cuda` digest

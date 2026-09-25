@@ -1,4 +1,5 @@
 ---
+# Factory rollback schematic. Iggy's running P2P image is built in talos/images/iggy-p2p/.
 customization:
   extraKernelArgs:
     - -init_on_alloc # Less security, faster puter
@@ -8,8 +9,8 @@ customization:
     - i915.enable_guc=3 # Meteor Lake CPU & Intel iGPU
     - init_on_alloc=0 # Less security, faster puter
     - init_on_free=0 # Less security, faster puter
-    - intel_iommu=on # PCI Passthrough
-    - iommu=pt # PCI Passthrough
+    - intel_iommu=on # No effect on Iggy's AMD CPU; retained from the running image
+    - iommu=pt # IOMMU passthrough mode; this does not disable the IOMMU
     - mitigations=off # Less security, faster puter
     - security=none # Less security, faster puter
     - sysctl.kernel.kexec_load_disabled=1 # Meteor Lake CPU & Intel iGPU
@@ -17,7 +18,7 @@ customization:
   systemExtensions:
     officialExtensions:
       - siderolabs/amd-ucode # AMD CPU
-      - siderolabs/nonfree-kmod-nvidia
-      - siderolabs/nvidia-container-toolkit
+      - siderolabs/nonfree-kmod-nvidia-production
+      - siderolabs/nvidia-container-toolkit-production
       - siderolabs/realtek-firmware # For networking
       - siderolabs/nut-client # Network UPS Tools Client

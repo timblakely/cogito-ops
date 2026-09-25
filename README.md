@@ -7,7 +7,7 @@
 *Modern Home Operations with Kubernetes, Talos Linux, and Flux CD. Cogito, ergo facio.*
 
 [![Status](https://img.shields.io/badge/status-active-success.svg?style=for-the-badge)]()
-[![Talos](https://img.shields.io/badge/Talos_Linux-1.12-blue.svg?style=for-the-badge&logo=linux)](https://talos.dev)
+[![Talos](https://img.shields.io/badge/Talos_Linux-1.12%20%7C%201.13-blue.svg?style=for-the-badge&logo=linux)](https://talos.dev)
 [![Flux](https://img.shields.io/badge/Flux_CD-2.7-blue.svg?style=for-the-badge&logo=flux)](https://fluxcd.io)
 [![K8s](https://img.shields.io/badge/Kubernetes-1.34-blue.svg?style=for-the-badge&logo=kubernetes)](https://kubernetes.io)
 
@@ -36,7 +36,7 @@ The cluster consists of a heterogeneous mix of hardware, strategically utilized 
 
 | Node | Type | Roles | Storage | Features |
 | :--- | :--- | :--- | :--- | :--- |
-| `iggy` | Control Plane | ML, High-CPU, High-Mem | 970 PRO (512GB) / 970 EVO (1TB) | **2× RTX 3090** |
+| `iggy` | Control Plane | ML, High-CPU, High-Mem | 970 PRO (512GB) / 970 EVO (1TB) | **2× RTX 3090**, PCIe P2P, 250 W cap each |
 | `kristeva` | Control Plane | High-CPU, High-Mem | SSD 850 (Boot) / 990 EVO Plus (2TB) | **Intel A380** |
 | `nuc-1` | Control Plane | Rook-Ceph, Core | PNY (1TB) / Crucial T500 (400GB) | **Thunderbolt Ring** |
 | `nuc-2` | Control Plane | Core | PNY (1TB) / Crucial T500 (400GB) | **Thunderbolt Ring** |
@@ -44,6 +44,8 @@ The cluster consists of a heterogeneous mix of hardware, strategically utilized 
 
 > [!TIP]
 > The NUC nodes are interconnected via **Thunderbolt Networking**, creating a high-speed, low-latency 40Gbps+ backplane for cluster communication and Rook-Ceph replication.
+
+Iggy's GPU P2P uses a [custom Talos image and patched NVIDIA driver](plans/talos/2026-09-iggy-gpu-p2p.md). Its factory install image is a rollback, and the generic Talos upgrade recipe refuses Iggy. Only restart Iggy; never shut it down or use Talos `powercycle` mode.
 
 ## 🛠️ Software Stack
 
