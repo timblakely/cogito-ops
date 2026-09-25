@@ -9,6 +9,15 @@ the original inventory, design, or completed runs. Follow the current
 [Android push setup](../../kubernetes/apps/home-infra/matrix/README.md#android-push-setup-and-acceptance)
 for Sable and ntfy configuration.
 
+**Iggy hardware update (2026-09-23):** Both RTX 3090s now have working PCIe
+peer access through a patched Talos v1.13.5 NVIDIA driver and 32 GiB BAR1
+windows. CUDA and NCCL P2P tests passed. The current GitOps serving config
+assigns both GPUs to Qwen with TP=2 and suspends Muse. The x16-Qwen/x4-Muse
+layout in the original proposal below is historical. Its benchmark results
+also predate P2P; see the separate
+[post-P2P Qwen run](qwen-p2p-benchmark-2026-09-23.md) and
+[Iggy P2P record](../talos/2026-09-iggy-gpu-p2p.md).
+
 ---
 
 ## Changelog v3 → v4
@@ -78,7 +87,7 @@ All rows exist today at repo commit `5c850664`.
 
 | Node | Hardware | Role |
 |---|---|---|
-| **iggy** | Ryzen 9, 128 GB DDR4, 2 × RTX 3090 24 GB (x16 `GPU-a598…`, x4 `GPU-787b…`), 250 W limit. | Qwen on x16, Muse on x4. Foreman agent, gate cache, 450 Gi model cache. After R3: ~40 Gi RAM requests. |
+| **iggy** | Ryzen 9, 128 GB DDR4, 2 × RTX 3090 24 GB (x16 `GPU-a598…`, x4 `GPU-787b…`), 250 W limit; PCIe P2P working, no NVLink. | Current GitOps: Qwen TP=2 on both GPUs; Muse suspended. Foreman agent, gate cache, 450 Gi model cache. |
 | **kristeva** | Dual Xeon, 128 GB DDR3, Arc A380. | `bge-m3`, `bge-reranker-v2-m3`, `vision-cpu`. |
 | **nuc-1/2/3** | Meteor Lake NUCs, Thunderbolt ring. | Ceph, Qdrant, LiteLLM, Matrix, gateway, Hookshot. No LLM serving. |
 
@@ -149,7 +158,9 @@ Between them: the plan issue, reviewed on GitHub, approved by label.
 
 ## 3. Models and serving
 
-Unchanged from v3 except where noted. Summary here; §3 of v3 has the measurements.
+The sections below describe the original v4 split-GPU proposal. Current GitOps
+serving assigns both GPUs to Qwen TP=2 and suspends Muse; see the hardware
+update at the top of this document. §3 of v3 has the proposal-time measurements.
 
 ### 3.1 Card 1 (x16): Qwen 3.8-27B on the syv-ai stack `[DECISION: this must work]`
 
