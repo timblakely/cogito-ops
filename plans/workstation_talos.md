@@ -5,7 +5,7 @@ Research date: 2026-09-26. Owner/operator: Tim, using the Fedora laptop.
 
 ## Decision
 
-Convert the Ryzen 9900X / 64 GB / RTX 5070 Ti 16 GB workstation into a **dedicated Cogito worker**. Physically remove and preserve its existing NVMe, install a fresh blank NVMe, and administer everything from the Fedora laptop. Start with one Moonlight client and one Steam session through Fenrir and Games on Whales Wolf.
+Convert the Ryzen 9900X / 64 GB / RTX 5070 Ti 16 GB workstation into a **dedicated Cogito worker**. Physically remove and preserve its existing NVMe, install a fresh blank NVMe, and administer everything from the Fedora laptop. Start with one Moonlight client and one Steam session through Fenrir and Games on Whales Wolf. First establish a working official-driver baseline: Steam must launch and at least one installed game must be playable over Moonlight. Only after that baseline passes, create and test a newer-driver image to assess feasibility. A custom build pipeline is a future milestone contingent on a successful experiment; pipeline design and implementation are outside this plan’s current scope.
 
 Use Talos 1.13.5 with **official open NVIDIA production kernel modules**, a matching NVIDIA container toolkit, and Cogito's existing Cilium BGP/shared LoadBalancer IP facilities. A custom Image Factory schematic is required; a custom-compiled kernel is **not the expected starting requirement**. NVIDIA explicitly requires open kernel modules for Blackwell, including the 5070 Ti. Reusing a proprietary `nonfree-kmod-nvidia-production` extension would be wrong. [NVIDIA 595.71.05 documentation](https://download.nvidia.com/XFree86/Linux-x86_64/595.71.05/README/kernel_open.html)
 
@@ -74,7 +74,20 @@ Shrinedogg's current relevant notes describe Sidero-signed open modules. They do
 
 Load `nvidia`, `nvidia_uvm`, `nvidia_modeset`, and `nvidia_drm`, retain CDI discovery directories and the existing NVIDIA runtime integration. Verify DRM modesetting, the actual render device, driver version, GPU recognition, Vulkan rendering, and NVENC in containers. An `nvidia-smi` success alone is insufficient.
 
-Fallback gate: if official artifacts fail, collect extension status, kernel/module logs, PCI identity, firmware configuration, and a minimal container reproducer. First resolve version mismatch, firmware, runtime/CDI, render-node selection, or missing capabilities. Commission a reproducible custom Talos kernel/extension build only for a demonstrated unresolved kernel/module incompatibility, with source pinning and a bootable rollback image. Do not disable signature enforcement speculatively.
+Baseline failure gate: if official artifacts fail, collect extension status, kernel/module logs, PCI identity, firmware configuration, and a minimal container reproducer. First resolve version mismatch, firmware, runtime/CDI, render-node selection, or missing capabilities. Investigate a custom Talos kernel/extension remedy only for a demonstrated unresolved kernel/module incompatibility, with source pinning and a bootable rollback image. Such a failure does not satisfy the official-driver baseline gate or trigger the planned newer-driver experiment. Do not disable signature enforcement speculatively.
+
+### Newer-driver feasibility experiment, after the official baseline
+
+This is a separate experiment after M4 succeeds. Preserve the official-driver installer, configuration, application digests and measured game-streaming results as the recovery and comparison baseline.
+
+1. Select and pin a then-current NVIDIA Linux release newer than the official baseline. Record the release, source commit and checksums; do not use a floating `latest` reference.
+2. Create a one-off image on a builder available independently of the gaming worker. Build the open NVIDIA modules for the selected Talos kernel, with matching NVIDIA GSP firmware and userspace driver libraries. Use a compatible container toolkit. Keep the Talos/Linux versions and configuration unchanged where feasible to limit variables.
+3. Account for module signing: Talos requires a trusted signing key, so independently built modules require a coherent custom kernel/module build with matching signatures. Assemble an installer and recovery boot artifact for this worker. [Talos custom kernel requirements](https://docs.siderolabs.com/talos/v1.13/build-and-extend-talos/custom-images-and-development/customizing-the-kernel)
+4. Back up saves and pairing state, stop the session, install the experimental image on the gaming worker, and reboot. Retain the same Fenrir, Wolf, Steam/game images, game, codec, resolution and bitrate for comparison.
+5. Repeat GPU recognition, Vulkan/NVENC, Cilium connectivity, Steam launch and the same game’s 30-minute streaming test. Check audio/input, driver resets, latency, restart/reboot persistence and recovery to the official image.
+6. Record whether building, booting, gaming and rollback succeeded, plus any regressions and manual work required. If unsuccessful, return to the official baseline and document the blocker. If successful, record the exact artifacts as a feasible option; success does not imply automatic adoption or future automatic upgrades.
+
+**Future milestone, contingent on feasibility:** create a maintained custom driver/image build pipeline. Its design and implementation are deferred; the current deliverable is the one-off feasibility result and a working official-driver fallback.
 
 ## 3. Fenrir source and image selection
 
@@ -279,7 +292,7 @@ Validation order:
 2. Session launches from cold and warm states; the client receives the shared VIP and correct allocated ports. Test the selected fork's extended cold-start timeout/retry behavior.
 3. Confirm pod sockets, Service endpoints and session allocation agree. Exercise a BGP ingress node different from the GPU backend, plus proxy on a different node.
 4. Use Hubble/Cilium drop evidence and targeted captures to trace UDP from client to GPU pod and replies back. Check route symmetry requirements, DSR dispatch support and PMTU, including ICMP handling.
-5. Run SDR 1080p60 H.264 at a modest bitrate for 30 minutes. Record Moonlight network loss, dropped frames, encode/decode timing, GPU utilization, thermals and Xid events. Require no sustained network loss, no driver resets, working audio/input, and no accumulating latency.
+5. On the official drivers, launch Steam, sign in, install at least one selected game, and play it over Moonlight. Run that game at SDR 1080p60 H.264 at a modest bitrate for 30 minutes. Record Moonlight network loss, dropped frames, encode/decode timing, GPU utilization, thermals and Xid events. Require no sustained network loss, no driver resets, working audio/input, and no accumulating latency.
 6. Advance separately to target resolution/refresh, HEVC or AV1, higher bitrate and VPN. Compare against LAN baseline; do not mix all changes into one test.
 7. Stop/start a session, restart operator/proxy, reboot the worker and reconnect. Confirm pairing and saves survive, stale Services disappear, the VIP remains stable, and other cluster Services stay healthy.
 
@@ -305,9 +318,11 @@ BBR and BIG TCP are not proof of healthy UDP streaming. Preserve Cogito's global
 | M1: configuration | Worker rendering fixed and validated; disk/NIC/IP verified; manifests render without secrets or floating images | Revert unpublished/implementation configuration changes |
 | M2: worker | Ready node, healthy BGP/Cilium, mounted local volume, reboot passed; existing cluster unchanged in health | Remove only new worker resources if abandoning; reinstall preserved old NVMe |
 | M3: devices | Vulkan, NVENC, input and local PVC persistence pass on 5070 Ti | Disable test workloads; correct or roll back node image/config |
-| M4: one session | Pairing, audio/input and 30-minute LAN stream pass; restart/reboot retention proven | Suspend new app reconciliation, stop sessions, preserve PVCs and pairing material |
-| M5: intended use | Actual games, target quality/codec and VPN if wanted pass; restore drill completed | Return to last validated codec/image/config or M4 scope |
-| M6: optional expansion | Only then evaluate Gamescope/HDR, DLSS, extra users or GPU sharing with other workloads | Revert the individual extension to baseline |
+| M4: official-driver gaming baseline | Official Talos NVIDIA artifacts; Steam launches and at least one installed game is playable over Moonlight for 30 minutes with audio/input; restart/reboot retention proven and artifacts/results recorded | Suspend new app reconciliation, stop sessions, preserve PVCs and pairing material |
+| M5: newer-driver feasibility | After M4, create a one-off newer-driver image and compare the same Steam/game streaming tests; document build, boot, runtime and rollback results, including failure if infeasible | Restore the verified official-driver image and confirm the same game works |
+| M6: intended use | Actual games, target quality/codec and VPN if wanted pass on the selected validated image; restore drill completed; M5 success is not required | Return to the official-driver M4 baseline or last validated configuration |
+| M7: optional expansion | Only then evaluate Gamescope/HDR, DLSS, extra users or GPU sharing with other workloads | Revert the individual extension to baseline |
+| Future: custom build pipeline | Contingent on M5 demonstrating feasibility; separately scope a maintained image build pipeline, with no pipeline design or implementation in the current work | Continue using the official-driver baseline |
 
 Before rollback, export nonsecret resource definitions, preserve secret material securely, and back up game saves/configuration. Local hostpath data cannot fail over automatically to another node. Preserve the new NVMe too if reverting to the old workstation; its new game data is not present on the old disk.
 
@@ -328,8 +343,11 @@ For upgrades, retain the last known-good schematic/installer and all application
 - [ ] NVIDIA render device, Vulkan, NVENC, uinput, compositor and audio pass independently.
 - [ ] Shared VIP, dynamic port allocation and cross-node DSR path verified.
 - [ ] Pairing, game data retention, reconnect, reboot and restore tests pass.
-- [ ] Actual intended games and quality target pass before declaring conversion complete.
+- [ ] Official drivers run Steam and at least one installed game over Moonlight; baseline artifacts and results recorded before trying newer drivers.
+- [ ] One-off newer-driver image attempted after baseline success; feasibility and rollback results documented.
+- [ ] If feasible, custom build pipeline recorded as a future milestone with design and implementation deferred.
+- [ ] Actual intended games and quality target pass before declaring conversion complete; newer-driver feasibility is not required for a usable official-driver deployment.
 
-The principal uncertainties are runtime image provenance, actual 5070 Ti graphics/encoding behavior under the selected container stack, and the live routed UDP path. Availability of official Blackwell-compatible Talos modules is established; a custom kernel is not currently justified by the evidence.
+The principal uncertainties are runtime image provenance, actual 5070 Ti graphics/encoding behavior under the selected container stack, and the live routed UDP path. Availability of official Blackwell-compatible Talos modules is established, so the initial deployment uses them. The subsequent newer-driver experiment assesses whether maintaining a custom image is practical after Steam and a game are proven on the official baseline.
 
 This plan lives at the explicitly requested `plans/workstation_talos.md`. It is outside the automated `plans/review/*.md` implementation queue contract; publishing its draft PR does not enqueue deployment or authorize the hardware transition.
