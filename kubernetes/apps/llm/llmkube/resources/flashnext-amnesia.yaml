@@ -1,0 +1,129 @@
+---
+# The AtomicChat AD-4.27bpw Q4_K_M M64 quant lives on Amnesia's local NVMe.
+# Shard 2 is the 38.4 GB PLE/ngram table and remains mmap pageable from SSD.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: flashnext-amnesia
+  annotations:
+    volume.kubernetes.io/selected-node: amnesia
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: openebs-hostpath-retain
+  resources:
+    requests:
+      storage: 140Gi
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: flashnext-amnesia
+spec:
+  source: pvc://flashnext-amnesia/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00001-of-00033.gguf
+  format: gguf
+  quantization: Q4_K_M
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      # Two advertised time-sliced units map to Amnesia's one physical card.
+      count: 2
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: InferenceService
+metadata:
+  name: flashnext
+spec:
+  modelRef: flashnext-amnesia
+  runtime: generic
+  image: ghcr.io/ggml-org/llama.cpp:server-cuda-b10991@sha256:d4bdfe78ad26a1ef3ccc834fc4e4a106d882e0f2163dd9a06e067c580c742101
+  replicas: 1
+  skipModelInit: true
+  runtimeClassName: nvidia
+  nodeSelector:
+    kubernetes.io/hostname: amnesia
+  command: [/app/llama-server]
+  args:
+    - --model
+    - /models/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00001-of-00033.gguf
+    - --alias
+    - qwen3.8-flash-next
+    - --host
+    - 0.0.0.0
+    - --port
+    - '8080'
+    - --ctx-size
+    - '131072'
+    - --parallel
+    - '1'
+    - --batch-size
+    - '1024'
+    - --ubatch-size
+    - '512'
+    - --threads
+    - '8'
+    - --threads-batch
+    - '16'
+    - --flash-attn
+    - 'on'
+    - --cache-type-k
+    - q8_0
+    - --cache-type-v
+    - q8_0
+    - --gpu-layers
+    - all
+    - --n-cpu-moe
+    - '42'
+    - --load-mode
+    - mmap
+    - --fit
+    - 'off'
+    - --cache-ram
+    - '3072'
+    - --ctx-checkpoints
+    - '0'
+    - --temp
+    - '1.0'
+    - --top-p
+    - '0.95'
+    - --top-k
+    - '20'
+    - --min-p
+    - '0.0'
+    - --jinja
+  env:
+    - name: LLAMA_ATTN_ROT_DISABLE
+      value: '1'
+    - name: GGML_CUDA_NO_PINNED
+      value: '1'
+  extraVolumes:
+    - name: flashnext-weights
+      persistentVolumeClaim:
+        claimName: flashnext-amnesia
+  extraVolumeMounts:
+    - name: flashnext-weights
+      mountPath: /models
+      readOnly: true
+  resources:
+    cpu: '8'
+    memory: 52Gi
+    # Amnesia advertises two time-sliced units from one physical GPU.
+    # Claim both so another pod cannot consume the remaining VRAM.
+    gpu: 2
+  endpoint:
+    port: 8080
+    path: /v1/chat/completions
+  probeOverrides:
+    startup:
+      httpGet:
+        path: /health
+        port: 8080
+      periodSeconds: 10
+      failureThreshold: 180
+    readiness:
+      httpGet:
+        path: /health
+        port: 8080
+      periodSeconds: 10
