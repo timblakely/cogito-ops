@@ -1,0 +1,58 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Amnesia Fenrir Operator Image
+
+on:
+  push:
+    branches: [amnesia-operator-timeout]
+    paths:
+      - .github/workflows/amnesia-fenrir-operator-image.yaml
+      - patches/fenrir-agent-dial-timeout.patch
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Cogito patch
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          path: cogito
+          persist-credentials: false
+
+      - name: Check out pinned Fenrir source
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          repository: shrinedogg/fenrir
+          ref: 29eb075afe1ab61490196a7272fd21b5b6313cfc
+          path: fenrir
+          persist-credentials: false
+
+      - name: Verify source and apply bounded agent dial
+        run: |
+          test "$(git -C fenrir rev-parse HEAD)" = 29eb075afe1ab61490196a7272fd21b5b6313cfc
+          git -C fenrir apply --check "$GITHUB_WORKSPACE/cogito/patches/fenrir-agent-dial-timeout.patch"
+          git -C fenrir apply "$GITHUB_WORKSPACE/cogito/patches/fenrir-agent-dial-timeout.patch"
+
+      - name: Authenticate to GHCR
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+
+      - name: Build and publish operator
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/fenrir-operator
+          SOURCE_REVISION: 29eb075afe1ab61490196a7272fd21b5b6313cfc
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          TAG="$SOURCE_REVISION-agentdial3s-$RUN_ID"
+          docker build --pull \
+            --build-arg APP_NAME=operator \
+            --label "org.opencontainers.image.source=https://github.com/shrinedogg/fenrir" \
+            --label "org.opencontainers.image.revision=$SOURCE_REVISION" \
+            --tag "$IMAGE:$TAG" \
+            --file fenrir/Dockerfile fenrir
+          docker push "$IMAGE:$TAG"
