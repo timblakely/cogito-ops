@@ -40,3 +40,11 @@ spec:
         annotations:
           lbipam.cilium.io/ips: "192.168.69.100"
           external-dns.alpha.kubernetes.io/hostname: ophelia.internal
+        # The proxy listens in plain HTTP on 47989 and HTTPS on 47984.
+        # The chart's default port names are reversed; the User controller
+        # selects the port named http for its public PIN URL.
+        ports:
+          http:
+            port: 47989
+          https:
+            port: 47984
