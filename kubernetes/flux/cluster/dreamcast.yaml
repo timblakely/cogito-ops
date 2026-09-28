@@ -1,0 +1,18 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &ns dreamcast
+  namespace: flux-system
+spec:
+  targetNamespace: *ns
+  interval: 30m
+  timeout: 10m
+  path: ./kubernetes/apps/dreamcast
+  components:
+    - ../../components/namespace
+  prune: false
+  wait: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
