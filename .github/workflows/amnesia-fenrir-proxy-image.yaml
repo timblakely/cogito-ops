@@ -1,0 +1,48 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Amnesia Fenrir Proxy Image
+
+on:
+  push:
+    branches: [amnesia-gaming]
+    paths:
+      - .github/workflows/amnesia-fenrir-proxy-image.yaml
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pinned Fenrir source
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          repository: shrinedogg/fenrir
+          ref: 29eb075afe1ab61490196a7272fd21b5b6313cfc
+          path: fenrir
+          persist-credentials: false
+
+      - name: Verify source revision
+        run: test "$(git -C fenrir rev-parse HEAD)" = 29eb075afe1ab61490196a7272fd21b5b6313cfc
+
+      - name: Authenticate to GHCR
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+
+      - name: Build and publish source-aligned proxy
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/fenrir-moonlight-proxy
+          SOURCE_REVISION: 29eb075afe1ab61490196a7272fd21b5b6313cfc
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          TAG="$SOURCE_REVISION-$RUN_ID"
+          docker build --pull \
+            --build-arg APP_NAME=moonlight-proxy \
+            --label "org.opencontainers.image.source=https://github.com/shrinedogg/fenrir" \
+            --label "org.opencontainers.image.revision=$SOURCE_REVISION" \
+            --tag "$IMAGE:$TAG" \
+            --file fenrir/Dockerfile fenrir
+          docker push "$IMAGE:$TAG"
