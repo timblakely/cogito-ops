@@ -27,9 +27,17 @@ def request_json(url: str, payload: dict[str, Any], timeout: float) -> dict[str,
 
 
 def prompt_tokens(endpoint: str, model: str, content: str) -> int:
-    return request_json(
+    result = request_json(
         f"{endpoint}/tokenize", {"model": model, "prompt": content}, 120
-    )["count"]
+    )
+    if "count" in result:
+        return result["count"]
+    tokens = result.get("tokens", [])
+    if not tokens:
+        tokens = request_json(f"{endpoint}/tokenize", {"content": content}, 120)[
+            "tokens"
+        ]
+    return len(tokens)
 
 
 def build_prompt(endpoint: str, model: str, target: int) -> tuple[str, int]:

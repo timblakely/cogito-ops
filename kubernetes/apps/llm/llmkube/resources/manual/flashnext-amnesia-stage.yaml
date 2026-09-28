@@ -1,0 +1,39 @@
+# Apply manually once to populate the retained Amnesia PVC. Keep this Job out
+# of resources/kustomization.yaml so Flux does not recreate it after completion.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flashnext-amnesia-stage
+  namespace: llm
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: amnesia
+      containers:
+        - name: download
+          image: python:3.12-slim
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              pip install --no-cache-dir 'huggingface_hub[hf_xet]>=0.34,<2'
+              export HF_XET_HIGH_PERFORMANCE=1
+              hf download AtomicChat/Qwen3.8-Flash-Next-GGUF \
+                --revision c30e114991c14ee0e5ed484ccfe0ded939ea5e81 \
+                --include 'Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/*.gguf' \
+                --local-dir /models --max-workers 8
+              find /models/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64 \
+                -maxdepth 1 -name '*.gguf' -printf '%f %s bytes\n' | sort
+          resources:
+            requests:
+              cpu: '2'
+              memory: 2Gi
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: flashnext-amnesia
