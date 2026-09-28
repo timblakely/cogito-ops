@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wolf-root-entrypoint
+data:
+  entrypoint.sh: |
+    #!/usr/bin/env bash
+    set -e
+    source /opt/gow/bash-lib/utils.sh
+    export UNAME=root PUID=0 PGID=0 HOME=/root
+    for init_script in /etc/cont-init.d/*.sh; do
+      gow_log "[ ${init_script}: executing... ]"
+      source "$init_script"
+    done
+    chmod +x /opt/gow/startup.sh
+    exec /opt/gow/startup.sh
