@@ -1,5 +1,5 @@
 diff --git a/pkg/controllers/session.go b/pkg/controllers/session.go
-index e7964b7..da1c48d 100644
+index e7964b7..a0fbad2 100644
 --- a/pkg/controllers/session.go
 +++ b/pkg/controllers/session.go
 @@ -5,9 +5,12 @@ import (
@@ -147,7 +147,7 @@ index e7964b7..da1c48d 100644
 +			if app.Spec.WolfConfig.StartVirtualCompositor != nil {
 +				startCompositor = *app.Spec.WolfConfig.StartVirtualCompositor
 +			}
-+			runner := wolfapi.Runner{Type: "process", RunCmd: "sh -c 'while :; do sleep 3600; done'"}
++			runner := wolfapi.Runner{Type: "process", RunCmd: "/bin/sleep 86400"}
 +			if app.Spec.WolfConfig.Runner != nil {
 +				runner.Type = app.Spec.WolfConfig.Runner.Type
 +				runner.RunCmd = app.Spec.WolfConfig.Runner.RunCommand
