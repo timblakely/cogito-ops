@@ -1,0 +1,139 @@
+diff --git a/pkg/controllers/session.go b/pkg/controllers/session.go
+index e7964b7..0447373 100644
+--- a/pkg/controllers/session.go
++++ b/pkg/controllers/session.go
+@@ -5,9 +5,11 @@ import (
+ 	"context"
+ 	"crypto/tls"
+ 	"fmt"
++	"net"
+ 	"net/http"
+ 	"os"
+ 	"reflect"
++	"strings"
+ 	"sync"
+ 	"time"
+ 
+@@ -1754,6 +1756,7 @@ func (c *SessionController) reconcileActiveStreams(
+ 	// external agent port (it forwards to the agent's fixed in-pod 8443).
+ 	wolfclient := wolfapi.NewClient(fmt.Sprintf("https://%s:%d", service.Spec.ClusterIP, session.Status.Ports.Agent), &http.Client{
+ 		Transport: &http.Transport{
++			DialContext:     (&net.Dialer{Timeout: 3 * time.Second}).DialContext,
+ 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+ 		},
+ 	})
+@@ -1787,86 +1790,25 @@ func (c *SessionController) reconcileActiveStreams(
+ 	}
+ 
+ 	if !found && app != nil {
+-		// apps, err := wolfclient.ListApps(ctx)
+-		// if err != nil {
+-		// 	return fmt.Errorf("failed to list apps from wolf: %w", err)
+-		// }
+-
+-		// Determine the title we expect the app to have
+-		// expectedTitle := app.Spec.Title
+-		// if app.Spec.WolfConfig.Title != "" {
+-		// 	expectedTitle = app.Spec.WolfConfig.Title
+-		// }
+-
+-		// var appID string
+-
+-		// 1. Check if the app already exists
+-		// for _, loadedApp := range apps {
+-		// 	if loadedApp.Title == expectedTitle {
+-		// 		appID = loadedApp.ID
+-		// 		klog.Infof("App '%s' already exists in Wolf with ID: %s. Skipping creation.", expectedTitle, appID)
+-		// 		break
+-		// 	}
+-		// }
+-
+-		// 2. If app doesn't exist, create it
+-		// if appID == "" {
+-		// 	klog.Infof("App '%s' not found in Wolf. Creating it...", expectedTitle)
+-
+-		// 	if len(apps) == 0 {
+-		// 		return fmt.Errorf("no apps found in wolf container to use as template")
+-		// 	}
+-
+-		// 	// get the GST pipelines from the first app (supposedly wolf-ui)
+-		// 	templateApp := apps[0]
+-		// 	klog.Infof("Using app[0] (%s) as template for pipelines", templateApp.Title)
+-
+-		// 	// Defaults for booleans if nil
+-		// 	startAudio := true
+-		// 	if app.Spec.WolfConfig.StartAudioServer != nil {
+-		// 		startAudio = *app.Spec.WolfConfig.StartAudioServer
+-		// 	}
+-		// 	startCompositor := true
+-		// 	if app.Spec.WolfConfig.StartVirtualCompositor != nil {
+-		// 		startCompositor = *app.Spec.WolfConfig.StartVirtualCompositor
+-		// 	}
+-
+-		// 	runner := wolfapi.Runner{
+-		// 		Type:   "process",
+-		// 		RunCmd: "sh -c \"while :; do echo 'running...'; sleep 10; done\"",
+-		// 	}
+-		// 	if app.Spec.WolfConfig.Runner != nil {
+-		// 		runner.Type = app.Spec.WolfConfig.Runner.Type
+-		// 		runner.RunCmd = app.Spec.WolfConfig.Runner.RunCommand
+-		// 	}
+-		// 	var renderNode string
+-		// 	if app.Spec.WolfConfig.RuntimeVariables != nil {
+-		// 		renderNode = app.Spec.WolfConfig.RuntimeVariables.RenderNode
+-		// 	}
+-
+-		// 	// Create the App in Wolf
+-		// 	newApp := wolfapi.App{
+-		// 		ID:                     app.Name, // Use K8s App Name as ID
+-		// 		Title:                  expectedTitle,
+-		// 		SupportHDR:             false, // Default
+-		// 		StartVirtualCompositor: startCompositor,
+-		// 		StartAudioServer:       startAudio,
+-		// 		RenderNode:             renderNode,
+-		// 		Runner:                 runner,
+-
+-		// 		// Injected Pipelines
+-		// 		H264GSTPipeline: templateApp.H264GSTPipeline,
+-		// 		HEVCGSTPipeline: templateApp.HEVCGSTPipeline,
+-		// 		AV1GSTPipeline:  templateApp.AV1GSTPipeline,
+-		// 		OpusGSTPipeline: templateApp.OpusGSTPipeline,
+-		// 	}
+-		// 	// no need to create an app
+-		// 	// klog.Infof("Creating App in Wolf: %+v", newApp)
+-		// 	// if err := wolfclient.AddApp(ctx, newApp); err != nil {
+-		// 	// 	return fmt.Errorf("failed to add app to wolf: %w", err)
+-		// 	// }
+-		// 	appID = newApp.ID
+-		// }
++		apps, err := wolfclient.ListApps(ctx)
++		if err != nil {
++			return fmt.Errorf("failed to list apps from wolf: %w", err)
++		}
++
++		expectedTitle := app.Spec.Title
++		if app.Spec.WolfConfig.Title != "" {
++			expectedTitle = app.Spec.WolfConfig.Title
++		}
++		var appID string
++		for _, loadedApp := range apps {
++			if strings.EqualFold(loadedApp.Title, expectedTitle) {
++				appID = loadedApp.ID
++				break
++			}
++		}
++		if appID == "" {
++			return fmt.Errorf("app %q not found in wolf", expectedTitle)
++		}
+ 
+ 		//!TODO: Add the ports into the request for this to support multiple
+ 		// sessions per Gateway.
+@@ -1881,7 +1823,7 @@ func (c *SessionController) reconcileActiveStreams(
+ 			VideoWidth:       session.Spec.Config.VideoWidth,
+ 			VideoHeight:      session.Spec.Config.VideoHeight,
+ 			VideoRefreshRate: session.Spec.Config.VideoRefreshRate,
+-			// AppID:             appID,
++			AppID:             appID,
+ 			AudioChannelCount: 2, // !TODO: parse from audio info
+ 
+ 			ClientIP: clientIP, // In the future, this will be acquired dynamically

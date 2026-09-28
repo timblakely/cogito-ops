@@ -4,10 +4,10 @@ name: Amnesia Fenrir Operator Image
 
 on:
   push:
-    branches: [amnesia-operator-timeout]
+    branches: [amnesia-operator-timeout, amnesia-app-selection]
     paths:
       - .github/workflows/amnesia-fenrir-operator-image.yaml
-      - patches/fenrir-agent-dial-timeout.patch
+      - patches/fenrir-operator-fixes.patch
 
 permissions:
   contents: read
@@ -31,11 +31,11 @@ jobs:
           path: fenrir
           persist-credentials: false
 
-      - name: Verify source and apply bounded agent dial
+      - name: Verify source and apply operator fixes
         run: |
           test "$(git -C fenrir rev-parse HEAD)" = 29eb075afe1ab61490196a7272fd21b5b6313cfc
-          git -C fenrir apply --check "$GITHUB_WORKSPACE/cogito/patches/fenrir-agent-dial-timeout.patch"
-          git -C fenrir apply "$GITHUB_WORKSPACE/cogito/patches/fenrir-agent-dial-timeout.patch"
+          git -C fenrir apply --check "$GITHUB_WORKSPACE/cogito/patches/fenrir-operator-fixes.patch"
+          git -C fenrir apply "$GITHUB_WORKSPACE/cogito/patches/fenrir-operator-fixes.patch"
 
       - name: Authenticate to GHCR
         env:
@@ -48,7 +48,7 @@ jobs:
           SOURCE_REVISION: 29eb075afe1ab61490196a7272fd21b5b6313cfc
           RUN_ID: ${{ github.run_id }}
         run: |
-          TAG="$SOURCE_REVISION-agentdial3s-$RUN_ID"
+          TAG="$SOURCE_REVISION-agentdial3s-appselect-$RUN_ID"
           docker build --pull \
             --build-arg APP_NAME=operator \
             --label "org.opencontainers.image.source=https://github.com/shrinedogg/fenrir" \
