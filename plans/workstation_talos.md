@@ -1,11 +1,11 @@
-# Workstation → Talos gaming worker
+# Workstation → Talos gaming control plane
 
-Status: proposed implementation plan; no infrastructure changes made.
+Status: Fedora laptop preparation complete; `amnesia` has joined as a control plane and booted from its replacement SSD with the installer USB removed. Gaming setup remains.
 Research date: 2026-09-26. Owner/operator: Tim, using the Fedora laptop.
 
 ## Decision
 
-Convert the Ryzen 9900X / 64 GB / RTX 5070 Ti 16 GB workstation into a **dedicated Cogito worker**. Physically remove and preserve its existing NVMe, install a fresh blank NVMe, and administer everything from the Fedora laptop. Start with one Moonlight client and one Steam session through Fenrir and Games on Whales Wolf. First establish a working official-driver baseline: Steam must launch and at least one installed game must be playable over Moonlight. Only after that baseline passes, create and test a newer-driver image to assess feasibility. A custom build pipeline is a future milestone contingent on a successful experiment; pipeline design and implementation are outside this plan’s current scope.
+Convert the Ryzen 9900X / 64 GB / RTX 5070 Ti 16 GB workstation into a **Cogito control plane named `amnesia` that also hosts dedicated gaming workloads**. Physically remove and preserve its existing NVMe, install a fresh blank NVMe, and administer everything from the Fedora laptop. Start with one Moonlight client and one Steam session through Fenrir and Games on Whales Wolf. First establish a working official-driver baseline: Steam must launch and at least one installed game must be playable over Moonlight. Only after that baseline passes, create and test a newer-driver image to assess feasibility. A custom build pipeline is a future milestone contingent on a successful experiment; pipeline design and implementation are outside this plan’s current scope.
 
 Use Talos 1.13.5 with **official open NVIDIA production kernel modules**, a matching NVIDIA container toolkit, and Cogito's existing Cilium BGP/shared LoadBalancer IP facilities. A custom Image Factory schematic is required; a custom-compiled kernel is **not the expected starting requirement**. NVIDIA explicitly requires open kernel modules for Blackwell, including the 5070 Ti. Reusing a proprietary `nonfree-kmod-nvidia-production` extension would be wrong. [NVIDIA 595.71.05 documentation](https://download.nvidia.com/XFree86/Linux-x86_64/595.71.05/README/kernel_open.html)
 
@@ -13,17 +13,17 @@ This plan uses Shrinedogg's work only for the Talos image, Fenrir, and Games on 
 
 ## 1. Evidence and current Cogito configuration
 
-Reviewed Cogito tree corresponding to GitHub `main` commit `5fb7dc3026bf1404f6c3f4416f3b9f1dfd7e9e5b`. Live cluster inspection hit a DNS/connectivity failure from the execution environment and was stopped. The following describes **GitOps intent**, not a fresh live-health certification. Laptop verification is a prerequisite to removing the disk.
+Reviewed Cogito tree corresponding to GitHub `main` commit `5fb7dc3026bf1404f6c3f4416f3b9f1dfd7e9e5b`. A laptop preflight on 2026-09-27 reached the live cluster: all five control planes were Ready on Kubernetes 1.34.2; Iggy reported Talos 1.13.5, while kristeva and nuc-1/2/3 reported Talos 1.12.5. Cilium agents were Running, the listed Flux Kustomizations were Ready, and `openebs-hostpath` was available. These are point-in-time checks, not a health certification for the hardware transition. Repeat laptop-independence checks before removing the disk.
 
 | Area | Current configuration | Consequence |
 | --- | --- | --- |
-| Cluster | Five existing control planes: iggy, kristeva, nuc-1/2/3; Talos 1.13.5 and Kubernetes 1.34.2 in source | Add a worker; do not bootstrap a new cluster or add etcd membership |
+| Cluster | Five existing control planes: iggy, kristeva, nuc-1/2/3; source specifies Talos 1.13.5 and Kubernetes 1.34.2. Live preflight found Talos 1.13.5 on Iggy and 1.12.5 on the other four; all report Kubernetes 1.34.2 | Add `amnesia` as a sixth control plane and etcd member using the existing cluster identity; do not bootstrap a new cluster. Keep the Talos version difference in view when selecting artifacts |
 | Cilium | Chart 1.19.2, kube-proxy replacement, native routing, direct node routes, netkit, endpoint routes | Keep these defaults for the first deployment |
 | Load balancing | BGP enabled, L2 announcements disabled, Maglev, **global DSR**, acceleration best-effort | Use existing BGP and IPAM; no MetalLB or second announcement system |
 | Addressing | Nodes `192.168.42.0/24`; pods `10.42.0.0/16`; Services `10.43.0.0/16`; LB pool `192.168.69.0/24` | Reserve one unused gaming VIP after a live inventory |
-| BGP | All Linux nodes selected; local ASN 64514, router `192.168.1.1`, peer ASN 64513 | New worker is automatically eligible; verify router neighbor acceptance and advertisements |
+| BGP | All Linux nodes selected; local ASN 64514, router `192.168.1.1`, peer ASN 64513 | New node is automatically eligible; verify router neighbor acceptance and advertisements |
 | Talos API proxy | Cilium uses KubePrism `127.0.0.1:7445`; API identity `k8s.internal` | Retain the established API/CA and laptop DNS path |
-| GPU | NVIDIA device plugin 0.18.0 in `cluster-infra`, RuntimeClass `nvidia`, GFD plus separate NFD | Extend existing plugin configuration only for the new worker |
+| GPU | NVIDIA device plugin 0.18.0 in `cluster-infra`, RuntimeClass `nvidia`, GFD plus separate NFD | Extend existing plugin configuration only for `amnesia` |
 | Sharing | Current default plugin config has no time slicing | Add a node-selected gaming profile; leave Iggy unchanged |
 | Storage | Rook Ceph default; OpenEBS hostpath available at `/var/mnt/local-hostpath` | Explicitly select local storage for games |
 | Ceph | Explicit nuc-1/2/3 devices, `useAllNodes: false`, `useAllDevices: false` | New disk stays outside Ceph; do not apply Ceph node labels |
@@ -122,10 +122,10 @@ Use one user/session initially. Preserve the ability to add sessions later, but 
 - Install verified `talosctl` 1.13.5, a Kubernetes-1.34-compatible `kubectl`, Flux CLI, Helm, Kustomize, `just`, the repository's rendering tools, and 1Password CLI. Set up Moonlight as the test client and confirm its available hardware decoders.
 - Use the project's toolchain when needed. Avoid a blanket fresh-cache Mise install with `latest` declarations. Any resolving Mise command uses `MISE_JOBS=2`, the normal persistent cache, and `--locked` if a lockfile exists. Stop on the first network/resource failure.
 - Securely provision `kubeconfig`, `talosconfig`, 1Password authentication and required vault access, SOPS/age material where needed, and Git credentials. Generated configuration and secrets stay in ignored files with restricted permissions. Do not commit or paste credentials into this plan.
-- Verify the existing render workflow (`minijinja-cli` followed by `op inject`) works from the laptop; inspect the rendered worker without printing secrets into logs.
+- Verify the existing render workflow (`minijinja-cli` followed by `op inject`) works from the laptop; inspect the rendered control-plane configuration without printing secrets into logs.
 - Verify laptop DNS resolves `k8s.internal` and management node names, the API certificate validates, Talos authentication works, and LAN/VPN routes reach the management subnet. Do not bypass Kubernetes TLS verification.
-- Stage the ISO, installer reference/digest, checksums, rendered worker configuration, recovery notes, and Talos client on the laptop. Have a USB boot device and local keyboard/monitor available.
-- Preserve any unpushed repositories, unique workstation credentials, SSH configuration, desired Steam saves, and personal files separately. Keeping the old NVMe is rollback, not the only backup of irreplaceable data.
+- Stage the ISO, installer reference/digest, checksums, rendered control-plane configuration, recovery notes, and Talos client on the laptop. Have a USB boot device and local keyboard/monitor available.
+- The current NVMe will be removed intact and kept; Talos will be installed only on the fresh replacement drive in the same slot. This swap does not erase or migrate data from the current NVMe. Identify any files that also need an independently accessible copy before the swap, such as unpushed repositories or credentials, and copy only those selected files. A full home-directory backup is not required for this disk swap.
 
 Example read-only preflight, run with laptop-installed binaries and the correct context:
 
@@ -145,15 +145,38 @@ kubectl -n flux-system get kustomizations,helmreleases
 
 Also inspect Talos versions/extensions on the existing control planes, GPU plugin ConfigMap and node labels, router BGP sessions, current Flux health, and storage health. Use authenticated Talos endpoints already in the laptop configuration. Stop on the first connectivity/authentication failure and diagnose it before proceeding.
 
-**Acceptance:** repeat management and Git checks with this workstation powered off. The laptop must not depend on its DNS, SSH agent, local credential store, cached files, or a service it hosts. Restore power only to finish backups if needed; do not swap disks until this test passes.
+**Acceptance:** repeat management and Git checks with this workstation powered off. The laptop must not depend on its DNS, SSH agent, local credential store, cached files, or a service it hosts. Restore power only if selected files still need to be copied; do not swap disks until this test passes.
+
+### Laptop preflight record (2026-09-27)
+
+- Fedora 44. Installed Talos CLI 1.13.5 and used it explicitly; this checkout's Mise configuration still selects Talos CLI `latest` (1.14.1) by default. `kubectl` 1.34.0, Flux 2.7.3, Helm 4.3.0, Kustomize 5.7.1, `just` 1.58.0, Minijinja 2.13.0, and 1Password CLI 2.39.0 are available. Moonlight 6.1.0 is installed.
+- Kube context `main` connects to `k8s.internal` at `192.168.42.10` with TLS verification enabled. All five control planes were Ready. The Cilium agent pods were Running, the listed Flux Kustomizations were Ready, and the expected storage classes were present.
+- Talos config context `main` was generated with mode-600 credentials. Authenticated Talos API access to Iggy succeeded. Its admin certificate expires 2027-09-27. The temporary local copy of the Talos CA private key was removed after generation.
+- GitHub SSH read access and a no-write push dry run succeeded. With Siff powered off, a real push of a temporary branch at the existing `main` commit succeeded, and the temporary branch was deleted. The GitHub CLI itself is not logged in; Git operations use SSH.
+- Created the host-scoped 1Password service account `codex-frogtop` with `read_items` access to the `kubernetes` vault only. Its token is stored in the laptop's Secret Service keyring and in a recovery API Credential item in the `Private` vault, which the service account cannot access. Load it into only the needed process from the keyring; do not put it in the repo or a plaintext file. The service-account render and Talos config generation succeeded, and authenticated access to Iggy succeeded.
+- The protected age key is available to this checkout; SOPS decryption succeeded with plaintext discarded. Moonlight is installed. The laptop's VAAPI device reports H.264, HEVC Main/Main10, and VP9 decode profiles; it did not report AV1.
+- Staged the Talos 1.13.5 `amnesia` schematic and 1.4 GB metal ISO on the laptop. Schematic ID: `6527b5fb5bd39e8b5e6716d98b2aed15cff58d2e133cde984120603315146eeb`; ISO SHA-256: `5d67b45d199d5eb202e3fc92da0824dfffc31a6f9dcffe0250084fe921f9047a`; installer OCI index digest: `sha256:48662d546376390f97e80df973cd8bed0e4f2090d39ae74c0289d8568143f35d`. The laptop-local artifact lock, recovery notes, and mode-600 control-plane configuration are in `~/Workstation-Talos/amnesia/v1.13.5/`. The final control-plane configuration, including 400 GiB `EPHEMERAL` and the observed disk and NIC identities, passed Talos 1.13.5 strict metal validation before apply.
+- Copied Talos CLI 1.13.5 into the laptop artifact bundle. Wrote the ISO to the operator-authorized 32 GB PNY USB drive (serial `07012B2999F6FC08`); the drive presents Talos and EFI partitions, and direct readback of the ISO-sized region matched the staged SHA-256.
+- With Siff powered off, its IP did not answer ping; laptop DNS still resolved `k8s.internal`, authenticated Talos access to Iggy succeeded, all five pre-existing Kubernetes control planes were Ready, Flux Kustomizations were Ready, laptop-local 1Password service-account access to its `kubernetes` vault succeeded, and GitHub read/push access succeeded. The section 4 workstation-off independence gate passed. The gaming VIP, games, and application image artifacts remain to be selected.
+
+### Hardware and node onboarding record (2026-09-27/28)
+
+- The original Samsung SSD 990 EVO Plus 2TB, serial `S7U6NJ0Y436315F`, was removed intact and preserved. The replacement Samsung SSD 9100 PRO 2TB, serial `S7YCNJ0L214027M`, occupies the same slot. The original disk's data was not erased or migrated.
+- A protected etcd snapshot was saved on the laptop at `~/Workstation-Talos/amnesia/recovery/etcd-2026-09-28T0015Z.snapshot`; its SHA-256 is `1a53177d1aa66c44a4aa91b4fb0faab6419fe85577d11998a3d9e44f993d60f6`.
+- An initial worker configuration was applied to the replacement disk before the operator clarified that every node must be a control plane. Only Amnesia's new system disk was reset; the control-plane configuration was rendered, strictly validated and applied to that disk. Do not use the retained `initial-worker-applied.yaml` audit artifact as a current configuration.
+- The final configuration pins the install target by replacement SSD model and serial, uses DHCP on wired MAC `10:ff:e0:bb:53:d2`, allocates 400 GiB to `EPHEMERAL`, and uses the remaining allocatable disk for `u-local-hostpath`. Talos reported `/dev/nvme0n1` as its system disk, `EPHEMERAL` on partition 4, and `u-local-hostpath` on partition 5. The installer USB is a separate PNY `/dev/sda`.
+- Amnesia joined Kubernetes at `192.168.42.15` as a Ready control plane, and etcd promoted it from learner to voting member. It was shut down cleanly, the installer USB was removed, and the operator powered it on again. Talos returned to machine stage `running` with `READY=true`; Kubernetes reports it Ready and schedulable. This confirms independent SSD boot.
+- Talos hardware inventory sees two 32 GiB Silicon Power DIMMs (64 GiB installed). Linux exposes about 60.4 GiB to Kubernetes; 2 GiB is configured as hugepages in the shared Talos base configuration, and Kubernetes reports about 57.8 GiB allocatable to ordinary pods. Review whether Amnesia needs the inherited hugepage reservation before gaming workloads.
+- The NVIDIA 595.71.05 open modules and container toolkit extensions are present, and all four NVIDIA kernel modules are loaded. NFD publishes `feature.node.kubernetes.io/pci-0300_10de.present=true`; the NVIDIA chart's default affinity expected a different label. The HelmRelease now targets the observed PCI label, so its plugin and GFD DaemonSets run on Amnesia and Iggy. Amnesia selects `gaming.yaml`, advertises two time-sliced `nvidia.com/gpu` units from its single RTX 5070 Ti, and GFD labels it as shared. Iggy retains its default two-physical-GPU profile.
+- Cilium created an Amnesia BGP node configuration, but its session to UniFi router `192.168.1.1` remained `idle` with zero routes advertised. The router's explicit neighbor list needs `192.168.42.15`; the operator is adding that neighbor. Confirm an established session and routes afterward. Pod DNS/egress, cross-node traffic and application VIPs are still to be checked.
 
 ### Fill in the execution record
 
 | Required value | How to choose/verify |
 | --- | --- |
-| `GAME_NODE` and management FQDN | Unique worker hostname, reflected in Talos, DHCP/DNS, labels and manifests |
-| `GAME_NODE_IP`, wired MAC and interface | Reserved address in the Cogito node subnet; inspect the actual RTL8125 interface |
-| New NVMe model, serial, capacity | Physically verify and match Talos disk discovery before installation |
+| `amnesia` and management FQDN | Control-plane hostname is `amnesia`; verify its management FQDN in DHCP/DNS and use the name consistently in Talos, labels and manifests |
+| `amnesia` management IP, wired MAC and interface | Talos maintenance mode reports `enp7s0`, MAC `10:ff:e0:bb:53:d2`, DHCP address `192.168.42.15/24`, gateway `192.168.42.1`; reserve the final address and verify DNS |
+| New NVMe model, serial, capacity | Talos maintenance mode reports Samsung SSD 9100 PRO 2TB, serial `S7YCNJ0L214027M`, 2,000,398,934,016 bytes at `/dev/nvme0n1`; the preserved original SSD is absent |
 | `GAME_VIP` and gaming DNS name | Unused IP in the existing pool, checked against Services, router and reservations |
 | Disk budgets | EPHEMERAL, game filesystem, free-space margin, initial PVC sizes |
 | Display target | Start SDR 1080p60; then select intended resolution, refresh rate and codec |
@@ -162,19 +185,19 @@ Also inspect Talos versions/extensions on the existing control planes, GPU plugi
 
 Check the desired games' Proton/anti-cheat support individually before committing to Talos as the daily gaming host. A functioning stream cannot make an unsupported game run. Keep Windows-only/unsupported game requirements in the go/no-go decision.
 
-## 5. Prepare Cogito's worker support and GitOps changes
+## 5. Prepare Cogito's control-plane gaming support and GitOps changes
 
-Make implementation changes in reviewed commits, with node onboarding and application enablement separate. This document does not authorize running them immediately.
+Make implementation changes in reviewed commits, with node onboarding and application enablement separate. Node onboarding was authorized and performed; application enablement remains to be implemented.
 
-### Worker rendering
+### Control-plane rendering
 
-Add `talos/schematics/<GAME_NODE>.yaml.j2` and `talos/machineconfig/<GAME_NODE>.yaml.j2` using the existing cluster identity. Set `machine.type: worker`; preserve the existing API URL, CNI-none configuration, kube-proxy choice, pod/service ranges, and KubePrism integration.
+Add `talos/schematics/amnesia.yaml.j2` and `talos/machineconfig/amnesia.yaml.j2` using the existing cluster identity. Set `machine.type: controlplane` and `machine.network.hostname: amnesia`; preserve the existing API URL, CNI-none configuration, kube-proxy choice, pod/service ranges, and KubePrism integration.
 
-Review these first-worker assumptions in `talos/mod.just`:
+Review these node-rendering assumptions in `talos/mod.just`:
 
-- `controller` selects the first filename from all nodes. Select an actual control plane explicitly so an alphabetically earlier worker cannot become the bootstrap/config endpoint.
-- `add-nodes` currently adds all machines as both Talos nodes and endpoints. Keep endpoints restricted to control planes; workers may be node targets.
-- Validate `machine-controller` and the exported `IS_CONTROLLER` value through the real renderer. A worker must not receive control-plane configuration or CA signing material through string/truthiness mistakes.
+- `controller` selected the first filename from all nodes. Select `nuc-1` explicitly as the bootstrap/config endpoint.
+- `add-nodes` added all machines as both Talos nodes and endpoints. Keep endpoints restricted to control planes; any future workers may be node targets.
+- Validate `machine-controller` and the exported `IS_CONTROLLER` value through the real renderer. `amnesia` must receive the existing control-plane identity and etcd signing material.
 - Existing apply helpers assume resolvable installed nodes. Document the fresh node's maintenance-IP initial apply separately.
 
 Use the new NIC's MAC/interface, not Iggy's bond members or Intel-specific kernel arguments. Iggy uses MTU 9000; verify the new link, VLAN and Cilium path before selecting an MTU. A 1500-byte baseline is useful only when compatible with the effective node/CNI configuration; do not introduce an unexplained mixed-MTU path. Preserve current cluster settings until measured evidence requires a change.
@@ -196,7 +219,7 @@ sharing:
         replicas: 2
 ```
 
-Select it only on `GAME_NODE` with `nvidia.com/device-plugin.config: <gaming-profile>`. Keep the existing default configuration for Iggy. Check the rendered ConfigMap namespace: the app Kustomization targets `cluster-infra`, despite the namespace written in the raw ConfigMap.
+Select it only on `amnesia` with `nvidia.com/device-plugin.config: <gaming-profile>`. Keep the existing default configuration for Iggy. Check the rendered ConfigMap namespace: the app Kustomization targets `cluster-infra`, despite the namespace written in the raw ConfigMap.
 
 The Wolf container and the game container each request one `nvidia.com/gpu` allocation. With two advertised shares they can use the same physical 5070 Ti. Confirm plugin allocation settings support this arrangement. This provides neither VRAM isolation nor two physical GPUs. Admit one session and do not schedule LLM workloads there initially.
 
@@ -204,7 +227,9 @@ Set `runtimeClassName: nvidia`, the worker selector and required tolerations thr
 
 ### Single fresh NVMe storage
 
-Set the EPHEMERAL limit **in the initial machine configuration**, before its first provisioning. A reasonable starting budget is 200 GiB for container images/logs, adjusted for the actual disk. Changing this later does not shrink an existing filesystem. [Talos system volume documentation](https://docs.siderolabs.com/talos/v1.13/configure-your-talos-cluster/storage-and-disk-management/disk-management/system)
+The NUCs install Talos on a PNY SATA SSD and use a separate `CT1000T500SSD8` disk for a 400 GB `local-hostpath` user volume plus a Rook raw volume. `amnesia` instead has one fresh 2 TB NVMe: Talos boot/state and `EPHEMERAL` live on that system disk, and a separate partition-backed `local-hostpath` user volume takes the remaining allocatable space. Do not add a Rook raw volume to this worker.
+
+Set the EPHEMERAL limit **in the initial machine configuration**, before its first provisioning. Allocate 400 GiB for container images and logs on this 2 TB disk. Changing this later does not shrink an existing filesystem. [Talos system volume documentation](https://docs.siderolabs.com/talos/v1.13/configure-your-talos-cluster/storage-and-disk-management/disk-management/system)
 
 Create a partition-backed `UserVolumeConfig` named `local-hostpath` on the verified installation disk. Its `/var/mnt/local-hostpath` mount matches the existing OpenEBS base path. Example shape, to validate with Talos 1.13.5 and size for the actual replacement disk:
 
@@ -213,7 +238,7 @@ apiVersion: v1alpha1
 kind: VolumeConfig
 name: EPHEMERAL
 provisioning:
-  maxSize: 200GiB
+  maxSize: 400GiB
 ---
 apiVersion: v1alpha1
 kind: UserVolumeConfig
@@ -231,19 +256,19 @@ Explicitly use `openebs-hostpath` with delayed binding and correct PV node affin
 
 Inspect Fenrir's PVC owner references and deletion behavior before storing real data. Stopping/deleting a Session must preserve the user's library and saves. Use independently managed PVCs or change ownership/lifecycle if the operator would garbage-collect them. Set a suitable reclaim policy and test backup/restore; `Retain` alone is not a backup.
 
-## 6. Hardware transition and worker onboarding
+## 6. Hardware transition and control-plane onboarding
 
 1. Complete laptop independence, source/artifact and game-compatibility gates. Record baseline cluster health and take the normal cluster configuration/etcd recovery backup to independently accessible storage.
-2. Shut down the workstation. Remove and label the original NVMe; store it disconnected. Install the fresh blank NVMe. Do not leave the original disk available to Talos installation.
+2. Shut down the workstation. Remove and label the original Samsung SSD 990 EVO Plus 2TB (observed serial `S7U6NJ0Y436315F`) without modifying it; store it disconnected. Install the fresh blank Samsung SSD 9100 PRO 2TB in the vacated slot. Do not leave the original disk available to Talos installation. Its existing data remains on that preserved drive.
 3. Record firmware settings. Verify UEFI boot, GPU detection, virtualization/IOMMU settings needed by the selected configuration, and the wired link. Do not blindly disable Secure Boot or copy unrelated kernel flags.
 4. Boot the staged Talos image. From the laptop, identify the maintenance IP, NIC and **new disk serial**. Match the install target to that evidence, not an assumed `/dev/nvme0n1` name.
-5. Validate the rendered worker config, disk budgets, installation artifact and worker role. Apply it once to the maintenance IP using Talos's initial unauthenticated maintenance mode. `--insecure` here is only for the initial Talos maintenance API; subsequent administration uses authenticated Talos configuration.
-6. Let installation finish and reboot from NVMe. Do not run `talosctl bootstrap`, generate new cluster CAs, or change existing control-plane membership.
-7. Verify the worker registers, Cilium is healthy, pod DNS/egress and cross-node traffic work, BGP is established, and the new node does not disrupt existing VIPs. Check Talos logs, extensions and storage mounts.
+5. Validate the rendered control-plane config, disk budgets, installation artifact and node role. Apply it once to the maintenance IP using Talos's initial unauthenticated maintenance mode. `--insecure` here is only for the initial Talos maintenance API; subsequent administration uses authenticated Talos configuration.
+6. Let installation finish and reboot from NVMe. Do not run `talosctl bootstrap` or generate new cluster CAs. Allow `amnesia` to join the existing etcd cluster as a learner and then promote to voter.
+7. Verify the control plane registers, Cilium is healthy, pod DNS/egress and cross-node traffic work, BGP is established, and the new node does not disrupt existing VIPs. Check Talos logs, extensions and storage mounts.
 8. Validate required daemon tolerations and apply the gaming taint/labels. Keep game workloads disabled until GPU and storage checks pass.
 9. Reboot once more and confirm node readiness, GPU allocation and storage mounts survive.
 
-Go/no-go: existing cluster remains healthy, the new worker is Ready, control-plane count remains five, and all checks can be performed from the laptop. If the node cannot join, stop and diagnose the specific failure; do not rebuild the functioning cluster around it.
+Go/no-go: existing cluster remains healthy, `amnesia` is Ready as the sixth control plane and an etcd voter, and all checks can be performed from the laptop. If the node cannot join, stop and diagnose the specific failure; do not rebuild the functioning cluster around it.
 
 ## 7. GPU, display, audio and input proof
 
@@ -270,7 +295,7 @@ DLSS/NVAPI is a later milestone: if a game needs it, use version-matched driver 
 
 Create a `dreamcast` namespace and a Cogito app subtree under `kubernetes/apps/dreamcast/`, using the repository's Flux source/Helm/Kustomize conventions. Include ordered dependencies for CRDs/operator, configuration/Secrets, User/App resources and the proxy. Permit required workload privileges through the namespace's applicable admission controls. Keep pairing material and authentication secrets in Cogito's existing secret workflow.
 
-Deploy the pinned operator/proxy first, then one User and one small test App. Place the GPU session on `GAME_NODE`; proxy/operator may use an existing node. Explicitly set the sharing key, proxy service name, reserved VIP and `externalTrafficPolicy: Cluster`. Confirm there is one shared external IP and distinct Service port tuples.
+Deploy the pinned operator/proxy first, then one User and one small test App. Place the GPU session on `amnesia`; proxy/operator may use an existing node. Explicitly set the sharing key, proxy service name, reserved VIP and `externalTrafficPolicy: Cluster`. Confirm there is one shared external IP and distinct Service port tuples.
 
 The reviewed feature branch allocates blocks starting with:
 
@@ -315,8 +340,8 @@ BBR and BIG TCP are not proof of healthy UDP streaming. Preserve Cogito's global
 | Milestone | Deliverable and acceptance gate | Rollback |
 | --- | --- | --- |
 | M0: laptop and artifacts | Workstation-off administration succeeds; coherent source/image pins and installation media staged; desired games assessed | Workstation remains usable on original NVMe |
-| M1: configuration | Worker rendering fixed and validated; disk/NIC/IP verified; manifests render without secrets or floating images | Revert unpublished/implementation configuration changes |
-| M2: worker | Ready node, healthy BGP/Cilium, mounted local volume, reboot passed; existing cluster unchanged in health | Remove only new worker resources if abandoning; reinstall preserved old NVMe |
+| M1: configuration | Control-plane rendering fixed and validated; disk/NIC/IP verified; manifests render without secrets or floating images | Revert unpublished/implementation configuration changes |
+| M2: control plane | Ready node and etcd voter, healthy BGP/Cilium, mounted local volume, SSD-only boot passed; existing cluster remains healthy | Remove `amnesia` from etcd before removing its node resources if abandoning; reinstall preserved old NVMe |
 | M3: devices | Vulkan, NVENC, input and local PVC persistence pass on 5070 Ti | Disable test workloads; correct or roll back node image/config |
 | M4: official-driver gaming baseline | Official Talos NVIDIA artifacts; Steam launches and at least one installed game is playable over Moonlight for 30 minutes with audio/input; restart/reboot retention proven and artifacts/results recorded | Suspend new app reconciliation, stop sessions, preserve PVCs and pairing material |
 | M5: newer-driver feasibility | After M4, create a one-off newer-driver image and compare the same Steam/game streaming tests; document build, boot, runtime and rollback results, including failure if infeasible | Restore the verified official-driver image and confirm the same game works |
@@ -326,20 +351,20 @@ BBR and BIG TCP are not proof of healthy UDP streaming. Preserve Cogito's global
 
 Before rollback, export nonsecret resource definitions, preserve secret material securely, and back up game saves/configuration. Local hostpath data cannot fail over automatically to another node. Preserve the new NVMe too if reverting to the old workstation; its new game data is not present on the old disk.
 
-For application rollback, suspend the relevant Flux reconciliation before manual intervention so it does not recreate workloads. Revert the introducing manifests and pinned images through GitOps; inspect prune behavior so PVCs and CRDs are not inadvertently deleted. For node removal, stop sessions, cordon/drain with local-data consequences understood, and remove only this worker's Kubernetes/Talos/DNS/BGP configuration. A worker has no etcd member to remove. Never reset existing control planes as part of this rollback.
+For application rollback, suspend the relevant Flux reconciliation before manual intervention so it does not recreate workloads. Revert the introducing manifests and pinned images through GitOps; inspect prune behavior so PVCs and CRDs are not inadvertently deleted. For node removal, stop sessions, cordon/drain with local-data consequences understood, and remove only `amnesia`'s Kubernetes/Talos/DNS/BGP configuration. Remove `amnesia` from etcd membership deliberately before permanently retiring it. Never reset the five pre-existing control planes as part of this rollback.
 
 For upgrades, retain the last known-good schematic/installer and all application digests. Validate a new Talos/kernel/driver/toolkit combination with the same GPU smoke tests before changing compositor/game images. Back up pairing data, User/App definitions, persistent home/saves and any version-matched DLSS files. Perform a restore test, not just a successful backup job.
 
 ## 10. Implementation checklist and remaining decisions
 
-- [ ] Laptop independently manages Cogito and can push Git changes with workstation off.
+- [x] Laptop independently manages Cogito and can push Git changes with workstation off.
 - [ ] Live Cilium/Talos/Kubernetes versions and health match the assumptions or this plan is updated.
-- [ ] Hostname, MAC, node IP, gaming VIP, disk serial/capacity and display target recorded.
-- [ ] Official open-module schematic, installer and ISO verified and staged.
+- [ ] `amnesia` management FQDN, MAC, node IP, gaming VIP, disk serial/capacity and display target recorded.
+- [x] Official open-module schematic, installer and ISO verified and staged.
 - [ ] Fenrir chart/CRD/source/image provenance resolved; compatible immutable artifacts recorded.
-- [ ] First-worker renderer and Talos endpoint assumptions corrected.
-- [ ] New node disk layout and mounted OpenEBS path validated before PVC provisioning.
-- [ ] GPU sharing profile is node-scoped; runtime/selector/tolerations survive operator generation.
+- [x] Control-plane renderer and Talos endpoint assumptions corrected.
+- [x] New node disk layout and mounted OpenEBS path validated before PVC provisioning (`/dev/nvme0n1p5` at `/var/mnt/local-hostpath`).
+- [x] GPU sharing profile is node-scoped; the existing plugin and GFD run on Amnesia and advertise two shares while Iggy retains its default profile. Fenrir-generated pod placement and tolerations remain to be checked.
 - [ ] NVIDIA render device, Vulkan, NVENC, uinput, compositor and audio pass independently.
 - [ ] Shared VIP, dynamic port allocation and cross-node DSR path verified.
 - [ ] Pairing, game data retention, reconnect, reboot and restore tests pass.
