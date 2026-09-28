@@ -13,5 +13,21 @@ data:
       gow_log "[ $${init_script}: executing... ]"
       source "$${init_script}"
     done
+    # The pinned Wolf fork predates games-on-whales/wolf#466: apps registered
+    # through /api/v1/apps/add persist start_audio_server=false. The Steam
+    # entry is retained on the PVC, so correct it before Wolf reads the config.
+    config=/mnt/data/wolf/cfg/config.toml
+    if [[ -f "$${config}" ]]; then
+      python3 - "$${config}" <<'PY'
+    from pathlib import Path
+    import sys
+
+    path = Path(sys.argv[1])
+    config = path.read_text()
+    old = "    start_audio_server = false\n    start_virtual_compositor = true\n    title = 'Steam'"
+    if config.count(old) == 1:
+        path.write_text(config.replace(old, old.replace('false', 'true', 1), 1))
+    PY
+    fi
     chmod +x /opt/gow/startup.sh
     exec /opt/gow/startup.sh
