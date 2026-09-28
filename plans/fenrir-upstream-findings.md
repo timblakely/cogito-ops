@@ -33,5 +33,6 @@ Updated: 2026-09-28. This is the running comparison for Cogito's `amnesia` gamin
 
 - **Video proved:** Moonlight paired to Ophelia and displayed Test Ball's moving black-and-white ball after the app-selection fix. The earlier black fullscreen session still had changing decoder statistics, which distinguished a live but wrong Wolf video source from connection failure.
 - **Steam video and audio proved:** The operator saw Steam’s interface over Moonlight, could browse/install games, and heard sound after the retained Wolf audio flag was corrected. Wolf logged the virtual sink and audio producer on the audible session. A game remains to be checked.
+- **Controller prompt differential:** The Xbox-to-keyboard prompt switching reproduced with a nightly Moonlight client as well as the original client. An Xbox controller comparison in the same game is pending; this does not yet distinguish client mouse emulation from Wolf/game focus or input routing.
 - **Not yet measured:** Test Ball audio ticks, sustained frame loss, input, reconnect, DAVE THE DIVER gameplay, 30-minute session, PVC persistence across reboot, and backup/restore.
 - **Upstream delivery:** Local fixes live as [Cogito source patch](../patches/fenrir-operator-fixes.patch) and deployment PRs #179/#180. No upstream Fenrir issue or PR has been filed yet. Add links here when submitted.
