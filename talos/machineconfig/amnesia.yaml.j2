@@ -12,7 +12,7 @@ machine:
     diskSelector:
       model: "Samsung SSD 9100 PRO 2TB"
       serial: S7YCNJ0L214027M
-    image: factory.talos.dev/metal-installer/6527b5fb5bd39e8b5e6716d98b2aed15cff58d2e133cde984120603315146eeb@sha256:48662d546376390f97e80df973cd8bed0e4f2090d39ae74c0289d8568143f35d
+    image: factory.talos.dev/metal-installer/2b5d5bac65ac2e1f4d620f4b7f29320708cef681a5ffa025cf8e5b48bc4862dd@sha256:7ad6bb3742a2316d993a7ac93d528d98a6ab060889c40ec086a1790f0f883a1f
     wipe: false
   kernel:
     modules:
@@ -20,6 +20,7 @@ machine:
       - name: nvidia_uvm
       - name: nvidia_modeset
       - name: nvidia_drm
+      - name: uinput
   nodeLabels:
     workload.cogito/gaming: "true"
     nvidia.com/device-plugin.config: gaming.yaml
