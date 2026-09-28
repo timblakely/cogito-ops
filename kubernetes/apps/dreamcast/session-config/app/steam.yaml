@@ -1,0 +1,69 @@
+---
+apiVersion: direwolf.games-on-whales.github.io/v1alpha1
+kind: App
+metadata:
+  name: steam
+spec:
+  title: Steam
+  id: 2
+  isHDRSupported: false
+  appAssetWebP: UklGRhwBAABXRUJQVlA4IBABAADQHACdASosAZABPm02mUmkIqKhICgAgA2JaW7hd2EbQAnsA99snIe+2Yy09snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPekAAD+/9O4f/1K366KRn9B8NO3tyIAAAAAAAAAAAAAAAAAAA==
+  volumeClaimTemplate:
+    spec:
+      storageClassName: openebs-hostpath-retain
+      accessModes: [ReadWriteOnce]
+      resources:
+        requests:
+          storage: 200Gi
+  template:
+    spec:
+      runtimeClassName: nvidia
+      nodeSelector:
+        kubernetes.io/hostname: amnesia
+      hostIPC: true
+      containers:
+        - name: app
+          image: ghcr.io/games-on-whales/steam@sha256:4f88a5e363c783791fbbe432661d70d6775629fa8c74038b21622477cf20e0ab
+          resources:
+            requests:
+              nvidia.com/gpu: "1"
+              memory: 2Gi
+            limits:
+              nvidia.com/gpu: "1"
+              memory: 24Gi
+          securityContext:
+            # Wolf creates input devices after this container starts.
+            privileged: true
+            runAsUser: 0
+            runAsGroup: 0
+          env:
+            - name: RUN_SWAY
+              value: "true"
+            - name: GBM_BACKENDS_PATH
+              value: /usr/local/lib/gbm:/usr/lib/x86_64-linux-gnu/gbm
+            - name: VK_DRIVER_FILES
+              value: /etc/vulkan/icd.d/nvidia_icd.json
+          command:
+            - /bin/bash
+            - -ec
+            - |
+              until [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && [ -S "$XDG_RUNTIME_DIR/pulse-socket" ]; do
+                echo 'Waiting for Wayland and Pulse sockets'
+                sleep 1
+              done
+              # The operator mounts a fresh per-app subdirectory of the PVC.
+              chown -R "${PUID:-1000}:${PGID:-1000}" /home/retro
+              exec /entrypoint.sh
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: udev-data
+              mountPath: /run/udev
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 4Gi
+  wolfConfig:
+    runtimeVariables:
+      renderNode: /dev/dri/renderD128
