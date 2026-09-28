@@ -13,3 +13,7 @@ metadata:
 provisioner: openebs.io/local
 reclaimPolicy: Retain
 volumeBindingMode: WaitForFirstConsumer
+# Hostpath stores a directory on the node. When changing an existing claim,
+# enlarge the bound PV metadata first, then the PVC request; no filesystem
+# resize is performed and the requested size is not a quota.
+allowVolumeExpansion: true

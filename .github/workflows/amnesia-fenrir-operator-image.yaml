@@ -4,7 +4,7 @@ name: Amnesia Fenrir Operator Image
 
 on:
   push:
-    branches: [amnesia-operator-timeout, amnesia-app-selection, amnesia-wolf-app-registration]
+    branches: [amnesia-operator-timeout, amnesia-app-selection, amnesia-wolf-app-registration, amnesia-steam-600-video]
     paths:
       - .github/workflows/amnesia-fenrir-operator-image.yaml
       - patches/fenrir-operator-fixes.patch
@@ -48,7 +48,7 @@ jobs:
           SOURCE_REVISION: 29eb075afe1ab61490196a7272fd21b5b6313cfc
           RUN_ID: ${{ github.run_id }}
         run: |
-          TAG="$SOURCE_REVISION-agentdial3s-appregister-$RUN_ID"
+          TAG="$SOURCE_REVISION-agentdial3s-appregister-runner-$RUN_ID"
           docker build --pull \
             --build-arg APP_NAME=operator \
             --label "org.opencontainers.image.source=https://github.com/shrinedogg/fenrir" \
