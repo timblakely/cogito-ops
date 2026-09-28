@@ -1,9 +1,6 @@
 ---
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-resources:
-  - ./source.yaml
-  - ./crds.yaml
 configMapGenerator:
   - name: APP-app-vars
     literals:
@@ -19,6 +16,7 @@ patches:
       spec:
         dependsOn:
           - name: fenrir-crds
+            namespace: flux-system
     target:
       kind: Kustomization
       group: kustomize.toolkit.fluxcd.io
