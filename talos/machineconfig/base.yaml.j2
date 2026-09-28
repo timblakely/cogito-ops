@@ -179,6 +179,7 @@ cluster:
   serviceAccount:
     key: op://kubernetes/talos/CLUSTER_SERVICEACCOUNT_KEY
   {% endif %}
+{% if ENV.IS_NUT_CLIENT %}
 ---
 apiVersion: v1alpha1
 kind: ExtensionServiceConfig
@@ -188,6 +189,7 @@ configFiles:
         MONITOR {% raw %}{{ op://kubernetes/nut-client/NUT_ID }}@{{ op://kubernetes/cluster-secrets/NUT_SERVER_IP }} 1 node {{ op://kubernetes/nut-client/NODE_PASSWORD }}{% endraw %} secondary
         SHUTDOWNCMD "/sbin/poweroff"
     mountPath: /usr/local/etc/nut/upsmon.conf
+{% endif %}
 # Changed begin
 # TODO(blakely): Look into watchdog?
 # ---

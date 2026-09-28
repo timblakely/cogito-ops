@@ -1,0 +1,40 @@
+---
+machine:
+  type: controlplane
+  network:
+    hostname: amnesia
+    interfaces:
+      - deviceSelector:
+          driver: r8169
+          hardwareAddr: 10:ff:e0:bb:53:d2
+        dhcp: true
+  install:
+    diskSelector:
+      model: "Samsung SSD 9100 PRO 2TB"
+      serial: S7YCNJ0L214027M
+    image: factory.talos.dev/metal-installer/6527b5fb5bd39e8b5e6716d98b2aed15cff58d2e133cde984120603315146eeb@sha256:48662d546376390f97e80df973cd8bed0e4f2090d39ae74c0289d8568143f35d
+    wipe: false
+  kernel:
+    modules:
+      - name: nvidia
+      - name: nvidia_uvm
+      - name: nvidia_modeset
+      - name: nvidia_drm
+  nodeLabels:
+    workload.cogito/gaming: "true"
+    nvidia.com/device-plugin.config: gaming.yaml
+---
+apiVersion: v1alpha1
+kind: VolumeConfig
+name: EPHEMERAL
+provisioning:
+  maxSize: 400GiB
+---
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: local-hostpath
+provisioning:
+  diskSelector:
+    match: system_disk
+  minSize: 500GiB
+  grow: true

@@ -5,7 +5,7 @@ scripts_dir := justfile_dir() + '/scripts'
 talos_dir := justfile_dir() + '/talos'
 cluster_name := shell("cat $1/machineconfig/base.yaml.j2 | grep -i clustername | awk '{print $2}'", talos_dir)
 list_nodes := "find " + talos_dir + "/machineconfig -type f -name '*.yaml.j2' -not -name 'base.yaml.j2' -printf '%f\\n' | sed 's/\\.yaml\\.j2$//' | sort"
-controller := shell(list_nodes + ' | head -1')
+controller := "nuc-1"
 nuc_nodes_pattern := "^nuc-[1-3]$"
 
 [private]
@@ -43,6 +43,7 @@ reboot-node node *args:
 [doc('Render Talos config for a node')]
 render-config node:
     export IS_CONTROLLER="$(just talos machine-controller {{ node }})"; \
+    export IS_NUT_CLIENT="$(if [ "{{ node }}" != amnesia ]; then printf 'true'; fi)"; \
     talosctl machineconfig patch <(just template "{{ talos_dir }}/machineconfig/base.yaml.j2") \
         -p @<(just template "{{ talos_dir }}/machineconfig/{{ node }}.yaml.j2") \
     | yq eval -P --indent=2 - 
@@ -134,16 +135,21 @@ add-nodes context talosconfig:
 
 [private]
 add-node node context talosconfig:
-    yq -i '.contexts.{{ context }}.endpoints = \
-    ((.contexts.{{ context }}.endpoints // []) + ["{{ node }}"] | unique)' \
-    "{{ talosconfig }}" && \
+    if [ "$(just talos machine-controller "{{ node }}")" = true ]; then \
+        yq -i '.contexts.{{ context }}.endpoints = \
+        ((.contexts.{{ context }}.endpoints // []) + ["{{ node }}"] | unique)' \
+        "{{ talosconfig }}"; \
+    fi
     yq -i '.contexts.{{ context }}.nodes = \
     ((.contexts.{{ context }}.nodes // []) + ["{{ node }}"] | unique)' \
     "{{ talosconfig }}"
 
 [private]
 machine-controller node:
-    just template "{{ talos_dir }}/machineconfig/{{ node }}.yaml.j2" | yq -e 'select(.machine) | (.machine.type == "controlplane") // ""'
+    if yq -r 'select(.machine) | .machine.type' \
+        "{{ talos_dir }}/machineconfig/{{ node }}.yaml.j2" | grep -qx controlplane; then \
+        printf 'true'; \
+    fi
 
 [private]
 machine-image node:
