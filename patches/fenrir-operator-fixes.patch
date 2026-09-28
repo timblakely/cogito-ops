@@ -1,8 +1,8 @@
 diff --git a/pkg/controllers/session.go b/pkg/controllers/session.go
-index e7964b7..0447373 100644
+index e7964b7..da1c48d 100644
 --- a/pkg/controllers/session.go
 +++ b/pkg/controllers/session.go
-@@ -5,9 +5,11 @@ import (
+@@ -5,9 +5,12 @@ import (
  	"context"
  	"crypto/tls"
  	"fmt"
@@ -10,11 +10,12 @@ index e7964b7..0447373 100644
  	"net/http"
  	"os"
  	"reflect"
++	"strconv"
 +	"strings"
  	"sync"
  	"time"
  
-@@ -1754,6 +1756,7 @@ func (c *SessionController) reconcileActiveStreams(
+@@ -1754,6 +1757,7 @@ func (c *SessionController) reconcileActiveStreams(
  	// external agent port (it forwards to the agent's fixed in-pod 8443).
  	wolfclient := wolfapi.NewClient(fmt.Sprintf("https://%s:%d", service.Spec.ClusterIP, session.Status.Ports.Agent), &http.Client{
  		Transport: &http.Transport{
@@ -22,7 +23,7 @@ index e7964b7..0447373 100644
  			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
  		},
  	})
-@@ -1787,86 +1790,25 @@ func (c *SessionController) reconcileActiveStreams(
+@@ -1787,86 +1791,68 @@ func (c *SessionController) reconcileActiveStreams(
  	}
  
  	if !found && app != nil {
@@ -123,12 +124,55 @@ index e7964b7..0447373 100644
 +			}
 +		}
 +		if appID == "" {
-+			return fmt.Errorf("app %q not found in wolf", expectedTitle)
++			if len(apps) == 0 {
++				return fmt.Errorf("cannot register app %q: wolf has no pipeline template", expectedTitle)
++			}
++			templateApp := apps[0]
++			for _, loadedApp := range apps {
++				if strings.EqualFold(loadedApp.Title, "Wolf UI") {
++					templateApp = loadedApp
++					break
++				}
++			}
++			appID = strconv.Itoa(app.Spec.ID)
++			for _, loadedApp := range apps {
++				if loadedApp.ID == appID {
++					return fmt.Errorf("cannot register app %q: wolf ID %s belongs to %q", expectedTitle, appID, loadedApp.Title)
++				}
++			}
++			startAudio, startCompositor := true, true
++			if app.Spec.WolfConfig.StartAudioServer != nil {
++				startAudio = *app.Spec.WolfConfig.StartAudioServer
++			}
++			if app.Spec.WolfConfig.StartVirtualCompositor != nil {
++				startCompositor = *app.Spec.WolfConfig.StartVirtualCompositor
++			}
++			runner := wolfapi.Runner{Type: "process", RunCmd: "sh -c 'while :; do sleep 3600; done'"}
++			if app.Spec.WolfConfig.Runner != nil {
++				runner.Type = app.Spec.WolfConfig.Runner.Type
++				runner.RunCmd = app.Spec.WolfConfig.Runner.RunCommand
++			}
++			renderNode := templateApp.RenderNode
++			if app.Spec.WolfConfig.RuntimeVariables != nil && app.Spec.WolfConfig.RuntimeVariables.RenderNode != "" {
++				renderNode = app.Spec.WolfConfig.RuntimeVariables.RenderNode
++			}
++			newApp := wolfapi.App{
++				ID: appID, Title: expectedTitle, SupportHDR: app.Spec.IsHDRSupported,
++				StartVirtualCompositor: startCompositor, StartAudioServer: startAudio,
++				RenderNode: renderNode, Runner: runner,
++				H264GSTPipeline: templateApp.H264GSTPipeline,
++				HEVCGSTPipeline: templateApp.HEVCGSTPipeline,
++				AV1GSTPipeline: templateApp.AV1GSTPipeline,
++				OpusGSTPipeline: templateApp.OpusGSTPipeline,
++			}
++			if err := wolfclient.AddApp(ctx, newApp); err != nil {
++				return fmt.Errorf("failed to register app %q in wolf: %w", expectedTitle, err)
++			}
 +		}
  
  		//!TODO: Add the ports into the request for this to support multiple
  		// sessions per Gateway.
-@@ -1881,7 +1823,7 @@ func (c *SessionController) reconcileActiveStreams(
+@@ -1881,7 +1867,7 @@ func (c *SessionController) reconcileActiveStreams(
  			VideoWidth:       session.Spec.Config.VideoWidth,
  			VideoHeight:      session.Spec.Config.VideoHeight,
  			VideoRefreshRate: session.Spec.Config.VideoRefreshRate,
