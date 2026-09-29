@@ -1,6 +1,7 @@
 ---
 # Radiance TP=2 on Iggy's R9700 pair. The chipset-side GPU lacks PCIe
-# AtomicOps, so use the tested RCCL 7.1.1 library with P2P disabled.
+# AtomicOps hostcall support, but HIP IPC and RCCL P2P work with the tested
+# RCCL 7.1.1 library injected into the ROCm 7.14 Radiance runtime.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: InferenceService
 metadata:
@@ -59,9 +60,13 @@ spec:
     - name: LD_PRELOAD
       value: /hot/iggy-radiance-rccl/libiggy-rccl-compat.so
     - name: NCCL_P2P_DISABLE
-      value: "1"
+      value: "0"
     - name: NCCL_PROTO
       value: Simple
+    - name: NCCL_DEBUG
+      value: INFO
+    - name: NCCL_DEBUG_SUBSYS
+      value: INIT,GRAPH
     - name: RADIANCE_USE_R4D_AR
       value: "0"
     - name: HIP_VISIBLE_DEVICES

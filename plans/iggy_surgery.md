@@ -60,8 +60,9 @@ Iggy's failure has two distinct stages:
    supported`. [ROCm #6520](https://github.com/ROCm/ROCm/issues/6520)
    reproduces that exact collective failure when a GPU's PCIe path cannot
    support hostcall, and demonstrates that P2P and protocol flags alone do not
-   solve it. This is a strong diagnosis, pending Iggy-specific HIP hostcall
-   probe and ROCr debug trace. The pinned `vllm/vllm-openai-rocm:v0.30.0`
+   solve that library's failure. A later Iggy-specific hostcall probe confirmed
+   the warning, while direct peer and IPC tests passed with a newer runtime.
+   The pinned `vllm/vllm-openai-rocm:v0.30.0`
    image contains ROCm 7.2.3 and RCCL 2.27.7 build `70203`. A separate
    [vLLM R9700 report](https://github.com/vllm-project/vllm/issues/49851)
    found this stock RCCL build lacks explicit `gfx1201` strings, whereas its
@@ -73,7 +74,7 @@ deadlock documented in [ROCm #5480](https://github.com/ROCm/rocm-systems/issues/
 It did not clear Iggy's present-state error. Radiance 0.9.3 has a custom
 PCIe P2P all-reduce but [documents fallback to RCCL](https://hub.docker.com/r/stilldeadcode/vllm-radiance/)
 when P2P is unavailable. Thus Radiance's model kernels and large reported
-speedups do not, by themselves, bypass Iggy's RCCL/atomic path.
+speedups did not, by themselves, establish Iggy's peer transport status.
 
 ### Investigation sequence used for the successful cutover
 
@@ -190,6 +191,25 @@ manual test Pod; enable it after the new manifest has reconciled and the test
 Pod is removed. Verify `/health`, chat, and an automatic tool call on the
 existing `qwen3-8-27b.llm.svc.cluster.local:18020` route. If the new Pod
 fails, suspend it and restore the GGUF profile before releasing Flux.
+
+### Direct PCIe P2P correction
+
+The missing distinction was **hostcall versus peer memory access**. Despite
+the chipset-side GPU's AtomicOps warning, the ROCm 7.14 HIP runtime reports
+`hipDeviceCanAccessPeer=1` in both directions. A kernel on each R9700 read a
+1 MiB allocation on the other card with zero incorrect values. Separate
+processes exported and imported HIP IPC handles in both directions, then read
+the remote allocation with zero incorrect values. With the injected official
+RCCL 2.27.7 library, two-rank exact-value all-reduces passed from 4 KiB
+through 64 MiB. `NCCL_DEBUG=INFO` recorded `via P2P/IPC` for channels in both
+directions, including when SHM was available and
+`HSA_FORCE_FINE_GRAIN_PCIE` was unset. This proves the live RCCL path uses
+direct P2P. The old stock image's `hipIpcGetMemHandle` error and the newer
+RCCL hostcall failure were software-path failures, not proof that the X570
+route cannot do peer reads. The managed service now sets
+`NCCL_P2P_DISABLE=0`; `RADIANCE_USE_R4D_AR=0` remains until Radiance's
+custom all-reduce is separately checked. Setting `NCCL_P2P_DISABLE=1` is the
+verified SHM rollback if a future library update regresses IPC.
 
 ## Goal and boundaries
 
