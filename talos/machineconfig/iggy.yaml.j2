@@ -24,22 +24,16 @@ machine:
   install:
     diskSelector:
       model: "Samsung SSD 970 PRO 512GB"
-    # Factory rollback image. The running P2P installer is private; see plans/talos/2026-09-iggy-gpu-p2p.md.
-    image: factory.talos.dev/metal-installer/cfd03958b772d5edc199bf09cee5e92965c5ef685dfeddfcab6b38fec043d6dc:v1.13.5
+    # R9700 Image Factory schematic; do not apply until the physical GPU swap.
+    image: factory.talos.dev/metal-installer/8f5597684d02cedd54a852b60a13f03bd1d65aa6c48e455e54268163e877ac15@sha256:e69839bf73217ac00445d7593e7e9e4d0a26c81c4c29e403816067878780b57c
     wipe: false
-  kernel:
-    modules:
-    - name: nvidia
-    - name: nvidia_uvm
-    - name: nvidia_drm
-    - name: nvidia_modeset
   sysctls:
     net.core.bpf_jit_harden: 1
   nodeLabels:
     node-role.kubernetes.io/machine-learning: 'true'
     node-role.kubernetes.io/high-cpu: 'true'
     node-role.kubernetes.io/high-mem: 'true'
-    nvidia.com/gpu.present: 'true'
+    amd.com/gpu.present: 'true'
 ---
 apiVersion: v1alpha1
 kind: UserVolumeConfig

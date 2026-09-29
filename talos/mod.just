@@ -86,7 +86,7 @@ upgrade-k8s version:
 [doc('Upgrade Talos version on a node')]
 upgrade-node node *args:
     @if [ "{{ node }}" = iggy ]; then \
-        echo 'Iggy runs a private P2P installer; see plans/talos/2026-09-iggy-gpu-p2p.md before upgrading.' >&2; \
+        echo 'Iggy requires manual GPU image review; see plans/iggy_surgery.md before upgrading.' >&2; \
         exit 1; \
     fi
     talosctl -n "{{ node }}" upgrade -i "$(just talos machine-image {{ node }})" -m default --timeout=10m {{ args }}
