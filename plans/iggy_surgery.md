@@ -4,7 +4,7 @@ Status: hardware and Talos cutover completed on 2026-09-29. Both R9700s are
 visible to Talos and Kubernetes. The AMD device plugin advertises two GPUs,
 and the case fan controller reads both cards when awake. The two-card ROCm
 PyTorch smoke Job completed. Qwen is using two independent single-card ROCm GGUF replicas
-while RCCL tensor parallelism is investigated. The cutover record below
+while Iggy's two-card communication path is investigated. The cutover record below
 preserves the original preparation steps for rollback context.
 
 ## Cutover result (2026-09-29)
@@ -19,7 +19,8 @@ preserves the original preparation steps for rollback context.
 - A two-rank RCCL all-reduce failed at `hipIpcGetMemHandle` on the default
   transport. With `NCCL_P2P_DISABLE=1`, RCCL selected SHM but the collective
   failed with HIP "the operation cannot be performed in the present state".
-  Do not restore tensor parallel Qwen until an all-reduce test passes.
+  The same failure persisted with `NCCL_PROTO=Simple`. Do not restore tensor
+  parallel Qwen until an all-reduce test passes.
 - Two independent Qwen GGUF/ROCm llama.cpp replicas each use one R9700,
   preserving the `qwen3.8-27b` alias and service endpoint. Both replicas
   returned Ready. A text completion and tool call were verified. The GGUF
@@ -30,6 +31,70 @@ preserves the original preparation steps for rollback context.
   an earlier local tool search printed a VS Code Remote SSH log containing it.
   A rendered Talos machine config was also printed in tool output earlier;
   treat that output as sensitive and clean temporary local copies.
+
+## Two-card inference investigation (2026-09-29)
+
+Dual R9700 tensor parallelism is working on other systems. The closed
+[RCCL tests issue #162](https://github.com/ROCm/rccl-tests/issues/162) includes
+a successful four-card `all_reduce_perf` run through 128 MiB with
+`NCCL_P2P_DISABLE=1`; it does **not** establish that direct PCIe P2P was fixed.
+Recent [vLLM reports](https://github.com/vllm-project/vllm/issues/40980) and
+[Radiance's R9700 image](https://hub.docker.com/r/stilldeadcode/vllm-radiance/)
+show TP=2 in production-like inference. A [LocalLLaMA x16/x4 to x8/x8
+comparison](https://www.reddit.com/r/LocalLLaMA/comments/1vx6z3w/2xr9700_switching_to_gen5_x8x8_from_gen4_x16x4_i/)
+also ran TP=2 on the slower topology, albeit with lower throughput.
+
+Iggy's failure has two distinct stages:
+
+1. Default RCCL transport fails at `hipIpcGetMemHandle: invalid argument`.
+   Disabling P2P gets past this and selects shared memory, as in #162.
+2. The first SHM collective then fails with HIP `operation cannot be performed
+   in the present state`, including with `NCCL_PROTO=Simple`. Iggy's Talos
+   boot log contains `amdgpu 0000:25:00.0: amdgpu: PCIE atomic ops is not
+   supported`. [ROCm #6520](https://github.com/ROCm/ROCm/issues/6520)
+   reproduces that exact collective failure when a GPU's PCIe path cannot
+   support hostcall, and demonstrates that P2P and protocol flags alone do not
+   solve it. This is a strong diagnosis, pending Iggy-specific HIP hostcall
+   probe and ROCr debug trace. The pinned `vllm/vllm-openai-rocm:v0.30.0`
+   image contains ROCm 7.2.3 and RCCL 2.27.7 build `70203`. A separate
+   [vLLM R9700 report](https://github.com/vllm-project/vllm/issues/49851)
+   found this stock RCCL build lacks explicit `gfx1201` strings, whereas its
+   working source build has them; string inspection is suggestive, not proof
+   of absent device code.
+
+`NCCL_PROTO=Simple` is still necessary for the independent gfx12 LL protocol
+deadlock documented in [ROCm #5480](https://github.com/ROCm/rocm-systems/issues/5480).
+It did not clear Iggy's present-state error. Radiance 0.9.3 has a custom
+PCIe P2P all-reduce but [documents fallback to RCCL](https://hub.docker.com/r/stilldeadcode/vllm-radiance/)
+when P2P is unavailable. Thus Radiance's model kernels and large reported
+speedups do not, by themselves, bypass Iggy's RCCL/atomic path.
+
+### Next experiment, with the current serving rollback intact
+
+1. Capture the PCIe bridge chain and AtomicOps capabilities for both GPUs,
+   plus `rocminfo` topology. Run the small plain-kernel versus hostcall-kernel
+   [probe from ROCm #6520](https://github.com/cadamcat/dual-radeon-vllm)
+   on each GPU; enable `AMD_LOG_LEVEL=4` to confirm or reject ROCr's
+   `Pcie atomics not enabled, hostcall not supported` diagnosis.
+2. Stage a digest-pinned ROCm image with an RCCL **gfx1201** build whose
+   device kernels do not declare `hidden_hostcall_buffer`. One documented
+   option is RCCL 2.27.7 rebuilt with `NDEBUG`; [the available proof](https://github.com/ROCm/ROCm/issues/6520)
+   is on gfx1100, so validate the resulting binary and ABI on gfx1201 rather
+   than importing its prebuilt library. RCCL 2.30.4 still declares hostcall
+   after `NDEBUG` and is not a drop-in workaround.
+3. During a bounded maintenance test, suspend the two one-card Qwen replicas,
+   give one diagnostic Pod both GPUs, and run checked two-rank all-reduces
+   from small buffers through 128 MiB with `NCCL_P2P_DISABLE=1` and
+   `NCCL_PROTO=Simple`. Record correctness, bandwidth, and both GPU logs.
+   Restore the existing replicas immediately if any size fails.
+4. Only after that gate passes, test a digest-pinned Radiance image with
+   Qwen TP=2, `NCCL_PROTO=Simple`, and P2P disabled on this topology. Start
+   with plain text and reduced context, then tool calling, vision, MTP,
+   context length, and sustained thermal/latency measurements. Promote the
+   GitOps service only after matching the existing endpoint and rollback
+   checks. A future CPU-connected x8/x8 motherboard or riser route may
+   improve throughput and PCIe capabilities, but is a separate hardware
+   decision based on the measured bridge chain.
 
 ## Tonight's verified inputs and go/no-go
 
