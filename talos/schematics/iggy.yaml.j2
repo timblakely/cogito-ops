@@ -1,15 +1,15 @@
 ---
-# Factory rollback schematic. Iggy's running P2P image is built in talos/images/iggy-p2p/.
+# Radeon AI PRO R9700 image. The former NVIDIA P2P image is documented in
+# plans/talos/2026-09-iggy-gpu-p2p.md.
 customization:
   extraKernelArgs:
     - -init_on_alloc # Less security, faster puter
     - -init_on_free # Less security, faster puter
     - -selinux # Less security, faster puter
     - apparmor=0 # Less security, faster puter
-    - i915.enable_guc=3 # Meteor Lake CPU & Intel iGPU
     - init_on_alloc=0 # Less security, faster puter
     - init_on_free=0 # Less security, faster puter
-    - intel_iommu=on # No effect on Iggy's AMD CPU; retained from the running image
+    - amd_iommu=on
     - iommu=pt # IOMMU passthrough mode; this does not disable the IOMMU
     - mitigations=off # Less security, faster puter
     - security=none # Less security, faster puter
@@ -18,7 +18,6 @@ customization:
   systemExtensions:
     officialExtensions:
       - siderolabs/amd-ucode # AMD CPU
-      - siderolabs/nonfree-kmod-nvidia-production
-      - siderolabs/nvidia-container-toolkit-production
+      - siderolabs/amdgpu # AMD GPU firmware and kernel modules
       - siderolabs/realtek-firmware # For networking
       - siderolabs/nut-client # Network UPS Tools Client

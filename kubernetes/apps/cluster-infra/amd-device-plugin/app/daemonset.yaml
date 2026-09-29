@@ -1,0 +1,54 @@
+---
+# ROCm/k8s-device-plugin v1.31.0.10, scoped to Iggy's post-swap Talos label.
+# Advertises physical amd.com/gpu devices; no time slicing or GPU operator.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: amd-device-plugin
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: amd-device-plugin
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: amd-device-plugin
+    spec:
+      priorityClassName: system-node-critical
+      nodeSelector:
+        kubernetes.io/hostname: iggy
+        amd.com/gpu.present: "true"
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+        - key: amd.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: device-plugin
+          image: docker.io/rocm/k8s-device-plugin:1.31.0.10@sha256:0555caf9ccc1cf407b353d1aade87d4598059f87a784085aafe3ece19405b612
+          securityContext:
+            privileged: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: device-plugins
+              mountPath: /var/lib/kubelet/device-plugins
+            - name: sys
+              mountPath: /sys
+      volumes:
+        - name: device-plugins
+          hostPath:
+            path: /var/lib/kubelet/device-plugins
+            type: Directory
+        - name: sys
+          hostPath:
+            path: /sys
+            type: Directory

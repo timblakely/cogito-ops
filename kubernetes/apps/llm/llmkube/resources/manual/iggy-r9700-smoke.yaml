@@ -1,0 +1,54 @@
+---
+# Manual post-swap smoke test. Apply after the AMD device plugin advertises
+# two physical amd.com/gpu devices; this file is not in Flux kustomization.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: iggy-r9700-smoke
+  namespace: llm
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: iggy
+        amd.com/gpu.present: "true"
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+        - key: amd.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+      containers:
+        - name: smoke
+          image: docker.io/vllm/vllm-openai-rocm:v0.30.0@sha256:2e7da1ad1c66836802072588adea75f9f4991da5f9545b4318e91d422c22ce6a
+          command:
+            - /bin/bash
+            - -euc
+            - |
+              ls -l /dev/kfd /dev/dri/renderD*
+              rocminfo | grep -m 4 -E 'Name:.*gfx1201|Marketing Name:'
+              python3 - <<'PY'
+              import torch
+              assert torch.cuda.device_count() == 2, torch.cuda.device_count()
+              for index in range(2):
+                  print(index, torch.cuda.get_device_name(index), flush=True)
+              source = torch.arange(1024 * 1024, device="cuda:0")
+              target = source.to("cuda:1")
+              torch.cuda.synchronize(1)
+              assert torch.equal(target.cpu(), torch.arange(1024 * 1024))
+              print("two GPU enumeration and 8 MiB copy verified", flush=True)
+              PY
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+              amd.com/gpu: 2
+            limits:
+              memory: 8Gi
+              amd.com/gpu: 2

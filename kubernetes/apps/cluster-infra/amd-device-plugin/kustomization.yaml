@@ -1,0 +1,19 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: APP-app-vars
+    literals:
+      - APP=amd-device-plugin
+  - name: gpu-thermal-r9700-dashboard
+    files:
+      - app/dashboard/gpu-thermal.json
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    kustomize.toolkit.fluxcd.io/substitute: disabled
+labels:
+  - pairs:
+      kustomize.autoreiv/cluster-settings: "false"
+components:
+  - ../../../components/ks/app

@@ -42,6 +42,12 @@ reboot-node node *args:
 
 [doc('Render Talos config for a node')]
 render-config node:
+    # Frogtop's vault-limited token stays in Secret Service; other hosts use their existing op auth.
+    if [ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ] && command -v secret-tool >/dev/null 2>&1; then \
+        token="$(secret-tool lookup account codex host frogtop service 1password-service-account 2>/dev/null || true)"; \
+        if [[ "$token" == ops_* ]]; then export OP_SERVICE_ACCOUNT_TOKEN="$token"; fi; \
+        unset token; \
+    fi; \
     export IS_CONTROLLER="$(just talos machine-controller {{ node }})"; \
     export IS_NUT_CLIENT="$(if [ "{{ node }}" != amnesia ]; then printf 'true'; fi)"; \
     talosctl machineconfig patch <(just template "{{ talos_dir }}/machineconfig/base.yaml.j2") \
@@ -86,7 +92,7 @@ upgrade-k8s version:
 [doc('Upgrade Talos version on a node')]
 upgrade-node node *args:
     @if [ "{{ node }}" = iggy ]; then \
-        echo 'Iggy runs a private P2P installer; see plans/talos/2026-09-iggy-gpu-p2p.md before upgrading.' >&2; \
+        echo 'Iggy requires manual GPU image review; see plans/iggy_surgery.md before upgrading.' >&2; \
         exit 1; \
     fi
     talosctl -n "{{ node }}" upgrade -i "$(just talos machine-image {{ node }})" -m default --timeout=10m {{ args }}

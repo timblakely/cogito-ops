@@ -1,0 +1,86 @@
+---
+# Card fans remain on the R9700 firmware's automatic policy. The board case
+# fans follow the hottest AMDGPU hwmon sensor; missing sensors force 100%.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: amd-fan-control
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: amd-fan-control
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: amd-fan-control
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: iggy
+        amd.com/gpu.present: "true"
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      volumes:
+        - name: script
+          configMap:
+            name: amd-fan-control-script
+        - name: host-sys
+          hostPath:
+            path: /sys
+            type: Directory
+      containers:
+        - name: fan-control
+          image: docker.io/library/python:3.12-alpine@sha256:4c47124a8391cb7a9f571164147d154777cf012a4ece5f86097130d7a4478111
+          securityContext:
+            privileged: true
+          command: [python3, -u, /fanctl/fanctl.py]
+          ports:
+            - name: metrics
+              containerPort: 9410
+          volumeMounts:
+            - name: script
+              mountPath: /fanctl
+              readOnly: true
+            - name: host-sys
+              mountPath: /host-sys
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: amd-fan-control
+  labels:
+    amd-fanctl/metrics: "true"
+spec:
+  selector:
+    app.kubernetes.io/name: amd-fan-control
+  ports:
+    - name: metrics
+      port: 9410
+      targetPort: metrics
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: amd-fan-control
+spec:
+  selector:
+    matchLabels:
+      amd-fanctl/metrics: "true"
+  namespaceSelector:
+    matchNames: [cluster-infra]
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
