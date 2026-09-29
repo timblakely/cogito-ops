@@ -1,6 +1,7 @@
 ---
 # Card fans remain on the R9700 firmware's automatic policy. The board case
-# fans follow the hottest AMDGPU hwmon sensor; missing sensors force 100%.
+# fans follow the hottest AMDGPU hwmon sensor. A sleeping GPU has no readable
+# sensor; an active GPU with missing telemetry forces 100% case-fan duty.
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:

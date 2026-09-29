@@ -17,7 +17,8 @@ POLL_S = 5
 METRICS_PORT = 9410
 
 running = True
-state = {"duty": 100, "gpu_temps": {}, "board": None, "healthy": False}
+state = {"duty": 100, "gpu_temps": {}, "sleeping": set(),
+         "board": None, "healthy": False}
 
 
 def read(path):
@@ -60,7 +61,9 @@ def gpu_devices():
 
 def gpu_temperatures():
     result = {}
-    for pci, path, _ in gpu_devices():
+    sleeping = set()
+    devices = gpu_devices()
+    for pci, path, device in devices:
         values = []
         for sensor in glob.glob(f"{path}/temp*_input"):
             raw = read(sensor)
@@ -72,7 +75,9 @@ def gpu_temperatures():
                 values.append(temp)
         if values:
             result[pci] = max(values)
-    return result
+        elif read(f"{device}/power/runtime_status") == "suspended":
+            sleeping.add(pci)
+    return result, sleeping, len(devices)
 
 
 def board_hwmon():
@@ -107,6 +112,7 @@ def metrics():
         "# TYPE amd_fanctl_sensor_healthy gauge",
         f"amd_fanctl_sensor_healthy {int(state['healthy'])}",
         "# TYPE amd_fanctl_gpu_temp_c gauge",
+        "# TYPE amd_fanctl_gpu_runtime_suspended gauge",
     ]
     lines += [
         "# TYPE amd_fanctl_gpu_power_w gauge",
@@ -119,6 +125,7 @@ def metrics():
         label = f'gpu="{index}",pci="{pci}"'
         if pci in state["gpu_temps"]:
             lines.append(f'amd_fanctl_gpu_temp_c{{{label}}} {state["gpu_temps"][pci]:.1f}')
+        lines.append(f'amd_fanctl_gpu_runtime_suspended{{{label}}} {int(pci in state["sleeping"])}')
         fields = (
             ("power_w", f"{hwmon}/power1_average", 1_000_000),
             ("fan_rpm", f"{hwmon}/fan1_input", 1),
@@ -187,16 +194,18 @@ def main():
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
         while running:
-            temps = gpu_temperatures()
-            healthy = len(temps) == 2
+            temps, sleeping, device_count = gpu_temperatures()
+            healthy = device_count == 2 and len(temps) + len(sleeping) == 2
             hottest = max(temps.values()) if temps else None
             duty = (min(CEIL, max(FLOOR, round(FLOOR +
                     (hottest - T_LO) * (CEIL - FLOOR) / (T_HI - T_LO))))
-                    if healthy else 100)
-            state.update(duty=duty, gpu_temps=temps, healthy=healthy)
+                    if healthy and hottest is not None else FLOOR if healthy else 100)
+            state.update(duty=duty, gpu_temps=temps, sleeping=sleeping,
+                         healthy=healthy)
             if board:
                 set_board_fans(board, duty)
-            print(f"gpu_temps={temps} sensors_healthy={healthy} case_duty={duty}%", flush=True)
+            print(f"gpu_temps={temps} sleeping={sorted(sleeping)} "
+                  f"sensors_healthy={healthy} case_duty={duty}%", flush=True)
             time.sleep(POLL_S)
     finally:
         restore_board_fans(board)
