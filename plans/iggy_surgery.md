@@ -230,6 +230,8 @@ the 3090 profile's KV capacity or throughput.
 
 ## References
 
+- [ASRock Radeon AI PRO R9700 Creator board and power specifications](https://www.asrock.com/Graphics-Card/AMD/Radeon%20AI%20PRO%20R9700%20Creator%2032GB/)
+- [Corsair RMx 2024 cable compatibility](https://www.corsair.com/us/no/explorer/diy-builder/power-supply-units/rmx-atx-31-750-850-1000-2024-cable-compatibility/)
 - [AMD R9700 specifications](https://www.amd.com/en/products/graphics/workstations/radeon-ai-pro/ai-9000-series/amd-radeon-ai-pro-r9700.html)
 - [ROCm supported GPUs](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/reference/system-requirements.html)
 - [Talos system extensions](https://github.com/siderolabs/extensions)
