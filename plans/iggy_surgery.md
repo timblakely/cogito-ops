@@ -1,11 +1,10 @@
 # Iggy surgery: dual RTX 3090 to dual Radeon AI PRO R9700
 
-Status: hardware and Talos cutover completed on 2026-09-29. Both R9700s are
-visible to Talos and Kubernetes. The AMD device plugin advertises two GPUs,
-and the case fan controller reads both cards when awake. The two-card ROCm
-PyTorch smoke Job completed. Qwen is using two independent single-card ROCm GGUF replicas
-while Iggy's two-card communication path is investigated. The cutover record below
-preserves the original preparation steps for rollback context.
+Status: hardware, Talos, and Radiance TP=2 serving cutover completed on
+2026-09-29. Both R9700s are visible to Talos and Kubernetes. The AMD device
+plugin advertises two GPUs, and the case fan controller reads both cards when
+awake. Qwen now serves from one managed Radiance Pod across both R9700s. The
+earlier GGUF profile and preparation steps below remain as rollback context.
 
 ## Cutover result (2026-09-29)
 
@@ -31,6 +30,13 @@ preserves the original preparation steps for rollback context.
   an earlier local tool search printed a VS Code Remote SSH log containing it.
   A rendered Talos machine config was also printed in tool output earlier;
   treat that output as sensitive and clean temporary local copies.
+- PRs #202-205 documented the current investigation, published the RCCL
+  compatibility artifact, staged Radiance TP=2, and enabled the managed
+  service. At 17:31 local time, `InferenceService/qwen3-8-27b` was Ready
+  with one replica and no restarts. The existing Service route returned a
+  complete chat answer and an automatic `calculator` tool call. Flux had
+  applied the enablement revision. Both GPUs were visible to `rocm-smi` at
+  42/44°C edge temperature and 43/50°C junction temperature while idle.
 
 ## Two-card inference investigation (2026-09-29)
 
@@ -69,7 +75,7 @@ PCIe P2P all-reduce but [documents fallback to RCCL](https://hub.docker.com/r/st
 when P2P is unavailable. Thus Radiance's model kernels and large reported
 speedups do not, by themselves, bypass Iggy's RCCL/atomic path.
 
-### Next experiment, with the current serving rollback intact
+### Investigation sequence used for the successful cutover
 
 1. Capture the PCIe bridge chain and AtomicOps capabilities for both GPUs,
    plus `rocminfo` topology. Run the small plain-kernel versus hostcall-kernel
