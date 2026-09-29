@@ -42,6 +42,12 @@ reboot-node node *args:
 
 [doc('Render Talos config for a node')]
 render-config node:
+    # Frogtop's vault-limited token stays in Secret Service; other hosts use their existing op auth.
+    if [ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ] && command -v secret-tool >/dev/null 2>&1; then \
+        token="$(secret-tool lookup account codex host frogtop service 1password-service-account 2>/dev/null || true)"; \
+        if [[ "$token" == ops_* ]]; then export OP_SERVICE_ACCOUNT_TOKEN="$token"; fi; \
+        unset token; \
+    fi; \
     export IS_CONTROLLER="$(just talos machine-controller {{ node }})"; \
     export IS_NUT_CLIENT="$(if [ "{{ node }}" != amnesia ]; then printf 'true'; fi)"; \
     talosctl machineconfig patch <(just template "{{ talos_dir }}/machineconfig/base.yaml.j2") \

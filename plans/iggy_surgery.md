@@ -26,6 +26,10 @@ migrated yet.
   v1.13.5 installer OCI index digest:
   `sha256:e69839bf73217ac00445d7593e7e9e4d0a26c81c4c29e403816067878780b57c`.
   Factory lists `siderolabs/amdgpu:20260519-v1.13.5`.
+- `just talos render-config iggy` now loads the vault-limited `codex-frogtop`
+  service-account token from Frogtop's Secret Service keyring when no token is
+  already set. The full render passed Talos CLI 1.13.5 validation without a
+  desktop 1Password prompt or printing the config.
 - Current private NVIDIA P2P installer for hardware rollback:
   `ghcr.io/timblakely/iggy-talos-p2p-installer@sha256:431ad099a0921ca1f736ce3fcb280ff27f567fdd5764d23236e2d24145b4aa44`.
   It needs temporary GHCR pull authentication; the checked-in NVIDIA factory
