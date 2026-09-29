@@ -1,0 +1,44 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: iggy-radiance-rccl-stage-v1
+  namespace: llm
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: iggy
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: stage
+          image: ghcr.io/timblakely/iggy-radiance-rccl-compat@sha256:5b5fd717f5131ad21858c359279ab64ace99856d6f0c8f413a726256583a420f
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -ec
+            - |
+              mkdir -p /compat/iggy-radiance-rccl
+              cp /payload/librccl.so.1 /compat/iggy-radiance-rccl/librccl.so.1.tmp
+              echo '5b11bb5e1647894597554703f474a6a8b3934b29ff886487f47904d400b0d8e9  /compat/iggy-radiance-rccl/librccl.so.1.tmp' | sha256sum -c -
+              cp /payload/libiggy-rccl-compat.so /compat/iggy-radiance-rccl/libiggy-rccl-compat.so.tmp
+              mv /compat/iggy-radiance-rccl/librccl.so.1.tmp /compat/iggy-radiance-rccl/librccl.so.1
+              mv /compat/iggy-radiance-rccl/libiggy-rccl-compat.so.tmp /compat/iggy-radiance-rccl/libiggy-rccl-compat.so
+              ls -lh /compat/iggy-radiance-rccl
+          volumeMounts:
+            - name: hot
+              mountPath: /compat
+          resources:
+            requests:
+              cpu: 100m
+              memory: 1Gi
+            limits:
+              memory: 4Gi
+      volumes:
+        - name: hot
+          persistentVolumeClaim:
+            claimName: llmkube-model-cache
