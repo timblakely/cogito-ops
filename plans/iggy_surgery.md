@@ -1,8 +1,9 @@
 # Iggy surgery: dual RTX 3090 to dual Radeon AI PRO R9700
 
 Status: cutover manifests prepared on 2026-09-28. Hardware and Talos are still
-unchanged. The ROCm vLLM image pre-pull completed on Iggy through the temporary
-`llm/iggy-rocm-image-prepull` Job; no GPU workload was migrated yet.
+unchanged. The ROCm vLLM and llama.cpp fallback image pre-pulls completed on
+Iggy through temporary `llm/iggy-rocm-*prepull` Jobs; no GPU workload was
+migrated yet.
 
 ## Tonight's verified inputs and go/no-go
 
