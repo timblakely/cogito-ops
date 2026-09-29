@@ -1,21 +1,21 @@
 ---
-# Single-card ROCm GGUF serving profile pending R9700 HIP IPC/RCCL fix.
+# Radiance FP8 checkpoint already staged on Iggy's hot model cache.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: Model
 metadata:
   name: qwen3-8-27b
   namespace: llm
 spec:
-  source: pvc://llm-model-archive/llmkube/qwen-3-8-ud-q4/Qwen3.8-27B-UD-Q4_K_XL.gguf
-  format: gguf
-  quantization: Q4_K_XL
+  source: pvc://llmkube-model-cache/qwen-3-8-fp8
+  format: safetensors
+  quantization: fp8
   hardware:
     accelerator: rocm
     gpu:
       enabled: true
       vendor: amd
       resourceName: amd.com/gpu
-      count: 1
+      count: 2
 ---
 # Muse's target, DFlash draft, and projector are already staged together in
 # the hot cache. GPU offload is supplied explicitly by the InferenceService;

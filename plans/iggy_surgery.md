@@ -158,6 +158,33 @@ speedups do not, by themselves, bypass Iggy's RCCL/atomic path.
    Qwen suspended and switch to a measured single-card GGUF/llama.cpp route
    before calling serving restored. Check AMD metrics show both cards.
 
+## 2026-09-29 Radiance resolution
+
+The previous single-card GGUF service remains the rollback profile in
+`kubernetes/apps/llm/llmkube/resources/manual/iggy-r9700-gguf-fallback.yaml`.
+Live PCIe inspection found the chipset-side R9700 behind an X570 bridge that
+does not expose AtomicOps routing. A HIP hostcall probe in the Radiance 0.9.3
+container fails on that GPU with `Pcie atomics not enabled, hostcall not
+supported`; the CPU-lane GPU passes. This explains the stock RCCL shared-memory
+collective failure. The old patched NVIDIA BAR1 P2P path did not require the
+same ROCm hostcall behavior.
+
+The official ROCm 7.1.1 RCCL 2.27.7 library, injected into the digest-pinned
+Radiance 0.9.3 image, passes two-rank exact-value all-reduce through 64 MiB
+with `NCCL_P2P_DISABLE=1` and `NCCL_PROTO=Simple`. A small compatibility shim
+supplies newer PyTorch ABI symbols that this RCCL release lacks; its unsupported
+entry points were not called in the collective. The reproducible artifact is
+built from SHA-pinned upstream inputs at `services/iggy-radiance-rccl/` and
+staged to Iggy's hot cache by the versioned Job in the llmkube resources.
+Radiance TP=2 then loaded the cached Qwen3.8 FP8 model and returned an OpenAI
+chat completion through its local API. The production service uses the same
+RCCL, Qwen parser flags, 32 maximum concurrent sequences, 32k context, and
+two GPUs. Keep the Qwen InferenceService suspended while swapping from the
+manual test Pod; enable it after the new manifest has reconciled and the test
+Pod is removed. Verify `/health`, chat, and an automatic tool call on the
+existing `qwen3-8-27b.llm.svc.cluster.local:18020` route. If the new Pod
+fails, suspend it and restore the GGUF profile before releasing Flux.
+
 ## Goal and boundaries
 
 Replace Iggy's two RTX 3090s with the two Radeon AI PRO R9700s, restore its
