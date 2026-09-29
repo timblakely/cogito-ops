@@ -25,6 +25,10 @@ unchanged. The ROCm vLLM image pre-pull completed on Iggy through the temporary
   v1.13.5 installer OCI index digest:
   `sha256:e69839bf73217ac00445d7593e7e9e4d0a26c81c4c29e403816067878780b57c`.
   Factory lists `siderolabs/amdgpu:20260519-v1.13.5`.
+- Current private NVIDIA P2P installer for hardware rollback:
+  `ghcr.io/timblakely/iggy-talos-p2p-installer@sha256:431ad099a0921ca1f736ce3fcb280ff27f567fdd5764d23236e2d24145b4aa44`.
+  It needs temporary GHCR pull authentication; the checked-in NVIDIA factory
+  image is a functional fallback but lacks this P2P patch.
 - The installed LLMKube CRD accepts `accelerator: rocm`, `vendor: amd`, and
   `resourceName: amd.com/gpu`. The first Qwen profile uses digest-pinned
   `vllm/vllm-openai-rocm:v0.30.0`, 32k context, two GPUs, and the existing
