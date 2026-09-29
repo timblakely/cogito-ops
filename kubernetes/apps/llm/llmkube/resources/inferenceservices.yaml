@@ -1,113 +1,71 @@
 ---
-# First R9700 serving profile. Bring up the existing INT8/MTP checkpoint on
-# ROCm vLLM with a conservative context and no 3090-specific FA2/source overlays.
-# Increase context, concurrency and speculative decoding after measured checks.
+# R9700 single-card GGUF fallback. Two-card tensor parallelism remains gated
+# by an RCCL all-reduce smoke test.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: InferenceService
 metadata:
   name: qwen3-8-27b
+  namespace: llm
   annotations:
     inference.llmkube.dev/idle-endpoint: /health
 spec:
   modelRef: qwen3-8-27b
-  replicas: 1
+  replicas: 2
+  suspend: false
   runtime: generic
-  image: docker.io/vllm/vllm-openai-rocm:v0.30.0@sha256:2e7da1ad1c66836802072588adea75f9f4991da5f9545b4318e91d422c22ce6a
+  image: ghcr.io/ggml-org/llama.cpp:server-rocm@sha256:80c594b448bd039664bb50300c0d95889eca2ea30906544d7dd82fff795fd721
   skipModelInit: true
   nodeSelector:
     kubernetes.io/hostname: iggy
     amd.com/gpu.present: "true"
-  env:
-    - name: VLLM_WORKER_MULTIPROC_METHOD
-      value: spawn
-    - name: VLLM_NO_USAGE_STATS
-      value: "1"
-    - name: OMP_NUM_THREADS
-      value: "1"
-    - name: VLLM_CACHE_ROOT
-      value: /runtime-cache/vllm
-    - name: TRITON_CACHE_DIR
-      value: /runtime-cache/triton
-  rolloutPolicy:
-    waitForIdle: true
-  resources:
-    gpu: 2
-    cpu: "2"
-    memory: 16Gi
-  command:
-    - vllm
-    - serve
+  command: [/app/llama-server]
   args:
     - --model
-    - /model-cache/qwen-3-8-int8-w8a16-mtp
-    - --served-model-name
+    - /model-archive/llmkube/qwen-3-8-ud-q4/Qwen3.8-27B-UD-Q4_K_XL.gguf
+    - --alias
     - qwen3.8-27b
-    - --quantization
-    - compressed-tensors
-    - --dtype
-    - bfloat16
-    - --tensor-parallel-size
-    - "2"
-    - --max-model-len
-    - "32768"
-    - --gpu-memory-utilization
-    - "0.90"
-    - --max-num-seqs
-    - "2"
-    - --max-num-batched-tokens
-    - "4096"
-    - --trust-remote-code
-    - --reasoning-parser
-    - qwen3
-    - --enable-auto-tool-choice
-    - --tool-call-parser
-    - qwen3_coder
     - --host
     - 0.0.0.0
     - --port
     - "18020"
-  extraVolumes:
-    - name: model-cache
-      persistentVolumeClaim:
-        claimName: llmkube-model-cache
-    - name: runtime-cache
-      emptyDir:
-        sizeLimit: 16Gi
-    - name: shm
-      emptyDir:
-        medium: Memory
-        sizeLimit: 8Gi
-  extraVolumeMounts:
-    - name: model-cache
-      mountPath: /model-cache
-      readOnly: true
-    - name: runtime-cache
-      mountPath: /runtime-cache
-    - name: shm
-      mountPath: /dev/shm
+    - --ctx-size
+    - "32768"
+    - --parallel
+    - "1"
+    - --batch-size
+    - "1024"
+    - --ubatch-size
+    - "512"
+    - --flash-attn
+    - "on"
+    - --gpu-layers
+    - all
+    - --jinja
+  resources:
+    gpu: 1
+    cpu: "6"
+    memory: 24Gi
   endpoint:
     port: 18020
+    path: /v1/chat/completions
     type: ClusterIP
+  extraVolumes:
+    - name: model-archive
+      persistentVolumeClaim:
+        claimName: llm-model-archive
+  extraVolumeMounts:
+    - name: model-archive
+      mountPath: /model-archive
+      readOnly: true
+  rolloutPolicy:
+    waitForIdle: true
   probeOverrides:
     startup:
-      tcpSocket:
-        port: 18020
-      periodSeconds: 10
-      failureThreshold: 360
-    liveness:
-      tcpSocket:
-        port: 18020
-      initialDelaySeconds: 60
-      periodSeconds: 30
-      failureThreshold: 6
-    readiness:
       httpGet:
         path: /health
         port: 18020
-      initialDelaySeconds: 30
       periodSeconds: 10
-      failureThreshold: 6
-
+      failureThreshold: 180
 ---
 # Independent review/vision lane on iggy's PCIe x4 RTX 3090. The projector is
 # deliberately kept in host RAM, leaving GPU memory for target, DFlash, and KV.

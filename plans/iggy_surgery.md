@@ -1,9 +1,35 @@
 # Iggy surgery: dual RTX 3090 to dual Radeon AI PRO R9700
 
-Status: cutover manifests prepared on 2026-09-28. Hardware and Talos are still
-unchanged. The ROCm vLLM and llama.cpp fallback image pre-pulls completed on
-Iggy through temporary `llm/iggy-rocm-*prepull` Jobs; no GPU workload was
-migrated yet.
+Status: hardware and Talos cutover completed on 2026-09-29. Both R9700s are
+visible to Talos and Kubernetes. The AMD device plugin advertises two GPUs,
+and the case fan controller reads both cards when awake. The two-card ROCm
+PyTorch smoke Job completed. Qwen is using two independent single-card ROCm GGUF replicas
+while RCCL tensor parallelism is investigated. The cutover record below
+preserves the original preparation steps for rollback context.
+
+## Cutover result (2026-09-29)
+
+- PR #199 installed the AMD Talos image and GitOps manifests; PR #200 fixed
+  fan handling for a runtime-suspended idle R9700. Iggy returned Ready with
+  healthy etcd. The NVIDIA device plugin on Amnesia remains available.
+- Talos reports two `1002:7551` GPUs, `/dev/kfd`, and two render nodes. The
+  `amdgpu` extension loaded without GPU reset or firmware error. Kubernetes
+  advertises `amd.com/gpu: 2`. The PyTorch smoke test enumerated `gfx1201`
+  on both cards and copied memory on each.
+- A two-rank RCCL all-reduce failed at `hipIpcGetMemHandle` on the default
+  transport. With `NCCL_P2P_DISABLE=1`, RCCL selected SHM but the collective
+  failed with HIP "the operation cannot be performed in the present state".
+  Do not restore tensor parallel Qwen until an all-reduce test passes.
+- Two independent Qwen GGUF/ROCm llama.cpp replicas each use one R9700,
+  preserving the `qwen3.8-27b` alias and service endpoint. Both replicas
+  returned Ready. A text completion and tool call were verified. The GGUF
+  fallback is text-only; the `image` LiteLLM alias routes to the existing
+  `vision-cpu` service during this period.
+- The system's 1Password service-account token is loaded from the Secret
+  Service keyring for Talos rendering. Rotate that token after the cutover:
+  an earlier local tool search printed a VS Code Remote SSH log containing it.
+  A rendered Talos machine config was also printed in tool output earlier;
+  treat that output as sensitive and clean temporary local copies.
 
 ## Tonight's verified inputs and go/no-go
 
