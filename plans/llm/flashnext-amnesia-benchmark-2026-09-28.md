@@ -28,4 +28,17 @@ At 42 CPU MoE layers the GPU used 14,858 MiB idle after load and about 15,222 Mi
 
 The LiteLLM alias returned the requested sentinel through the master key and the existing Hermes key. Both Hermes and Open WebUI key scopes were updated through `/key/update`, then `/v1/models` showed `flashnext` for each key.
 
+## Native 262k context follow-up
+
+Qwen documents a native 262,144-token context for Flash Next. The initial 131,072-token deployment was a conservative GPU fit choice, not a model limit. The production slot and LiteLLM advertised input limit were raised to 262,144; 45 instead of 42 MoE layers now run on CPU to free VRAM for the larger cache. Output tokens share this context budget with input tokens, so a request that fills the entire window cannot also generate an 8,192-token answer.
+
+After GitOps reconciliation, one streamed request with 257,712 input tokens and 64 output tokens completed without truncation, CUDA error, or pod restart. The 258k synthetic prompt is repetitive technical prose, so this throughput is not a prediction for varied documents. One short-prompt run measured the cost of moving three more expert layers to CPU.
+
+| 262k slot, 45 CPU MoE layers | Input tokens | Prompt tok/s | Output tok/s | Time to first token | Result |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Long context | 257,712 | 235.5 | 12.3 | 1,094.7 s | 64 output tokens, no truncation |
+| Short context | 1,512 | — | 30.2 | 4.70 s | 256 output tokens |
+
+GPU memory was approximately 14,414 MiB during most of the long prefill, out of 16,303 MiB visible. Short-context output speed declined from the initial deployment's 32.9 to 30.2 tokens/s. These are single samples. An earlier long request was interrupted when Flux reconciled the unmerged config; its empty stream was excluded. The benchmark harness now rejects an empty stream as a failed request.
+
 Raw streamed-request artifacts are in [artifacts/2026-09-28-flashnext-amnesia](artifacts/2026-09-28-flashnext-amnesia). The harness is [qwen_p2p_bench.py](../../scripts/llm/qwen_p2p_bench.py), with llama.cpp `/tokenize` compatibility added for this run.

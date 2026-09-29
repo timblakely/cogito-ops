@@ -119,6 +119,8 @@ def run_request(
                         first_token = time.monotonic()
         ended = time.monotonic()
         generated = usage.get("completion_tokens")
+        if first_token is None or not generated:
+            raise RuntimeError("stream ended without generated tokens")
         return {
             "request": request_id,
             "ok": True,
