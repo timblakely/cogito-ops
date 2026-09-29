@@ -17,7 +17,7 @@ POLL_S = 5
 METRICS_PORT = 9410
 
 running = True
-state = {"duty": 100, "gpu_temps": [], "board": None, "healthy": False}
+state = {"duty": 100, "gpu_temps": {}, "board": None, "healthy": False}
 
 
 def read(path):
@@ -59,8 +59,8 @@ def gpu_devices():
 
 
 def gpu_temperatures():
-    result = []
-    for _, path, _ in gpu_devices():
+    result = {}
+    for pci, path, _ in gpu_devices():
         values = []
         for sensor in glob.glob(f"{path}/temp*_input"):
             raw = read(sensor)
@@ -71,7 +71,7 @@ def gpu_temperatures():
             if 10 <= temp <= 125:
                 values.append(temp)
         if values:
-            result.append(max(values))
+            result[pci] = max(values)
     return result
 
 
@@ -117,8 +117,8 @@ def metrics():
     ]
     for index, (pci, hwmon, device) in enumerate(gpu_devices()):
         label = f'gpu="{index}",pci="{pci}"'
-        if index < len(state["gpu_temps"]):
-            lines.append(f'amd_fanctl_gpu_temp_c{{{label}}} {state["gpu_temps"][index]:.1f}')
+        if pci in state["gpu_temps"]:
+            lines.append(f'amd_fanctl_gpu_temp_c{{{label}}} {state["gpu_temps"][pci]:.1f}')
         fields = (
             ("power_w", f"{hwmon}/power1_average", 1_000_000),
             ("fan_rpm", f"{hwmon}/fan1_input", 1),
@@ -189,7 +189,7 @@ def main():
         while running:
             temps = gpu_temperatures()
             healthy = len(temps) == 2
-            hottest = max(temps) if temps else None
+            hottest = max(temps.values()) if temps else None
             duty = (min(CEIL, max(FLOOR, round(FLOOR +
                     (hottest - T_LO) * (CEIL - FLOOR) / (T_HI - T_LO))))
                     if healthy else 100)
