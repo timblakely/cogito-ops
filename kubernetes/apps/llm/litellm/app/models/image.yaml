@@ -1,16 +1,6 @@
 ---
-# Dedicated local vision route for owner-supplied Matrix images: the gateway's
-# ImageClient posts here (services/gateway/coordinator/image.py, model "image",
-# max_tokens 4096, 900 s client timeout) to describe an attachment before the
-# coordinator plans on it. The long timeout is for large screenshots, not for a
-# slow backend.
-#
-# This deliberately stays on the dual-3090 Qwen lane rather than kristeva's CPU
-# vision lane. The CPU lane measures ~8 tok/s decode plus tens of seconds of
-# image encode, which turns a Matrix image description into minutes; it exists
-# as pi's explicit `/model vision` path (see vision.yaml), which is a different
-# job. Keeping this on Qwen is why that lane does NOT run
-# --language-model-only.
+# Temporary image route while the R9700 Qwen GGUF fallback is text-only.
+# Keep the image alias available through the established CPU vision lane.
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:
@@ -21,14 +11,14 @@ spec:
   modelName: image
   proxyRef: litellm
   params:
-    model: openai/qwen3.8-27b
-    apiBase: http://qwen3-8-27b.llm.svc.cluster.local:18020/v1
+    model: openai/vision-cpu
+    apiBase: http://vision-cpu.llm.svc.cluster.local:8080/v1
     apiKey: not-needed
     additional:
       timeout: 1800
   info:
     supportsVision: true
-    maxInputTokens: 131072
+    maxInputTokens: 16384
     maxOutputTokens: 4096
     extra:
       input_cost_per_token: 0

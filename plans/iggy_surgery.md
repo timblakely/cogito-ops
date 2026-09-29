@@ -3,7 +3,7 @@
 Status: hardware and Talos cutover completed on 2026-09-29. Both R9700s are
 visible to Talos and Kubernetes. The AMD device plugin advertises two GPUs,
 and the case fan controller reads both cards when awake. The two-card ROCm
-PyTorch smoke Job completed. Qwen is using the single-card ROCm GGUF fallback
+PyTorch smoke Job completed. Qwen is using two independent single-card ROCm GGUF replicas
 while RCCL tensor parallelism is investigated. The cutover record below
 preserves the original preparation steps for rollback context.
 
@@ -20,9 +20,11 @@ preserves the original preparation steps for rollback context.
   transport. With `NCCL_P2P_DISABLE=1`, RCCL selected SHM but the collective
   failed with HIP "the operation cannot be performed in the present state".
   Do not restore tensor parallel Qwen until an all-reduce test passes.
-- The current Qwen fallback uses one R9700, the archived 27B GGUF checkpoint,
-  and ROCm llama.cpp. This preserves the `qwen3.8-27b` alias and service
-  endpoint, but does not yet use the second GPU for inference.
+- Two independent Qwen GGUF/ROCm llama.cpp replicas each use one R9700,
+  preserving the `qwen3.8-27b` alias and service endpoint. Both replicas
+  returned Ready. A text completion and tool call were verified. The GGUF
+  fallback is text-only; the `image` LiteLLM alias routes to the existing
+  `vision-cpu` service during this period.
 - The system's 1Password service-account token is loaded from the Secret
   Service keyring for Talos rendering. Rotate that token after the cutover:
   an earlier local tool search printed a VS Code Remote SSH log containing it.
