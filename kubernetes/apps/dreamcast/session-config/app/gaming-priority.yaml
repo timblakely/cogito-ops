@@ -1,0 +1,9 @@
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: gaming-interactive
+value: 20000
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority
+description: Let an interactive Direwolf session reclaim the gaming GPU from background inference.
