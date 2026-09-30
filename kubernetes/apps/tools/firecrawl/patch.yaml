@@ -42,3 +42,9 @@ spec:
                     key: nuq-grants.sql
       target:
         kind: Cluster
+    - patch: |-
+        - op: replace
+          path: /spec/plugins/0/parameters/serverName
+          value: firecrawl-db-20260929
+      target:
+        kind: Cluster
