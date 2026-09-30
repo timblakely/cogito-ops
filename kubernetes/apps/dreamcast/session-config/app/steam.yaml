@@ -38,12 +38,15 @@ spec:
             runAsUser: 0
             runAsGroup: 0
           env:
-            - name: RUN_SWAY
-              value: "true"
             - name: GBM_BACKENDS_PATH
               value: /usr/local/lib/gbm:/usr/lib/x86_64-linux-gnu/gbm
             - name: VK_DRIVER_FILES
               value: /etc/vulkan/icd.d/nvidia_icd.json
+            # Sway makes the first Big Picture game overlay lag when Steam is hidden.
+            - name: RUN_GAMESCOPE
+              value: "true"
+            - name: STEAM_STARTUP_FLAGS
+              value: -bigpicture
           command:
             - /bin/bash
             - -ec
