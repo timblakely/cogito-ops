@@ -1,0 +1,38 @@
+{
+  "basis": "Pinned fork no_alloc context and graph reservation with the actual two-slot arguments; host model includes the lazy disk n-gram mapping. GPU allocator alignment and driver margin are additional.",
+  "candidates": [
+    {
+      "cpu_expert_layers": 26,
+      "tensor_split": "36,13",
+      "tensor_overrides": "per_layer_token_embd=CPU,blk\\.25\\.(ffn_up|ffn_gate)_exps=ROCm0,blk\\.25\\.ffn_down_exps=ROCm1,blk\\.24\\.ffn_up_exps=ROCm1",
+      "memory": [
+        {
+          "device": "ROCm0",
+          "total": 34208743424,
+          "free_now": 6280970240,
+          "weights": 27171322880,
+          "context": 3706756992,
+          "compute": 2263173248
+        },
+        {
+          "device": "ROCm1",
+          "total": 34208743424,
+          "free_now": 2053111808,
+          "weights": 30500573952,
+          "context": 1235339904,
+          "compute": 1470689408
+        },
+        {
+          "device": "host",
+          "total": 134961819648,
+          "free_now": 134961819648,
+          "weights": 111482526720,
+          "context": 0,
+          "compute": 328814624
+        }
+      ],
+      "host_conventional_weight_bytes": 57082265600
+    }
+  ],
+  "disk_ngram_tensor_bytes": 54400261120
+}

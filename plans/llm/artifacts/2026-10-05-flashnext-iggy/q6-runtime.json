@@ -1,0 +1,164 @@
+{
+  "node": "iggy",
+  "slots": 2,
+  "context_per_slot": 131072,
+  "conventional_load_mode": "none",
+  "ngram_load_mode": "lazy mmap on NVMe",
+  "container": {
+    "image": "docker.io/stilldeadcode/vllm-radiance:0.9.3@sha256:45694209177a55a1ab3ba6702fe6e978b1b66a6e66ae3fc066f8d579f7bc4c25",
+    "command": [
+      "/bin/bash",
+      "-ec",
+      "cd /workspace/flashnext-iggy; printf '%s  build.sha256\\n' \"$FLASHNEXT_BUILD_MANIFEST_SHA256\" | sha256sum -c - >&2; sha256sum -c build.sha256 >&2; exec build/bin/llama-server \"$@\"",
+      "flashnext"
+    ],
+    "args": [
+      "--model",
+      "/models/q6/UD-Q6_K_XL/Qwen3.8-Flash-Next-UD-Q6_K_XL-00001-of-00006.gguf",
+      "--alias",
+      "qwen3.8-flash-next",
+      "--host",
+      "0.0.0.0",
+      "--port",
+      "8080",
+      "--ctx-size",
+      "262144",
+      "--parallel",
+      "2",
+      "--batch-size",
+      "1024",
+      "--ubatch-size",
+      "768",
+      "--threads",
+      "12",
+      "--threads-batch",
+      "12",
+      "--flash-attn",
+      "on",
+      "--cache-type-k",
+      "q8_0",
+      "--cache-type-v",
+      "q8_0",
+      "--gpu-layers",
+      "all",
+      "--split-mode",
+      "layer",
+      "--tensor-split",
+      "36,13",
+      "--override-tensor",
+      "per_layer_token_embd=CPU,blk\\.25\\.(ffn_up|ffn_gate)_exps=ROCm0,blk\\.25\\.ffn_down_exps=ROCm1,blk\\.24\\.ffn_up_exps=ROCm1",
+      "--load-mode",
+      "none",
+      "--fit",
+      "off",
+      "--cache-ram",
+      "3072",
+      "--ctx-checkpoints",
+      "0",
+      "--temp",
+      "1.0",
+      "--top-p",
+      "0.95",
+      "--top-k",
+      "20",
+      "--min-p",
+      "0.0",
+      "--jinja",
+      "--slots",
+      "--metrics",
+      "--n-cpu-moe",
+      "26",
+      "--log-verbosity",
+      "4"
+    ],
+    "env": [
+      {
+        "name": "LLAMA_ATTN_ROT_DISABLE",
+        "value": "1"
+      },
+      {
+        "name": "GGML_CUDA_NO_PINNED",
+        "value": "1"
+      },
+      {
+        "name": "LD_LIBRARY_PATH",
+        "value": "/opt/rocm/core-7.14/lib:/opt/rocm/lib"
+      },
+      {
+        "name": "OMP_WAIT_POLICY",
+        "value": "active"
+      },
+      {
+        "name": "GGML_JOHNV8_HCBLOCK",
+        "value": "1"
+      },
+      {
+        "name": "GGML_JOHNV8_MMQ_ID_JMAX",
+        "value": "32"
+      },
+      {
+        "name": "FLASHNEXT_BUILD_MANIFEST_SHA256",
+        "value": "4dcd3455437c5e8efdfe928d92115e9924416a60b309fad52eb7b76eb6b47a59"
+      }
+    ],
+    "resources": {
+      "limits": {
+        "amd.com/gpu": "2",
+        "memory": "100Gi"
+      },
+      "requests": {
+        "amd.com/gpu": "2",
+        "cpu": "8",
+        "memory": "80Gi"
+      }
+    },
+    "volumeMounts": [
+      {
+        "mountPath": "/models",
+        "name": "weights",
+        "readOnly": true
+      },
+      {
+        "mountPath": "/archive",
+        "name": "archive",
+        "readOnly": true
+      },
+      {
+        "mountPath": "/workspace",
+        "name": "build",
+        "readOnly": true
+      },
+      {
+        "mountPath": "/ngram",
+        "name": "ngram",
+        "readOnly": true
+      }
+    ]
+  },
+  "volumes": [
+    {
+      "name": "weights",
+      "persistentVolumeClaim": {
+        "claimName": "flashnext-weights"
+      }
+    },
+    {
+      "name": "archive",
+      "persistentVolumeClaim": {
+        "claimName": "llm-model-archive"
+      }
+    },
+    {
+      "name": "build",
+      "persistentVolumeClaim": {
+        "claimName": "cuda-dev-workspace"
+      }
+    },
+    {
+      "name": "ngram",
+      "persistentVolumeClaim": {
+        "claimName": "flashnext-iggy-ngram"
+      }
+    }
+  ]
+}

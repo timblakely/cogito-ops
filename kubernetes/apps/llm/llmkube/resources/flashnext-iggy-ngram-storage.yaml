@@ -1,0 +1,40 @@
+---
+# Q6's 50.66 GiB lookup table lives on Iggy's second NVMe filesystem.
+# The directory is created by the one-time staging pod. Retain the local copy;
+# the checksum-verified NFS artifact remains available for recovery.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: flashnext-iggy-ngram
+spec:
+  capacity:
+    storage: 64Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  local:
+    path: /var/lib/kubelet/flashnext-iggy-ngram
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [iggy]
+  claimRef:
+    namespace: llm
+    name: flashnext-iggy-ngram
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: flashnext-iggy-ngram
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ""
+  volumeName: flashnext-iggy-ngram
+  resources:
+    requests:
+      storage: 64Gi

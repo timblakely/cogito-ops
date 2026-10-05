@@ -75,6 +75,7 @@ def run_request(
     max_tokens: int,
     timeout: float,
     seed: int,
+    disable_prompt_cache: bool = False,
 ) -> dict[str, Any]:
     payload = {
         "model": model,
@@ -88,6 +89,8 @@ def run_request(
         "stream": True,
         "stream_options": {"include_usage": True},
     }
+    if disable_prompt_cache:
+        payload["cache_prompt"] = False
     request = urllib.request.Request(
         f"{endpoint}/v1/chat/completions",
         data=json.dumps(payload).encode(),
@@ -163,6 +166,10 @@ def main() -> None:
     parser.add_argument("--max-tokens", type=int, default=512)
     parser.add_argument("--timeout", type=float, default=900)
     parser.add_argument("--seed", type=int, default=20260923)
+    parser.add_argument(
+        "--disable-prompt-cache", action="store_true",
+        help="send llama.cpp's per-request cache_prompt=false for cold context probes",
+    )
     parser.add_argument("--cell", required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -183,6 +190,8 @@ def main() -> None:
         "seed": args.seed,
         "rounds": [],
     }
+    if args.disable_prompt_cache:
+        artifact["cache_prompt"] = False
     for repetition in range(args.repetitions):
         barrier = threading.Barrier(args.concurrency)
         results: list[dict[str, Any] | None] = [None] * args.concurrency
@@ -199,6 +208,7 @@ def main() -> None:
                         args.max_tokens,
                         args.timeout,
                         args.seed + repetition * 1000,
+                        args.disable_prompt_cache,
                     ),
                 )
             )

@@ -1,0 +1,100 @@
+# Selected profile: radiance. N-grams remain on local NVMe.
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: flashnext-iggy-radiance
+spec:
+  source: pvc://flashnext-weights/radiance/qwen3.8-next-flash-fp8-iq4r-moe.rad
+  format: custom
+  quantization: IQ4R-protected-BF16
+  hardware:
+    accelerator: rocm
+    gpu:
+      enabled: true
+      count: 2
+      vendor: amd
+      resourceName: amd.com/gpu
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: InferenceService
+metadata:
+  name: flashnext-iggy
+spec:
+  modelRef: flashnext-iggy-radiance
+  runtime: generic
+  image: docker.io/stilldeadcode/radiance:1.0.12@sha256:391ae3dcafbbd1457b6d45abd49bff435b4bf5b7abcccbaf3de362b9ee8bcfe5
+  replicas: 1
+  suspend: false
+  skipModelInit: true
+  nodeSelector:
+    kubernetes.io/hostname: iggy
+    amd.com/gpu.present: 'true'
+  command:
+  - /opt/radiance/bin/radiance
+  args:
+  - --model
+  - /models/radiance/qwen3.8-next-flash-fp8-iq4r-moe.rad
+  - --served-model-name
+  - qwen3.8-flash-next
+  - --tp
+  - '2'
+  - --tp-wire
+  - exact
+  - --max-num-seqs
+  - '2'
+  - --max-model-len
+  - '262144'
+  - --placement
+  - expert_tiered
+  - --host-pool-mib
+  - '12288'
+  - --ngram-placement
+  - disk
+  - --gpu-headroom-mib
+  - '512'
+  - --expert-vs-cache-ratio
+  - '0.82'
+  - --kv-cache-dtype
+  - fp8
+  - --num-speculative-tokens
+  - '3'
+  - --max-num-batched-tokens
+  - '2048'
+  - --host
+  - 0.0.0.0
+  - --port
+  - '8080'
+  - --mm-max-patches
+  - '0'
+  extraVolumes:
+  - name: weights
+    persistentVolumeClaim:
+      claimName: flashnext-weights
+  extraVolumeMounts:
+  - name: weights
+    mountPath: /models
+    readOnly: true
+  resources:
+    cpu: '8'
+    memory: 80Gi
+    gpu: 2
+  endpoint:
+    port: 8080
+    path: /v1/chat/completions
+  rolloutPolicy:
+    waitForIdle: false
+  probeOverrides:
+    startup:
+      httpGet:
+        path: /health
+        port: 8080
+      periodSeconds: 10
+      failureThreshold: 180
+    readiness:
+      httpGet:
+        path: /health
+        port: 8080
+      periodSeconds: 10
+  podSecurityContext:
+    seccompProfile:
+      type: Unconfined

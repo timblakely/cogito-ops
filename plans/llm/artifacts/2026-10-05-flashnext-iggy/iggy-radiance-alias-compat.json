@@ -1,0 +1,108 @@
+[
+  {
+    "test": "schema",
+    "passed": true,
+    "response": {
+      "id": "chatcmpl-ef2ad3371fc6a4d00ede2948",
+      "created": 1791237603,
+      "model": "flashnext-iggy",
+      "object": "chat.completion",
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "message": {
+            "content": "{\n  \"status\": \"IGGY_SCHEMA_OK\"\n}",
+            "role": "assistant",
+            "provider_specific_fields": {
+              "refusal": null
+            }
+          },
+          "provider_specific_fields": {}
+        }
+      ],
+      "usage": {
+        "completion_tokens": 20,
+        "prompt_tokens": 20,
+        "total_tokens": 40,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 20,
+        "prompt_ms": 68.311621,
+        "prompt_per_token_ms": 3.41558105,
+        "prompt_per_second": 292.7759538893097,
+        "predicted_n": 20,
+        "predicted_ms": 141.296199,
+        "predicted_per_token_ms": 7.436642052631579,
+        "predicted_per_second": 134.4692931194844,
+        "draft_n": 15,
+        "draft_n_accepted": 14
+      }
+    }
+  },
+  {
+    "test": "tool_auto",
+    "passed": true,
+    "response": {
+      "id": "chatcmpl-0215641a65da2b490886cd06",
+      "created": 1791237603,
+      "model": "flashnext-iggy",
+      "object": "chat.completion",
+      "choices": [
+        {
+          "finish_reason": "tool_calls",
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "function": {
+                  "arguments": "{\"city\":\"Denver\"}",
+                  "name": "get_weather"
+                },
+                "id": "call_3461904712a29165c2ddafa0",
+                "type": "function"
+              }
+            ],
+            "provider_specific_fields": {
+              "refusal": null
+            },
+            "content": null
+          },
+          "provider_specific_fields": {}
+        }
+      ],
+      "usage": {
+        "completion_tokens": 26,
+        "prompt_tokens": 279,
+        "total_tokens": 305,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 279,
+        "prompt_ms": 688.6746509999999,
+        "prompt_per_token_ms": 2.4683679247311825,
+        "prompt_per_second": 405.1259903277608,
+        "predicted_n": 26,
+        "predicted_ms": 301.65419499999996,
+        "predicted_per_token_ms": 12.066167799999999,
+        "predicted_per_second": 82.87635449591544,
+        "draft_n": 21,
+        "draft_n_accepted": 18
+      }
+    }
+  }
+]

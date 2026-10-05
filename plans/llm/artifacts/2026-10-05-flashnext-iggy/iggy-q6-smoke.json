@@ -1,0 +1,130 @@
+[
+  {
+    "test": "reasoning",
+    "response": {
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "410",
+            "reasoning_content": "We need answer user: \"Compute 17*23+19. Return only the final integer.\" Need compute: 17*23 = 391? 17*20=340, +51=391. +19=410. Final only integer.\n"
+          }
+        }
+      ],
+      "created": 1791237315,
+      "model": "qwen3.8-flash-next",
+      "system_fingerprint": "b0-unknown",
+      "object": "chat.completion",
+      "usage": {
+        "completion_tokens": 76,
+        "prompt_tokens": 69,
+        "total_tokens": 145,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "id": "chatcmpl-bnp19T5TTSEx3HC5neD85BRpZjnkUIu3",
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 69,
+        "prompt_ms": 3377.337,
+        "prompt_per_token_ms": 48.94691304347826,
+        "prompt_per_second": 20.430297598374104,
+        "predicted_n": 76,
+        "predicted_ms": 4480.646,
+        "predicted_per_token_ms": 59.741946666666664,
+        "predicted_per_second": 16.738657773901352
+      }
+    }
+  },
+  {
+    "test": "json",
+    "response": {
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "{\n  \"status\": \"ok\",\n  \"result\": 410\n}"
+          }
+        }
+      ],
+      "created": 1791237319,
+      "model": "qwen3.8-flash-next",
+      "system_fingerprint": "b0-unknown",
+      "object": "chat.completion",
+      "usage": {
+        "completion_tokens": 21,
+        "prompt_tokens": 33,
+        "total_tokens": 54,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "id": "chatcmpl-ks7b74Ouw1gEJ8rIWT8cvHGdFcVdzBj3",
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 33,
+        "prompt_ms": 2172.949,
+        "prompt_per_token_ms": 65.8469393939394,
+        "prompt_per_second": 15.18673470937422,
+        "predicted_n": 21,
+        "predicted_ms": 1230.071,
+        "predicted_per_token_ms": 61.50355,
+        "predicted_per_second": 16.259224061050134
+      }
+    }
+  },
+  {
+    "test": "tool_auto",
+    "response": {
+      "choices": [
+        {
+          "finish_reason": "tool_calls",
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Denver\"}"
+                },
+                "id": "N653TTodI8VVS9MpT2e1u1mLqWKXty4b"
+              }
+            ]
+          }
+        }
+      ],
+      "created": 1791237327,
+      "model": "qwen3.8-flash-next",
+      "system_fingerprint": "b0-unknown",
+      "object": "chat.completion",
+      "usage": {
+        "completion_tokens": 26,
+        "prompt_tokens": 279,
+        "total_tokens": 305,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "id": "chatcmpl-oySxTI3zAWN2PkluMAFF7uR7rhjlxQEY",
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 279,
+        "prompt_ms": 6714.675,
+        "prompt_per_token_ms": 24.066935483870967,
+        "prompt_per_second": 41.55078242804007,
+        "predicted_n": 26,
+        "predicted_ms": 1493.144,
+        "predicted_per_token_ms": 59.72576,
+        "predicted_per_second": 16.74319422641085
+      }
+    }
+  }
+]

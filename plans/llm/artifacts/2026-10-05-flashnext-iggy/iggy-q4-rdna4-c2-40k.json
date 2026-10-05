@@ -1,0 +1,63 @@
+{
+  "cell": "iggy-q4-rdna4-c2-40k",
+  "timestamp_utc": "2026-10-05T19:16:50.356870+00:00",
+  "model": "qwen3.8-flash-next",
+  "endpoint": "http://flashnext-iggy:8080",
+  "prompt_sha256": "33dda80a6f1a40b0ebda1e0b6bd6a9db761e22b33b2c0771d1630b35cff000a3",
+  "prompt_tokens_by_tokenize": 40645,
+  "target_prompt_tokens": 40890,
+  "concurrency": 2,
+  "repetitions": 1,
+  "max_tokens": 256,
+  "seed": 20260923,
+  "rounds": [
+    {
+      "repetition": 1,
+      "requests": [
+        {
+          "request": 0,
+          "ok": true,
+          "ttft_seconds": 118.15079686901299,
+          "total_seconds": 131.9892754079774,
+          "usage": {
+            "completion_tokens": 256,
+            "prompt_tokens": 40712,
+            "total_tokens": 40968,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "finish_reason": "length",
+          "decode_tps": 18.4991434773116
+        },
+        {
+          "request": 1,
+          "ok": true,
+          "ttft_seconds": 57.988617456983775,
+          "total_seconds": 129.59258580196183,
+          "usage": {
+            "completion_tokens": 256,
+            "prompt_tokens": 40712,
+            "total_tokens": 40968,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "finish_reason": "length",
+          "decode_tps": 3.5752208420436595
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "requests": 2,
+    "successful": 2,
+    "ttft_seconds_p50": 88.06970716299838,
+    "ttft_seconds_p95": 118.15079686901299,
+    "total_seconds_p50": 130.79093060496962,
+    "total_seconds_p95": 131.9892754079774,
+    "decode_tps_p50": 11.037182159677629,
+    "decode_tps_p95": 18.4991434773116
+  },
+  "comparison_note": "Two active slots; a JSON-schema smoke request entered the freed first slot near the end of the second request. Exclude this cell from the primary concurrency comparison; rerun without interference."
+}

@@ -1,0 +1,47 @@
+{
+  "cell": "iggy-q4-stock-258k",
+  "timestamp_utc": "2026-10-05T18:51:33.715733+00:00",
+  "model": "qwen3.8-flash-next",
+  "endpoint": "http://flashnext-iggy:8080",
+  "prompt_sha256": "fd7667a3039f9b1cf3d84ba37a370f7e3709ffc6bcf6219712cfac76882e5e5b",
+  "prompt_tokens_by_tokenize": 257645,
+  "target_prompt_tokens": 258000,
+  "concurrency": 1,
+  "repetitions": 1,
+  "max_tokens": 64,
+  "seed": 20260923,
+  "rounds": [
+    {
+      "repetition": 1,
+      "requests": [
+        {
+          "request": 0,
+          "ok": true,
+          "ttft_seconds": 82.43875042698346,
+          "total_seconds": 90.19740888796514,
+          "usage": {
+            "completion_tokens": 64,
+            "prompt_tokens": 257712,
+            "total_tokens": 257776,
+            "prompt_tokens_details": {
+              "cached_tokens": 234496
+            }
+          },
+          "finish_reason": "length",
+          "decode_tps": 8.248848730983099
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "requests": 1,
+    "successful": 1,
+    "ttft_seconds_p50": 82.43875042698346,
+    "ttft_seconds_p95": 82.43875042698346,
+    "total_seconds_p50": 90.19740888796514,
+    "total_seconds_p95": 90.19740888796514,
+    "decode_tps_p50": 8.248848730983099,
+    "decode_tps_p95": 8.248848730983099
+  },
+  "comparison_note": "Capacity validation with a reused 234,496-token prefix from the interrupted probe; exclude TTFT from cold throughput comparisons."
+}
