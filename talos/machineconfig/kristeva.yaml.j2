@@ -24,11 +24,15 @@ machine:
   install:
     diskSelector:
       model: "Samsung SSD 850"
-    image: factory.talos.dev/metal-installer/28e76510b0e7cdf6e142ef7566e75d1df994a0662808e94d5669babc6db6cd5d:v1.12.5
+    image: factory.talos.dev/metal-installer/b5b5595d47b2f5dbbf090293c10f7a95f349f63e684f5eb59288184dde72e13c@sha256:3b6ac4222be62b97f72731857a7ad7313fc6958a930d5301731150c42e4a69f7
     wipe: false
   kernel:
     modules:
     - name: i915
+    - name: nvidia
+    - name: nvidia_uvm
+    - name: nvidia_modeset
+    - name: nvidia_drm
   sysctls:
     net.core.bpf_jit_harden: 1
     # Kopia memory-maps one repository index per pack; the default 65,530

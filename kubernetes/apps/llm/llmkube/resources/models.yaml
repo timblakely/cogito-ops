@@ -17,16 +17,20 @@ spec:
       resourceName: amd.com/gpu
       count: 2
 ---
-# Muse's target, DFlash draft, and projector are already staged together in
-# the hot cache. GPU offload is supplied explicitly by the InferenceService;
-# keeping this Model scheduler-neutral prevents an nvidia.com/gpu request.
+# Muse files are staged together on Kristeva's retained NVMe claim.
+# Request the physical GPU through the device plugin, without a UUID override.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: Model
 metadata:
   name: muse-glimmer-30b
 spec:
-  source: pvc://llmkube-model-cache/muse-glimmer-30b/Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf
+  source: pvc://muse-kristeva/muse-glimmer-30b/Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf
   format: gguf
   quantization: Q4_K_M
   hardware:
-    accelerator: cpu
+    accelerator: cuda
+    gpu:
+      enabled: true
+      count: 1
+      vendor: nvidia
+      resourceName: nvidia.com/gpu

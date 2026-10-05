@@ -105,8 +105,8 @@ spec:
       periodSeconds: 10
       failureThreshold: 180
 ---
-# Independent review/vision lane on iggy's PCIe x4 RTX 3090. The projector is
-# deliberately kept in host RAM, leaving GPU memory for target, DFlash, and KV.
+# Muse on Kristeva's RTX 3090. Explicit generic-runtime arguments retain the
+# tested two 131k slots, Q8 KV, and CPU projector, and name the DFlash file.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: InferenceService
 metadata:
@@ -114,73 +114,20 @@ metadata:
 spec:
   modelRef: muse-glimmer-30b
   replicas: 1
-  # Retained as a one-field rollback definition. Suspend removes the live pod
-  # without discarding its desired replica count or cached model artifacts.
-  suspend: true
-  runtime: llamacpp
+  runtime: generic
   image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:6ac921528d613deb0fd142c654735e594a446a1c37a069eeab08d8fd974d4bec
   runtimeClassName: nvidia
   nodeSelector:
-    kubernetes.io/hostname: iggy
+    kubernetes.io/hostname: kristeva
   env:
-    - name: NVIDIA_VISIBLE_DEVICES
-      value: GPU-787b1f07-4246-5ccd-5074-4bb2120f2c14
     - name: NVIDIA_DRIVER_CAPABILITIES
       value: compute,utility
-  # Two fixed 131k slots. Explicit parallelism avoids llama.cpp's automatic
-  # unified-KV mode and lets the two-scout round use the x4 lane concurrently.
-  contextSize: 262144
-  flashAttention: true
-  jinja: true
-  parallelSlots: 2
   rolloutPolicy:
     waitForIdle: true
-  batchSize: 4096
-  uBatchSize: 1024
-  cacheTypeK: q8_0
-  cacheTypeV: q8_0
-  reasoningBudget: 16384
-  reasoningBudgetMessage: Stop reasoning and produce the implementation, tool call, or final answer.
   resources:
-    cpu: "2"
-    # Sustained multi-turn research grew the llama.cpp host process beyond 12Gi
-    # and OOM-killed the endpoint. cuda-dev is dormant, leaving room for this
-    # cgroup plus one 2Gi planning Job and the controllers on iggy.
+    gpu: 1
+    cpu: '2'
     memory: 16Gi
-  speculativeDecoding:
-    type: draft-dflash
-    draftModel: /model-source/muse-glimmer-30b/dflash-Muse-Glimmer-30B-Q4_K_M.gguf
-    nDraftMax: 15
-    pMin: 0.75
-  extraArgs:
-    - --n-gpu-layers
-    - "99"
-    - --alias
-    - muse-glimmer-30b
-    - --mmproj
-    - /model-source/muse-glimmer-30b/mmproj-Muse-Glimmer-30B-Q4_K_M.gguf
-    - --no-mmproj-offload
-    - --image-min-tokens
-    - "1024"
-    - --cont-batching
-    - --spec-draft-type-k
-    - q8_0
-    - --spec-draft-type-v
-    - q8_0
-    - --cache-prompt
-    - --temp
-    - "1.0"
-    - --top-p
-    - "0.95"
-    - --top-k
-    - "64"
-    - --reasoning-preserve
-    - --threads
-    - "6"
-    - --threads-batch
-    - "12"
-    - --load-mode
-    - none
   endpoint:
     port: 8080
     type: ClusterIP
@@ -205,3 +152,77 @@ spec:
       initialDelaySeconds: 20
       periodSeconds: 10
       failureThreshold: 6
+  skipModelInit: true
+  command:
+    - /app/llama-server
+  args:
+    - --model
+    - /models/muse-glimmer-30b/Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf
+    - --port
+    - '8080'
+    - --host
+    - '::'
+    - --ctx-size
+    - '262144'
+    - --parallel
+    - '2'
+    - --jinja
+    - --cache-type-k
+    - q8_0
+    - --cache-type-v
+    - q8_0
+    - --batch-size
+    - '4096'
+    - --ubatch-size
+    - '1024'
+    - --spec-type
+    - draft-dflash
+    - --spec-draft-n-max
+    - '15'
+    - --spec-draft-p-min
+    - '0.75'
+    - --reasoning-budget
+    - '16384'
+    - --reasoning-budget-message
+    - Stop reasoning and produce the implementation, tool call, or final answer.
+    - --n-gpu-layers
+    - '99'
+    - --alias
+    - muse-glimmer-30b
+    - --mmproj
+    - /models/muse-glimmer-30b/mmproj-Muse-Glimmer-30B-Q4_K_M.gguf
+    - --no-mmproj-offload
+    - --image-min-tokens
+    - '1024'
+    - --cont-batching
+    - --spec-draft-type-k
+    - q8_0
+    - --spec-draft-type-v
+    - q8_0
+    - --cache-prompt
+    - --temp
+    - '1.0'
+    - --top-p
+    - '0.95'
+    - --top-k
+    - '64'
+    - --reasoning-preserve
+    - --threads
+    - '6'
+    - --threads-batch
+    - '12'
+    - --load-mode
+    - none
+    - --metrics
+    - --flash-attn
+    - 'on'
+    - --model-draft
+    - /models/muse-glimmer-30b/dflash-Muse-Glimmer-30B-Q4_K_M.gguf
+  extraVolumes:
+    - name: muse-weights
+      persistentVolumeClaim:
+        claimName: muse-kristeva
+  extraVolumeMounts:
+    - name: muse-weights
+      mountPath: /models
+      readOnly: true

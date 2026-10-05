@@ -14,8 +14,15 @@ spec:
     spec:
       runtimeClassName: nvidia
       nodeSelector:
-        kubernetes.io/hostname: iggy
-        nvidia.com/gpu.present: "true"
+        feature.node.kubernetes.io/pci-0300_10de.present: "true"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values: [iggy, kristeva]
       tolerations:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
