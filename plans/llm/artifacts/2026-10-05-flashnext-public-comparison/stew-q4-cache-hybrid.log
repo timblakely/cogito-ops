@@ -1,0 +1,30 @@
+0.00.029.876 I srv  llama_server: initializing ...
+0.00.029.885 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.030.243 W srv  llama_server: security: no API key is set and CORS allows all origins (see https://github.com/ggml-org/llama.cpp/pull/25655)
+0.00.032.630 I srv    load_model: loading model '/models/atomic/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00001-of-00033.gguf'
+0.00.447.523 W llama_model_loader: tensor overrides to CPU are used with mmap enabled - consider using --load-mode none for better performance
+0.31.486.313 I cmn          init: llama threadpool init, n_threads = 12
+0.33.320.242 W alloc_all_locked: MoE expert cache (auto): arena 29315.7 MiB of 31500.0 MiB host experts (93.1% residency).  MOE_EXPERT_CACHE_MIB=0 disables the cache; set a positive value to size it explicitly.
+0.33.721.142 W moe_cache_update_host: device-remap fast path armed after a uniform eager pass over 192 tables
+0.33.765.533 I srv    load_model: initializing, n_slots = 2, n_ctx_slot = 131072, kv_unified = 'false'
+0.33.769.954 W srv          init: chat template supports preserving reasoning, it is enabled by default (may use more tokens, disable via --no-reasoning-preserve)
+0.33.769.985 I srv  llama_server: model loaded
+0.33.769.990 I srv  llama_server: listening on http://0.0.0.0:8080
+0.33.769.990 W srv  llama_server: notice: server default port will be changed to :9931 in a future release (ref: https://github.com/ggml-org/llama.cpp/pull/26508)
+1.17.292.789 I slot get_availabl: id  1 | task -1 | selected slot by LRU, t_last = -1
+1.17.292.870 I slot launch_slot_: id  1 | task 0 | processing task, is_child = 0
+1.18.537.154 I slot print_timing: id  1 | task 0 | prompt eval time =     735.63 ms /    29 tokens (   25.37 ms per token,    39.42 tokens per second)
+1.18.537.158 I slot print_timing: id  1 | task 0 |        eval time =     508.63 ms /     4 tokens (  169.54 ms per token,     5.90 tokens per second)
+1.18.537.159 I slot print_timing: id  1 | task 0 |       total time =    1244.26 ms /    33 tokens
+1.18.537.161 I slot print_timing: id  1 | task 0 |    graphs reused =          3
+1.18.537.211 I slot      release: id  1 | task 0 | stop processing: n_tokens = 32, truncated = 0
+1.18.539.694 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = -1
+1.18.539.940 I slot launch_slot_: id  0 | task 5 | processing task, is_child = 0
+1.22.090.557 I slot print_timing: id  0 | task 5 | prompt eval time =     533.60 ms /    30 tokens (   17.79 ms per token,    56.22 tokens per second)
+1.22.090.561 I slot print_timing: id  0 | task 5 |        eval time =    2922.07 ms /    14 tokens (  224.77 ms per token,     4.45 tokens per second)
+1.22.090.562 I slot print_timing: id  0 | task 5 |       total time =    3455.68 ms /    44 tokens
+1.22.090.562 I slot print_timing: id  0 | task 5 |    graphs reused =         15
+1.22.090.587 I slot      release: id  0 | task 5 | stop processing: n_tokens = 43, truncated = 0
+1.22.093.819 I slot get_availabl: id  1 | task -1 | selected slot by LRU, t_last = 529232765472
+1.22.094.285 I slot launch_slot_: id  1 | task 20 | processing task, is_child = 0
+1.22.243.416 W NCCL AllReduce failed (unhandled cuda error (run with NCCL_DEBUG=INFO for details)) - not retrying NCCL, falling back to the internal AllReduce pipeline for the rest of this run. If the error is hipErrorIllegalState, the PCIe root port most likely lacks AtomicOp completer support (check: dmesg | grep -i atomic; see ROCm/ROCm#6520). Run with NCCL_DEBUG=INFO for details.

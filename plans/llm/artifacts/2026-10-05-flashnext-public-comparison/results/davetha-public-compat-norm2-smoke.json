@@ -1,0 +1,150 @@
+[
+  {
+    "case": "arithmetic",
+    "response": {
+      "id": "chatcmpl-8fc27b8aab0472ca",
+      "object": "chat.completion",
+      "created": 1791285314,
+      "model": "qwen3.8-flash-next",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "323",
+            "refusal": null,
+            "annotations": null,
+            "audio": null,
+            "function_call": null,
+            "reasoning": null
+          },
+          "logprobs": null,
+          "finish_reason": "stop",
+          "stop_reason": null,
+          "token_ids": null,
+          "routed_experts": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": "vllm-0.27.0-tp2-c18f7bcf",
+      "usage": {
+        "prompt_tokens": 29,
+        "total_tokens": 33,
+        "completion_tokens": 4,
+        "prompt_tokens_details": null,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "prompt_logprobs": null,
+      "prompt_token_ids": null,
+      "prompt_text": null,
+      "kv_transfer_params": null,
+      "ec_transfer_params": null,
+      "metrics": null
+    },
+    "passed": true
+  },
+  {
+    "case": "json",
+    "response": {
+      "id": "chatcmpl-80dc5ca762e0a356",
+      "object": "chat.completion",
+      "created": 1791285317,
+      "model": "qwen3.8-flash-next",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "{\"product\": 323, \"ok\": true}",
+            "refusal": null,
+            "annotations": null,
+            "audio": null,
+            "function_call": null,
+            "reasoning": null
+          },
+          "logprobs": null,
+          "finish_reason": "stop",
+          "stop_reason": null,
+          "token_ids": null,
+          "routed_experts": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": "vllm-0.27.0-tp2-c18f7bcf",
+      "usage": {
+        "prompt_tokens": 37,
+        "total_tokens": 51,
+        "completion_tokens": 14,
+        "prompt_tokens_details": null,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "prompt_logprobs": null,
+      "prompt_token_ids": null,
+      "prompt_text": null,
+      "kv_transfer_params": null,
+      "ec_transfer_params": null,
+      "metrics": null
+    },
+    "passed": true
+  },
+  {
+    "case": "tool",
+    "response": {
+      "id": "chatcmpl-b4905de4b409bbf2",
+      "object": "chat.completion",
+      "created": 1791285325,
+      "model": "qwen3.8-flash-next",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": null,
+            "refusal": null,
+            "annotations": null,
+            "audio": null,
+            "function_call": null,
+            "tool_calls": [
+              {
+                "id": "chatcmpl-tool-a4c9da5c37e2a3c0",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\": \"Denver\"}"
+                }
+              }
+            ],
+            "reasoning": null
+          },
+          "logprobs": null,
+          "finish_reason": "tool_calls",
+          "stop_reason": null,
+          "token_ids": null,
+          "routed_experts": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": "vllm-0.27.0-tp2-c18f7bcf",
+      "usage": {
+        "prompt_tokens": 341,
+        "total_tokens": 367,
+        "completion_tokens": 26,
+        "prompt_tokens_details": null,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "prompt_logprobs": null,
+      "prompt_token_ids": null,
+      "prompt_text": null,
+      "kv_transfer_params": null,
+      "ec_transfer_params": null,
+      "metrics": null
+    },
+    "passed": true
+  }
+]

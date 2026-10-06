@@ -1,0 +1,132 @@
+[
+  {
+    "case": "arithmetic",
+    "response": {
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "323"
+          }
+        }
+      ],
+      "created": 1791297086,
+      "model": "qwen3.8-flash-next",
+      "system_fingerprint": "b0-unknown",
+      "object": "chat.completion",
+      "usage": {
+        "completion_tokens": 4,
+        "prompt_tokens": 29,
+        "total_tokens": 33,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "id": "chatcmpl-G84j59d8RTXaf7sT4JFjDTzdp4EVzH8z",
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 29,
+        "prompt_ms": 578.478,
+        "prompt_per_token_ms": 19.94751724137931,
+        "prompt_per_second": 50.131552107426735,
+        "predicted_n": 4,
+        "predicted_ms": 371.748,
+        "predicted_per_token_ms": 123.916,
+        "predicted_per_second": 8.06998289163627
+      }
+    },
+    "passed": true
+  },
+  {
+    "case": "json",
+    "response": {
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "{\"product\": 323, \"ok\": true}"
+          }
+        }
+      ],
+      "created": 1791297090,
+      "model": "qwen3.8-flash-next",
+      "system_fingerprint": "b0-unknown",
+      "object": "chat.completion",
+      "usage": {
+        "completion_tokens": 14,
+        "prompt_tokens": 37,
+        "total_tokens": 51,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "id": "chatcmpl-dyR8HWROk7tNeSy8D1YerWf7GT3bguNU",
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 37,
+        "prompt_ms": 2502.055,
+        "prompt_per_token_ms": 67.6231081081081,
+        "prompt_per_second": 14.78784439190985,
+        "predicted_n": 14,
+        "predicted_ms": 1495.072,
+        "predicted_per_token_ms": 115.00553846153845,
+        "predicted_per_second": 8.695233406819204
+      }
+    },
+    "passed": true
+  },
+  {
+    "case": "tool",
+    "response": {
+      "choices": [
+        {
+          "finish_reason": "tool_calls",
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Denver\"}"
+                },
+                "id": "4MS3pYOIKtsPzs2jL2boPOhsKjjeJsBE"
+              }
+            ]
+          }
+        }
+      ],
+      "created": 1791297100,
+      "model": "qwen3.8-flash-next",
+      "system_fingerprint": "b0-unknown",
+      "object": "chat.completion",
+      "usage": {
+        "completion_tokens": 26,
+        "prompt_tokens": 289,
+        "total_tokens": 315,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "id": "chatcmpl-6oYppZmOaZWkvtqUMfErikNIPpgvLF1R",
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 289,
+        "prompt_ms": 7108.647,
+        "prompt_per_token_ms": 24.59739446366782,
+        "prompt_per_second": 40.65471249310874,
+        "predicted_n": 26,
+        "predicted_ms": 2692.265,
+        "predicted_per_token_ms": 107.69059999999999,
+        "predicted_per_second": 9.285861532947166
+      }
+    },
+    "passed": true
+  }
+]

@@ -1,0 +1,150 @@
+[
+  {
+    "case": "arithmetic",
+    "response": {
+      "id": "chatcmpl-83098d6662e04b3f",
+      "object": "chat.completion",
+      "created": 1791282098,
+      "model": "qwen3.8-flash-next",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "323",
+            "refusal": null,
+            "annotations": null,
+            "audio": null,
+            "function_call": null,
+            "reasoning": null
+          },
+          "logprobs": null,
+          "finish_reason": "stop",
+          "stop_reason": null,
+          "token_ids": null,
+          "routed_experts": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": "vllm-0.27.0-tp2-c18f7bcf",
+      "usage": {
+        "prompt_tokens": 29,
+        "total_tokens": 33,
+        "completion_tokens": 4,
+        "prompt_tokens_details": null,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "prompt_logprobs": null,
+      "prompt_token_ids": null,
+      "prompt_text": null,
+      "kv_transfer_params": null,
+      "ec_transfer_params": null,
+      "metrics": null
+    },
+    "passed": true
+  },
+  {
+    "case": "json",
+    "response": {
+      "id": "chatcmpl-a5406757bcc06479",
+      "object": "chat.completion",
+      "created": 1791282099,
+      "model": "qwen3.8-flash-next",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "{\n  \"product\": 323,\n  \"ok\": true\n}",
+            "refusal": null,
+            "annotations": null,
+            "audio": null,
+            "function_call": null,
+            "reasoning": null
+          },
+          "logprobs": null,
+          "finish_reason": "stop",
+          "stop_reason": null,
+          "token_ids": null,
+          "routed_experts": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": "vllm-0.27.0-tp2-c18f7bcf",
+      "usage": {
+        "prompt_tokens": 37,
+        "total_tokens": 57,
+        "completion_tokens": 20,
+        "prompt_tokens_details": null,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "prompt_logprobs": null,
+      "prompt_token_ids": null,
+      "prompt_text": null,
+      "kv_transfer_params": null,
+      "ec_transfer_params": null,
+      "metrics": null
+    },
+    "passed": true
+  },
+  {
+    "case": "tool",
+    "response": {
+      "id": "chatcmpl-b844ca6ee13a3bb7",
+      "object": "chat.completion",
+      "created": 1791282101,
+      "model": "qwen3.8-flash-next",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": null,
+            "refusal": null,
+            "annotations": null,
+            "audio": null,
+            "function_call": null,
+            "tool_calls": [
+              {
+                "id": "chatcmpl-tool-ba35576cd0d292a1",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\": \"Denver\"}"
+                }
+              }
+            ],
+            "reasoning": null
+          },
+          "logprobs": null,
+          "finish_reason": "tool_calls",
+          "stop_reason": null,
+          "token_ids": null,
+          "routed_experts": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": "vllm-0.27.0-tp2-c18f7bcf",
+      "usage": {
+        "prompt_tokens": 341,
+        "total_tokens": 367,
+        "completion_tokens": 26,
+        "prompt_tokens_details": null,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "prompt_logprobs": null,
+      "prompt_token_ids": null,
+      "prompt_text": null,
+      "kv_transfer_params": null,
+      "ec_transfer_params": null,
+      "metrics": null
+    },
+    "passed": true
+  }
+]

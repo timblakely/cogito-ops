@@ -1,0 +1,77 @@
+/opt/rocm/bin/hipcc
+/workspace/flashnext-competition/hipgate3.cpp:39:15: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   39 |   int nd = 0; hipGetDeviceCount(&nd);
+      |               ^~~~~~~~~~~~~~~~~~~~~~
+/workspace/flashnext-competition/hipgate3.cpp:44:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   44 |     hipSetDevice(d);
+      |     ^~~~~~~~~~~~~~~
+/workspace/flashnext-competition/hipgate3.cpp:45:27: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   45 |     hipDeviceProp_t prop; hipGetDeviceProperties(&prop, d);
+      |                           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/opt/rocm/include/hip/hip_runtime_api.h:87:32: note: expanded from macro 'hipGetDeviceProperties'
+   87 | #define hipGetDeviceProperties hipGetDevicePropertiesR0600
+      |                                ^
+/workspace/flashnext-competition/hipgate3.cpp:46:27: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   46 |     float* buf = nullptr; hipMalloc(&buf, 256);
+      |                           ^~~~~~~~~~~~~~~~~~~~
+/workspace/flashnext-competition/hipgate3.cpp:47:20: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   47 |     hipStream_t s; hipStreamCreateWithFlags(&s, hipStreamNonBlocking);
+      |                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/flashnext-competition/hipgate3.cpp:48:20: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   48 |     hipEvent_t ev; hipEventCreateWithFlags(&ev, hipEventDisableTiming);
+      |                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/flashnext-competition/hipgate3.cpp:52:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   52 |     hipEventDestroy(ev); hipStreamDestroy(s); hipFree(buf);
+      |     ^~~~~~~~~~~~~~~~~~~
+/workspace/flashnext-competition/hipgate3.cpp:52:26: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   52 |     hipEventDestroy(ev); hipStreamDestroy(s); hipFree(buf);
+      |                          ^~~~~~~~~~~~~~~~~~~
+/workspace/flashnext-competition/hipgate3.cpp:52:47: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   52 |     hipEventDestroy(ev); hipStreamDestroy(s); hipFree(buf);
+      |                                               ^~~~~~~~~~~~
+9 warnings generated when compiling for gfx1201.
+/workspace/flashnext-competition/hipgate3.cpp:39:15: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   39 |   int nd = 0; hipGetDeviceCount(&nd);
+      |               ^~~~~~~~~~~~~~~~~~~~~~
+/workspace/flashnext-competition/hipgate3.cpp:44:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   44 |     hipSetDevice(d);
+      |     ^~~~~~~~~~~~~~~
+/workspace/flashnext-competition/hipgate3.cpp:45:27: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   45 |     hipDeviceProp_t prop; hipGetDeviceProperties(&prop, d);
+      |                           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/opt/rocm/include/hip/hip_runtime_api.h:87:32: note: expanded from macro 'hipGetDeviceProperties'
+   87 | #define hipGetDeviceProperties hipGetDevicePropertiesR0600
+      |                                ^
+/workspace/flashnext-competition/hipgate3.cpp:46:27: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   46 |     float* buf = nullptr; hipMalloc(&buf, 256);
+      |                           ^~~~~~~~~~~~~~~~~~~~
+/workspace/flashnext-competition/hipgate3.cpp:47:20: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   47 |     hipStream_t s; hipStreamCreateWithFlags(&s, hipStreamNonBlocking);
+      |                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/flashnext-competition/hipgate3.cpp:48:20: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   48 |     hipEvent_t ev; hipEventCreateWithFlags(&ev, hipEventDisableTiming);
+      |                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/flashnext-competition/hipgate3.cpp:52:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   52 |     hipEventDestroy(ev); hipStreamDestroy(s); hipFree(buf);
+      |     ^~~~~~~~~~~~~~~~~~~
+/workspace/flashnext-competition/hipgate3.cpp:52:26: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   52 |     hipEventDestroy(ev); hipStreamDestroy(s); hipFree(buf);
+      |                          ^~~~~~~~~~~~~~~~~~~
+/workspace/flashnext-competition/hipgate3.cpp:52:47: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   52 |     hipEventDestroy(ev); hipStreamDestroy(s); hipFree(buf);
+      |                                               ^~~~~~~~~~~~
+9 warnings generated when compiling for host.
+inspecting: /workspace/flashnext-competition/librccl-nohostcall-2.27.7-multiarch.so
+  [hipv4-amdgcn-amd-amdhsa--gfx1030] hidden_hostcall_buffer=0    __assert_fail=0    __ockl_fprintf=0     PASS
+  [hipv4-amdgcn-amd-amdhsa--gfx1100] hidden_hostcall_buffer=0    __assert_fail=0    __ockl_fprintf=0     PASS
+  [hipv4-amdgcn-amd-amdhsa--gfx1101] hidden_hostcall_buffer=0    __assert_fail=0    __ockl_fprintf=0     PASS
+  [hipv4-amdgcn-amd-amdhsa--gfx1102] hidden_hostcall_buffer=0    __assert_fail=0    __ockl_fprintf=0     PASS
+  [hipv4-amdgcn-amd-amdhsa--gfx1200] hidden_hostcall_buffer=0    __assert_fail=0    __ockl_fprintf=0     PASS
+  [hipv4-amdgcn-amd-amdhsa--gfx1201] hidden_hostcall_buffer=0    __assert_fail=0    __ockl_fprintf=0     PASS
+  [hipv4-amdgcn-amd-amdhsa--gfx908] hidden_hostcall_buffer=0    __assert_fail=0    __ockl_fprintf=0     PASS
+  ncclCommDump exported: 0  FAIL (torch will refuse to load this)
+
+RESULT: FAIL — see docs/root-cause.md §5. NDEBUG must reach the DEVICE pass;
+        RCCL's device compile bypasses CMAKE_CXX_FLAGS_RELEASE, so use
+        add_compile_definitions(NDEBUG) right after project(rccl CXX).
+command terminated with exit code 1

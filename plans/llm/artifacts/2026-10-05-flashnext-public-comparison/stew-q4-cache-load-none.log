@@ -1,0 +1,13 @@
+0.00.031.436 I srv  llama_server: initializing ...
+0.00.031.445 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.031.803 W srv  llama_server: security: no API key is set and CORS allows all origins (see https://github.com/ggml-org/llama.cpp/pull/25655)
+0.00.034.016 I srv    load_model: loading model '/models/atomic/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00001-of-00033.gguf'
+0.00.034.029 W cmn  common_init_: common_init_result: --load-mode none with -sm tensor and host-resident experts (-ncmoe/--cpu-moe) is known to fault intermittently during the split upload; use the default --load-mode auto (or mmap), or -sm layer
+0.45.823.748 I cmn          init: llama threadpool init, n_threads = 12
+0.47.632.710 W alloc_all_locked: MoE expert cache (auto): arena 29315.7 MiB of 31500.0 MiB host experts (93.1% residency).  MOE_EXPERT_CACHE_MIB=0 disables the cache; set a positive value to size it explicitly.
+0.48.024.515 W moe_cache_update_host: device-remap fast path armed after a uniform eager pass over 192 tables
+0.48.070.488 I srv    load_model: initializing, n_slots = 2, n_ctx_slot = 131072, kv_unified = 'false'
+0.48.075.186 W srv          init: chat template supports preserving reasoning, it is enabled by default (may use more tokens, disable via --no-reasoning-preserve)
+0.48.075.218 I srv  llama_server: model loaded
+0.48.075.224 I srv  llama_server: listening on http://0.0.0.0:8080
+0.48.075.225 W srv  llama_server: notice: server default port will be changed to :9931 in a future release (ref: https://github.com/ggml-org/llama.cpp/pull/26508)

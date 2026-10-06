@@ -1,0 +1,112 @@
+{
+  "profile": "stew-q4-public-mtp-sdk10-pp-recheck",
+  "protocol": "pp",
+  "timestamp_utc": "2026-10-06T07:25:48.174023+00:00",
+  "corpus_sha256": "a9a89dfd830af253103f86ff25dcba55364b22db779664d2fb36a3c2fd058710",
+  "qualification": "Repeat the second 64K corpus rotation without the source-transfer overlap; retain 1K warmup separately",
+  "trials": [
+    {
+      "label": "pp1024-1",
+      "prompt_sha256": "11b3dd7e480abf54b8d6d0a7a6356053d90a439b43bd296b17ea0374f14f07c8",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 1,
+        "cache_prompt": false
+      },
+      "before": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 0",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 0"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "completion_tokens": 1,
+        "prompt_tokens": 1024,
+        "total_tokens": 1025,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 3.8810601660516113,
+      "wall_s": 3.895298811956309,
+      "pp_effective_tok_s": 263.8454329971814,
+      "generation_e2e_tok_s": 0.25671971478300454,
+      "decode_tok_s": null,
+      "legacy_decode_tok_s": null,
+      "text": "5",
+      "reasoning_text": "",
+      "after": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 1024",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 270.914"
+        ]
+      },
+      "tokens_by_tokenize": 1024
+    },
+    {
+      "label": "pp65536-1",
+      "prompt_sha256": "bffedf91bf55c2d0669947ac3376505d1bdebd47487a8da9a3fc184ffa118a61",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 16,
+        "cache_prompt": false
+      },
+      "before": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 1024",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 0"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "completion_tokens": 16,
+        "prompt_tokens": 65536,
+        "total_tokens": 65552,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 228.02521395799704,
+      "wall_s": 229.29725586192217,
+      "pp_effective_tok_s": 287.40681288022796,
+      "generation_e2e_tok_s": 0.06977841902144198,
+      "decode_tok_s": 11.792743347916664,
+      "legacy_decode_tok_s": 12.578201984249846,
+      "text": "  \n>  \n>  \n> ^C again to exit  \n>  \n>  \n",
+      "reasoning_text": "",
+      "after": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 66560",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 15",
+          "llamacpp:spec_decode_num_accepted_tokens_total 9",
+          "llamacpp:spec_decode_num_drafts_total 5",
+          "llamacpp:prompt_tokens_seconds 287.759",
+          "llamacpp:spec_decode_num_accepted_tokens_per_pos_total{position=\"0\"} 5",
+          "llamacpp:spec_decode_num_accepted_tokens_per_pos_total{position=\"1\"} 2",
+          "llamacpp:spec_decode_num_accepted_tokens_per_pos_total{position=\"2\"} 2"
+        ]
+      },
+      "tokens_by_tokenize": 65536
+    }
+  ]
+}

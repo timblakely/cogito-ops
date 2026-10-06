@@ -1,0 +1,42 @@
+torch 2.11.0+rocm10.0.0 hip 7.15.26333 cuda avail True
+devices ['AMD Radeon AI PRO R9700', 'AMD Radeon AI PRO R9700']
+HIP runtime mapped:
+/ngram/davetha-sdk/_rocm_sdk_core/lib/libamdhip64.so.7
+/ngram/davetha-sdk/_rocm_sdk_core/lib/libhsa-runtime64.so.1
+
+matmul ok 18.09412956237793
+fp8hip ctypes OK
+r4d ctypes: <CDLL '/app/r4dhip/r4d.so', handle 44969120 at 0x7fa0bce62ae0>
+r4d pybind11 module: <module 'r4d' from '/app/r4dhip/r4d.so'> ['AR_MAX_BLOCKS', 'AR_TI8_GROUP', 'AR_TI8_GROUP_BYTES', 'AR_TWOSHOT_WIDE_MAX_ELEMS', 'AR_WHT6_BITS', 'AR_WHT6_CHUNK_ELEMS', 'AR_WHT6_GROUP', 'AR_WIDE_MAX_BLOCKS', 'AR_WIDE_MAX_PEERS', 'AR_WIDE_NB_DESIGN', 'ATTN_BLOCK_SIZE', 'ATTN_GQA']
+vllm _C op scaled_fp8_quant OK torch.float8_e4m3fn torch.Size([512, 1])
+{"fp8_quant_relative_rmse": 0.026321161538362503, "qualification": "finite output and numerical roundtrip"}
+_moe_C OK
+aiter import FAILED: ModuleNotFoundError No module named 'aiter'
+triton 3.8.0
+PROBE-OK
+TORCH 2.11.0+rocm10.0.0 HIP 7.15.26333 DEVICES 2
+[31mERROR[0m [90m10-06 06:18:53[0m [90m[pynccl_wrapper.py:365][0m Failed to load NCCL library from /workspace/flashnext-competition/librccl-nohostcall-2.27.7-multiarch.so. It is expected if you are not running on NVIDIA/AMD GPUs.Otherwise, the nccl library might not exist, be corrupted or it does not support the current platform Linux-6.18.36-talos-x86_64-with-glibc2.35. If you already have the library, please set the environment variable VLLM_NCCL_SO_PATH to point to the correct nccl library path.
+[31mERROR[0m [90m10-06 06:18:53[0m [90m[pynccl_wrapper.py:365][0m Failed to load NCCL library from /workspace/flashnext-competition/librccl-nohostcall-2.27.7-multiarch.so. It is expected if you are not running on NVIDIA/AMD GPUs.Otherwise, the nccl library might not exist, be corrupted or it does not support the current platform Linux-6.18.36-talos-x86_64-with-glibc2.35. If you already have the library, please set the environment variable VLLM_NCCL_SO_PATH to point to the correct nccl library path.
+W1006 06:18:53.738000 1 torch/multiprocessing/spawn.py:165] Terminating process 111 via signal SIGTERM
+Traceback (most recent call last):
+  File "/workspace/flashnext-competition/davetha-rccl-probe.py", line 51, in <module>
+    mp.spawn(worker,nprocs=2,join=True)
+  File "/ngram/davetha-sdk/torch/multiprocessing/spawn.py", line 340, in spawn
+    return start_processes(fn, args, nprocs, join, daemon, start_method="spawn")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/ngram/davetha-sdk/torch/multiprocessing/spawn.py", line 296, in start_processes
+    while not context.join():
+              ^^^^^^^^^^^^^^
+  File "/ngram/davetha-sdk/torch/multiprocessing/spawn.py", line 211, in join
+    raise ProcessRaisedException(msg, error_index, failed_process.pid)
+torch.multiprocessing.spawn.ProcessRaisedException: 
+
+-- Process 0 terminated with the following error:
+Traceback (most recent call last):
+  File "/ngram/davetha-sdk/torch/multiprocessing/spawn.py", line 87, in _wrap
+    fn(i, *args)
+  File "/workspace/flashnext-competition/davetha-rccl-probe.py", line 12, in worker
+    assert comm.available and not comm.disabled
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
+

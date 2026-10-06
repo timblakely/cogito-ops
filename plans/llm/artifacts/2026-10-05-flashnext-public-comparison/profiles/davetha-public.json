@@ -1,0 +1,295 @@
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "flashnext-davetha-public",
+    "namespace": "llm"
+  },
+  "spec": {
+    "restartPolicy": "Never",
+    "automountServiceAccountToken": false,
+    "nodeSelector": {
+      "kubernetes.io/hostname": "iggy"
+    },
+    "tolerations": [
+      {
+        "key": "node-role.kubernetes.io/control-plane",
+        "operator": "Exists",
+        "effect": "NoSchedule"
+      },
+      {
+        "key": "amd.com/gpu",
+        "operator": "Exists",
+        "effect": "NoSchedule"
+      }
+    ],
+    "securityContext": {
+      "seccompProfile": {
+        "type": "Unconfined"
+      }
+    },
+    "containers": [
+      {
+        "name": "runtime",
+        "image": "ghcr.io/davetha/vllm-flashnext:DevQwenNextFlash@sha256:1465c4571b6b24a0ad91ede614f91bccb938158e10a86fff7cbd56b98543e713",
+        "command": [
+          "/bin/bash",
+          "-ec",
+          "cp -a /workspace/flashnext-competition/davetha-overlays/vllm/. /app/vllm/vllm/; exec vllm serve \"$@\"",
+          "flashnext"
+        ],
+        "env": [
+          {
+            "name": "PYTHONPATH",
+            "value": "/ngram/davetha-sdk:/ngram/davetha-sdk/_rocm_sdk_core/share/amd_smi"
+          },
+          {
+            "name": "ROCM_PATH",
+            "value": "/ngram/davetha-sdk/_rocm_sdk_core"
+          },
+          {
+            "name": "ROCM_HOME",
+            "value": "/ngram/davetha-sdk/_rocm_sdk_core"
+          },
+          {
+            "name": "HIP_PATH",
+            "value": "/ngram/davetha-sdk/_rocm_sdk_core"
+          },
+          {
+            "name": "LD_LIBRARY_PATH",
+            "value": "/workspace/flashnext-competition:/ngram/davetha-sdk/_rocm_sdk_core/lib:/ngram/davetha-sdk/_rocm_sdk_core/lib/rocm_sysdeps/lib:/ngram/davetha-sdk/_rocm_sdk_core/lib/host-math/lib:/ngram/davetha-sdk/_rocm_sdk_libraries/lib:/usr/local/lib"
+          },
+          {
+            "name": "ROCR_VISIBLE_DEVICES",
+            "value": "0,1"
+          },
+          {
+            "name": "HIP_VISIBLE_DEVICES",
+            "value": "0,1"
+          },
+          {
+            "name": "HIP_FORCE_DEV_KERNARG",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_NCCL_SO_PATH",
+            "value": "/workspace/flashnext-competition/librccl-nohostcall-2.27.7-multiarch.so"
+          },
+          {
+            "name": "VLLM_ROCM_USE_AITER",
+            "value": "0"
+          },
+          {
+            "name": "VLLM_PLE_CPU_OFFLOAD",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_R4D_HOT_PROFILE",
+            "value": "/workspace/flashnext-competition/davetha-profile/hot_profile.json"
+          },
+          {
+            "name": "VLLM_R4D_HOT_GB",
+            "value": "15.0"
+          },
+          {
+            "name": "VLLM_R4D_LRU",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_R4D_LRU_FUSE",
+            "value": "1"
+          },
+          {
+            "name": "R4D_LRU_LIB",
+            "value": "/workspace/flashnext-competition/davetha-kernels/librlu.so"
+          },
+          {
+            "name": "VLLM_R4D_SHARE_A8",
+            "value": "0"
+          },
+          {
+            "name": "VLLM_GDN_STRIDED_QKV",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_FUSED_SHARED_GATE",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_FUSED_SILU_QUANT",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_QSA_ROPE_GATHER",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_UVA_OFFLOAD_EMBED",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_UVA_OFFLOAD_VISUAL",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_DRAFT_W4_LMHEAD",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_R4D_MOE_CFG1",
+            "value": "1,2,4"
+          },
+          {
+            "name": "VLLM_R4D_MOE_CFG2",
+            "value": "1,1,1"
+          },
+          {
+            "name": "VLLM_TARGET_FP8_LMHEAD",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_R4D_LRU_SKIP_EMPTY_COLD",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_GEMMA_NORM_FUSED",
+            "value": "0"
+          },
+          {
+            "name": "FLASHNEXT_PLE_NVME_PATH",
+            "value": "/ngram/davetha/ple-fp8.bin"
+          },
+          {
+            "name": "TRITON_CACHE_DIR",
+            "value": "/ngram/davetha-cache/triton"
+          },
+          {
+            "name": "VLLM_CACHE_ROOT",
+            "value": "/ngram/davetha-cache/vllm"
+          },
+          {
+            "name": "FLASHNEXT_PYNCCL_ALLGATHER",
+            "value": "1"
+          }
+        ],
+        "resources": {
+          "requests": {
+            "cpu": "8",
+            "memory": "80Gi",
+            "amd.com/gpu": 2,
+            "ephemeral-storage": "1Gi"
+          },
+          "limits": {
+            "memory": "114Gi",
+            "amd.com/gpu": 2,
+            "ephemeral-storage": "8Gi"
+          }
+        },
+        "volumeMounts": [
+          {
+            "name": "weights",
+            "mountPath": "/models"
+          },
+          {
+            "name": "build",
+            "mountPath": "/workspace"
+          },
+          {
+            "name": "archive",
+            "mountPath": "/archive"
+          },
+          {
+            "name": "ngram",
+            "mountPath": "/ngram"
+          },
+          {
+            "name": "shm",
+            "mountPath": "/dev/shm"
+          }
+        ],
+        "args": [
+          "/archive/llmkube/flashnext-iggy/davetha-mxfp4",
+          "--served-model-name",
+          "qwen3.8-flash-next",
+          "--tensor-parallel-size",
+          "2",
+          "--kv-cache-dtype",
+          "fp8",
+          "--cpu-offload-gb",
+          "40",
+          "--cpu-offload-params",
+          "experts",
+          "--gpu-memory-utilization",
+          ".97",
+          "--max-model-len",
+          "262144",
+          "--max-num-seqs",
+          "4",
+          "--max-num-batched-tokens",
+          "4096",
+          "--enable-prefix-caching",
+          "--enable-chunked-prefill",
+          "--reasoning-parser",
+          "qwen3",
+          "--enable-auto-tool-choice",
+          "--tool-call-parser",
+          "qwen3_coder",
+          "--limit-mm-per-prompt.image",
+          "8",
+          "--limit-mm-per-prompt.video",
+          "1",
+          "--mm-processor-cache-gb",
+          ".5",
+          "--speculative-config",
+          "{\"method\": \"mtp\", \"num_speculative_tokens\": 4}",
+          "--chat-template",
+          "/workspace/flashnext-competition/davetha-templates/qwen_fixed_chat_template.jinja",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8000"
+        ],
+        "readinessProbe": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8000
+          },
+          "periodSeconds": 10
+        }
+      }
+    ],
+    "volumes": [
+      {
+        "name": "weights",
+        "persistentVolumeClaim": {
+          "claimName": "flashnext-weights"
+        }
+      },
+      {
+        "name": "build",
+        "persistentVolumeClaim": {
+          "claimName": "cuda-dev-workspace"
+        }
+      },
+      {
+        "name": "archive",
+        "persistentVolumeClaim": {
+          "claimName": "llm-model-archive"
+        }
+      },
+      {
+        "name": "ngram",
+        "persistentVolumeClaim": {
+          "claimName": "flashnext-iggy-ngram"
+        }
+      },
+      {
+        "name": "shm",
+        "emptyDir": {
+          "medium": "Memory",
+          "sizeLimit": "64Gi"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+--- a/src/llama-model.cpp
++++ b/src/llama-model.cpp
+@@ -1912,7 +1912,12 @@
+     // per-tensor activation precision policy
+     prec_policy.load(ml, *this);
+ 
+-    ml.init_mappings(true, use_mlock ? &pimpl->mlock_mmaps : nullptr);
++    const char * mmap_prefetch_env = getenv("LLAMA_MMAP_LOAD_PREFETCH");
++    const bool mmap_prefetch = mmap_prefetch_env == nullptr || strcmp(mmap_prefetch_env, "0") != 0;
++    if (!mmap_prefetch) {
++        LLAMA_LOG_INFO("%s: initial mmap prefetch disabled\n", __func__);
++    }
++    ml.init_mappings(mmap_prefetch, use_mlock ? &pimpl->mlock_mmaps : nullptr);
+     pimpl->mappings.reserve(ml.mappings.size());
+ 
+     // create the backend buffers

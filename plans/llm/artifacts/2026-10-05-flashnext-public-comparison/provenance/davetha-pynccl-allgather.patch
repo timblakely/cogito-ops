@@ -1,0 +1,19 @@
+--- a/vllm/distributed/device_communicators/cuda_communicator.py
++++ b/vllm/distributed/device_communicators/cuda_communicator.py
+@@ -2,6 +2,7 @@
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+ 
+ 
++import os
+ import torch
+ from torch.distributed import ProcessGroup
+ 
+@@ -452,7 +453,7 @@
+         # which adds a per-call output allocation and (for dim != 0) an extra
+         # copy on every step. This is on the hot path for TP forward passes, so
+         # keep ROCm on the base-class collective to avoid a decode regression.
+-        if current_platform.is_rocm():
++        if current_platform.is_rocm() and os.environ.get("FLASHNEXT_PYNCCL_ALLGATHER") != "1":
+             return super().all_gather(input_, dim)
+ 
+         input_size = input_.size()

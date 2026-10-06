@@ -1,0 +1,215 @@
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "flashnext-stew-q4-public-single-sdk10",
+    "namespace": "llm"
+  },
+  "spec": {
+    "restartPolicy": "Never",
+    "automountServiceAccountToken": false,
+    "nodeSelector": {
+      "kubernetes.io/hostname": "iggy"
+    },
+    "tolerations": [
+      {
+        "key": "node-role.kubernetes.io/control-plane",
+        "operator": "Exists",
+        "effect": "NoSchedule"
+      },
+      {
+        "key": "amd.com/gpu",
+        "operator": "Exists",
+        "effect": "NoSchedule"
+      }
+    ],
+    "securityContext": {
+      "seccompProfile": {
+        "type": "Unconfined"
+      }
+    },
+    "containers": [
+      {
+        "name": "runtime",
+        "image": "docker.io/stilldeadcode/vllm-radiance:0.9.3@sha256:45694209177a55a1ab3ba6702fe6e978b1b66a6e66ae3fc066f8d579f7bc4c25",
+        "command": [
+          "/bin/bash",
+          "-ec",
+          "cd /workspace/flashnext-competition/stew-r30; exec build/bin/llama-server \"$@\"",
+          "flashnext"
+        ],
+        "args": [
+          "--model",
+          "/models/atomic/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00001-of-00033.gguf",
+          "--alias",
+          "qwen3.8-flash-next",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8080",
+          "--ctx-size",
+          "262144",
+          "--parallel",
+          "2",
+          "--batch-size",
+          "2048",
+          "--ubatch-size",
+          "512",
+          "--threads",
+          "6",
+          "--threads-batch",
+          "6",
+          "--flash-attn",
+          "on",
+          "--cache-type-k",
+          "q8_0",
+          "--cache-type-v",
+          "q8_0",
+          "--gpu-layers",
+          "all",
+          "--split-mode",
+          "layer",
+          "--tensor-split",
+          "1",
+          "--override-tensor",
+          "per_layer_token_embd=CPU",
+          "--load-mode",
+          "none",
+          "--fit",
+          "off",
+          "--cache-ram",
+          "2048",
+          "--ctx-checkpoints",
+          "0",
+          "--temp",
+          "1.0",
+          "--top-p",
+          "0.95",
+          "--top-k",
+          "20",
+          "--min-p",
+          "0.0",
+          "--jinja",
+          "--slots",
+          "--metrics",
+          "--lazy-mode",
+          "on",
+          "--n-cpu-moe",
+          "41",
+          "--chat-template-file",
+          "/archive/llmkube/flashnext-iggy/r9v-iq4/metadata/chat_template.jinja"
+        ],
+        "env": [
+          {
+            "name": "LD_LIBRARY_PATH",
+            "value": "/workspace/flashnext-competition/stew-r30/build/bin:/workspace/flashnext-competition:/ngram/davetha-sdk/_rocm_sdk_core/lib:/ngram/davetha-sdk/_rocm_sdk_core/lib/llvm/lib:/ngram/davetha-sdk/_rocm_sdk_core/lib/rocm_sysdeps/lib:/ngram/davetha-sdk/_rocm_sdk_core/lib/host-math/lib:/ngram/davetha-sdk/_rocm_sdk_libraries/lib:/usr/local/lib"
+          },
+          {
+            "name": "OMP_WAIT_POLICY",
+            "value": "active"
+          },
+          {
+            "name": "GGML_SCHED_DEVGATHER",
+            "value": "0"
+          },
+          {
+            "name": "MOE_EXPERT_CACHE_DEVMAP",
+            "value": "1"
+          },
+          {
+            "name": "MOE_EXPERT_CACHE_RESERVE_MIB",
+            "value": "1024"
+          },
+          {
+            "name": "MOE_EXPERT_CACHE_MIB",
+            "value": "4096"
+          },
+          {
+            "name": "ROCR_VISIBLE_DEVICES",
+            "value": "1"
+          },
+          {
+            "name": "HIP_VISIBLE_DEVICES",
+            "value": "0"
+          },
+          {
+            "name": "ROCM_PATH",
+            "value": "/ngram/davetha-sdk/_rocm_sdk_core"
+          },
+          {
+            "name": "ROCM_HOME",
+            "value": "/ngram/davetha-sdk/_rocm_sdk_core"
+          },
+          {
+            "name": "HIP_PATH",
+            "value": "/ngram/davetha-sdk/_rocm_sdk_core"
+          }
+        ],
+        "resources": {
+          "requests": {
+            "cpu": "8",
+            "memory": "80Gi",
+            "amd.com/gpu": 2,
+            "ephemeral-storage": "1Gi"
+          },
+          "limits": {
+            "memory": "110Gi",
+            "amd.com/gpu": 2,
+            "ephemeral-storage": "8Gi"
+          }
+        },
+        "volumeMounts": [
+          {
+            "name": "weights",
+            "mountPath": "/models"
+          },
+          {
+            "name": "build",
+            "mountPath": "/workspace"
+          },
+          {
+            "name": "archive",
+            "mountPath": "/archive"
+          },
+          {
+            "name": "ngram",
+            "mountPath": "/ngram"
+          }
+        ],
+        "readinessProbe": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8080
+          },
+          "periodSeconds": 10
+        }
+      }
+    ],
+    "volumes": [
+      {
+        "name": "weights",
+        "persistentVolumeClaim": {
+          "claimName": "flashnext-weights"
+        }
+      },
+      {
+        "name": "build",
+        "persistentVolumeClaim": {
+          "claimName": "cuda-dev-workspace"
+        }
+      },
+      {
+        "name": "archive",
+        "persistentVolumeClaim": {
+          "claimName": "llm-model-archive"
+        }
+      },
+      {
+        "name": "ngram",
+        "persistentVolumeClaim": {
+          "claimName": "flashnext-iggy-ngram"
+        }
+      }
+    ]
+  }
+}

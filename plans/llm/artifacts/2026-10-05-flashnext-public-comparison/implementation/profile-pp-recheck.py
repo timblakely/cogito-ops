@@ -1,0 +1,7 @@
+import argparse,hashlib,json,time
+from datetime import datetime,timezone
+from pathlib import Path
+from flashnext_public_bench import fit,trial
+p=argparse.ArgumentParser();p.add_argument('--endpoint',required=True);p.add_argument('--profile',required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--protocol');p.add_argument('--thinking');p.add_argument('--repetitions');p.add_argument('--llama-cache-off',action='store_true');a=p.parse_args();corpus=Path('/workspace/flashnext-competition/aider-chat-history.md').read_text();digest=hashlib.sha256(corpus.encode()).hexdigest();assert digest=='a9a89dfd830af253103f86ff25dcba55364b22db779664d2fb36a3c2fd058710';out={'profile':a.profile,'protocol':'pp','timestamp_utc':datetime.now(timezone.utc).isoformat(),'corpus_sha256':digest,'qualification':'Repeat the second 64K corpus rotation without the source-transfer overlap; retain 1K warmup separately','trials':[]}
+for size,offset,cap in [(1024,0,1),(65536,len(corpus)//2,16)]:
+ prefix=f'benchmark {a.profile} {size} recheck {time.time_ns()}\n';prompt,count=fit(a.endpoint,'qwen3.8-flash-next',prefix,corpus[offset:]+corpus[:offset],size);payload={'model':'qwen3.8-flash-next','temperature':0,'seed':7,'prompt':prompt,'max_tokens':cap,'cache_prompt':False};rec=trial(a.endpoint,payload,f'pp{size}-1');rec['tokens_by_tokenize']=count;out['trials'].append(rec);a.output.write_text(json.dumps(out,indent=2)+'\n');print(json.dumps({k:v for k,v in rec.items() if k not in ('text','reasoning_text','before','after','payload_settings')}),flush=True)

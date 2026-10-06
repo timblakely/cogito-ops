@@ -1,0 +1,150 @@
+[
+  {
+    "case": "arithmetic",
+    "response": {
+      "id": "chatcmpl-be2830ad6d0cb28c",
+      "object": "chat.completion",
+      "created": 1791255508,
+      "model": "qwen3.8-flash-next",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "323",
+            "refusal": null,
+            "annotations": null,
+            "audio": null,
+            "function_call": null,
+            "reasoning": null
+          },
+          "logprobs": null,
+          "finish_reason": "stop",
+          "stop_reason": null,
+          "token_ids": null,
+          "routed_experts": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": "vllm-0.26.1rc0+r9v.g4b20917386dc-tp2-67b4a50f",
+      "usage": {
+        "prompt_tokens": 29,
+        "total_tokens": 33,
+        "completion_tokens": 4,
+        "prompt_tokens_details": null,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "prompt_logprobs": null,
+      "prompt_token_ids": null,
+      "prompt_text": null,
+      "kv_transfer_params": null,
+      "ec_transfer_params": null,
+      "metrics": null
+    },
+    "passed": true
+  },
+  {
+    "case": "json",
+    "response": {
+      "id": "chatcmpl-aa6af4ee90f16343",
+      "object": "chat.completion",
+      "created": 1791255508,
+      "model": "qwen3.8-flash-next",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "{\n  \"product\": 323,\n  \"ok\": true\n}",
+            "refusal": null,
+            "annotations": null,
+            "audio": null,
+            "function_call": null,
+            "reasoning": null
+          },
+          "logprobs": null,
+          "finish_reason": "stop",
+          "stop_reason": null,
+          "token_ids": null,
+          "routed_experts": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": "vllm-0.26.1rc0+r9v.g4b20917386dc-tp2-67b4a50f",
+      "usage": {
+        "prompt_tokens": 37,
+        "total_tokens": 57,
+        "completion_tokens": 20,
+        "prompt_tokens_details": null,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "prompt_logprobs": null,
+      "prompt_token_ids": null,
+      "prompt_text": null,
+      "kv_transfer_params": null,
+      "ec_transfer_params": null,
+      "metrics": null
+    },
+    "passed": true
+  },
+  {
+    "case": "tool",
+    "response": {
+      "id": "chatcmpl-9dd74e6ecb7ffb1c",
+      "object": "chat.completion",
+      "created": 1791255511,
+      "model": "qwen3.8-flash-next",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": null,
+            "refusal": null,
+            "annotations": null,
+            "audio": null,
+            "function_call": null,
+            "tool_calls": [
+              {
+                "id": "chatcmpl-tool-b86a89a3cdca70d7",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\": \"Denver\"}"
+                }
+              }
+            ],
+            "reasoning": null
+          },
+          "logprobs": null,
+          "finish_reason": "tool_calls",
+          "stop_reason": null,
+          "token_ids": null,
+          "routed_experts": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": "vllm-0.26.1rc0+r9v.g4b20917386dc-tp2-67b4a50f",
+      "usage": {
+        "prompt_tokens": 289,
+        "total_tokens": 315,
+        "completion_tokens": 26,
+        "prompt_tokens_details": null,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "prompt_logprobs": null,
+      "prompt_token_ids": null,
+      "prompt_text": null,
+      "kv_transfer_params": null,
+      "ec_transfer_params": null,
+      "metrics": null
+    },
+    "passed": true
+  }
+]

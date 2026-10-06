@@ -1,0 +1,24 @@
+INFO 10-06 10:24:18 [importing.py:53] Triton is installed but 0 active driver(s) found (expected 1). Disabling Triton to prevent runtime errors.
+INFO 10-06 10:24:18 [importing.py:88] Triton not installed or not compatible; certain GPU-related functions will not be available.
+Traceback (most recent call last):
+  File "/workspace/flashnext-competition/davetha-compat-local/deps/starlette/datastructures.py", line 683, in __getattr__
+    return self._state[key]
+           ~~~~~~~~~~~^^^^^
+KeyError: 'args'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/flashnext-competition/davetha-cache-route-probe.py", line 8, in <module>
+    app=FastAPI();register_api_routers(argparse.Namespace(),app,('generate',))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/vllm/vllm/entrypoints/launchers/api_server/routers.py", line 20, in register_api_routers
+    register_vllm_serve_api_routers(app)
+  File "/app/vllm/vllm/entrypoints/serve/__init__.py", line 34, in register_vllm_serve_api_routers
+    attach_profile_router(app)
+  File "/app/vllm/vllm/entrypoints/serve/profile/api_router.py", line 38, in attach_router
+    profiler_config = getattr(app.state.args, "profiler_config", None)
+                              ^^^^^^^^^^^^^^
+  File "/workspace/flashnext-competition/davetha-compat-local/deps/starlette/datastructures.py", line 686, in __getattr__
+    raise AttributeError(message.format(self.__class__.__name__, key))
+AttributeError: 'State' object has no attribute 'args'

@@ -1,0 +1,199 @@
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "flashnext-stew-q6-cache-layer-4k-host-map",
+    "namespace": "llm"
+  },
+  "spec": {
+    "restartPolicy": "Never",
+    "automountServiceAccountToken": false,
+    "nodeSelector": {
+      "kubernetes.io/hostname": "iggy"
+    },
+    "tolerations": [
+      {
+        "key": "node-role.kubernetes.io/control-plane",
+        "operator": "Exists",
+        "effect": "NoSchedule"
+      },
+      {
+        "key": "amd.com/gpu",
+        "operator": "Exists",
+        "effect": "NoSchedule"
+      }
+    ],
+    "securityContext": {
+      "seccompProfile": {
+        "type": "Unconfined"
+      }
+    },
+    "containers": [
+      {
+        "name": "runtime",
+        "image": "docker.io/stilldeadcode/vllm-radiance:0.9.3@sha256:45694209177a55a1ab3ba6702fe6e978b1b66a6e66ae3fc066f8d579f7bc4c25",
+        "command": [
+          "/bin/bash",
+          "-ec",
+          "cd /workspace/flashnext-competition/stew-loader; exec build/bin/llama-server \"$@\"",
+          "flashnext"
+        ],
+        "args": [
+          "--model",
+          "/models/q6/UD-Q6_K_XL/Qwen3.8-Flash-Next-UD-Q6_K_XL-00001-of-00006.gguf",
+          "--alias",
+          "qwen3.8-flash-next",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8080",
+          "--ctx-size",
+          "262144",
+          "--parallel",
+          "2",
+          "--batch-size",
+          "8192",
+          "--ubatch-size",
+          "4096",
+          "--threads",
+          "12",
+          "--threads-batch",
+          "12",
+          "--flash-attn",
+          "on",
+          "--cache-type-k",
+          "q8_0",
+          "--cache-type-v",
+          "q8_0",
+          "--gpu-layers",
+          "all",
+          "--split-mode",
+          "layer",
+          "--tensor-split",
+          "1,1",
+          "--override-tensor",
+          "per_layer_token_embd=CPU",
+          "--load-mode",
+          "mmap",
+          "--fit",
+          "off",
+          "--cache-ram",
+          "2048",
+          "--ctx-checkpoints",
+          "0",
+          "--temp",
+          "1.0",
+          "--top-p",
+          "0.95",
+          "--top-k",
+          "20",
+          "--min-p",
+          "0.0",
+          "--jinja",
+          "--slots",
+          "--metrics",
+          "--n-cpu-moe",
+          "38",
+          "--log-verbosity",
+          "4",
+          "--lazy-mode",
+          "on"
+        ],
+        "env": [
+          {
+            "name": "LD_LIBRARY_PATH",
+            "value": "/workspace/flashnext-competition/stew-loader/build/bin:/opt/rocm/core-7.14/lib:/opt/rocm/lib"
+          },
+          {
+            "name": "OMP_WAIT_POLICY",
+            "value": "active"
+          },
+          {
+            "name": "GGML_SCHED_DEVGATHER",
+            "value": "0"
+          },
+          {
+            "name": "MOE_EXPERT_CACHE_DEVMAP",
+            "value": "0"
+          },
+          {
+            "name": "MOE_EXPERT_CACHE_RESERVE_MIB",
+            "value": "1024"
+          },
+          {
+            "name": "GGML_SCHED_STAGE_MIN_TOKENS",
+            "value": "999999"
+          },
+          {
+            "name": "LLAMA_MMAP_LOAD_PREFETCH",
+            "value": "0"
+          }
+        ],
+        "resources": {
+          "requests": {
+            "cpu": "8",
+            "memory": "80Gi",
+            "amd.com/gpu": 2,
+            "ephemeral-storage": "1Gi"
+          },
+          "limits": {
+            "memory": "110Gi",
+            "amd.com/gpu": 2,
+            "ephemeral-storage": "8Gi"
+          }
+        },
+        "volumeMounts": [
+          {
+            "name": "weights",
+            "mountPath": "/models"
+          },
+          {
+            "name": "archive",
+            "mountPath": "/archive"
+          },
+          {
+            "name": "build",
+            "mountPath": "/workspace"
+          },
+          {
+            "name": "ngram",
+            "mountPath": "/ngram"
+          }
+        ],
+        "readinessProbe": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8080
+          },
+          "periodSeconds": 10
+        }
+      }
+    ],
+    "volumes": [
+      {
+        "name": "weights",
+        "persistentVolumeClaim": {
+          "claimName": "flashnext-weights"
+        }
+      },
+      {
+        "name": "archive",
+        "persistentVolumeClaim": {
+          "claimName": "llm-model-archive"
+        }
+      },
+      {
+        "name": "build",
+        "persistentVolumeClaim": {
+          "claimName": "cuda-dev-workspace"
+        }
+      },
+      {
+        "name": "ngram",
+        "persistentVolumeClaim": {
+          "claimName": "flashnext-iggy-ngram"
+        }
+      }
+    ]
+  }
+}

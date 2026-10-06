@@ -1,0 +1,95 @@
+{
+  "timestamp_utc": "2026-10-06T23:35:11Z",
+  "revision": "896ac30bff32f3b7b5999670c2b0dcc834f6969c",
+  "storage": [
+    {
+      "pod": "flashnext-iggy-794bf5ff89-j97jh",
+      "mountinfo": [
+        "3729 3721 259:2 /flashnext /models ro,relatime - xfs /dev/nvme0n1p1 rw,inode64,logbufs=8,logbsize=32k,noquota"
+      ],
+      "model_bytes_inode": "121969901568 273599284",
+      "description": "RAD includes the original n-gram table; disk-placement flag and actual local NVMe mount are both checked"
+    }
+  ],
+  "checks": {
+    "source_revision": true,
+    "source_ready": true,
+    "applied_revision": true,
+    "kustomization_ready": true,
+    "kustomization_resumed": true,
+    "kustomization_hold_removed": true,
+    "service_resumed": true,
+    "service_hold_removed": true,
+    "service_image": true,
+    "deployment_ready": true,
+    "one_live_pod": true,
+    "pod_ready": true,
+    "pod_on_iggy": true,
+    "pod_image": true,
+    "pod_gpu_two": true,
+    "ngram_disk": true,
+    "tp_exact": true,
+    "production_two_slots": true,
+    "production_context": true,
+    "live_model_nvme_mount": true,
+    "live_model_bytes": true
+  },
+  "pods": [
+    {
+      "name": "flashnext-iggy-794bf5ff89-j97jh",
+      "node": "iggy",
+      "image": "docker.io/stilldeadcode/radiance:1.0.13@sha256:4c3f484564bb2872784e46b0a59cbd71becc9c1e746e301a3596ffae253c322e",
+      "image_id": "docker.io/stilldeadcode/radiance@sha256:4c3f484564bb2872784e46b0a59cbd71becc9c1e746e301a3596ffae253c322e",
+      "ready": true,
+      "restart_count": 0,
+      "gpu_limit": "2",
+      "args": [
+        "--model",
+        "/models/radiance/qwen3.8-next-flash-fp8-iq4r-moe.rad",
+        "--served-model-name",
+        "qwen3.8-flash-next",
+        "--tp",
+        "2",
+        "--tp-wire",
+        "exact",
+        "--max-num-seqs",
+        "2",
+        "--max-model-len",
+        "262144",
+        "--placement",
+        "expert_tiered",
+        "--host-pool-mib",
+        "12288",
+        "--ngram-placement",
+        "disk",
+        "--gpu-headroom-mib",
+        "512",
+        "--expert-vs-cache-ratio",
+        "0.82",
+        "--kv-cache-dtype",
+        "fp8",
+        "--num-speculative-tokens",
+        "3",
+        "--max-num-batched-tokens",
+        "2048",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8080",
+        "--mm-max-patches",
+        "0"
+      ]
+    }
+  ],
+  "source_revision": "refs/heads/main@sha1:896ac30bff32f3b7b5999670c2b0dcc834f6969c",
+  "applied_revision": "refs/heads/main@sha1:896ac30bff32f3b7b5999670c2b0dcc834f6969c",
+  "amnesia_model_pods": [
+    {
+      "name": "flashnext-67b7496f94-6lxqv",
+      "node": null,
+      "phase": "Pending",
+      "ready": false,
+      "restart_counts": []
+    }
+  ]
+}

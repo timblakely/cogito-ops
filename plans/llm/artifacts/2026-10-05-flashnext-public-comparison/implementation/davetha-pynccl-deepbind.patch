@@ -1,0 +1,26 @@
+--- a/vllm/distributed/device_communicators/pynccl_wrapper.py
++++ b/vllm/distributed/device_communicators/pynccl_wrapper.py
+@@ -24,6 +24,7 @@
+ 
+ import ctypes
+ import functools
++import os
+ import platform
+ from dataclasses import dataclass
+ from typing import Any
+@@ -358,7 +359,14 @@
+ 
+         try:
+             if so_file not in NCCLLibrary.path_to_dict_mapping:
+-                lib = ctypes.CDLL(so_file)
++                if os.getenv("FLASHNEXT_PYNCCL_DEEPBIND") == "1":
++                    # Keep Torch's global RCCL symbols from handling this
++                    # separately selected library's communicator objects.
++                    lib = ctypes.CDLL(
++                        so_file, mode=os.RTLD_NOW | os.RTLD_LOCAL | os.RTLD_DEEPBIND
++                    )
++                else:
++                    lib = ctypes.CDLL(so_file)
+                 NCCLLibrary.path_to_library_cache[so_file] = lib
+             self.lib = NCCLLibrary.path_to_library_cache[so_file]
+         except Exception as e:

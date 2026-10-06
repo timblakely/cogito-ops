@@ -1,0 +1,1162 @@
+{
+  "profile": "strata-public-single-header-retry",
+  "protocol": "decode",
+  "timestamp_utc": "2026-10-06T08:08:16.085678+00:00",
+  "thinking": "raw completion; no chat template",
+  "trials": [
+    {
+      "label": "prose-1",
+      "prompt_sha256": "7ac99008a68dbca728efad04cc050e621beca41dfe65756e5d472888c7fc9e18",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 256
+      },
+      "before": {
+        "stats": {
+          "engine": {
+            "version": "0.1.39",
+            "context": 131072,
+            "kv": "int8",
+            "kv_resident": 0,
+            "expert_slots": 10215,
+            "expert_cache_mib": 23569,
+            "expert_slots_primary": 10215,
+            "expert_cache_primary_mib": 23569,
+            "spec": 6,
+            "mtp_max": 4,
+            "lookup": 3,
+            "vram_free_mib": 580,
+            "cvec": 0,
+            "arena_mib": 56762,
+            "pool_workers": 11,
+            "pcie_frac": "0.55",
+            "spec_min_p": "0.50",
+            "conversation_cache_mib": 0,
+            "conversation_cache_slots": 4,
+            "conversation_cache_min_free_mib": 2560,
+            "tail_role_token": -1,
+            "vram_elastic": 0,
+            "engine": "0.1.39"
+          },
+          "last": {},
+          "adapter": "raw stdio; upstream chat"
+        },
+        "metrics": [
+          "{\"engine\": {\"model\": \"qwen3.8-flash-next\", \"max_context\": 131072, \"images\": false, \"version\": \"0.1.39\", \"context\": 131072, \"kv\": \"int8\", \"kv_resident\": 0, \"expert_slots\": 10215, \"expert_cache_mib\": 23569, \"expert_slots_primary\": 10215, \"expert_cache_primary_mib\": 23569, \"spec\": 6, \"mtp_max\": 4, \"lookup\": 3, \"vram_free_mib\": 580, \"cvec\": 0, \"arena_mib\": 56762, \"pool_workers\": 11, \"pcie_frac\": \"0.55\", \"spec_min_p\": \"0.50\", \"conversation_cache_mib\": 0, \"conversation_cache_slots\": 4, \"conversation_cache_min_free_mib\": 2560, \"tail_role_token\": -1, \"vram_elastic\": 0, \"engine\": \"0.1.39\"}, \"live\": {\"state\": \"idle\", \"queued\": 0, \"phase\": null, \"prompt_tokens\": null, \"prompt_read\": null, \"prompt_total\": null, \"generated\": null, \"max_tokens\": null, \"elapsed_s\": null, \"tok_s\": null, \"tok_s_mean\": null, \"prefill_tok_s_mean\": null, \"tok_s_window_s\": null}, \"requests\": [], \"conversation_cache\": {\"enabled\": false, \"budget_mib\": 0, \"slots\": 4, \"parked\": 0, \"bytes\": 0, \"evictions\": 0, \"parks\": 0, \"restores\": 0, \"last_event\": null, \"last_tokens\": null, \"last_at\": null, \"requests\": 0, \"requests_reused\": 0, \"reused_tokens\": 0, \"prompt_tokens\": 0, \"last_reused\": null, \"last_prompt\": null}, \"requests_kept\": 0, \"totals\": {\"since\": 1791274088.235569, \"requests\": 0, \"prompt_tokens\": 0, \"reused\": 0, \"output_tokens\": 0, \"prompt_ms\": 0.0, \"decode_ms\": 0.0, \"drafts_offered\": 0, \"drafts_accepted\": 0}, \"hardware\": {\"gpu_util\": 3, \"gpu_mem_used\": 33731502080, \"gpu_mem_total\": 34208743424, \"gpu_temp\": 42.0, \"gpu_power\": 19.0, \"gpu_power_limit\": 300.0, \"cpu\": 1.2, \"ram_used\": 71344459776, \"ram_total\": 134961819648, \"disk_read_mb\": 0.15205275357890657, \"disk_write_mb\": 0.7821944535068751, \"tok_s\": 0.0, \"tok_s_mean\": 0, \"prefill_tok_s_mean\": 0.0}, \"hardware_static\": {\"gpu_name\": \"AMD Radeon\", \"gpu_count\": 1, \"cpu_name\": \"AMD Ryzen 9 3900X 12-Core Processor\", \"cores\": 12, \"threads\": 24, \"psutil\": true}, \"history\": {\"gpu_util\": [42, 3, 3, 3, 3, 3, 3, 3], \"gpu_mem_used\": [33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080], \"gpu_temp\": [42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0], \"gpu_power\": [50.0, 27.0, 19.0, 20.0, 19.0, 20.0, 19.0, 19.0], \"gpu_pcie_rx_mb\": [null, null, null, null, null, null, null, null], \"cpu\": [0.0, 0.8, 0.7, 0.9, 4.6, 0.5, 1.2, 1.2], \"ram_used\": [71384072192, 71382216704, 71381323776, 71380316160, 71345156096, 71344517120, 71341899776, 71344459776], \"disk_read_mb\": [null, 0.0, 0.02, 0.0, 1.0, 0.02, 0.0, 0.15], \"tok_s\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], \"prefill_tok_s_mean\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, \"time\": 1791274096.1060736}"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 16,
+        "completion_tokens": 256,
+        "total_tokens": 272,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.2519159020157531,
+      "wall_s": 8.007648388040252,
+      "pp_effective_tok_s": 63.51325927411867,
+      "generation_e2e_tok_s": 31.969435668822122,
+      "decode_tok_s": 32.87909273903448,
+      "legacy_decode_tok_s": 33.00784296793387,
+      "text": " Start by describing the physical storage of data in 8KB pages and the concept of 'page splits' when inserting data. Then, explain the structure of the B-tree (root, intermediate, leaf levels) and how it reduces I/O operations compared to a full table scan. \n\nCrucially, you must include the following specific details:\n1. Use a specific example of a table with 10 million rows to demonstrate that a B-tree depth of 3 is sufficient, explicitly calculating the number of pages required (approx 100,000 leaf pages, 100 intermediate, 1 root).\n2. Explain the concept of 'logical order' versus 'physical order' using a linked list analogy.\n3. Conclude with a section titled 'Why is it called a B-tree?' that clarifies the relationship between B-trees and Binary Search Trees, specifically mentioning the 'balanced' aspect and the origin of the name (Boeing/Bayer).\n\n### Physical Storage and Page Splits\n\nData is stored in 8KB pages. When you insert a row, it is inserted into the page where it belongs. However, if that page is full, a page split occurs. This process involves allocating a new page and",
+      "reasoning_text": "",
+      "after": {
+        "stats": {
+          "engine": {
+            "version": "0.1.39",
+            "context": 131072,
+            "kv": "int8",
+            "kv_resident": 0,
+            "expert_slots": 10215,
+            "expert_cache_mib": 23569,
+            "expert_slots_primary": 10215,
+            "expert_cache_primary_mib": 23569,
+            "spec": 6,
+            "mtp_max": 4,
+            "lookup": 3,
+            "vram_free_mib": 580,
+            "cvec": 0,
+            "arena_mib": 56762,
+            "pool_workers": 11,
+            "pcie_frac": "0.55",
+            "spec_min_p": "0.50",
+            "conversation_cache_mib": 0,
+            "conversation_cache_slots": 4,
+            "conversation_cache_min_free_mib": 2560,
+            "tail_role_token": -1,
+            "vram_elastic": 0,
+            "engine": "0.1.39"
+          },
+          "last": {
+            "generated": 256,
+            "prompt_tokens": 16,
+            "prompt_ms": 216.0,
+            "decode_ms": 7788.7,
+            "finish": "length",
+            "drafts_accepted": 109,
+            "drafts_offered": 156,
+            "reused": 0,
+            "hits": 132361,
+            "lookups": 140909,
+            "ram_blobs": 0,
+            "file_blobs": 0,
+            "file_mb": 0.0,
+            "prompt_read": 16,
+            "offloaded": 4531
+          },
+          "adapter": "raw stdio; upstream chat"
+        },
+        "metrics": [
+          "{\"engine\": {\"model\": \"qwen3.8-flash-next\", \"max_context\": 131072, \"images\": false, \"version\": \"0.1.39\", \"context\": 131072, \"kv\": \"int8\", \"kv_resident\": 0, \"expert_slots\": 10215, \"expert_cache_mib\": 23569, \"expert_slots_primary\": 10215, \"expert_cache_primary_mib\": 23569, \"spec\": 6, \"mtp_max\": 4, \"lookup\": 3, \"vram_free_mib\": 580, \"cvec\": 0, \"arena_mib\": 56762, \"pool_workers\": 11, \"pcie_frac\": \"0.55\", \"spec_min_p\": \"0.50\", \"conversation_cache_mib\": 0, \"conversation_cache_slots\": 4, \"conversation_cache_min_free_mib\": 2560, \"tail_role_token\": -1, \"vram_elastic\": 0, \"engine\": \"0.1.39\"}, \"live\": {\"state\": \"idle\", \"queued\": 0, \"phase\": null, \"prompt_tokens\": null, \"prompt_read\": null, \"prompt_total\": null, \"generated\": null, \"max_tokens\": null, \"elapsed_s\": null, \"tok_s\": null, \"tok_s_mean\": null, \"prefill_tok_s_mean\": null, \"tok_s_window_s\": null}, \"requests\": [], \"conversation_cache\": {\"enabled\": false, \"budget_mib\": 0, \"slots\": 4, \"parked\": 0, \"bytes\": 0, \"evictions\": 0, \"parks\": 0, \"restores\": 0, \"last_event\": null, \"last_tokens\": null, \"last_at\": null, \"requests\": 0, \"requests_reused\": 0, \"reused_tokens\": 0, \"prompt_tokens\": 0, \"last_reused\": null, \"last_prompt\": null}, \"requests_kept\": 0, \"totals\": {\"since\": 1791274088.235569, \"requests\": 0, \"prompt_tokens\": 0, \"reused\": 0, \"output_tokens\": 0, \"prompt_ms\": 0.0, \"decode_ms\": 0.0, \"drafts_offered\": 0, \"drafts_accepted\": 0}, \"hardware\": {\"gpu_util\": 100, \"gpu_mem_used\": 33742819328, \"gpu_mem_total\": 34208743424, \"gpu_temp\": 47.0, \"gpu_power\": 177.0, \"gpu_power_limit\": 300.0, \"cpu\": 55.0, \"ram_used\": 71381561344, \"ram_total\": 134961819648, \"disk_read_mb\": 2.259292637338978, \"disk_write_mb\": 0.2833870946230454, \"tok_s\": 0.0, \"tok_s_mean\": 0, \"prefill_tok_s_mean\": 0.0}, \"hardware_static\": {\"gpu_name\": \"AMD Radeon\", \"gpu_count\": 1, \"cpu_name\": \"AMD Ryzen 9 3900X 12-Core Processor\", \"cores\": 12, \"threads\": 24, \"psutil\": true}, \"history\": {\"gpu_util\": [42, 3, 3, 3, 3, 3, 3, 3, 12, 95, 100, 100, 100, 100, 100, 100], \"gpu_mem_used\": [33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33736065024, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328], \"gpu_temp\": [42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 43.0, 44.0, 45.0, 46.0, 46.0, 47.0, 47.0], \"gpu_power\": [50.0, 27.0, 19.0, 20.0, 19.0, 20.0, 19.0, 19.0, 36.0, 156.0, 181.0, 175.0, 198.0, 178.0, 183.0, 177.0], \"gpu_pcie_rx_mb\": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], \"cpu\": [0.0, 0.8, 0.7, 0.9, 4.6, 0.5, 1.2, 1.2, 8.0, 52.5, 55.2, 55.3, 55.2, 54.9, 56.8, 55.0], \"ram_used\": [71384072192, 71382216704, 71381323776, 71380316160, 71345156096, 71344517120, 71341899776, 71344459776, 71349469184, 71404580864, 71400792064, 71379402752, 71379456000, 71381266432, 71381508096, 71381561344], \"disk_read_mb\": [null, 0.0, 0.02, 0.0, 1.0, 0.02, 0.0, 0.15, 12.97, 3.16, 3.4, 3.43, 2.65, 2.63, 2.88, 2.26], \"tok_s\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], \"prefill_tok_s_mean\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, \"time\": 1791274104.1149645}"
+        ]
+      },
+      "requested_output_tokens": 256,
+      "output_cap_reached": true
+    },
+    {
+      "label": "prose-2",
+      "prompt_sha256": "7ac99008a68dbca728efad04cc050e621beca41dfe65756e5d472888c7fc9e18",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 256
+      },
+      "before": {
+        "stats": {
+          "engine": {
+            "version": "0.1.39",
+            "context": 131072,
+            "kv": "int8",
+            "kv_resident": 0,
+            "expert_slots": 10215,
+            "expert_cache_mib": 23569,
+            "expert_slots_primary": 10215,
+            "expert_cache_primary_mib": 23569,
+            "spec": 6,
+            "mtp_max": 4,
+            "lookup": 3,
+            "vram_free_mib": 580,
+            "cvec": 0,
+            "arena_mib": 56762,
+            "pool_workers": 11,
+            "pcie_frac": "0.55",
+            "spec_min_p": "0.50",
+            "conversation_cache_mib": 0,
+            "conversation_cache_slots": 4,
+            "conversation_cache_min_free_mib": 2560,
+            "tail_role_token": -1,
+            "vram_elastic": 0,
+            "engine": "0.1.39"
+          },
+          "last": {
+            "generated": 256,
+            "prompt_tokens": 16,
+            "prompt_ms": 216.0,
+            "decode_ms": 7788.7,
+            "finish": "length",
+            "drafts_accepted": 109,
+            "drafts_offered": 156,
+            "reused": 0,
+            "hits": 132361,
+            "lookups": 140909,
+            "ram_blobs": 0,
+            "file_blobs": 0,
+            "file_mb": 0.0,
+            "prompt_read": 16,
+            "offloaded": 4531
+          },
+          "adapter": "raw stdio; upstream chat"
+        },
+        "metrics": [
+          "{\"engine\": {\"model\": \"qwen3.8-flash-next\", \"max_context\": 131072, \"images\": false, \"version\": \"0.1.39\", \"context\": 131072, \"kv\": \"int8\", \"kv_resident\": 0, \"expert_slots\": 10215, \"expert_cache_mib\": 23569, \"expert_slots_primary\": 10215, \"expert_cache_primary_mib\": 23569, \"spec\": 6, \"mtp_max\": 4, \"lookup\": 3, \"vram_free_mib\": 580, \"cvec\": 0, \"arena_mib\": 56762, \"pool_workers\": 11, \"pcie_frac\": \"0.55\", \"spec_min_p\": \"0.50\", \"conversation_cache_mib\": 0, \"conversation_cache_slots\": 4, \"conversation_cache_min_free_mib\": 2560, \"tail_role_token\": -1, \"vram_elastic\": 0, \"engine\": \"0.1.39\"}, \"live\": {\"state\": \"idle\", \"queued\": 0, \"phase\": null, \"prompt_tokens\": null, \"prompt_read\": null, \"prompt_total\": null, \"generated\": null, \"max_tokens\": null, \"elapsed_s\": null, \"tok_s\": null, \"tok_s_mean\": null, \"prefill_tok_s_mean\": null, \"tok_s_window_s\": null}, \"requests\": [], \"conversation_cache\": {\"enabled\": false, \"budget_mib\": 0, \"slots\": 4, \"parked\": 0, \"bytes\": 0, \"evictions\": 0, \"parks\": 0, \"restores\": 0, \"last_event\": null, \"last_tokens\": null, \"last_at\": null, \"requests\": 0, \"requests_reused\": 0, \"reused_tokens\": 0, \"prompt_tokens\": 0, \"last_reused\": null, \"last_prompt\": null}, \"requests_kept\": 0, \"totals\": {\"since\": 1791274088.235569, \"requests\": 0, \"prompt_tokens\": 0, \"reused\": 0, \"output_tokens\": 0, \"prompt_ms\": 0.0, \"decode_ms\": 0.0, \"drafts_offered\": 0, \"drafts_accepted\": 0}, \"hardware\": {\"gpu_util\": 100, \"gpu_mem_used\": 33742819328, \"gpu_mem_total\": 34208743424, \"gpu_temp\": 47.0, \"gpu_power\": 177.0, \"gpu_power_limit\": 300.0, \"cpu\": 55.0, \"ram_used\": 71381561344, \"ram_total\": 134961819648, \"disk_read_mb\": 2.259292637338978, \"disk_write_mb\": 0.2833870946230454, \"tok_s\": 0.0, \"tok_s_mean\": 0, \"prefill_tok_s_mean\": 0.0}, \"hardware_static\": {\"gpu_name\": \"AMD Radeon\", \"gpu_count\": 1, \"cpu_name\": \"AMD Ryzen 9 3900X 12-Core Processor\", \"cores\": 12, \"threads\": 24, \"psutil\": true}, \"history\": {\"gpu_util\": [42, 3, 3, 3, 3, 3, 3, 3, 12, 95, 100, 100, 100, 100, 100, 100], \"gpu_mem_used\": [33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33736065024, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328], \"gpu_temp\": [42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 43.0, 44.0, 45.0, 46.0, 46.0, 47.0, 47.0], \"gpu_power\": [50.0, 27.0, 19.0, 20.0, 19.0, 20.0, 19.0, 19.0, 36.0, 156.0, 181.0, 175.0, 198.0, 178.0, 183.0, 177.0], \"gpu_pcie_rx_mb\": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], \"cpu\": [0.0, 0.8, 0.7, 0.9, 4.6, 0.5, 1.2, 1.2, 8.0, 52.5, 55.2, 55.3, 55.2, 54.9, 56.8, 55.0], \"ram_used\": [71384072192, 71382216704, 71381323776, 71380316160, 71345156096, 71344517120, 71341899776, 71344459776, 71349469184, 71404580864, 71400792064, 71379402752, 71379456000, 71381266432, 71381508096, 71381561344], \"disk_read_mb\": [null, 0.0, 0.02, 0.0, 1.0, 0.02, 0.0, 0.15, 12.97, 3.16, 3.4, 3.43, 2.65, 2.63, 2.88, 2.26], \"tok_s\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], \"prefill_tok_s_mean\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, \"time\": 1791274104.116252}"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 16,
+        "completion_tokens": 256,
+        "total_tokens": 272,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.2050413090037182,
+      "wall_s": 7.81002441898454,
+      "pp_effective_tok_s": 78.03305625458067,
+      "generation_e2e_tok_s": 32.7783866306125,
+      "decode_tok_s": 33.53079874928237,
+      "legacy_decode_tok_s": 33.66213919187068,
+      "text": " Start by describing the physical storage of data in 8KB pages and the concept of 'page splits' when inserting data. Then, explain the structure of the B-tree (root, branch, leaf) and how it reduces I/O compared to a full table scan. \n\nCrucially, you must include the following specific details:\n1. A calculation example showing that a table with 10 million rows requires only 3 levels (Root, Branch, Leaf) to search.\n2. A specific scenario where a query for 'id = 1000' results in exactly 4 logical reads (1 root, 2 branch, 1 leaf).\n3. A comparison of the B-tree structure to a 'dictionary' (catalog).\n4. A discussion on the trade-offs of adding indexes, specifically mentioning the 'insert' operation requiring 3 page modifications and the impact on disk space.\n\nMaintain an educational tone, using phrases like 'Let's take a look' or 'Let's look at a specific example' to guide the reader.\n\nTo understand how a B-tree index works, we must first look at how data is physically stored. The data is stored in pages, and each page is 8KB. When we",
+      "reasoning_text": "",
+      "after": {
+        "stats": {
+          "engine": {
+            "version": "0.1.39",
+            "context": 131072,
+            "kv": "int8",
+            "kv_resident": 0,
+            "expert_slots": 10215,
+            "expert_cache_mib": 23569,
+            "expert_slots_primary": 10215,
+            "expert_cache_primary_mib": 23569,
+            "spec": 6,
+            "mtp_max": 4,
+            "lookup": 3,
+            "vram_free_mib": 580,
+            "cvec": 0,
+            "arena_mib": 56762,
+            "pool_workers": 11,
+            "pcie_frac": "0.55",
+            "spec_min_p": "0.50",
+            "conversation_cache_mib": 0,
+            "conversation_cache_slots": 4,
+            "conversation_cache_min_free_mib": 2560,
+            "tail_role_token": -1,
+            "vram_elastic": 0,
+            "engine": "0.1.39"
+          },
+          "last": {
+            "generated": 256,
+            "prompt_tokens": 16,
+            "prompt_ms": 153.1,
+            "decode_ms": 7648.9,
+            "finish": "length",
+            "drafts_accepted": 115,
+            "drafts_offered": 148,
+            "reused": 0,
+            "hits": 130317,
+            "lookups": 135845,
+            "ram_blobs": 0,
+            "file_blobs": 0,
+            "file_mb": 0.0,
+            "prompt_read": 16,
+            "offloaded": 2875
+          },
+          "adapter": "raw stdio; upstream chat"
+        },
+        "metrics": [
+          "{\"engine\": {\"model\": \"qwen3.8-flash-next\", \"max_context\": 131072, \"images\": false, \"version\": \"0.1.39\", \"context\": 131072, \"kv\": \"int8\", \"kv_resident\": 0, \"expert_slots\": 10215, \"expert_cache_mib\": 23569, \"expert_slots_primary\": 10215, \"expert_cache_primary_mib\": 23569, \"spec\": 6, \"mtp_max\": 4, \"lookup\": 3, \"vram_free_mib\": 580, \"cvec\": 0, \"arena_mib\": 56762, \"pool_workers\": 11, \"pcie_frac\": \"0.55\", \"spec_min_p\": \"0.50\", \"conversation_cache_mib\": 0, \"conversation_cache_slots\": 4, \"conversation_cache_min_free_mib\": 2560, \"tail_role_token\": -1, \"vram_elastic\": 0, \"engine\": \"0.1.39\"}, \"live\": {\"state\": \"idle\", \"queued\": 0, \"phase\": null, \"prompt_tokens\": null, \"prompt_read\": null, \"prompt_total\": null, \"generated\": null, \"max_tokens\": null, \"elapsed_s\": null, \"tok_s\": null, \"tok_s_mean\": null, \"prefill_tok_s_mean\": null, \"tok_s_window_s\": null}, \"requests\": [], \"conversation_cache\": {\"enabled\": false, \"budget_mib\": 0, \"slots\": 4, \"parked\": 0, \"bytes\": 0, \"evictions\": 0, \"parks\": 0, \"restores\": 0, \"last_event\": null, \"last_tokens\": null, \"last_at\": null, \"requests\": 0, \"requests_reused\": 0, \"reused_tokens\": 0, \"prompt_tokens\": 0, \"last_reused\": null, \"last_prompt\": null}, \"requests_kept\": 0, \"totals\": {\"since\": 1791274088.235569, \"requests\": 0, \"prompt_tokens\": 0, \"reused\": 0, \"output_tokens\": 0, \"prompt_ms\": 0.0, \"decode_ms\": 0.0, \"drafts_offered\": 0, \"drafts_accepted\": 0}, \"hardware\": {\"gpu_util\": 100, \"gpu_mem_used\": 33742819328, \"gpu_mem_total\": 34208743424, \"gpu_temp\": 51.0, \"gpu_power\": 198.0, \"gpu_power_limit\": 300.0, \"cpu\": 54.7, \"ram_used\": 71388938240, \"ram_total\": 134961819648, \"disk_read_mb\": 2.2556258738510424, \"disk_write_mb\": 0.08048838001414835, \"tok_s\": 0.0, \"tok_s_mean\": 0, \"prefill_tok_s_mean\": 0.0}, \"hardware_static\": {\"gpu_name\": \"AMD Radeon\", \"gpu_count\": 1, \"cpu_name\": \"AMD Ryzen 9 3900X 12-Core Processor\", \"cores\": 12, \"threads\": 24, \"psutil\": true}, \"history\": {\"gpu_util\": [42, 3, 3, 3, 3, 3, 3, 3, 12, 95, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100], \"gpu_mem_used\": [33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33736065024, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328], \"gpu_temp\": [42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 43.0, 44.0, 45.0, 46.0, 46.0, 47.0, 47.0, 48.0, 48.0, 49.0, 49.0, 49.0, 50.0, 51.0, 51.0], \"gpu_power\": [50.0, 27.0, 19.0, 20.0, 19.0, 20.0, 19.0, 19.0, 36.0, 156.0, 181.0, 175.0, 198.0, 178.0, 183.0, 177.0, 193.0, 174.0, 203.0, 183.0, 185.0, 188.0, 183.0, 198.0], \"gpu_pcie_rx_mb\": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], \"cpu\": [0.0, 0.8, 0.7, 0.9, 4.6, 0.5, 1.2, 1.2, 8.0, 52.5, 55.2, 55.3, 55.2, 54.9, 56.8, 55.0, 55.4, 50.7, 54.8, 53.1, 53.4, 54.7, 54.3, 54.7], \"ram_used\": [71384072192, 71382216704, 71381323776, 71380316160, 71345156096, 71344517120, 71341899776, 71344459776, 71349469184, 71404580864, 71400792064, 71379402752, 71379456000, 71381266432, 71381508096, 71381561344, 71381958656, 71382540288, 71388237824, 71388188672, 71388655616, 71388631040, 71390814208, 71388938240], \"disk_read_mb\": [null, 0.0, 0.02, 0.0, 1.0, 0.02, 0.0, 0.15, 12.97, 3.16, 3.4, 3.43, 2.65, 2.63, 2.88, 2.26, 2.4, 0.2, 0.52, 1.85, 2.17, 2.63, 2.2, 2.26], \"tok_s\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], \"prefill_tok_s_mean\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, \"time\": 1791274111.9275177}"
+        ]
+      },
+      "requested_output_tokens": 256,
+      "output_cap_reached": true
+    },
+    {
+      "label": "prose-3",
+      "prompt_sha256": "7ac99008a68dbca728efad04cc050e621beca41dfe65756e5d472888c7fc9e18",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 256
+      },
+      "before": {
+        "stats": {
+          "engine": {
+            "version": "0.1.39",
+            "context": 131072,
+            "kv": "int8",
+            "kv_resident": 0,
+            "expert_slots": 10215,
+            "expert_cache_mib": 23569,
+            "expert_slots_primary": 10215,
+            "expert_cache_primary_mib": 23569,
+            "spec": 6,
+            "mtp_max": 4,
+            "lookup": 3,
+            "vram_free_mib": 580,
+            "cvec": 0,
+            "arena_mib": 56762,
+            "pool_workers": 11,
+            "pcie_frac": "0.55",
+            "spec_min_p": "0.50",
+            "conversation_cache_mib": 0,
+            "conversation_cache_slots": 4,
+            "conversation_cache_min_free_mib": 2560,
+            "tail_role_token": -1,
+            "vram_elastic": 0,
+            "engine": "0.1.39"
+          },
+          "last": {
+            "generated": 256,
+            "prompt_tokens": 16,
+            "prompt_ms": 153.1,
+            "decode_ms": 7648.9,
+            "finish": "length",
+            "drafts_accepted": 115,
+            "drafts_offered": 148,
+            "reused": 0,
+            "hits": 130317,
+            "lookups": 135845,
+            "ram_blobs": 0,
+            "file_blobs": 0,
+            "file_mb": 0.0,
+            "prompt_read": 16,
+            "offloaded": 2875
+          },
+          "adapter": "raw stdio; upstream chat"
+        },
+        "metrics": [
+          "{\"engine\": {\"model\": \"qwen3.8-flash-next\", \"max_context\": 131072, \"images\": false, \"version\": \"0.1.39\", \"context\": 131072, \"kv\": \"int8\", \"kv_resident\": 0, \"expert_slots\": 10215, \"expert_cache_mib\": 23569, \"expert_slots_primary\": 10215, \"expert_cache_primary_mib\": 23569, \"spec\": 6, \"mtp_max\": 4, \"lookup\": 3, \"vram_free_mib\": 580, \"cvec\": 0, \"arena_mib\": 56762, \"pool_workers\": 11, \"pcie_frac\": \"0.55\", \"spec_min_p\": \"0.50\", \"conversation_cache_mib\": 0, \"conversation_cache_slots\": 4, \"conversation_cache_min_free_mib\": 2560, \"tail_role_token\": -1, \"vram_elastic\": 0, \"engine\": \"0.1.39\"}, \"live\": {\"state\": \"idle\", \"queued\": 0, \"phase\": null, \"prompt_tokens\": null, \"prompt_read\": null, \"prompt_total\": null, \"generated\": null, \"max_tokens\": null, \"elapsed_s\": null, \"tok_s\": null, \"tok_s_mean\": null, \"prefill_tok_s_mean\": null, \"tok_s_window_s\": null}, \"requests\": [], \"conversation_cache\": {\"enabled\": false, \"budget_mib\": 0, \"slots\": 4, \"parked\": 0, \"bytes\": 0, \"evictions\": 0, \"parks\": 0, \"restores\": 0, \"last_event\": null, \"last_tokens\": null, \"last_at\": null, \"requests\": 0, \"requests_reused\": 0, \"reused_tokens\": 0, \"prompt_tokens\": 0, \"last_reused\": null, \"last_prompt\": null}, \"requests_kept\": 0, \"totals\": {\"since\": 1791274088.235569, \"requests\": 0, \"prompt_tokens\": 0, \"reused\": 0, \"output_tokens\": 0, \"prompt_ms\": 0.0, \"decode_ms\": 0.0, \"drafts_offered\": 0, \"drafts_accepted\": 0}, \"hardware\": {\"gpu_util\": 100, \"gpu_mem_used\": 33742819328, \"gpu_mem_total\": 34208743424, \"gpu_temp\": 51.0, \"gpu_power\": 198.0, \"gpu_power_limit\": 300.0, \"cpu\": 54.7, \"ram_used\": 71388938240, \"ram_total\": 134961819648, \"disk_read_mb\": 2.2556258738510424, \"disk_write_mb\": 0.08048838001414835, \"tok_s\": 0.0, \"tok_s_mean\": 0, \"prefill_tok_s_mean\": 0.0}, \"hardware_static\": {\"gpu_name\": \"AMD Radeon\", \"gpu_count\": 1, \"cpu_name\": \"AMD Ryzen 9 3900X 12-Core Processor\", \"cores\": 12, \"threads\": 24, \"psutil\": true}, \"history\": {\"gpu_util\": [42, 3, 3, 3, 3, 3, 3, 3, 12, 95, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100], \"gpu_mem_used\": [33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33736065024, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328], \"gpu_temp\": [42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 43.0, 44.0, 45.0, 46.0, 46.0, 47.0, 47.0, 48.0, 48.0, 49.0, 49.0, 49.0, 50.0, 51.0, 51.0], \"gpu_power\": [50.0, 27.0, 19.0, 20.0, 19.0, 20.0, 19.0, 19.0, 36.0, 156.0, 181.0, 175.0, 198.0, 178.0, 183.0, 177.0, 193.0, 174.0, 203.0, 183.0, 185.0, 188.0, 183.0, 198.0], \"gpu_pcie_rx_mb\": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], \"cpu\": [0.0, 0.8, 0.7, 0.9, 4.6, 0.5, 1.2, 1.2, 8.0, 52.5, 55.2, 55.3, 55.2, 54.9, 56.8, 55.0, 55.4, 50.7, 54.8, 53.1, 53.4, 54.7, 54.3, 54.7], \"ram_used\": [71384072192, 71382216704, 71381323776, 71380316160, 71345156096, 71344517120, 71341899776, 71344459776, 71349469184, 71404580864, 71400792064, 71379402752, 71379456000, 71381266432, 71381508096, 71381561344, 71381958656, 71382540288, 71388237824, 71388188672, 71388655616, 71388631040, 71390814208, 71388938240], \"disk_read_mb\": [null, 0.0, 0.02, 0.0, 1.0, 0.02, 0.0, 0.15, 12.97, 3.16, 3.4, 3.43, 2.65, 2.63, 2.88, 2.26, 2.4, 0.2, 0.52, 1.85, 2.17, 2.63, 2.2, 2.26], \"tok_s\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], \"prefill_tok_s_mean\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, \"time\": 1791274111.9288929}"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 16,
+        "completion_tokens": 256,
+        "total_tokens": 272,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.19950715405866504,
+      "wall_s": 6.680617304053158,
+      "pp_effective_tok_s": 80.19762537084361,
+      "generation_e2e_tok_s": 38.31981212943956,
+      "decode_tok_s": 39.34535482295477,
+      "legacy_decode_tok_s": 39.49940582327822,
+      "text": " Start by describing the physical storage of data in 8KB pages and the concept of 'page splits' when inserting data. Then, explain the structure of the B-tree (root, branch, leaf) and how it reduces I/O compared to a full table scan. \n\nCrucially, you must include the following specific details:\n1. Use a specific example of a table with 10 million rows where the index depth is 3 levels, contrasting the I/O cost of a table scan vs. an index seek.\n2. Explain the concept of 'page splits' and how they lead to fragmentation.\n3. Include a specific 'Note' regarding the 'Fill Factor' setting, explicitly mentioning that the default is 0 and that this setting is often misunderstood.\n4. Conclude with a brief mention of the 'Page Splits per second' performance counter.\n\nMaintain an educational, slightly informal tone (e.g., using phrases like 'Let's see how' or 'So, what is...').\n\nLet's see how a B-tree index works.\n\nFirst, we need to understand how data is physically stored. Data is stored in 8KB pages. When you insert data, the database engine inserts the row into the page",
+      "reasoning_text": "",
+      "after": {
+        "stats": {
+          "engine": {
+            "version": "0.1.39",
+            "context": 131072,
+            "kv": "int8",
+            "kv_resident": 0,
+            "expert_slots": 10215,
+            "expert_cache_mib": 23569,
+            "expert_slots_primary": 10215,
+            "expert_cache_primary_mib": 23569,
+            "spec": 6,
+            "mtp_max": 4,
+            "lookup": 3,
+            "vram_free_mib": 580,
+            "cvec": 0,
+            "arena_mib": 56762,
+            "pool_workers": 11,
+            "pcie_frac": "0.55",
+            "spec_min_p": "0.50",
+            "conversation_cache_mib": 0,
+            "conversation_cache_slots": 4,
+            "conversation_cache_min_free_mib": 2560,
+            "tail_role_token": -1,
+            "vram_elastic": 0,
+            "engine": "0.1.39"
+          },
+          "last": {
+            "generated": 256,
+            "prompt_tokens": 16,
+            "prompt_ms": 147.8,
+            "decode_ms": 6530.3,
+            "finish": "length",
+            "drafts_accepted": 119,
+            "drafts_offered": 158,
+            "reused": 0,
+            "hits": 135177,
+            "lookups": 139524,
+            "ram_blobs": 0,
+            "file_blobs": 0,
+            "file_mb": 0.0,
+            "prompt_read": 16,
+            "offloaded": 2076
+          },
+          "adapter": "raw stdio; upstream chat"
+        },
+        "metrics": [
+          "{\"engine\": {\"model\": \"qwen3.8-flash-next\", \"max_context\": 131072, \"images\": false, \"version\": \"0.1.39\", \"context\": 131072, \"kv\": \"int8\", \"kv_resident\": 0, \"expert_slots\": 10215, \"expert_cache_mib\": 23569, \"expert_slots_primary\": 10215, \"expert_cache_primary_mib\": 23569, \"spec\": 6, \"mtp_max\": 4, \"lookup\": 3, \"vram_free_mib\": 580, \"cvec\": 0, \"arena_mib\": 56762, \"pool_workers\": 11, \"pcie_frac\": \"0.55\", \"spec_min_p\": \"0.50\", \"conversation_cache_mib\": 0, \"conversation_cache_slots\": 4, \"conversation_cache_min_free_mib\": 2560, \"tail_role_token\": -1, \"vram_elastic\": 0, \"engine\": \"0.1.39\"}, \"live\": {\"state\": \"idle\", \"queued\": 0, \"phase\": null, \"prompt_tokens\": null, \"prompt_read\": null, \"prompt_total\": null, \"generated\": null, \"max_tokens\": null, \"elapsed_s\": null, \"tok_s\": null, \"tok_s_mean\": null, \"prefill_tok_s_mean\": null, \"tok_s_window_s\": null}, \"requests\": [], \"conversation_cache\": {\"enabled\": false, \"budget_mib\": 0, \"slots\": 4, \"parked\": 0, \"bytes\": 0, \"evictions\": 0, \"parks\": 0, \"restores\": 0, \"last_event\": null, \"last_tokens\": null, \"last_at\": null, \"requests\": 0, \"requests_reused\": 0, \"reused_tokens\": 0, \"prompt_tokens\": 0, \"last_reused\": null, \"last_prompt\": null}, \"requests_kept\": 0, \"totals\": {\"since\": 1791274088.235569, \"requests\": 0, \"prompt_tokens\": 0, \"reused\": 0, \"output_tokens\": 0, \"prompt_ms\": 0.0, \"decode_ms\": 0.0, \"drafts_offered\": 0, \"drafts_accepted\": 0}, \"hardware\": {\"gpu_util\": 100, \"gpu_mem_used\": 33742819328, \"gpu_mem_total\": 34208743424, \"gpu_temp\": 54.0, \"gpu_power\": 248.0, \"gpu_power_limit\": 300.0, \"cpu\": 54.7, \"ram_used\": 71380041728, \"ram_total\": 134961819648, \"disk_read_mb\": 3.9023563000879604, \"disk_write_mb\": 0.23755593976785458, \"tok_s\": 0.0, \"tok_s_mean\": 0, \"prefill_tok_s_mean\": 0.0}, \"hardware_static\": {\"gpu_name\": \"AMD Radeon\", \"gpu_count\": 1, \"cpu_name\": \"AMD Ryzen 9 3900X 12-Core Processor\", \"cores\": 12, \"threads\": 24, \"psutil\": true}, \"history\": {\"gpu_util\": [42, 3, 3, 3, 3, 3, 3, 3, 12, 95, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 95, 28, 100], \"gpu_mem_used\": [33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33736065024, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328], \"gpu_temp\": [42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 43.0, 44.0, 45.0, 46.0, 46.0, 47.0, 47.0, 48.0, 48.0, 49.0, 49.0, 49.0, 50.0, 51.0, 51.0, 51.0, 52.0, 52.0, 53.0, 53.0, 53.0, 54.0], \"gpu_power\": [50.0, 27.0, 19.0, 20.0, 19.0, 20.0, 19.0, 19.0, 36.0, 156.0, 181.0, 175.0, 198.0, 178.0, 183.0, 177.0, 193.0, 174.0, 203.0, 183.0, 185.0, 188.0, 183.0, 198.0, 197.0, 188.0, 211.0, 213.0, 184.0, 80.0, 248.0], \"gpu_pcie_rx_mb\": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], \"cpu\": [0.0, 0.8, 0.7, 0.9, 4.6, 0.5, 1.2, 1.2, 8.0, 52.5, 55.2, 55.3, 55.2, 54.9, 56.8, 55.0, 55.4, 50.7, 54.8, 53.1, 53.4, 54.7, 54.3, 54.7, 54.2, 47.6, 53.9, 54.6, 55.4, 26.1, 54.7], \"ram_used\": [71384072192, 71382216704, 71381323776, 71380316160, 71345156096, 71344517120, 71341899776, 71344459776, 71349469184, 71404580864, 71400792064, 71379402752, 71379456000, 71381266432, 71381508096, 71381561344, 71381958656, 71382540288, 71388237824, 71388188672, 71388655616, 71388631040, 71390814208, 71388938240, 71389192192, 71389392896, 71388962816, 71387983872, 71381508096, 71381254144, 71380041728], \"disk_read_mb\": [null, 0.0, 0.02, 0.0, 1.0, 0.02, 0.0, 0.15, 12.97, 3.16, 3.4, 3.43, 2.65, 2.63, 2.88, 2.26, 2.4, 0.2, 0.52, 1.85, 2.17, 2.63, 2.2, 2.26, 1.33, 0.04, 0.14, 1.98, 2.77, 0.98, 3.9], \"tok_s\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], \"prefill_tok_s_mean\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, \"time\": 1791274118.610959}"
+        ]
+      },
+      "requested_output_tokens": 256,
+      "output_cap_reached": true
+    },
+    {
+      "label": "JSON-1",
+      "prompt_sha256": "11b16d604e79c2114dc8d6b8ee7cba9ae355a443d81ac3779c4c8318938a6c7a",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 800
+      },
+      "before": {
+        "stats": {
+          "engine": {
+            "version": "0.1.39",
+            "context": 131072,
+            "kv": "int8",
+            "kv_resident": 0,
+            "expert_slots": 10215,
+            "expert_cache_mib": 23569,
+            "expert_slots_primary": 10215,
+            "expert_cache_primary_mib": 23569,
+            "spec": 6,
+            "mtp_max": 4,
+            "lookup": 3,
+            "vram_free_mib": 580,
+            "cvec": 0,
+            "arena_mib": 56762,
+            "pool_workers": 11,
+            "pcie_frac": "0.55",
+            "spec_min_p": "0.50",
+            "conversation_cache_mib": 0,
+            "conversation_cache_slots": 4,
+            "conversation_cache_min_free_mib": 2560,
+            "tail_role_token": -1,
+            "vram_elastic": 0,
+            "engine": "0.1.39"
+          },
+          "last": {
+            "generated": 256,
+            "prompt_tokens": 16,
+            "prompt_ms": 147.8,
+            "decode_ms": 6530.3,
+            "finish": "length",
+            "drafts_accepted": 119,
+            "drafts_offered": 158,
+            "reused": 0,
+            "hits": 135177,
+            "lookups": 139524,
+            "ram_blobs": 0,
+            "file_blobs": 0,
+            "file_mb": 0.0,
+            "prompt_read": 16,
+            "offloaded": 2076
+          },
+          "adapter": "raw stdio; upstream chat"
+        },
+        "metrics": [
+          "{\"engine\": {\"model\": \"qwen3.8-flash-next\", \"max_context\": 131072, \"images\": false, \"version\": \"0.1.39\", \"context\": 131072, \"kv\": \"int8\", \"kv_resident\": 0, \"expert_slots\": 10215, \"expert_cache_mib\": 23569, \"expert_slots_primary\": 10215, \"expert_cache_primary_mib\": 23569, \"spec\": 6, \"mtp_max\": 4, \"lookup\": 3, \"vram_free_mib\": 580, \"cvec\": 0, \"arena_mib\": 56762, \"pool_workers\": 11, \"pcie_frac\": \"0.55\", \"spec_min_p\": \"0.50\", \"conversation_cache_mib\": 0, \"conversation_cache_slots\": 4, \"conversation_cache_min_free_mib\": 2560, \"tail_role_token\": -1, \"vram_elastic\": 0, \"engine\": \"0.1.39\"}, \"live\": {\"state\": \"idle\", \"queued\": 0, \"phase\": null, \"prompt_tokens\": null, \"prompt_read\": null, \"prompt_total\": null, \"generated\": null, \"max_tokens\": null, \"elapsed_s\": null, \"tok_s\": null, \"tok_s_mean\": null, \"prefill_tok_s_mean\": null, \"tok_s_window_s\": null}, \"requests\": [], \"conversation_cache\": {\"enabled\": false, \"budget_mib\": 0, \"slots\": 4, \"parked\": 0, \"bytes\": 0, \"evictions\": 0, \"parks\": 0, \"restores\": 0, \"last_event\": null, \"last_tokens\": null, \"last_at\": null, \"requests\": 0, \"requests_reused\": 0, \"reused_tokens\": 0, \"prompt_tokens\": 0, \"last_reused\": null, \"last_prompt\": null}, \"requests_kept\": 0, \"totals\": {\"since\": 1791274088.235569, \"requests\": 0, \"prompt_tokens\": 0, \"reused\": 0, \"output_tokens\": 0, \"prompt_ms\": 0.0, \"decode_ms\": 0.0, \"drafts_offered\": 0, \"drafts_accepted\": 0}, \"hardware\": {\"gpu_util\": 100, \"gpu_mem_used\": 33742819328, \"gpu_mem_total\": 34208743424, \"gpu_temp\": 54.0, \"gpu_power\": 248.0, \"gpu_power_limit\": 300.0, \"cpu\": 54.7, \"ram_used\": 71380041728, \"ram_total\": 134961819648, \"disk_read_mb\": 3.9023563000879604, \"disk_write_mb\": 0.23755593976785458, \"tok_s\": 0.0, \"tok_s_mean\": 0, \"prefill_tok_s_mean\": 0.0}, \"hardware_static\": {\"gpu_name\": \"AMD Radeon\", \"gpu_count\": 1, \"cpu_name\": \"AMD Ryzen 9 3900X 12-Core Processor\", \"cores\": 12, \"threads\": 24, \"psutil\": true}, \"history\": {\"gpu_util\": [42, 3, 3, 3, 3, 3, 3, 3, 12, 95, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 95, 28, 100], \"gpu_mem_used\": [33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33736065024, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328], \"gpu_temp\": [42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 43.0, 44.0, 45.0, 46.0, 46.0, 47.0, 47.0, 48.0, 48.0, 49.0, 49.0, 49.0, 50.0, 51.0, 51.0, 51.0, 52.0, 52.0, 53.0, 53.0, 53.0, 54.0], \"gpu_power\": [50.0, 27.0, 19.0, 20.0, 19.0, 20.0, 19.0, 19.0, 36.0, 156.0, 181.0, 175.0, 198.0, 178.0, 183.0, 177.0, 193.0, 174.0, 203.0, 183.0, 185.0, 188.0, 183.0, 198.0, 197.0, 188.0, 211.0, 213.0, 184.0, 80.0, 248.0], \"gpu_pcie_rx_mb\": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], \"cpu\": [0.0, 0.8, 0.7, 0.9, 4.6, 0.5, 1.2, 1.2, 8.0, 52.5, 55.2, 55.3, 55.2, 54.9, 56.8, 55.0, 55.4, 50.7, 54.8, 53.1, 53.4, 54.7, 54.3, 54.7, 54.2, 47.6, 53.9, 54.6, 55.4, 26.1, 54.7], \"ram_used\": [71384072192, 71382216704, 71381323776, 71380316160, 71345156096, 71344517120, 71341899776, 71344459776, 71349469184, 71404580864, 71400792064, 71379402752, 71379456000, 71381266432, 71381508096, 71381561344, 71381958656, 71382540288, 71388237824, 71388188672, 71388655616, 71388631040, 71390814208, 71388938240, 71389192192, 71389392896, 71388962816, 71387983872, 71381508096, 71381254144, 71380041728], \"disk_read_mb\": [null, 0.0, 0.02, 0.0, 1.0, 0.02, 0.0, 0.15, 12.97, 3.16, 3.4, 3.43, 2.65, 2.63, 2.88, 2.26, 2.4, 0.2, 0.52, 1.85, 2.17, 2.63, 2.2, 2.26, 1.33, 0.04, 0.14, 1.98, 2.77, 0.98, 3.9], \"tok_s\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], \"prefill_tok_s_mean\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, \"time\": 1791274118.6129842}"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 24,
+        "completion_tokens": 800,
+        "total_tokens": 824,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.25371395400725305,
+      "wall_s": 10.860483659082092,
+      "pp_effective_tok_s": 94.59471826809298,
+      "generation_e2e_tok_s": 73.66154446823361,
+      "decode_tok_s": 75.32962143407775,
+      "legacy_decode_tok_s": 75.42352876929512,
+      "text": "\n\n<think>\nThe user wants me to output a JSON array of 200 objects with fields: id, name, category, price, in_stock. Only JSON, no other text.\n\nLet me generate 200 objects with varied names, categories, prices, and in_stock boolean values. I'll make them realistic with product-like names and categories.\n\nCategories I'll use: Electronics, Clothing, Home & Kitchen, Sports, Books, Toys, Food & Beverage, Health & Beauty, Automotive, Garden\n\nLet me generate all 200 entries.\n</think>\n\n[{\"id\":1,\"name\":\"Wireless Bluetooth Headphones\",\"category\":\"Electronics\",\"price\":49.99,\"in_stock\":true},{\"id\":2,\"name\":\"Cotton T-Shirt Blue\",\"category\":\"Clothing\",\"price\":19.99,\"in_stock\":true},{\"id\":3,\"name\":\"Stainless Steel Water Bottle\",\"category\":\"Home & Kitchen\",\"price\":24.95,\"in_stock\":true},{\"id\":4,\"name\":\"Yoga Mat Non-Slip\",\"category\":\"Sports\",\"price\":34.99,\"in_stock\":false},{\"id\":5,\"name\":\"Python Programming Guide\",\"category\":\"Books\",\"price\":39.99,\"in_stock\":true},{\"id\":6,\"name\":\"Building Blocks Set 500pc\",\"category\":\"Toys\",\"price\":29.99,\"in_stock\":true},{\"id\":7,\"name\":\"Organic Green Tea 100ct\",\"category\":\"Food & Beverage\",\"price\":12.99,\"in_stock\":true},{\"id\":8,\"name\":\"Vitamin C Serum 30ml\",\"category\":\"Health & Beauty\",\"price\":18.50,\"in_stock\":true},{\"id\":9,\"name\":\"Car Phone Mount\",\"category\":\"Automotive\",\"price\":14.99,\"in_stock\":true},{\"id\":10,\"name\":\"Garden Hose 50ft\",\"category\":\"Garden\",\"price\":32.99,\"in_stock\":false},{\"id\":11,\"name\":\"USB-C Charging Cable 6ft\",\"category\":\"Electronics\",\"price\":9.99,\"in_stock\":true},{\"id\":12,\"name\":\"Denim Jacket Medium\",\"category\":\"Clothing\",\"price\":59.99,\"in_stock\":true},{\"id\":13,\"name\":\"Ceramic Coffee Mug Set\",\"category\":\"Home & Kitchen\",\"price\":22.99,\"in_stock\":true},{\"id\":14,\"name\":\"Resistance Bands Set\",\"category\":\"Sports\",\"price\":16.99,\"in_stock\":true},{\"id\":15,\"name\":\"Mystery Novel Collection\",\"category\":\"Books\",\"price\":24.99,\"in_stock\":true},{\"id\":16,\"name\":\"RC Racing Car\",\"category\":\"Toys\",\"price\":45.99,\"in_stock\":false},{\"id\":17,\"name\":\"Dark Chocolate Bar 72%\",\"category\":\"Food & Beverage\",\"price\":4.99,\"in_stock\":true},{\"id\":18,\"name\":\"Sunscreen SPF 50\",\"category\":\"Health & Beauty\",\"price\":11.99,\"in_stock\":true},{\"id\":19,\"name\":\"Dashboard Camera HD\",\"category\":\"Automotive\",\"price\":54.99,\"in_stock\":true},{\"id\":20,\"name\":\"Solar Garden Lights 8pk\",\"category\":\"Garden\",\"price\":27.99,\"in_stock\":true},{\"id\":21,\"name\":\"Mechanical Keyboard RGB\",\"category\":\"Electronics\",\"price\":79.99,\"in_stock\":true},{\"id\":22,\"name\":\"Running Shoes Size 10\",\"category\":\"Clothing\",\"price\":89.99,\"in_stock\":true",
+      "reasoning_text": "",
+      "after": {
+        "stats": {
+          "engine": {
+            "version": "0.1.39",
+            "context": 131072,
+            "kv": "int8",
+            "kv_resident": 0,
+            "expert_slots": 10215,
+            "expert_cache_mib": 23569,
+            "expert_slots_primary": 10215,
+            "expert_cache_primary_mib": 23569,
+            "spec": 6,
+            "mtp_max": 4,
+            "lookup": 3,
+            "vram_free_mib": 580,
+            "cvec": 0,
+            "arena_mib": 56762,
+            "pool_workers": 11,
+            "pcie_frac": "0.55",
+            "spec_min_p": "0.50",
+            "conversation_cache_mib": 0,
+            "conversation_cache_slots": 4,
+            "conversation_cache_min_free_mib": 2560,
+            "tail_role_token": -1,
+            "vram_elastic": 0,
+            "engine": "0.1.39"
+          },
+          "last": {
+            "generated": 800,
+            "prompt_tokens": 24,
+            "prompt_ms": 229.7,
+            "decode_ms": 10628.3,
+            "finish": "length",
+            "drafts_accepted": 538,
+            "drafts_offered": 692,
+            "reused": 0,
+            "hits": 401401,
+            "lookups": 435055,
+            "ram_blobs": 0,
+            "file_blobs": 0,
+            "file_mb": 0.0,
+            "prompt_read": 24,
+            "offloaded": 23345
+          },
+          "adapter": "raw stdio; upstream chat"
+        },
+        "metrics": [
+          "{\"engine\": {\"model\": \"qwen3.8-flash-next\", \"max_context\": 131072, \"images\": false, \"version\": \"0.1.39\", \"context\": 131072, \"kv\": \"int8\", \"kv_resident\": 0, \"expert_slots\": 10215, \"expert_cache_mib\": 23569, \"expert_slots_primary\": 10215, \"expert_cache_primary_mib\": 23569, \"spec\": 6, \"mtp_max\": 4, \"lookup\": 3, \"vram_free_mib\": 580, \"cvec\": 0, \"arena_mib\": 56762, \"pool_workers\": 11, \"pcie_frac\": \"0.55\", \"spec_min_p\": \"0.50\", \"conversation_cache_mib\": 0, \"conversation_cache_slots\": 4, \"conversation_cache_min_free_mib\": 2560, \"tail_role_token\": -1, \"vram_elastic\": 0, \"engine\": \"0.1.39\"}, \"live\": {\"state\": \"idle\", \"queued\": 0, \"phase\": null, \"prompt_tokens\": null, \"prompt_read\": null, \"prompt_total\": null, \"generated\": null, \"max_tokens\": null, \"elapsed_s\": null, \"tok_s\": null, \"tok_s_mean\": null, \"prefill_tok_s_mean\": null, \"tok_s_window_s\": null}, \"requests\": [], \"conversation_cache\": {\"enabled\": false, \"budget_mib\": 0, \"slots\": 4, \"parked\": 0, \"bytes\": 0, \"evictions\": 0, \"parks\": 0, \"restores\": 0, \"last_event\": null, \"last_tokens\": null, \"last_at\": null, \"requests\": 0, \"requests_reused\": 0, \"reused_tokens\": 0, \"prompt_tokens\": 0, \"last_reused\": null, \"last_prompt\": null}, \"requests_kept\": 0, \"totals\": {\"since\": 1791274088.235569, \"requests\": 0, \"prompt_tokens\": 0, \"reused\": 0, \"output_tokens\": 0, \"prompt_ms\": 0.0, \"decode_ms\": 0.0, \"drafts_offered\": 0, \"drafts_accepted\": 0}, \"hardware\": {\"gpu_util\": 100, \"gpu_mem_used\": 33744740352, \"gpu_mem_total\": 34208743424, \"gpu_temp\": 59.0, \"gpu_power\": 291.0, \"gpu_power_limit\": 300.0, \"cpu\": 55.6, \"ram_used\": 71388438528, \"ram_total\": 134961819648, \"disk_read_mb\": 2.4971142976282588, \"disk_write_mb\": 0.1111996210662584, \"tok_s\": 0.0, \"tok_s_mean\": 0, \"prefill_tok_s_mean\": 0.0}, \"hardware_static\": {\"gpu_name\": \"AMD Radeon\", \"gpu_count\": 1, \"cpu_name\": \"AMD Ryzen 9 3900X 12-Core Processor\", \"cores\": 12, \"threads\": 24, \"psutil\": true}, \"history\": {\"gpu_util\": [42, 3, 3, 3, 3, 3, 3, 3, 12, 95, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 95, 28, 100, 98, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100], \"gpu_mem_used\": [33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33736065024, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352], \"gpu_temp\": [42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 43.0, 44.0, 45.0, 46.0, 46.0, 47.0, 47.0, 48.0, 48.0, 49.0, 49.0, 49.0, 50.0, 51.0, 51.0, 51.0, 52.0, 52.0, 53.0, 53.0, 53.0, 54.0, 55.0, 55.0, 56.0, 56.0, 56.0, 57.0, 57.0, 58.0, 58.0, 59.0, 59.0], \"gpu_power\": [50.0, 27.0, 19.0, 20.0, 19.0, 20.0, 19.0, 19.0, 36.0, 156.0, 181.0, 175.0, 198.0, 178.0, 183.0, 177.0, 193.0, 174.0, 203.0, 183.0, 185.0, 188.0, 183.0, 198.0, 197.0, 188.0, 211.0, 213.0, 184.0, 80.0, 248.0, 249.0, 253.0, 227.0, 228.0, 239.0, 255.0, 268.0, 276.0, 277.0, 288.0, 291.0], \"gpu_pcie_rx_mb\": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], \"cpu\": [0.0, 0.8, 0.7, 0.9, 4.6, 0.5, 1.2, 1.2, 8.0, 52.5, 55.2, 55.3, 55.2, 54.9, 56.8, 55.0, 55.4, 50.7, 54.8, 53.1, 53.4, 54.7, 54.3, 54.7, 54.2, 47.6, 53.9, 54.6, 55.4, 26.1, 54.7, 54.8, 56.0, 55.7, 57.4, 55.0, 56.8, 55.3, 55.6, 54.9, 54.9, 55.6], \"ram_used\": [71384072192, 71382216704, 71381323776, 71380316160, 71345156096, 71344517120, 71341899776, 71344459776, 71349469184, 71404580864, 71400792064, 71379402752, 71379456000, 71381266432, 71381508096, 71381561344, 71381958656, 71382540288, 71388237824, 71388188672, 71388655616, 71388631040, 71390814208, 71388938240, 71389192192, 71389392896, 71388962816, 71387983872, 71381508096, 71381254144, 71380041728, 71384485888, 71385047040, 71384813568, 71384276992, 71384293376, 71381209088, 71383388160, 71384264704, 71388938240, 71388839936, 71388438528], \"disk_read_mb\": [null, 0.0, 0.02, 0.0, 1.0, 0.02, 0.0, 0.15, 12.97, 3.16, 3.4, 3.43, 2.65, 2.63, 2.88, 2.26, 2.4, 0.2, 0.52, 1.85, 2.17, 2.63, 2.2, 2.26, 1.33, 0.04, 0.14, 1.98, 2.77, 0.98, 3.9, 3.84, 5.07, 4.24, 2.84, 2.34, 3.13, 2.29, 1.91, 11.75, 2.13, 2.5], \"tok_s\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], \"prefill_tok_s_mean\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, \"time\": 1791274129.4746268}"
+        ]
+      },
+      "requested_output_tokens": 800,
+      "output_cap_reached": true
+    },
+    {
+      "label": "JSON-2",
+      "prompt_sha256": "11b16d604e79c2114dc8d6b8ee7cba9ae355a443d81ac3779c4c8318938a6c7a",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 800
+      },
+      "before": {
+        "stats": {
+          "engine": {
+            "version": "0.1.39",
+            "context": 131072,
+            "kv": "int8",
+            "kv_resident": 0,
+            "expert_slots": 10215,
+            "expert_cache_mib": 23569,
+            "expert_slots_primary": 10215,
+            "expert_cache_primary_mib": 23569,
+            "spec": 6,
+            "mtp_max": 4,
+            "lookup": 3,
+            "vram_free_mib": 580,
+            "cvec": 0,
+            "arena_mib": 56762,
+            "pool_workers": 11,
+            "pcie_frac": "0.55",
+            "spec_min_p": "0.50",
+            "conversation_cache_mib": 0,
+            "conversation_cache_slots": 4,
+            "conversation_cache_min_free_mib": 2560,
+            "tail_role_token": -1,
+            "vram_elastic": 0,
+            "engine": "0.1.39"
+          },
+          "last": {
+            "generated": 800,
+            "prompt_tokens": 24,
+            "prompt_ms": 229.7,
+            "decode_ms": 10628.3,
+            "finish": "length",
+            "drafts_accepted": 538,
+            "drafts_offered": 692,
+            "reused": 0,
+            "hits": 401401,
+            "lookups": 435055,
+            "ram_blobs": 0,
+            "file_blobs": 0,
+            "file_mb": 0.0,
+            "prompt_read": 24,
+            "offloaded": 23345
+          },
+          "adapter": "raw stdio; upstream chat"
+        },
+        "metrics": [
+          "{\"engine\": {\"model\": \"qwen3.8-flash-next\", \"max_context\": 131072, \"images\": false, \"version\": \"0.1.39\", \"context\": 131072, \"kv\": \"int8\", \"kv_resident\": 0, \"expert_slots\": 10215, \"expert_cache_mib\": 23569, \"expert_slots_primary\": 10215, \"expert_cache_primary_mib\": 23569, \"spec\": 6, \"mtp_max\": 4, \"lookup\": 3, \"vram_free_mib\": 580, \"cvec\": 0, \"arena_mib\": 56762, \"pool_workers\": 11, \"pcie_frac\": \"0.55\", \"spec_min_p\": \"0.50\", \"conversation_cache_mib\": 0, \"conversation_cache_slots\": 4, \"conversation_cache_min_free_mib\": 2560, \"tail_role_token\": -1, \"vram_elastic\": 0, \"engine\": \"0.1.39\"}, \"live\": {\"state\": \"idle\", \"queued\": 0, \"phase\": null, \"prompt_tokens\": null, \"prompt_read\": null, \"prompt_total\": null, \"generated\": null, \"max_tokens\": null, \"elapsed_s\": null, \"tok_s\": null, \"tok_s_mean\": null, \"prefill_tok_s_mean\": null, \"tok_s_window_s\": null}, \"requests\": [], \"conversation_cache\": {\"enabled\": false, \"budget_mib\": 0, \"slots\": 4, \"parked\": 0, \"bytes\": 0, \"evictions\": 0, \"parks\": 0, \"restores\": 0, \"last_event\": null, \"last_tokens\": null, \"last_at\": null, \"requests\": 0, \"requests_reused\": 0, \"reused_tokens\": 0, \"prompt_tokens\": 0, \"last_reused\": null, \"last_prompt\": null}, \"requests_kept\": 0, \"totals\": {\"since\": 1791274088.235569, \"requests\": 0, \"prompt_tokens\": 0, \"reused\": 0, \"output_tokens\": 0, \"prompt_ms\": 0.0, \"decode_ms\": 0.0, \"drafts_offered\": 0, \"drafts_accepted\": 0}, \"hardware\": {\"gpu_util\": 100, \"gpu_mem_used\": 33744740352, \"gpu_mem_total\": 34208743424, \"gpu_temp\": 59.0, \"gpu_power\": 291.0, \"gpu_power_limit\": 300.0, \"cpu\": 55.6, \"ram_used\": 71388438528, \"ram_total\": 134961819648, \"disk_read_mb\": 2.4971142976282588, \"disk_write_mb\": 0.1111996210662584, \"tok_s\": 0.0, \"tok_s_mean\": 0, \"prefill_tok_s_mean\": 0.0}, \"hardware_static\": {\"gpu_name\": \"AMD Radeon\", \"gpu_count\": 1, \"cpu_name\": \"AMD Ryzen 9 3900X 12-Core Processor\", \"cores\": 12, \"threads\": 24, \"psutil\": true}, \"history\": {\"gpu_util\": [42, 3, 3, 3, 3, 3, 3, 3, 12, 95, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 95, 28, 100, 98, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100], \"gpu_mem_used\": [33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33736065024, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352], \"gpu_temp\": [42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 43.0, 44.0, 45.0, 46.0, 46.0, 47.0, 47.0, 48.0, 48.0, 49.0, 49.0, 49.0, 50.0, 51.0, 51.0, 51.0, 52.0, 52.0, 53.0, 53.0, 53.0, 54.0, 55.0, 55.0, 56.0, 56.0, 56.0, 57.0, 57.0, 58.0, 58.0, 59.0, 59.0], \"gpu_power\": [50.0, 27.0, 19.0, 20.0, 19.0, 20.0, 19.0, 19.0, 36.0, 156.0, 181.0, 175.0, 198.0, 178.0, 183.0, 177.0, 193.0, 174.0, 203.0, 183.0, 185.0, 188.0, 183.0, 198.0, 197.0, 188.0, 211.0, 213.0, 184.0, 80.0, 248.0, 249.0, 253.0, 227.0, 228.0, 239.0, 255.0, 268.0, 276.0, 277.0, 288.0, 291.0], \"gpu_pcie_rx_mb\": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], \"cpu\": [0.0, 0.8, 0.7, 0.9, 4.6, 0.5, 1.2, 1.2, 8.0, 52.5, 55.2, 55.3, 55.2, 54.9, 56.8, 55.0, 55.4, 50.7, 54.8, 53.1, 53.4, 54.7, 54.3, 54.7, 54.2, 47.6, 53.9, 54.6, 55.4, 26.1, 54.7, 54.8, 56.0, 55.7, 57.4, 55.0, 56.8, 55.3, 55.6, 54.9, 54.9, 55.6], \"ram_used\": [71384072192, 71382216704, 71381323776, 71380316160, 71345156096, 71344517120, 71341899776, 71344459776, 71349469184, 71404580864, 71400792064, 71379402752, 71379456000, 71381266432, 71381508096, 71381561344, 71381958656, 71382540288, 71388237824, 71388188672, 71388655616, 71388631040, 71390814208, 71388938240, 71389192192, 71389392896, 71388962816, 71387983872, 71381508096, 71381254144, 71380041728, 71384485888, 71385047040, 71384813568, 71384276992, 71384293376, 71381209088, 71383388160, 71384264704, 71388938240, 71388839936, 71388438528], \"disk_read_mb\": [null, 0.0, 0.02, 0.0, 1.0, 0.02, 0.0, 0.15, 12.97, 3.16, 3.4, 3.43, 2.65, 2.63, 2.88, 2.26, 2.4, 0.2, 0.52, 1.85, 2.17, 2.63, 2.2, 2.26, 1.33, 0.04, 0.14, 1.98, 2.77, 0.98, 3.9, 3.84, 5.07, 4.24, 2.84, 2.34, 3.13, 2.29, 1.91, 11.75, 2.13, 2.5], \"tok_s\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], \"prefill_tok_s_mean\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, \"time\": 1791274129.4763343}"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 24,
+        "completion_tokens": 800,
+        "total_tokens": 824,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.24782463209703565,
+      "wall_s": 9.470861608046107,
+      "pp_effective_tok_s": 96.84267377668418,
+      "generation_e2e_tok_s": 84.46961143644508,
+      "decode_tok_s": 86.63135780877528,
+      "legacy_decode_tok_s": 86.73932481092305,
+      "text": "\n\n<think>\nThe user wants me to output a JSON array of 200 objects with fields: id, name, category, price, in_stock. Only JSON, no other text.\n\nLet me generate 200 objects with varied names, categories, prices, and in_stock boolean values. I'll make them realistic with product-like names and categories.\n\nCategories I'll use: Electronics, Clothing, Home & Kitchen, Sports, Books, Toys, Food, Beauty, Automotive, Garden\n\nLet me generate all 200 entries.\n</think>\n\n[{\"id\":1,\"name\":\"Wireless Bluetooth Headphones\",\"category\":\"Electronics\",\"price\":49.99,\"in_stock\":true},{\"id\":2,\"name\":\"Cotton T-Shirt Blue\",\"category\":\"Clothing\",\"price\":19.99,\"in_stock\":true},{\"id\":3,\"name\":\"Stainless Steel Water Bottle\",\"category\":\"Home & Kitchen\",\"price\":24.95,\"in_stock\":true},{\"id\":4,\"name\":\"Yoga Mat Non-Slip\",\"category\":\"Sports\",\"price\":34.99,\"in_stock\":false},{\"id\":5,\"name\":\"Python Programming Guide\",\"category\":\"Books\",\"price\":39.99,\"in_stock\":true},{\"id\":6,\"name\":\"Building Blocks Set 500pc\",\"category\":\"Toys\",\"price\":29.99,\"in_stock\":true},{\"id\":7,\"name\":\"Organic Green Tea 100ct\",\"category\":\"Food\",\"price\":12.49,\"in_stock\":true},{\"id\":8,\"name\":\"Moisturizing Face Cream\",\"category\":\"Beauty\",\"price\":18.99,\"in_stock\":true},{\"id\":9,\"name\":\"Car Phone Mount\",\"category\":\"Automotive\",\"price\":14.99,\"in_stock\":true},{\"id\":10,\"name\":\"Garden Hose 50ft\",\"category\":\"Garden\",\"price\":32.99,\"in_stock\":false},{\"id\":11,\"name\":\"USB-C Charging Cable 6ft\",\"category\":\"Electronics\",\"price\":9.99,\"in_stock\":true},{\"id\":12,\"name\":\"Denim Jacket Medium\",\"category\":\"Clothing\",\"price\":59.99,\"in_stock\":true},{\"id\":13,\"name\":\"Ceramic Coffee Mug Set\",\"category\":\"Home & Kitchen\",\"price\":22.50,\"in_stock\":true},{\"id\":14,\"name\":\"Resistance Bands Set\",\"category\":\"Sports\",\"price\":15.99,\"in_stock\":true},{\"id\":15,\"name\":\"Mystery Novel Collection\",\"category\":\"Books\",\"price\":24.99,\"in_stock\":true},{\"id\":16,\"name\":\"Remote Control Car\",\"category\":\"Toys\",\"price\":44.99,\"in_stock\":false},{\"id\":17,\"name\":\"Dark Chocolate Bar 72%\",\"category\":\"Food\",\"price\":4.99,\"in_stock\":true},{\"id\":18,\"name\":\"Vitamin C Serum\",\"category\":\"Beauty\",\"price\":27.99,\"in_stock\":true},{\"id\":19,\"name\":\"Dashboard Camera HD\",\"category\":\"Automotive\",\"price\":54.99,\"in_stock\":true},{\"id\":20,\"name\":\"Solar Garden Lights 8pk\",\"category\":\"Garden\",\"price\":28.99,\"in_stock\":true},{\"id\":21,\"name\":\"Portable Bluetooth Speaker\",\"category\":\"Electronics\",\"price\":39.99,\"in_stock\":true},{\"id\":22,\"name\":\"Running Shoes Size 10\",\"category\":\"Clothing\",\"price\":79.99,\"in_stock\":true},{\"id\":23,\"name\":\"Non-Stick Frying Pan\",\"category\":\"",
+      "reasoning_text": "",
+      "after": {
+        "stats": {
+          "engine": {
+            "version": "0.1.39",
+            "context": 131072,
+            "kv": "int8",
+            "kv_resident": 0,
+            "expert_slots": 10215,
+            "expert_cache_mib": 23569,
+            "expert_slots_primary": 10215,
+            "expert_cache_primary_mib": 23569,
+            "spec": 6,
+            "mtp_max": 4,
+            "lookup": 3,
+            "vram_free_mib": 580,
+            "cvec": 0,
+            "arena_mib": 56762,
+            "pool_workers": 11,
+            "pcie_frac": "0.55",
+            "spec_min_p": "0.50",
+            "conversation_cache_mib": 0,
+            "conversation_cache_slots": 4,
+            "conversation_cache_min_free_mib": 2560,
+            "tail_role_token": -1,
+            "vram_elastic": 0,
+            "engine": "0.1.39"
+          },
+          "last": {
+            "generated": 800,
+            "prompt_tokens": 24,
+            "prompt_ms": 219.1,
+            "decode_ms": 9249.1,
+            "finish": "length",
+            "drafts_accepted": 536,
+            "drafts_offered": 683,
+            "reused": 0,
+            "hits": 428396,
+            "lookups": 445203,
+            "ram_blobs": 0,
+            "file_blobs": 0,
+            "file_mb": 0.0,
+            "prompt_read": 24,
+            "offloaded": 10317
+          },
+          "adapter": "raw stdio; upstream chat"
+        },
+        "metrics": [
+          "{\"engine\": {\"model\": \"qwen3.8-flash-next\", \"max_context\": 131072, \"images\": false, \"version\": \"0.1.39\", \"context\": 131072, \"kv\": \"int8\", \"kv_resident\": 0, \"expert_slots\": 10215, \"expert_cache_mib\": 23569, \"expert_slots_primary\": 10215, \"expert_cache_primary_mib\": 23569, \"spec\": 6, \"mtp_max\": 4, \"lookup\": 3, \"vram_free_mib\": 580, \"cvec\": 0, \"arena_mib\": 56762, \"pool_workers\": 11, \"pcie_frac\": \"0.55\", \"spec_min_p\": \"0.50\", \"conversation_cache_mib\": 0, \"conversation_cache_slots\": 4, \"conversation_cache_min_free_mib\": 2560, \"tail_role_token\": -1, \"vram_elastic\": 0, \"engine\": \"0.1.39\"}, \"live\": {\"state\": \"idle\", \"queued\": 0, \"phase\": null, \"prompt_tokens\": null, \"prompt_read\": null, \"prompt_total\": null, \"generated\": null, \"max_tokens\": null, \"elapsed_s\": null, \"tok_s\": null, \"tok_s_mean\": null, \"prefill_tok_s_mean\": null, \"tok_s_window_s\": null}, \"requests\": [], \"conversation_cache\": {\"enabled\": false, \"budget_mib\": 0, \"slots\": 4, \"parked\": 0, \"bytes\": 0, \"evictions\": 0, \"parks\": 0, \"restores\": 0, \"last_event\": null, \"last_tokens\": null, \"last_at\": null, \"requests\": 0, \"requests_reused\": 0, \"reused_tokens\": 0, \"prompt_tokens\": 0, \"last_reused\": null, \"last_prompt\": null}, \"requests_kept\": 0, \"totals\": {\"since\": 1791274088.235569, \"requests\": 0, \"prompt_tokens\": 0, \"reused\": 0, \"output_tokens\": 0, \"prompt_ms\": 0.0, \"decode_ms\": 0.0, \"drafts_offered\": 0, \"drafts_accepted\": 0}, \"hardware\": {\"gpu_util\": 100, \"gpu_mem_used\": 33744740352, \"gpu_mem_total\": 34208743424, \"gpu_temp\": 62.0, \"gpu_power\": 295.0, \"gpu_power_limit\": 300.0, \"cpu\": 55.1, \"ram_used\": 71390011392, \"ram_total\": 134961819648, \"disk_read_mb\": 0.5111929687339977, \"disk_write_mb\": 0.4121737200193016, \"tok_s\": 0.0, \"tok_s_mean\": 0, \"prefill_tok_s_mean\": 0.0}, \"hardware_static\": {\"gpu_name\": \"AMD Radeon\", \"gpu_count\": 1, \"cpu_name\": \"AMD Ryzen 9 3900X 12-Core Processor\", \"cores\": 12, \"threads\": 24, \"psutil\": true}, \"history\": {\"gpu_util\": [42, 3, 3, 3, 3, 3, 3, 3, 12, 95, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 95, 28, 100, 98, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100], \"gpu_mem_used\": [33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33736065024, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352], \"gpu_temp\": [42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 43.0, 44.0, 45.0, 46.0, 46.0, 47.0, 47.0, 48.0, 48.0, 49.0, 49.0, 49.0, 50.0, 51.0, 51.0, 51.0, 52.0, 52.0, 53.0, 53.0, 53.0, 54.0, 55.0, 55.0, 56.0, 56.0, 56.0, 57.0, 57.0, 58.0, 58.0, 59.0, 59.0, 60.0, 60.0, 60.0, 61.0, 61.0, 61.0, 61.0, 62.0, 62.0], \"gpu_power\": [50.0, 27.0, 19.0, 20.0, 19.0, 20.0, 19.0, 19.0, 36.0, 156.0, 181.0, 175.0, 198.0, 178.0, 183.0, 177.0, 193.0, 174.0, 203.0, 183.0, 185.0, 188.0, 183.0, 198.0, 197.0, 188.0, 211.0, 213.0, 184.0, 80.0, 248.0, 249.0, 253.0, 227.0, 228.0, 239.0, 255.0, 268.0, 276.0, 277.0, 288.0, 291.0, 246.0, 268.0, 283.0, 294.0, 294.0, 297.0, 292.0, 299.0, 295.0], \"gpu_pcie_rx_mb\": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], \"cpu\": [0.0, 0.8, 0.7, 0.9, 4.6, 0.5, 1.2, 1.2, 8.0, 52.5, 55.2, 55.3, 55.2, 54.9, 56.8, 55.0, 55.4, 50.7, 54.8, 53.1, 53.4, 54.7, 54.3, 54.7, 54.2, 47.6, 53.9, 54.6, 55.4, 26.1, 54.7, 54.8, 56.0, 55.7, 57.4, 55.0, 56.8, 55.3, 55.6, 54.9, 54.9, 55.6, 55.4, 55.5, 55.1, 54.8, 55.4, 54.7, 55.9, 54.9, 55.1], \"ram_used\": [71384072192, 71382216704, 71381323776, 71380316160, 71345156096, 71344517120, 71341899776, 71344459776, 71349469184, 71404580864, 71400792064, 71379402752, 71379456000, 71381266432, 71381508096, 71381561344, 71381958656, 71382540288, 71388237824, 71388188672, 71388655616, 71388631040, 71390814208, 71388938240, 71389192192, 71389392896, 71388962816, 71387983872, 71381508096, 71381254144, 71380041728, 71384485888, 71385047040, 71384813568, 71384276992, 71384293376, 71381209088, 71383388160, 71384264704, 71388938240, 71388839936, 71388438528, 71388577792, 71388102656, 71387787264, 71387123712, 71386075136, 71385219072, 71390560256, 71389933568, 71390011392], \"disk_read_mb\": [null, 0.0, 0.02, 0.0, 1.0, 0.02, 0.0, 0.15, 12.97, 3.16, 3.4, 3.43, 2.65, 2.63, 2.88, 2.26, 2.4, 0.2, 0.52, 1.85, 2.17, 2.63, 2.2, 2.26, 1.33, 0.04, 0.14, 1.98, 2.77, 0.98, 3.9, 3.84, 5.07, 4.24, 2.84, 2.34, 3.13, 2.29, 1.91, 11.75, 2.13, 2.5, 0.35, 0.16, 0.19, 0.35, 1.34, 0.44, 0.11, 0.58, 0.51], \"tok_s\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], \"prefill_tok_s_mean\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, \"time\": 1791274138.948727}"
+        ]
+      },
+      "requested_output_tokens": 800,
+      "output_cap_reached": true
+    },
+    {
+      "label": "JSON-3",
+      "prompt_sha256": "11b16d604e79c2114dc8d6b8ee7cba9ae355a443d81ac3779c4c8318938a6c7a",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 800
+      },
+      "before": {
+        "stats": {
+          "engine": {
+            "version": "0.1.39",
+            "context": 131072,
+            "kv": "int8",
+            "kv_resident": 0,
+            "expert_slots": 10215,
+            "expert_cache_mib": 23569,
+            "expert_slots_primary": 10215,
+            "expert_cache_primary_mib": 23569,
+            "spec": 6,
+            "mtp_max": 4,
+            "lookup": 3,
+            "vram_free_mib": 580,
+            "cvec": 0,
+            "arena_mib": 56762,
+            "pool_workers": 11,
+            "pcie_frac": "0.55",
+            "spec_min_p": "0.50",
+            "conversation_cache_mib": 0,
+            "conversation_cache_slots": 4,
+            "conversation_cache_min_free_mib": 2560,
+            "tail_role_token": -1,
+            "vram_elastic": 0,
+            "engine": "0.1.39"
+          },
+          "last": {
+            "generated": 800,
+            "prompt_tokens": 24,
+            "prompt_ms": 219.1,
+            "decode_ms": 9249.1,
+            "finish": "length",
+            "drafts_accepted": 536,
+            "drafts_offered": 683,
+            "reused": 0,
+            "hits": 428396,
+            "lookups": 445203,
+            "ram_blobs": 0,
+            "file_blobs": 0,
+            "file_mb": 0.0,
+            "prompt_read": 24,
+            "offloaded": 10317
+          },
+          "adapter": "raw stdio; upstream chat"
+        },
+        "metrics": [
+          "{\"engine\": {\"model\": \"qwen3.8-flash-next\", \"max_context\": 131072, \"images\": false, \"version\": \"0.1.39\", \"context\": 131072, \"kv\": \"int8\", \"kv_resident\": 0, \"expert_slots\": 10215, \"expert_cache_mib\": 23569, \"expert_slots_primary\": 10215, \"expert_cache_primary_mib\": 23569, \"spec\": 6, \"mtp_max\": 4, \"lookup\": 3, \"vram_free_mib\": 580, \"cvec\": 0, \"arena_mib\": 56762, \"pool_workers\": 11, \"pcie_frac\": \"0.55\", \"spec_min_p\": \"0.50\", \"conversation_cache_mib\": 0, \"conversation_cache_slots\": 4, \"conversation_cache_min_free_mib\": 2560, \"tail_role_token\": -1, \"vram_elastic\": 0, \"engine\": \"0.1.39\"}, \"live\": {\"state\": \"idle\", \"queued\": 0, \"phase\": null, \"prompt_tokens\": null, \"prompt_read\": null, \"prompt_total\": null, \"generated\": null, \"max_tokens\": null, \"elapsed_s\": null, \"tok_s\": null, \"tok_s_mean\": null, \"prefill_tok_s_mean\": null, \"tok_s_window_s\": null}, \"requests\": [], \"conversation_cache\": {\"enabled\": false, \"budget_mib\": 0, \"slots\": 4, \"parked\": 0, \"bytes\": 0, \"evictions\": 0, \"parks\": 0, \"restores\": 0, \"last_event\": null, \"last_tokens\": null, \"last_at\": null, \"requests\": 0, \"requests_reused\": 0, \"reused_tokens\": 0, \"prompt_tokens\": 0, \"last_reused\": null, \"last_prompt\": null}, \"requests_kept\": 0, \"totals\": {\"since\": 1791274088.235569, \"requests\": 0, \"prompt_tokens\": 0, \"reused\": 0, \"output_tokens\": 0, \"prompt_ms\": 0.0, \"decode_ms\": 0.0, \"drafts_offered\": 0, \"drafts_accepted\": 0}, \"hardware\": {\"gpu_util\": 100, \"gpu_mem_used\": 33744740352, \"gpu_mem_total\": 34208743424, \"gpu_temp\": 62.0, \"gpu_power\": 295.0, \"gpu_power_limit\": 300.0, \"cpu\": 55.1, \"ram_used\": 71390011392, \"ram_total\": 134961819648, \"disk_read_mb\": 0.5111929687339977, \"disk_write_mb\": 0.4121737200193016, \"tok_s\": 0.0, \"tok_s_mean\": 0, \"prefill_tok_s_mean\": 0.0}, \"hardware_static\": {\"gpu_name\": \"AMD Radeon\", \"gpu_count\": 1, \"cpu_name\": \"AMD Ryzen 9 3900X 12-Core Processor\", \"cores\": 12, \"threads\": 24, \"psutil\": true}, \"history\": {\"gpu_util\": [42, 3, 3, 3, 3, 3, 3, 3, 12, 95, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 95, 28, 100, 98, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100], \"gpu_mem_used\": [33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33736065024, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352], \"gpu_temp\": [42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 43.0, 44.0, 45.0, 46.0, 46.0, 47.0, 47.0, 48.0, 48.0, 49.0, 49.0, 49.0, 50.0, 51.0, 51.0, 51.0, 52.0, 52.0, 53.0, 53.0, 53.0, 54.0, 55.0, 55.0, 56.0, 56.0, 56.0, 57.0, 57.0, 58.0, 58.0, 59.0, 59.0, 60.0, 60.0, 60.0, 61.0, 61.0, 61.0, 61.0, 62.0, 62.0], \"gpu_power\": [50.0, 27.0, 19.0, 20.0, 19.0, 20.0, 19.0, 19.0, 36.0, 156.0, 181.0, 175.0, 198.0, 178.0, 183.0, 177.0, 193.0, 174.0, 203.0, 183.0, 185.0, 188.0, 183.0, 198.0, 197.0, 188.0, 211.0, 213.0, 184.0, 80.0, 248.0, 249.0, 253.0, 227.0, 228.0, 239.0, 255.0, 268.0, 276.0, 277.0, 288.0, 291.0, 246.0, 268.0, 283.0, 294.0, 294.0, 297.0, 292.0, 299.0, 295.0], \"gpu_pcie_rx_mb\": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], \"cpu\": [0.0, 0.8, 0.7, 0.9, 4.6, 0.5, 1.2, 1.2, 8.0, 52.5, 55.2, 55.3, 55.2, 54.9, 56.8, 55.0, 55.4, 50.7, 54.8, 53.1, 53.4, 54.7, 54.3, 54.7, 54.2, 47.6, 53.9, 54.6, 55.4, 26.1, 54.7, 54.8, 56.0, 55.7, 57.4, 55.0, 56.8, 55.3, 55.6, 54.9, 54.9, 55.6, 55.4, 55.5, 55.1, 54.8, 55.4, 54.7, 55.9, 54.9, 55.1], \"ram_used\": [71384072192, 71382216704, 71381323776, 71380316160, 71345156096, 71344517120, 71341899776, 71344459776, 71349469184, 71404580864, 71400792064, 71379402752, 71379456000, 71381266432, 71381508096, 71381561344, 71381958656, 71382540288, 71388237824, 71388188672, 71388655616, 71388631040, 71390814208, 71388938240, 71389192192, 71389392896, 71388962816, 71387983872, 71381508096, 71381254144, 71380041728, 71384485888, 71385047040, 71384813568, 71384276992, 71384293376, 71381209088, 71383388160, 71384264704, 71388938240, 71388839936, 71388438528, 71388577792, 71388102656, 71387787264, 71387123712, 71386075136, 71385219072, 71390560256, 71389933568, 71390011392], \"disk_read_mb\": [null, 0.0, 0.02, 0.0, 1.0, 0.02, 0.0, 0.15, 12.97, 3.16, 3.4, 3.43, 2.65, 2.63, 2.88, 2.26, 2.4, 0.2, 0.52, 1.85, 2.17, 2.63, 2.2, 2.26, 1.33, 0.04, 0.14, 1.98, 2.77, 0.98, 3.9, 3.84, 5.07, 4.24, 2.84, 2.34, 3.13, 2.29, 1.91, 11.75, 2.13, 2.5, 0.35, 0.16, 0.19, 0.35, 1.34, 0.44, 0.11, 0.58, 0.51], \"tok_s\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], \"prefill_tok_s_mean\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, \"time\": 1791274138.9508317}"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 24,
+        "completion_tokens": 800,
+        "total_tokens": 824,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.25330938294064254,
+      "wall_s": 9.53808993997518,
+      "pp_effective_tok_s": 94.74579947014387,
+      "generation_e2e_tok_s": 83.87423530649595,
+      "decode_tok_s": 86.05522086387973,
+      "legacy_decode_tok_s": 86.1625102592098,
+      "text": "\n\n<think>\nThe user wants me to output a JSON array of 200 objects with fields: id, name, category, price, in_stock. Only JSON, no other text.\n\nLet me generate 200 objects with varied names, categories, prices, and in_stock boolean values. I'll make them realistic with product-like names and categories.\n\nCategories I'll use: Electronics, Clothing, Home & Kitchen, Sports, Books, Toys, Food & Beverage, Health & Beauty, Automotive, Garden\n\nLet me generate all 200 entries.\n</think>\n\n[{\"id\":1,\"name\":\"Wireless Bluetooth Headphones\",\"category\":\"Electronics\",\"price\":49.99,\"in_stock\":true},{\"id\":2,\"name\":\"Cotton T-Shirt Blue\",\"category\":\"Clothing\",\"price\":19.99,\"in_stock\":true},{\"id\":3,\"name\":\"Stainless Steel Water Bottle\",\"category\":\"Home & Kitchen\",\"price\":24.95,\"in_stock\":true},{\"id\":4,\"name\":\"Yoga Mat Non-Slip\",\"category\":\"Sports\",\"price\":34.99,\"in_stock\":false},{\"id\":5,\"name\":\"Python Programming Guide\",\"category\":\"Books\",\"price\":39.99,\"in_stock\":true},{\"id\":6,\"name\":\"Building Blocks Set 500pc\",\"category\":\"Toys\",\"price\":29.99,\"in_stock\":true},{\"id\":7,\"name\":\"Organic Green Tea 100ct\",\"category\":\"Food & Beverage\",\"price\":12.49,\"in_stock\":true},{\"id\":8,\"name\":\"Vitamin C Serum 30ml\",\"category\":\"Health & Beauty\",\"price\":18.99,\"in_stock\":true},{\"id\":9,\"name\":\"Car Phone Mount\",\"category\":\"Automotive\",\"price\":14.99,\"in_stock\":true},{\"id\":10,\"name\":\"Garden Hose 50ft\",\"category\":\"Garden\",\"price\":32.99,\"in_stock\":false},{\"id\":11,\"name\":\"USB-C Charging Cable 6ft\",\"category\":\"Electronics\",\"price\":9.99,\"in_stock\":true},{\"id\":12,\"name\":\"Denim Jacket Medium\",\"category\":\"Clothing\",\"price\":59.99,\"in_stock\":true},{\"id\":13,\"name\":\"Ceramic Coffee Mug Set\",\"category\":\"Home & Kitchen\",\"price\":22.50,\"in_stock\":true},{\"id\":14,\"name\":\"Resistance Bands Set\",\"category\":\"Sports\",\"price\":15.99,\"in_stock\":true},{\"id\":15,\"name\":\"Mystery Novel Collection\",\"category\":\"Books\",\"price\":24.99,\"in_stock\":true},{\"id\":16,\"name\":\"RC Racing Car\",\"category\":\"Toys\",\"price\":45.99,\"in_stock\":false},{\"id\":17,\"name\":\"Dark Chocolate Bar 70%\",\"category\":\"Food & Beverage\",\"price\":4.99,\"in_stock\":true},{\"id\":18,\"name\":\"Sunscreen SPF 50\",\"category\":\"Health & Beauty\",\"price\":11.99,\"in_stock\":true},{\"id\":19,\"name\":\"Dashboard Camera HD\",\"category\":\"Automotive\",\"price\":54.99,\"in_stock\":true},{\"id\":20,\"name\":\"Solar Garden Lights 8pk\",\"category\":\"Garden\",\"price\":27.99,\"in_stock\":true},{\"id\":21,\"name\":\"Portable Bluetooth Speaker\",\"category\":\"Electronics\",\"price\":35.99,\"in_stock\":true},{\"id\":22,\"name\":\"Running Shoes Size 10\",\"category\":\"Clothing\",\"price\":79.99,\"in_stock\":true},{\"",
+      "reasoning_text": "",
+      "after": {
+        "stats": {
+          "engine": {
+            "version": "0.1.39",
+            "context": 131072,
+            "kv": "int8",
+            "kv_resident": 0,
+            "expert_slots": 10215,
+            "expert_cache_mib": 23569,
+            "expert_slots_primary": 10215,
+            "expert_cache_primary_mib": 23569,
+            "spec": 6,
+            "mtp_max": 4,
+            "lookup": 3,
+            "vram_free_mib": 580,
+            "cvec": 0,
+            "arena_mib": 56762,
+            "pool_workers": 11,
+            "pcie_frac": "0.55",
+            "spec_min_p": "0.50",
+            "conversation_cache_mib": 0,
+            "conversation_cache_slots": 4,
+            "conversation_cache_min_free_mib": 2560,
+            "tail_role_token": -1,
+            "vram_elastic": 0,
+            "engine": "0.1.39"
+          },
+          "last": {
+            "generated": 800,
+            "prompt_tokens": 24,
+            "prompt_ms": 223.9,
+            "decode_ms": 9312.0,
+            "finish": "length",
+            "drafts_accepted": 534,
+            "drafts_offered": 700,
+            "reused": 0,
+            "hits": 436666,
+            "lookups": 453361,
+            "ram_blobs": 0,
+            "file_blobs": 0,
+            "file_mb": 0.0,
+            "prompt_read": 24,
+            "offloaded": 10319
+          },
+          "adapter": "raw stdio; upstream chat"
+        },
+        "metrics": [
+          "{\"engine\": {\"model\": \"qwen3.8-flash-next\", \"max_context\": 131072, \"images\": false, \"version\": \"0.1.39\", \"context\": 131072, \"kv\": \"int8\", \"kv_resident\": 0, \"expert_slots\": 10215, \"expert_cache_mib\": 23569, \"expert_slots_primary\": 10215, \"expert_cache_primary_mib\": 23569, \"spec\": 6, \"mtp_max\": 4, \"lookup\": 3, \"vram_free_mib\": 580, \"cvec\": 0, \"arena_mib\": 56762, \"pool_workers\": 11, \"pcie_frac\": \"0.55\", \"spec_min_p\": \"0.50\", \"conversation_cache_mib\": 0, \"conversation_cache_slots\": 4, \"conversation_cache_min_free_mib\": 2560, \"tail_role_token\": -1, \"vram_elastic\": 0, \"engine\": \"0.1.39\"}, \"live\": {\"state\": \"idle\", \"queued\": 0, \"phase\": null, \"prompt_tokens\": null, \"prompt_read\": null, \"prompt_total\": null, \"generated\": null, \"max_tokens\": null, \"elapsed_s\": null, \"tok_s\": null, \"tok_s_mean\": null, \"prefill_tok_s_mean\": null, \"tok_s_window_s\": null}, \"requests\": [], \"conversation_cache\": {\"enabled\": false, \"budget_mib\": 0, \"slots\": 4, \"parked\": 0, \"bytes\": 0, \"evictions\": 0, \"parks\": 0, \"restores\": 0, \"last_event\": null, \"last_tokens\": null, \"last_at\": null, \"requests\": 0, \"requests_reused\": 0, \"reused_tokens\": 0, \"prompt_tokens\": 0, \"last_reused\": null, \"last_prompt\": null}, \"requests_kept\": 0, \"totals\": {\"since\": 1791274088.235569, \"requests\": 0, \"prompt_tokens\": 0, \"reused\": 0, \"output_tokens\": 0, \"prompt_ms\": 0.0, \"decode_ms\": 0.0, \"drafts_offered\": 0, \"drafts_accepted\": 0}, \"hardware\": {\"gpu_util\": 100, \"gpu_mem_used\": 33744740352, \"gpu_mem_total\": 34208743424, \"gpu_temp\": 63.0, \"gpu_power\": 298.0, \"gpu_power_limit\": 300.0, \"cpu\": 54.8, \"ram_used\": 71384555520, \"ram_total\": 134961819648, \"disk_read_mb\": 0.10145715572519702, \"disk_write_mb\": 0.1902321669847444, \"tok_s\": 0.0, \"tok_s_mean\": 0, \"prefill_tok_s_mean\": 0.0}, \"hardware_static\": {\"gpu_name\": \"AMD Radeon\", \"gpu_count\": 1, \"cpu_name\": \"AMD Ryzen 9 3900X 12-Core Processor\", \"cores\": 12, \"threads\": 24, \"psutil\": true}, \"history\": {\"gpu_util\": [3, 3, 3, 3, 3, 3, 3, 12, 95, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 95, 28, 100, 98, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 99, 100, 100, 100, 100, 100, 100, 100, 100, 100], \"gpu_mem_used\": [33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33736065024, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352], \"gpu_temp\": [42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 43.0, 44.0, 45.0, 46.0, 46.0, 47.0, 47.0, 48.0, 48.0, 49.0, 49.0, 49.0, 50.0, 51.0, 51.0, 51.0, 52.0, 52.0, 53.0, 53.0, 53.0, 54.0, 55.0, 55.0, 56.0, 56.0, 56.0, 57.0, 57.0, 58.0, 58.0, 59.0, 59.0, 60.0, 60.0, 60.0, 61.0, 61.0, 61.0, 61.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 63.0, 62.0, 63.0, 63.0], \"gpu_power\": [27.0, 19.0, 20.0, 19.0, 20.0, 19.0, 19.0, 36.0, 156.0, 181.0, 175.0, 198.0, 178.0, 183.0, 177.0, 193.0, 174.0, 203.0, 183.0, 185.0, 188.0, 183.0, 198.0, 197.0, 188.0, 211.0, 213.0, 184.0, 80.0, 248.0, 249.0, 253.0, 227.0, 228.0, 239.0, 255.0, 268.0, 276.0, 277.0, 288.0, 291.0, 246.0, 268.0, 283.0, 294.0, 294.0, 297.0, 292.0, 299.0, 295.0, 277.0, 256.0, 286.0, 293.0, 297.0, 297.0, 297.0, 296.0, 297.0, 298.0], \"gpu_pcie_rx_mb\": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], \"cpu\": [0.8, 0.7, 0.9, 4.6, 0.5, 1.2, 1.2, 8.0, 52.5, 55.2, 55.3, 55.2, 54.9, 56.8, 55.0, 55.4, 50.7, 54.8, 53.1, 53.4, 54.7, 54.3, 54.7, 54.2, 47.6, 53.9, 54.6, 55.4, 26.1, 54.7, 54.8, 56.0, 55.7, 57.4, 55.0, 56.8, 55.3, 55.6, 54.9, 54.9, 55.6, 55.4, 55.5, 55.1, 54.8, 55.4, 54.7, 55.9, 54.9, 55.1, 55.0, 55.7, 54.7, 55.1, 54.6, 55.3, 55.3, 55.8, 54.7, 54.8], \"ram_used\": [71382216704, 71381323776, 71380316160, 71345156096, 71344517120, 71341899776, 71344459776, 71349469184, 71404580864, 71400792064, 71379402752, 71379456000, 71381266432, 71381508096, 71381561344, 71381958656, 71382540288, 71388237824, 71388188672, 71388655616, 71388631040, 71390814208, 71388938240, 71389192192, 71389392896, 71388962816, 71387983872, 71381508096, 71381254144, 71380041728, 71384485888, 71385047040, 71384813568, 71384276992, 71384293376, 71381209088, 71383388160, 71384264704, 71388938240, 71388839936, 71388438528, 71388577792, 71388102656, 71387787264, 71387123712, 71386075136, 71385219072, 71390560256, 71389933568, 71390011392, 71381807104, 71379615744, 71380156416, 71380619264, 71381368832, 71379693568, 71375593472, 71384391680, 71384596480, 71384555520], \"disk_read_mb\": [0.0, 0.02, 0.0, 1.0, 0.02, 0.0, 0.15, 12.97, 3.16, 3.4, 3.43, 2.65, 2.63, 2.88, 2.26, 2.4, 0.2, 0.52, 1.85, 2.17, 2.63, 2.2, 2.26, 1.33, 0.04, 0.14, 1.98, 2.77, 0.98, 3.9, 3.84, 5.07, 4.24, 2.84, 2.34, 3.13, 2.29, 1.91, 11.75, 2.13, 2.5, 0.35, 0.16, 0.19, 0.35, 1.34, 0.44, 0.11, 0.58, 0.51, 0.93, 0.17, 0.11, 0.04, 0.1, 0.07, 0.17, 0.14, 0.44, 0.1], \"tok_s\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], \"prefill_tok_s_mean\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, \"time\": 1791274148.4905703}"
+        ]
+      },
+      "requested_output_tokens": 800,
+      "output_cap_reached": true
+    },
+    {
+      "label": "code-1",
+      "prompt_sha256": "8e6134d79e69df6b7a98b98f19f353712544b2abb5b9e729f895da2bc954d7e0",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 600
+      },
+      "before": {
+        "stats": {
+          "engine": {
+            "version": "0.1.39",
+            "context": 131072,
+            "kv": "int8",
+            "kv_resident": 0,
+            "expert_slots": 10215,
+            "expert_cache_mib": 23569,
+            "expert_slots_primary": 10215,
+            "expert_cache_primary_mib": 23569,
+            "spec": 6,
+            "mtp_max": 4,
+            "lookup": 3,
+            "vram_free_mib": 580,
+            "cvec": 0,
+            "arena_mib": 56762,
+            "pool_workers": 11,
+            "pcie_frac": "0.55",
+            "spec_min_p": "0.50",
+            "conversation_cache_mib": 0,
+            "conversation_cache_slots": 4,
+            "conversation_cache_min_free_mib": 2560,
+            "tail_role_token": -1,
+            "vram_elastic": 0,
+            "engine": "0.1.39"
+          },
+          "last": {
+            "generated": 800,
+            "prompt_tokens": 24,
+            "prompt_ms": 223.9,
+            "decode_ms": 9312.0,
+            "finish": "length",
+            "drafts_accepted": 534,
+            "drafts_offered": 700,
+            "reused": 0,
+            "hits": 436666,
+            "lookups": 453361,
+            "ram_blobs": 0,
+            "file_blobs": 0,
+            "file_mb": 0.0,
+            "prompt_read": 24,
+            "offloaded": 10319
+          },
+          "adapter": "raw stdio; upstream chat"
+        },
+        "metrics": [
+          "{\"engine\": {\"model\": \"qwen3.8-flash-next\", \"max_context\": 131072, \"images\": false, \"version\": \"0.1.39\", \"context\": 131072, \"kv\": \"int8\", \"kv_resident\": 0, \"expert_slots\": 10215, \"expert_cache_mib\": 23569, \"expert_slots_primary\": 10215, \"expert_cache_primary_mib\": 23569, \"spec\": 6, \"mtp_max\": 4, \"lookup\": 3, \"vram_free_mib\": 580, \"cvec\": 0, \"arena_mib\": 56762, \"pool_workers\": 11, \"pcie_frac\": \"0.55\", \"spec_min_p\": \"0.50\", \"conversation_cache_mib\": 0, \"conversation_cache_slots\": 4, \"conversation_cache_min_free_mib\": 2560, \"tail_role_token\": -1, \"vram_elastic\": 0, \"engine\": \"0.1.39\"}, \"live\": {\"state\": \"idle\", \"queued\": 0, \"phase\": null, \"prompt_tokens\": null, \"prompt_read\": null, \"prompt_total\": null, \"generated\": null, \"max_tokens\": null, \"elapsed_s\": null, \"tok_s\": null, \"tok_s_mean\": null, \"prefill_tok_s_mean\": null, \"tok_s_window_s\": null}, \"requests\": [], \"conversation_cache\": {\"enabled\": false, \"budget_mib\": 0, \"slots\": 4, \"parked\": 0, \"bytes\": 0, \"evictions\": 0, \"parks\": 0, \"restores\": 0, \"last_event\": null, \"last_tokens\": null, \"last_at\": null, \"requests\": 0, \"requests_reused\": 0, \"reused_tokens\": 0, \"prompt_tokens\": 0, \"last_reused\": null, \"last_prompt\": null}, \"requests_kept\": 0, \"totals\": {\"since\": 1791274088.235569, \"requests\": 0, \"prompt_tokens\": 0, \"reused\": 0, \"output_tokens\": 0, \"prompt_ms\": 0.0, \"decode_ms\": 0.0, \"drafts_offered\": 0, \"drafts_accepted\": 0}, \"hardware\": {\"gpu_util\": 100, \"gpu_mem_used\": 33744740352, \"gpu_mem_total\": 34208743424, \"gpu_temp\": 63.0, \"gpu_power\": 298.0, \"gpu_power_limit\": 300.0, \"cpu\": 54.8, \"ram_used\": 71384555520, \"ram_total\": 134961819648, \"disk_read_mb\": 0.10145715572519702, \"disk_write_mb\": 0.1902321669847444, \"tok_s\": 0.0, \"tok_s_mean\": 0, \"prefill_tok_s_mean\": 0.0}, \"hardware_static\": {\"gpu_name\": \"AMD Radeon\", \"gpu_count\": 1, \"cpu_name\": \"AMD Ryzen 9 3900X 12-Core Processor\", \"cores\": 12, \"threads\": 24, \"psutil\": true}, \"history\": {\"gpu_util\": [3, 3, 3, 3, 3, 3, 3, 12, 95, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 95, 28, 100, 98, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 99, 100, 100, 100, 100, 100, 100, 100, 100, 100], \"gpu_mem_used\": [33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33731502080, 33736065024, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352], \"gpu_temp\": [42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 43.0, 44.0, 45.0, 46.0, 46.0, 47.0, 47.0, 48.0, 48.0, 49.0, 49.0, 49.0, 50.0, 51.0, 51.0, 51.0, 52.0, 52.0, 53.0, 53.0, 53.0, 54.0, 55.0, 55.0, 56.0, 56.0, 56.0, 57.0, 57.0, 58.0, 58.0, 59.0, 59.0, 60.0, 60.0, 60.0, 61.0, 61.0, 61.0, 61.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 63.0, 62.0, 63.0, 63.0], \"gpu_power\": [27.0, 19.0, 20.0, 19.0, 20.0, 19.0, 19.0, 36.0, 156.0, 181.0, 175.0, 198.0, 178.0, 183.0, 177.0, 193.0, 174.0, 203.0, 183.0, 185.0, 188.0, 183.0, 198.0, 197.0, 188.0, 211.0, 213.0, 184.0, 80.0, 248.0, 249.0, 253.0, 227.0, 228.0, 239.0, 255.0, 268.0, 276.0, 277.0, 288.0, 291.0, 246.0, 268.0, 283.0, 294.0, 294.0, 297.0, 292.0, 299.0, 295.0, 277.0, 256.0, 286.0, 293.0, 297.0, 297.0, 297.0, 296.0, 297.0, 298.0], \"gpu_pcie_rx_mb\": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], \"cpu\": [0.8, 0.7, 0.9, 4.6, 0.5, 1.2, 1.2, 8.0, 52.5, 55.2, 55.3, 55.2, 54.9, 56.8, 55.0, 55.4, 50.7, 54.8, 53.1, 53.4, 54.7, 54.3, 54.7, 54.2, 47.6, 53.9, 54.6, 55.4, 26.1, 54.7, 54.8, 56.0, 55.7, 57.4, 55.0, 56.8, 55.3, 55.6, 54.9, 54.9, 55.6, 55.4, 55.5, 55.1, 54.8, 55.4, 54.7, 55.9, 54.9, 55.1, 55.0, 55.7, 54.7, 55.1, 54.6, 55.3, 55.3, 55.8, 54.7, 54.8], \"ram_used\": [71382216704, 71381323776, 71380316160, 71345156096, 71344517120, 71341899776, 71344459776, 71349469184, 71404580864, 71400792064, 71379402752, 71379456000, 71381266432, 71381508096, 71381561344, 71381958656, 71382540288, 71388237824, 71388188672, 71388655616, 71388631040, 71390814208, 71388938240, 71389192192, 71389392896, 71388962816, 71387983872, 71381508096, 71381254144, 71380041728, 71384485888, 71385047040, 71384813568, 71384276992, 71384293376, 71381209088, 71383388160, 71384264704, 71388938240, 71388839936, 71388438528, 71388577792, 71388102656, 71387787264, 71387123712, 71386075136, 71385219072, 71390560256, 71389933568, 71390011392, 71381807104, 71379615744, 71380156416, 71380619264, 71381368832, 71379693568, 71375593472, 71384391680, 71384596480, 71384555520], \"disk_read_mb\": [0.0, 0.02, 0.0, 1.0, 0.02, 0.0, 0.15, 12.97, 3.16, 3.4, 3.43, 2.65, 2.63, 2.88, 2.26, 2.4, 0.2, 0.52, 1.85, 2.17, 2.63, 2.2, 2.26, 1.33, 0.04, 0.14, 1.98, 2.77, 0.98, 3.9, 3.84, 5.07, 4.24, 2.84, 2.34, 3.13, 2.29, 1.91, 11.75, 2.13, 2.5, 0.35, 0.16, 0.19, 0.35, 1.34, 0.44, 0.11, 0.58, 0.51, 0.93, 0.17, 0.11, 0.04, 0.1, 0.07, 0.17, 0.14, 0.44, 0.1], \"tok_s\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], \"prefill_tok_s_mean\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, \"time\": 1791274148.4926114}"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 20,
+        "completion_tokens": 600,
+        "total_tokens": 620,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.29216042696498334,
+      "wall_s": 9.833077935967594,
+      "pp_effective_tok_s": 68.45554070331737,
+      "generation_e2e_tok_s": 61.0185339633392,
+      "decode_tok_s": 62.78254958187556,
+      "legacy_decode_tok_s": 62.88703360382819,
+      "text": "\n\n<think>\nThe user wants a complete Python module implementing an LRU (Least Recently Used) cache with TTL (Time-To-Live) expiry. Let me think about what this needs:\n\n1. **LRU Cache**: Items are evicted based on least recently used order when capacity is reached.\n2. **TTL Expiry**: Each cached item has a time-to-live; after that time, it's considered expired.\n3. **Type hints**: Full type annotations throughout.\n4. **Docstrings**: Comprehensive docstrings for the module, classes, and methods.\n\nDesign decisions:\n- Use `collections.OrderedDict` for O(1) LRU operations (move_to_end, popitem).\n- Store entries as a dataclass or NamedTuple containing value, expiry timestamp, and creation time.\n- Thread safety: Use `threading.Lock` for concurrent access.\n- TTL: Per-item TTL (set at insertion time) with a default TTL for the cache.\n- Methods needed: `get`, `set`, `delete`, `clear`, `__len__`, `__contains__`, `__getitem__`, `__setitem__`, `__delitem__`.\n- Also useful: `keys()`, `values()`, `items()`, `purge_expired()`, `__repr__`.\n- A decorator `@lru_ttl_cache` for easy function memoization.\n- Handle edge cases: TTL of 0 or negative (immediate expiry), capacity of 0.\n\nLet me structure this as a proper module with:\n- Module docstring\n- Imports\n- A `_CacheEntry` dataclass\n- The `LRUCache` class (generic with TypeVar for key and value)\n- A decorator `lru_ttl_cache`\n- `__all__`\n\nLet me write clean, well-documented code.\n</think>\n\n```python\n\"\"\"\nlru_ttl_cache\n=============\n\nA thread-safe, generic **LRU (Least Recently Used) cache** with per-entry\n**TTL (Time-To-Live) expiry**.\n\nFeatures\n--------\n* O(1) ``get`` / ``set`` / ``delete`` via an internal ``OrderedDict``.\n* Per-entry TTL with an optional cache-wide default.\n* Lazy expiry on access **and** an explicit ``purge_expired()`` sweep.\n* Full ``MutableMapping``-style interface (``__getitem__``, ``__setitem__``, \u2026).\n* Thread-safe (guarded by a re-entrant lock).\n* A convenience decorator ``@lru_ttl_cache`` for function memoisation.\n\nExample\n-------\n>>> cache: LRUCache[str, int] = LRUCache(maxsize=128, ttl=60.0)\n>>> cache[\"answer\"] = 42\n>>> cache[\"answer\"]\n",
+      "reasoning_text": "",
+      "after": {
+        "stats": {
+          "engine": {
+            "version": "0.1.39",
+            "context": 131072,
+            "kv": "int8",
+            "kv_resident": 0,
+            "expert_slots": 10215,
+            "expert_cache_mib": 23569,
+            "expert_slots_primary": 10215,
+            "expert_cache_primary_mib": 23569,
+            "spec": 6,
+            "mtp_max": 4,
+            "lookup": 3,
+            "vram_free_mib": 580,
+            "cvec": 0,
+            "arena_mib": 56762,
+            "pool_workers": 11,
+            "pcie_frac": "0.55",
+            "spec_min_p": "0.50",
+            "conversation_cache_mib": 0,
+            "conversation_cache_slots": 4,
+            "conversation_cache_min_free_mib": 2560,
+            "tail_role_token": -1,
+            "vram_elastic": 0,
+            "engine": "0.1.39"
+          },
+          "last": {
+            "generated": 600,
+            "prompt_tokens": 20,
+            "prompt_ms": 262.2,
+            "decode_ms": 9568.5,
+            "finish": "length",
+            "drafts_accepted": 363,
+            "drafts_offered": 572,
+            "reused": 0,
+            "hits": 333220,
+            "lookups": 365466,
+            "ram_blobs": 0,
+            "file_blobs": 0,
+            "file_mb": 0.0,
+            "prompt_read": 20,
+            "offloaded": 22854
+          },
+          "adapter": "raw stdio; upstream chat"
+        },
+        "metrics": [
+          "{\"engine\": {\"model\": \"qwen3.8-flash-next\", \"max_context\": 131072, \"images\": false, \"version\": \"0.1.39\", \"context\": 131072, \"kv\": \"int8\", \"kv_resident\": 0, \"expert_slots\": 10215, \"expert_cache_mib\": 23569, \"expert_slots_primary\": 10215, \"expert_cache_primary_mib\": 23569, \"spec\": 6, \"mtp_max\": 4, \"lookup\": 3, \"vram_free_mib\": 580, \"cvec\": 0, \"arena_mib\": 56762, \"pool_workers\": 11, \"pcie_frac\": \"0.55\", \"spec_min_p\": \"0.50\", \"conversation_cache_mib\": 0, \"conversation_cache_slots\": 4, \"conversation_cache_min_free_mib\": 2560, \"tail_role_token\": -1, \"vram_elastic\": 0, \"engine\": \"0.1.39\"}, \"live\": {\"state\": \"idle\", \"queued\": 0, \"phase\": null, \"prompt_tokens\": null, \"prompt_read\": null, \"prompt_total\": null, \"generated\": null, \"max_tokens\": null, \"elapsed_s\": null, \"tok_s\": null, \"tok_s_mean\": null, \"prefill_tok_s_mean\": null, \"tok_s_window_s\": null}, \"requests\": [], \"conversation_cache\": {\"enabled\": false, \"budget_mib\": 0, \"slots\": 4, \"parked\": 0, \"bytes\": 0, \"evictions\": 0, \"parks\": 0, \"restores\": 0, \"last_event\": null, \"last_tokens\": null, \"last_at\": null, \"requests\": 0, \"requests_reused\": 0, \"reused_tokens\": 0, \"prompt_tokens\": 0, \"last_reused\": null, \"last_prompt\": null}, \"requests_kept\": 0, \"totals\": {\"since\": 1791274088.235569, \"requests\": 0, \"prompt_tokens\": 0, \"reused\": 0, \"output_tokens\": 0, \"prompt_ms\": 0.0, \"decode_ms\": 0.0, \"drafts_offered\": 0, \"drafts_accepted\": 0}, \"hardware\": {\"gpu_util\": 100, \"gpu_mem_used\": 33744879616, \"gpu_mem_total\": 34208743424, \"gpu_temp\": 62.0, \"gpu_power\": 272.0, \"gpu_power_limit\": 300.0, \"cpu\": 55.0, \"ram_used\": 71376216064, \"ram_total\": 134961819648, \"disk_read_mb\": 4.2990020360246115, \"disk_write_mb\": 0.2755145361109239, \"tok_s\": 0.0, \"tok_s_mean\": 0, \"prefill_tok_s_mean\": 0.0}, \"hardware_static\": {\"gpu_name\": \"AMD Radeon\", \"gpu_count\": 1, \"cpu_name\": \"AMD Ryzen 9 3900X 12-Core Processor\", \"cores\": 12, \"threads\": 24, \"psutil\": true}, \"history\": {\"gpu_util\": [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 95, 28, 100, 98, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 99, 100, 100, 100, 100, 100, 100, 100, 100, 100, 99, 100, 100, 100, 100, 100, 100, 100, 100, 100], \"gpu_mem_used\": [33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616], \"gpu_temp\": [45.0, 46.0, 46.0, 47.0, 47.0, 48.0, 48.0, 49.0, 49.0, 49.0, 50.0, 51.0, 51.0, 51.0, 52.0, 52.0, 53.0, 53.0, 53.0, 54.0, 55.0, 55.0, 56.0, 56.0, 56.0, 57.0, 57.0, 58.0, 58.0, 59.0, 59.0, 60.0, 60.0, 60.0, 61.0, 61.0, 61.0, 61.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 63.0, 62.0, 63.0, 63.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0], \"gpu_power\": [175.0, 198.0, 178.0, 183.0, 177.0, 193.0, 174.0, 203.0, 183.0, 185.0, 188.0, 183.0, 198.0, 197.0, 188.0, 211.0, 213.0, 184.0, 80.0, 248.0, 249.0, 253.0, 227.0, 228.0, 239.0, 255.0, 268.0, 276.0, 277.0, 288.0, 291.0, 246.0, 268.0, 283.0, 294.0, 294.0, 297.0, 292.0, 299.0, 295.0, 277.0, 256.0, 286.0, 293.0, 297.0, 297.0, 297.0, 296.0, 297.0, 298.0, 239.0, 234.0, 247.0, 253.0, 272.0, 280.0, 288.0, 280.0, 294.0, 272.0], \"gpu_pcie_rx_mb\": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], \"cpu\": [55.3, 55.2, 54.9, 56.8, 55.0, 55.4, 50.7, 54.8, 53.1, 53.4, 54.7, 54.3, 54.7, 54.2, 47.6, 53.9, 54.6, 55.4, 26.1, 54.7, 54.8, 56.0, 55.7, 57.4, 55.0, 56.8, 55.3, 55.6, 54.9, 54.9, 55.6, 55.4, 55.5, 55.1, 54.8, 55.4, 54.7, 55.9, 54.9, 55.1, 55.0, 55.7, 54.7, 55.1, 54.6, 55.3, 55.3, 55.8, 54.7, 54.8, 55.2, 55.7, 55.7, 55.3, 54.8, 55.5, 55.0, 55.7, 55.0, 55.0], \"ram_used\": [71379402752, 71379456000, 71381266432, 71381508096, 71381561344, 71381958656, 71382540288, 71388237824, 71388188672, 71388655616, 71388631040, 71390814208, 71388938240, 71389192192, 71389392896, 71388962816, 71387983872, 71381508096, 71381254144, 71380041728, 71384485888, 71385047040, 71384813568, 71384276992, 71384293376, 71381209088, 71383388160, 71384264704, 71388938240, 71388839936, 71388438528, 71388577792, 71388102656, 71387787264, 71387123712, 71386075136, 71385219072, 71390560256, 71389933568, 71390011392, 71381807104, 71379615744, 71380156416, 71380619264, 71381368832, 71379693568, 71375593472, 71384391680, 71384596480, 71384555520, 71380725760, 71373742080, 71373692928, 71373590528, 71373565952, 71374774272, 71377043456, 71381045248, 71377510400, 71376216064], \"disk_read_mb\": [3.43, 2.65, 2.63, 2.88, 2.26, 2.4, 0.2, 0.52, 1.85, 2.17, 2.63, 2.2, 2.26, 1.33, 0.04, 0.14, 1.98, 2.77, 0.98, 3.9, 3.84, 5.07, 4.24, 2.84, 2.34, 3.13, 2.29, 1.91, 11.75, 2.13, 2.5, 0.35, 0.16, 0.19, 0.35, 1.34, 0.44, 0.11, 0.58, 0.51, 0.93, 0.17, 0.11, 0.04, 0.1, 0.07, 0.17, 0.14, 0.44, 0.1, 2.37, 4.11, 3.86, 5.1, 4.18, 4.59, 4.75, 4.66, 5.86, 4.3], \"tok_s\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], \"prefill_tok_s_mean\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, \"time\": 1791274158.3272142}"
+        ]
+      },
+      "requested_output_tokens": 600,
+      "output_cap_reached": true
+    },
+    {
+      "label": "code-2",
+      "prompt_sha256": "8e6134d79e69df6b7a98b98f19f353712544b2abb5b9e729f895da2bc954d7e0",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 600
+      },
+      "before": {
+        "stats": {
+          "engine": {
+            "version": "0.1.39",
+            "context": 131072,
+            "kv": "int8",
+            "kv_resident": 0,
+            "expert_slots": 10215,
+            "expert_cache_mib": 23569,
+            "expert_slots_primary": 10215,
+            "expert_cache_primary_mib": 23569,
+            "spec": 6,
+            "mtp_max": 4,
+            "lookup": 3,
+            "vram_free_mib": 580,
+            "cvec": 0,
+            "arena_mib": 56762,
+            "pool_workers": 11,
+            "pcie_frac": "0.55",
+            "spec_min_p": "0.50",
+            "conversation_cache_mib": 0,
+            "conversation_cache_slots": 4,
+            "conversation_cache_min_free_mib": 2560,
+            "tail_role_token": -1,
+            "vram_elastic": 0,
+            "engine": "0.1.39"
+          },
+          "last": {
+            "generated": 600,
+            "prompt_tokens": 20,
+            "prompt_ms": 262.2,
+            "decode_ms": 9568.5,
+            "finish": "length",
+            "drafts_accepted": 363,
+            "drafts_offered": 572,
+            "reused": 0,
+            "hits": 333220,
+            "lookups": 365466,
+            "ram_blobs": 0,
+            "file_blobs": 0,
+            "file_mb": 0.0,
+            "prompt_read": 20,
+            "offloaded": 22854
+          },
+          "adapter": "raw stdio; upstream chat"
+        },
+        "metrics": [
+          "{\"engine\": {\"model\": \"qwen3.8-flash-next\", \"max_context\": 131072, \"images\": false, \"version\": \"0.1.39\", \"context\": 131072, \"kv\": \"int8\", \"kv_resident\": 0, \"expert_slots\": 10215, \"expert_cache_mib\": 23569, \"expert_slots_primary\": 10215, \"expert_cache_primary_mib\": 23569, \"spec\": 6, \"mtp_max\": 4, \"lookup\": 3, \"vram_free_mib\": 580, \"cvec\": 0, \"arena_mib\": 56762, \"pool_workers\": 11, \"pcie_frac\": \"0.55\", \"spec_min_p\": \"0.50\", \"conversation_cache_mib\": 0, \"conversation_cache_slots\": 4, \"conversation_cache_min_free_mib\": 2560, \"tail_role_token\": -1, \"vram_elastic\": 0, \"engine\": \"0.1.39\"}, \"live\": {\"state\": \"idle\", \"queued\": 0, \"phase\": null, \"prompt_tokens\": null, \"prompt_read\": null, \"prompt_total\": null, \"generated\": null, \"max_tokens\": null, \"elapsed_s\": null, \"tok_s\": null, \"tok_s_mean\": null, \"prefill_tok_s_mean\": null, \"tok_s_window_s\": null}, \"requests\": [], \"conversation_cache\": {\"enabled\": false, \"budget_mib\": 0, \"slots\": 4, \"parked\": 0, \"bytes\": 0, \"evictions\": 0, \"parks\": 0, \"restores\": 0, \"last_event\": null, \"last_tokens\": null, \"last_at\": null, \"requests\": 0, \"requests_reused\": 0, \"reused_tokens\": 0, \"prompt_tokens\": 0, \"last_reused\": null, \"last_prompt\": null}, \"requests_kept\": 0, \"totals\": {\"since\": 1791274088.235569, \"requests\": 0, \"prompt_tokens\": 0, \"reused\": 0, \"output_tokens\": 0, \"prompt_ms\": 0.0, \"decode_ms\": 0.0, \"drafts_offered\": 0, \"drafts_accepted\": 0}, \"hardware\": {\"gpu_util\": 100, \"gpu_mem_used\": 33744879616, \"gpu_mem_total\": 34208743424, \"gpu_temp\": 62.0, \"gpu_power\": 272.0, \"gpu_power_limit\": 300.0, \"cpu\": 55.0, \"ram_used\": 71376216064, \"ram_total\": 134961819648, \"disk_read_mb\": 4.2990020360246115, \"disk_write_mb\": 0.2755145361109239, \"tok_s\": 0.0, \"tok_s_mean\": 0, \"prefill_tok_s_mean\": 0.0}, \"hardware_static\": {\"gpu_name\": \"AMD Radeon\", \"gpu_count\": 1, \"cpu_name\": \"AMD Ryzen 9 3900X 12-Core Processor\", \"cores\": 12, \"threads\": 24, \"psutil\": true}, \"history\": {\"gpu_util\": [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 95, 28, 100, 98, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 99, 100, 100, 100, 100, 100, 100, 100, 100, 100, 99, 100, 100, 100, 100, 100, 100, 100, 100, 100], \"gpu_mem_used\": [33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616], \"gpu_temp\": [45.0, 46.0, 46.0, 47.0, 47.0, 48.0, 48.0, 49.0, 49.0, 49.0, 50.0, 51.0, 51.0, 51.0, 52.0, 52.0, 53.0, 53.0, 53.0, 54.0, 55.0, 55.0, 56.0, 56.0, 56.0, 57.0, 57.0, 58.0, 58.0, 59.0, 59.0, 60.0, 60.0, 60.0, 61.0, 61.0, 61.0, 61.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 63.0, 62.0, 63.0, 63.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0], \"gpu_power\": [175.0, 198.0, 178.0, 183.0, 177.0, 193.0, 174.0, 203.0, 183.0, 185.0, 188.0, 183.0, 198.0, 197.0, 188.0, 211.0, 213.0, 184.0, 80.0, 248.0, 249.0, 253.0, 227.0, 228.0, 239.0, 255.0, 268.0, 276.0, 277.0, 288.0, 291.0, 246.0, 268.0, 283.0, 294.0, 294.0, 297.0, 292.0, 299.0, 295.0, 277.0, 256.0, 286.0, 293.0, 297.0, 297.0, 297.0, 296.0, 297.0, 298.0, 239.0, 234.0, 247.0, 253.0, 272.0, 280.0, 288.0, 280.0, 294.0, 272.0], \"gpu_pcie_rx_mb\": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], \"cpu\": [55.3, 55.2, 54.9, 56.8, 55.0, 55.4, 50.7, 54.8, 53.1, 53.4, 54.7, 54.3, 54.7, 54.2, 47.6, 53.9, 54.6, 55.4, 26.1, 54.7, 54.8, 56.0, 55.7, 57.4, 55.0, 56.8, 55.3, 55.6, 54.9, 54.9, 55.6, 55.4, 55.5, 55.1, 54.8, 55.4, 54.7, 55.9, 54.9, 55.1, 55.0, 55.7, 54.7, 55.1, 54.6, 55.3, 55.3, 55.8, 54.7, 54.8, 55.2, 55.7, 55.7, 55.3, 54.8, 55.5, 55.0, 55.7, 55.0, 55.0], \"ram_used\": [71379402752, 71379456000, 71381266432, 71381508096, 71381561344, 71381958656, 71382540288, 71388237824, 71388188672, 71388655616, 71388631040, 71390814208, 71388938240, 71389192192, 71389392896, 71388962816, 71387983872, 71381508096, 71381254144, 71380041728, 71384485888, 71385047040, 71384813568, 71384276992, 71384293376, 71381209088, 71383388160, 71384264704, 71388938240, 71388839936, 71388438528, 71388577792, 71388102656, 71387787264, 71387123712, 71386075136, 71385219072, 71390560256, 71389933568, 71390011392, 71381807104, 71379615744, 71380156416, 71380619264, 71381368832, 71379693568, 71375593472, 71384391680, 71384596480, 71384555520, 71380725760, 71373742080, 71373692928, 71373590528, 71373565952, 71374774272, 71377043456, 71381045248, 71377510400, 71376216064], \"disk_read_mb\": [3.43, 2.65, 2.63, 2.88, 2.26, 2.4, 0.2, 0.52, 1.85, 2.17, 2.63, 2.2, 2.26, 1.33, 0.04, 0.14, 1.98, 2.77, 0.98, 3.9, 3.84, 5.07, 4.24, 2.84, 2.34, 3.13, 2.29, 1.91, 11.75, 2.13, 2.5, 0.35, 0.16, 0.19, 0.35, 1.34, 0.44, 0.11, 0.58, 0.51, 0.93, 0.17, 0.11, 0.04, 0.1, 0.07, 0.17, 0.14, 0.44, 0.1, 2.37, 4.11, 3.86, 5.1, 4.18, 4.59, 4.75, 4.66, 5.86, 4.3], \"tok_s\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], \"prefill_tok_s_mean\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, \"time\": 1791274158.3292615}"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 20,
+        "completion_tokens": 600,
+        "total_tokens": 620,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.17764232808258384,
+      "wall_s": 7.798165752086788,
+      "pp_effective_tok_s": 112.58577961611849,
+      "generation_e2e_tok_s": 76.94117040785393,
+      "decode_tok_s": 78.60397303153928,
+      "legacy_decode_tok_s": 78.73474912629163,
+      "text": "\n\n<think>\nThe user wants a complete Python module implementing an LRU (Least Recently Used) cache with TTL (Time-To-Live) expiry. Let me think about what this needs:\n\n1. **LRU Cache**: Items are evicted based on least recently used order. When the cache is full and a new item is added, the least recently used item is removed.\n\n2. **TTL Expiry**: Each cached item has a time-to-live. After that time, the item is considered expired and should not be returned.\n\n3. **Type hints**: Full type annotations throughout.\n\n4. **Docstrings**: Comprehensive docstrings for the module, classes, and methods.\n\nDesign decisions:\n- Use `collections.OrderedDict` for O(1) LRU operations (move_to_end, popitem)\n- Use `threading.Lock` for thread safety\n- Store entries as a dataclass or NamedTuple with value, expiry timestamp\n- Provide `get`, `set`, `delete`, `clear`, `__len__`, `__contains__`, `__getitem__`, `__setitem__` methods\n- Support a default TTL and per-item TTL override\n- Lazy expiry (check on access) + optional cleanup of expired entries\n- Make it generic with TypeVar for key and value types\n- Include a decorator for easy function caching\n- Include `__repr__` for debugging\n\nLet me write a thorough, production-quality module.\n\nStructure:\n- Module docstring\n- Imports\n- TypeVars\n- `_CacheEntry` dataclass (internal)\n- `LRUCache` class with full API\n- `lru_cache_with_ttl` decorator\n- Maybe a `__all__`\n\nLet me make sure the implementation is solid:\n- `get(key, default=None)` - returns value or default, moves to end\n- `set(key, value, ttl=None)` - inserts/updates, evicts if needed\n- `delete(key)` - removes entry\n- `clear()` - removes all entries\n- `__contains__` - checks if key exists and not expired\n- `__len__` - count of non-expired entries\n- `__getitem__` / `__setitem__` for dict-like access\n- `keys()`, `values()`, `items()` - iterate non-expired entries\n- `purge_expired()` - explicitly remove all expired entries\n- Thread-safe with RLock (reentrant for nested calls)\n\nLet me write this out carefully.\n</think>\n\n```python\n\"\"\"\nlru_ttl_cache\n=============\n\nA thread-safe, generic **LRU (Least Recently Used) cache** with per-entry\n**TTL (Time-To-Live) expiry**.\n\nFeatures\n--------\n* O(1) ``get`` / ``set`` / ``delete`` via an internal ``OrderedDict``.",
+      "reasoning_text": "",
+      "after": {
+        "stats": {
+          "engine": {
+            "version": "0.1.39",
+            "context": 131072,
+            "kv": "int8",
+            "kv_resident": 0,
+            "expert_slots": 10215,
+            "expert_cache_mib": 23569,
+            "expert_slots_primary": 10215,
+            "expert_cache_primary_mib": 23569,
+            "spec": 6,
+            "mtp_max": 4,
+            "lookup": 3,
+            "vram_free_mib": 580,
+            "cvec": 0,
+            "arena_mib": 56762,
+            "pool_workers": 11,
+            "pcie_frac": "0.55",
+            "spec_min_p": "0.50",
+            "conversation_cache_mib": 0,
+            "conversation_cache_slots": 4,
+            "conversation_cache_min_free_mib": 2560,
+            "tail_role_token": -1,
+            "vram_elastic": 0,
+            "engine": "0.1.39"
+          },
+          "last": {
+            "generated": 600,
+            "prompt_tokens": 20,
+            "prompt_ms": 155.9,
+            "decode_ms": 7639.9,
+            "finish": "length",
+            "drafts_accepted": 374,
+            "drafts_offered": 566,
+            "reused": 0,
+            "hits": 364516,
+            "lookups": 375699,
+            "ram_blobs": 0,
+            "file_blobs": 0,
+            "file_mb": 0.0,
+            "prompt_read": 20,
+            "offloaded": 5901
+          },
+          "adapter": "raw stdio; upstream chat"
+        },
+        "metrics": [
+          "{\"engine\": {\"model\": \"qwen3.8-flash-next\", \"max_context\": 131072, \"images\": false, \"version\": \"0.1.39\", \"context\": 131072, \"kv\": \"int8\", \"kv_resident\": 0, \"expert_slots\": 10215, \"expert_cache_mib\": 23569, \"expert_slots_primary\": 10215, \"expert_cache_primary_mib\": 23569, \"spec\": 6, \"mtp_max\": 4, \"lookup\": 3, \"vram_free_mib\": 580, \"cvec\": 0, \"arena_mib\": 56762, \"pool_workers\": 11, \"pcie_frac\": \"0.55\", \"spec_min_p\": \"0.50\", \"conversation_cache_mib\": 0, \"conversation_cache_slots\": 4, \"conversation_cache_min_free_mib\": 2560, \"tail_role_token\": -1, \"vram_elastic\": 0, \"engine\": \"0.1.39\"}, \"live\": {\"state\": \"idle\", \"queued\": 0, \"phase\": null, \"prompt_tokens\": null, \"prompt_read\": null, \"prompt_total\": null, \"generated\": null, \"max_tokens\": null, \"elapsed_s\": null, \"tok_s\": null, \"tok_s_mean\": null, \"prefill_tok_s_mean\": null, \"tok_s_window_s\": null}, \"requests\": [], \"conversation_cache\": {\"enabled\": false, \"budget_mib\": 0, \"slots\": 4, \"parked\": 0, \"bytes\": 0, \"evictions\": 0, \"parks\": 0, \"restores\": 0, \"last_event\": null, \"last_tokens\": null, \"last_at\": null, \"requests\": 0, \"requests_reused\": 0, \"reused_tokens\": 0, \"prompt_tokens\": 0, \"last_reused\": null, \"last_prompt\": null}, \"requests_kept\": 0, \"totals\": {\"since\": 1791274088.235569, \"requests\": 0, \"prompt_tokens\": 0, \"reused\": 0, \"output_tokens\": 0, \"prompt_ms\": 0.0, \"decode_ms\": 0.0, \"drafts_offered\": 0, \"drafts_accepted\": 0}, \"hardware\": {\"gpu_util\": 100, \"gpu_mem_used\": 33744879616, \"gpu_mem_total\": 34208743424, \"gpu_temp\": 62.0, \"gpu_power\": 288.0, \"gpu_power_limit\": 300.0, \"cpu\": 54.7, \"ram_used\": 71374123008, \"ram_total\": 134961819648, \"disk_read_mb\": 3.2311933449471875, \"disk_write_mb\": 0.12585263934124008, \"tok_s\": 0.0, \"tok_s_mean\": 0, \"prefill_tok_s_mean\": 0.0}, \"hardware_static\": {\"gpu_name\": \"AMD Radeon\", \"gpu_count\": 1, \"cpu_name\": \"AMD Ryzen 9 3900X 12-Core Processor\", \"cores\": 12, \"threads\": 24, \"psutil\": true}, \"history\": {\"gpu_util\": [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 95, 28, 100, 98, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 99, 100, 100, 100, 100, 100, 100, 100, 100, 100, 99, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100], \"gpu_mem_used\": [33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616], \"gpu_temp\": [49.0, 49.0, 49.0, 50.0, 51.0, 51.0, 51.0, 52.0, 52.0, 53.0, 53.0, 53.0, 54.0, 55.0, 55.0, 56.0, 56.0, 56.0, 57.0, 57.0, 58.0, 58.0, 59.0, 59.0, 60.0, 60.0, 60.0, 61.0, 61.0, 61.0, 61.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 63.0, 62.0, 63.0, 63.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0], \"gpu_power\": [203.0, 183.0, 185.0, 188.0, 183.0, 198.0, 197.0, 188.0, 211.0, 213.0, 184.0, 80.0, 248.0, 249.0, 253.0, 227.0, 228.0, 239.0, 255.0, 268.0, 276.0, 277.0, 288.0, 291.0, 246.0, 268.0, 283.0, 294.0, 294.0, 297.0, 292.0, 299.0, 295.0, 277.0, 256.0, 286.0, 293.0, 297.0, 297.0, 297.0, 296.0, 297.0, 298.0, 239.0, 234.0, 247.0, 253.0, 272.0, 280.0, 288.0, 280.0, 294.0, 272.0, 273.0, 294.0, 299.0, 295.0, 297.0, 297.0, 288.0], \"gpu_pcie_rx_mb\": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], \"cpu\": [54.8, 53.1, 53.4, 54.7, 54.3, 54.7, 54.2, 47.6, 53.9, 54.6, 55.4, 26.1, 54.7, 54.8, 56.0, 55.7, 57.4, 55.0, 56.8, 55.3, 55.6, 54.9, 54.9, 55.6, 55.4, 55.5, 55.1, 54.8, 55.4, 54.7, 55.9, 54.9, 55.1, 55.0, 55.7, 54.7, 55.1, 54.6, 55.3, 55.3, 55.8, 54.7, 54.8, 55.2, 55.7, 55.7, 55.3, 54.8, 55.5, 55.0, 55.7, 55.0, 55.0, 55.4, 55.0, 55.9, 55.2, 54.8, 55.5, 54.7], \"ram_used\": [71388237824, 71388188672, 71388655616, 71388631040, 71390814208, 71388938240, 71389192192, 71389392896, 71388962816, 71387983872, 71381508096, 71381254144, 71380041728, 71384485888, 71385047040, 71384813568, 71384276992, 71384293376, 71381209088, 71383388160, 71384264704, 71388938240, 71388839936, 71388438528, 71388577792, 71388102656, 71387787264, 71387123712, 71386075136, 71385219072, 71390560256, 71389933568, 71390011392, 71381807104, 71379615744, 71380156416, 71380619264, 71381368832, 71379693568, 71375593472, 71384391680, 71384596480, 71384555520, 71380725760, 71373742080, 71373692928, 71373590528, 71373565952, 71374774272, 71377043456, 71381045248, 71377510400, 71376216064, 71375826944, 71375728640, 71374598144, 71374213120, 71374192640, 71374151680, 71374123008], \"disk_read_mb\": [0.52, 1.85, 2.17, 2.63, 2.2, 2.26, 1.33, 0.04, 0.14, 1.98, 2.77, 0.98, 3.9, 3.84, 5.07, 4.24, 2.84, 2.34, 3.13, 2.29, 1.91, 11.75, 2.13, 2.5, 0.35, 0.16, 0.19, 0.35, 1.34, 0.44, 0.11, 0.58, 0.51, 0.93, 0.17, 0.11, 0.04, 0.1, 0.07, 0.17, 0.14, 0.44, 0.1, 2.37, 4.11, 3.86, 5.1, 4.18, 4.59, 4.75, 4.66, 5.86, 4.3, 0.59, 2.51, 1.31, 4.21, 3.74, 5.19, 3.23], \"tok_s\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], \"prefill_tok_s_mean\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, \"time\": 1791274166.1289163}"
+        ]
+      },
+      "requested_output_tokens": 600,
+      "output_cap_reached": true
+    },
+    {
+      "label": "code-3",
+      "prompt_sha256": "8e6134d79e69df6b7a98b98f19f353712544b2abb5b9e729f895da2bc954d7e0",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 600
+      },
+      "before": {
+        "stats": {
+          "engine": {
+            "version": "0.1.39",
+            "context": 131072,
+            "kv": "int8",
+            "kv_resident": 0,
+            "expert_slots": 10215,
+            "expert_cache_mib": 23569,
+            "expert_slots_primary": 10215,
+            "expert_cache_primary_mib": 23569,
+            "spec": 6,
+            "mtp_max": 4,
+            "lookup": 3,
+            "vram_free_mib": 580,
+            "cvec": 0,
+            "arena_mib": 56762,
+            "pool_workers": 11,
+            "pcie_frac": "0.55",
+            "spec_min_p": "0.50",
+            "conversation_cache_mib": 0,
+            "conversation_cache_slots": 4,
+            "conversation_cache_min_free_mib": 2560,
+            "tail_role_token": -1,
+            "vram_elastic": 0,
+            "engine": "0.1.39"
+          },
+          "last": {
+            "generated": 600,
+            "prompt_tokens": 20,
+            "prompt_ms": 155.9,
+            "decode_ms": 7639.9,
+            "finish": "length",
+            "drafts_accepted": 374,
+            "drafts_offered": 566,
+            "reused": 0,
+            "hits": 364516,
+            "lookups": 375699,
+            "ram_blobs": 0,
+            "file_blobs": 0,
+            "file_mb": 0.0,
+            "prompt_read": 20,
+            "offloaded": 5901
+          },
+          "adapter": "raw stdio; upstream chat"
+        },
+        "metrics": [
+          "{\"engine\": {\"model\": \"qwen3.8-flash-next\", \"max_context\": 131072, \"images\": false, \"version\": \"0.1.39\", \"context\": 131072, \"kv\": \"int8\", \"kv_resident\": 0, \"expert_slots\": 10215, \"expert_cache_mib\": 23569, \"expert_slots_primary\": 10215, \"expert_cache_primary_mib\": 23569, \"spec\": 6, \"mtp_max\": 4, \"lookup\": 3, \"vram_free_mib\": 580, \"cvec\": 0, \"arena_mib\": 56762, \"pool_workers\": 11, \"pcie_frac\": \"0.55\", \"spec_min_p\": \"0.50\", \"conversation_cache_mib\": 0, \"conversation_cache_slots\": 4, \"conversation_cache_min_free_mib\": 2560, \"tail_role_token\": -1, \"vram_elastic\": 0, \"engine\": \"0.1.39\"}, \"live\": {\"state\": \"idle\", \"queued\": 0, \"phase\": null, \"prompt_tokens\": null, \"prompt_read\": null, \"prompt_total\": null, \"generated\": null, \"max_tokens\": null, \"elapsed_s\": null, \"tok_s\": null, \"tok_s_mean\": null, \"prefill_tok_s_mean\": null, \"tok_s_window_s\": null}, \"requests\": [], \"conversation_cache\": {\"enabled\": false, \"budget_mib\": 0, \"slots\": 4, \"parked\": 0, \"bytes\": 0, \"evictions\": 0, \"parks\": 0, \"restores\": 0, \"last_event\": null, \"last_tokens\": null, \"last_at\": null, \"requests\": 0, \"requests_reused\": 0, \"reused_tokens\": 0, \"prompt_tokens\": 0, \"last_reused\": null, \"last_prompt\": null}, \"requests_kept\": 0, \"totals\": {\"since\": 1791274088.235569, \"requests\": 0, \"prompt_tokens\": 0, \"reused\": 0, \"output_tokens\": 0, \"prompt_ms\": 0.0, \"decode_ms\": 0.0, \"drafts_offered\": 0, \"drafts_accepted\": 0}, \"hardware\": {\"gpu_util\": 100, \"gpu_mem_used\": 33744879616, \"gpu_mem_total\": 34208743424, \"gpu_temp\": 62.0, \"gpu_power\": 288.0, \"gpu_power_limit\": 300.0, \"cpu\": 54.7, \"ram_used\": 71374123008, \"ram_total\": 134961819648, \"disk_read_mb\": 3.2311933449471875, \"disk_write_mb\": 0.12585263934124008, \"tok_s\": 0.0, \"tok_s_mean\": 0, \"prefill_tok_s_mean\": 0.0}, \"hardware_static\": {\"gpu_name\": \"AMD Radeon\", \"gpu_count\": 1, \"cpu_name\": \"AMD Ryzen 9 3900X 12-Core Processor\", \"cores\": 12, \"threads\": 24, \"psutil\": true}, \"history\": {\"gpu_util\": [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 95, 28, 100, 98, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 99, 100, 100, 100, 100, 100, 100, 100, 100, 100, 99, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100], \"gpu_mem_used\": [33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616], \"gpu_temp\": [49.0, 49.0, 49.0, 50.0, 51.0, 51.0, 51.0, 52.0, 52.0, 53.0, 53.0, 53.0, 54.0, 55.0, 55.0, 56.0, 56.0, 56.0, 57.0, 57.0, 58.0, 58.0, 59.0, 59.0, 60.0, 60.0, 60.0, 61.0, 61.0, 61.0, 61.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 63.0, 62.0, 63.0, 63.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0], \"gpu_power\": [203.0, 183.0, 185.0, 188.0, 183.0, 198.0, 197.0, 188.0, 211.0, 213.0, 184.0, 80.0, 248.0, 249.0, 253.0, 227.0, 228.0, 239.0, 255.0, 268.0, 276.0, 277.0, 288.0, 291.0, 246.0, 268.0, 283.0, 294.0, 294.0, 297.0, 292.0, 299.0, 295.0, 277.0, 256.0, 286.0, 293.0, 297.0, 297.0, 297.0, 296.0, 297.0, 298.0, 239.0, 234.0, 247.0, 253.0, 272.0, 280.0, 288.0, 280.0, 294.0, 272.0, 273.0, 294.0, 299.0, 295.0, 297.0, 297.0, 288.0], \"gpu_pcie_rx_mb\": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], \"cpu\": [54.8, 53.1, 53.4, 54.7, 54.3, 54.7, 54.2, 47.6, 53.9, 54.6, 55.4, 26.1, 54.7, 54.8, 56.0, 55.7, 57.4, 55.0, 56.8, 55.3, 55.6, 54.9, 54.9, 55.6, 55.4, 55.5, 55.1, 54.8, 55.4, 54.7, 55.9, 54.9, 55.1, 55.0, 55.7, 54.7, 55.1, 54.6, 55.3, 55.3, 55.8, 54.7, 54.8, 55.2, 55.7, 55.7, 55.3, 54.8, 55.5, 55.0, 55.7, 55.0, 55.0, 55.4, 55.0, 55.9, 55.2, 54.8, 55.5, 54.7], \"ram_used\": [71388237824, 71388188672, 71388655616, 71388631040, 71390814208, 71388938240, 71389192192, 71389392896, 71388962816, 71387983872, 71381508096, 71381254144, 71380041728, 71384485888, 71385047040, 71384813568, 71384276992, 71384293376, 71381209088, 71383388160, 71384264704, 71388938240, 71388839936, 71388438528, 71388577792, 71388102656, 71387787264, 71387123712, 71386075136, 71385219072, 71390560256, 71389933568, 71390011392, 71381807104, 71379615744, 71380156416, 71380619264, 71381368832, 71379693568, 71375593472, 71384391680, 71384596480, 71384555520, 71380725760, 71373742080, 71373692928, 71373590528, 71373565952, 71374774272, 71377043456, 71381045248, 71377510400, 71376216064, 71375826944, 71375728640, 71374598144, 71374213120, 71374192640, 71374151680, 71374123008], \"disk_read_mb\": [0.52, 1.85, 2.17, 2.63, 2.2, 2.26, 1.33, 0.04, 0.14, 1.98, 2.77, 0.98, 3.9, 3.84, 5.07, 4.24, 2.84, 2.34, 3.13, 2.29, 1.91, 11.75, 2.13, 2.5, 0.35, 0.16, 0.19, 0.35, 1.34, 0.44, 0.11, 0.58, 0.51, 0.93, 0.17, 0.11, 0.04, 0.1, 0.07, 0.17, 0.14, 0.44, 0.1, 2.37, 4.11, 3.86, 5.1, 4.18, 4.59, 4.75, 4.66, 5.86, 4.3, 0.59, 2.51, 1.31, 4.21, 3.74, 5.19, 3.23], \"tok_s\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], \"prefill_tok_s_mean\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, \"time\": 1791274166.1310232}"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 20,
+        "completion_tokens": 600,
+        "total_tokens": 620,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.17903083399869502,
+      "wall_s": 7.73622002103366,
+      "pp_effective_tok_s": 111.7126003007157,
+      "generation_e2e_tok_s": 77.55725643385104,
+      "decode_tok_s": 79.2627237398781,
+      "legacy_decode_tok_s": 79.3945983288805,
+      "text": "\n\n<think>\nThe user wants a complete Python module implementing an LRU (Least Recently Used) cache with TTL (Time-To-Live) expiry. Let me think about what this needs:\n\n1. **LRU Cache**: Items are evicted based on least recently used order. When the cache is full and a new item is added, the least recently used item is removed.\n\n2. **TTL Expiry**: Each cached item has a time-to-live. After that time, the item is considered expired and should not be returned.\n\n3. **Type hints**: Full type annotations throughout.\n\n4. **Docstrings**: Comprehensive docstrings for the module, classes, and methods.\n\nDesign decisions:\n- Use `collections.OrderedDict` for O(1) LRU operations (move_to_end, popitem)\n- Use `time.monotonic()` for TTL tracking (immune to system clock changes)\n- Use `threading.Lock` for thread safety\n- Generic types with `TypeVar` for key and value types\n- Support `get`, `set`, `delete`, `clear`, `__len__`, `__contains__`, `__getitem__`, `__setitem__`\n- Lazy expiry (check on access) + optional active cleanup\n- A decorator for easy use as a function cache\n- Proper `__repr__` and `__iter__`\n\nLet me structure this as a proper module with:\n- Module docstring\n- Imports\n- Type variables\n- Custom exceptions\n- The main `LRUCache` class\n- A decorator `lru_cache_with_ttl`\n- Maybe a `__all__` list\n\nLet me write this carefully with full type hints and thorough docstrings.\n</think>\n\n```python\n\"\"\"\nlru_ttl_cache\n=============\n\nA thread-safe, generic LRU (Least Recently Used) cache with per-entry TTL\n(Time-To-Live) expiry.\n\nFeatures\n--------\n* **LRU eviction** \u2013 when the cache reaches *maxsize*, the least-recently-used\n  entry is evicted in O(1).\n* **Per-entry TTL** \u2013 every value carries its own expiry timestamp.  Expired\n  entries are treated as missing (lazy expiry) and are also swept out\n  periodically or on demand.\n* **Thread-safe** \u2013 all public operations are guarded by a re-entrant lock.\n* **Generic** \u2013 fully typed with ``TypeVar`` so static checkers can infer\n  key/value types.\n* **Decorator** \u2013 ``@lru_ttl_cache`` wraps any function transparently.\n\nExample\n-------\n>>> cache: LRUCache[str, int] = LRUCache(maxsize=128, ttl=60.0)\n>>> cache[\"answer\"] = 42\n>>> cache[\"answer\"]\n42\n\"\"\"\n\nfrom __",
+      "reasoning_text": "",
+      "after": {
+        "stats": {
+          "engine": {
+            "version": "0.1.39",
+            "context": 131072,
+            "kv": "int8",
+            "kv_resident": 0,
+            "expert_slots": 10215,
+            "expert_cache_mib": 23569,
+            "expert_slots_primary": 10215,
+            "expert_cache_primary_mib": 23569,
+            "spec": 6,
+            "mtp_max": 4,
+            "lookup": 3,
+            "vram_free_mib": 580,
+            "cvec": 0,
+            "arena_mib": 56762,
+            "pool_workers": 11,
+            "pcie_frac": "0.55",
+            "spec_min_p": "0.50",
+            "conversation_cache_mib": 0,
+            "conversation_cache_slots": 4,
+            "conversation_cache_min_free_mib": 2560,
+            "tail_role_token": -1,
+            "vram_elastic": 0,
+            "engine": "0.1.39"
+          },
+          "last": {
+            "generated": 600,
+            "prompt_tokens": 20,
+            "prompt_ms": 156.1,
+            "decode_ms": 7577.5,
+            "finish": "length",
+            "drafts_accepted": 372,
+            "drafts_offered": 543,
+            "reused": 0,
+            "hits": 351098,
+            "lookups": 363221,
+            "ram_blobs": 0,
+            "file_blobs": 0,
+            "file_mb": 0.0,
+            "prompt_read": 20,
+            "offloaded": 6859
+          },
+          "adapter": "raw stdio; upstream chat"
+        },
+        "metrics": [
+          "{\"engine\": {\"model\": \"qwen3.8-flash-next\", \"max_context\": 131072, \"images\": false, \"version\": \"0.1.39\", \"context\": 131072, \"kv\": \"int8\", \"kv_resident\": 0, \"expert_slots\": 10215, \"expert_cache_mib\": 23569, \"expert_slots_primary\": 10215, \"expert_cache_primary_mib\": 23569, \"spec\": 6, \"mtp_max\": 4, \"lookup\": 3, \"vram_free_mib\": 580, \"cvec\": 0, \"arena_mib\": 56762, \"pool_workers\": 11, \"pcie_frac\": \"0.55\", \"spec_min_p\": \"0.50\", \"conversation_cache_mib\": 0, \"conversation_cache_slots\": 4, \"conversation_cache_min_free_mib\": 2560, \"tail_role_token\": -1, \"vram_elastic\": 0, \"engine\": \"0.1.39\"}, \"live\": {\"state\": \"idle\", \"queued\": 0, \"phase\": null, \"prompt_tokens\": null, \"prompt_read\": null, \"prompt_total\": null, \"generated\": null, \"max_tokens\": null, \"elapsed_s\": null, \"tok_s\": null, \"tok_s_mean\": null, \"prefill_tok_s_mean\": null, \"tok_s_window_s\": null}, \"requests\": [], \"conversation_cache\": {\"enabled\": false, \"budget_mib\": 0, \"slots\": 4, \"parked\": 0, \"bytes\": 0, \"evictions\": 0, \"parks\": 0, \"restores\": 0, \"last_event\": null, \"last_tokens\": null, \"last_at\": null, \"requests\": 0, \"requests_reused\": 0, \"reused_tokens\": 0, \"prompt_tokens\": 0, \"last_reused\": null, \"last_prompt\": null}, \"requests_kept\": 0, \"totals\": {\"since\": 1791274088.235569, \"requests\": 0, \"prompt_tokens\": 0, \"reused\": 0, \"output_tokens\": 0, \"prompt_ms\": 0.0, \"decode_ms\": 0.0, \"drafts_offered\": 0, \"drafts_accepted\": 0}, \"hardware\": {\"gpu_util\": 100, \"gpu_mem_used\": 33744879616, \"gpu_mem_total\": 34208743424, \"gpu_temp\": 63.0, \"gpu_power\": 287.0, \"gpu_power_limit\": 300.0, \"cpu\": 54.8, \"ram_used\": 71381168128, \"ram_total\": 134961819648, \"disk_read_mb\": 3.604898854914571, \"disk_write_mb\": 0.13069709051908887, \"tok_s\": 0.0, \"tok_s_mean\": 0, \"prefill_tok_s_mean\": 0.0}, \"hardware_static\": {\"gpu_name\": \"AMD Radeon\", \"gpu_count\": 1, \"cpu_name\": \"AMD Ryzen 9 3900X 12-Core Processor\", \"cores\": 12, \"threads\": 24, \"psutil\": true}, \"history\": {\"gpu_util\": [100, 100, 95, 28, 100, 98, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 99, 100, 100, 100, 100, 100, 100, 100, 100, 100, 99, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 99, 100, 100, 100, 100, 100, 100, 100], \"gpu_mem_used\": [33742819328, 33742819328, 33742819328, 33742819328, 33742819328, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744580608, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744740352, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616, 33744879616], \"gpu_temp\": [52.0, 53.0, 53.0, 53.0, 54.0, 55.0, 55.0, 56.0, 56.0, 56.0, 57.0, 57.0, 58.0, 58.0, 59.0, 59.0, 60.0, 60.0, 60.0, 61.0, 61.0, 61.0, 61.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 63.0, 62.0, 63.0, 63.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 62.0, 63.0, 63.0, 63.0, 63.0, 63.0], \"gpu_power\": [211.0, 213.0, 184.0, 80.0, 248.0, 249.0, 253.0, 227.0, 228.0, 239.0, 255.0, 268.0, 276.0, 277.0, 288.0, 291.0, 246.0, 268.0, 283.0, 294.0, 294.0, 297.0, 292.0, 299.0, 295.0, 277.0, 256.0, 286.0, 293.0, 297.0, 297.0, 297.0, 296.0, 297.0, 298.0, 239.0, 234.0, 247.0, 253.0, 272.0, 280.0, 288.0, 280.0, 294.0, 272.0, 273.0, 294.0, 299.0, 295.0, 297.0, 297.0, 288.0, 288.0, 291.0, 297.0, 292.0, 298.0, 295.0, 293.0, 287.0], \"gpu_pcie_rx_mb\": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], \"cpu\": [53.9, 54.6, 55.4, 26.1, 54.7, 54.8, 56.0, 55.7, 57.4, 55.0, 56.8, 55.3, 55.6, 54.9, 54.9, 55.6, 55.4, 55.5, 55.1, 54.8, 55.4, 54.7, 55.9, 54.9, 55.1, 55.0, 55.7, 54.7, 55.1, 54.6, 55.3, 55.3, 55.8, 54.7, 54.8, 55.2, 55.7, 55.7, 55.3, 54.8, 55.5, 55.0, 55.7, 55.0, 55.0, 55.4, 55.0, 55.9, 55.2, 54.8, 55.5, 54.7, 55.9, 54.6, 54.9, 54.7, 55.3, 54.8, 55.0, 54.8], \"ram_used\": [71388962816, 71387983872, 71381508096, 71381254144, 71380041728, 71384485888, 71385047040, 71384813568, 71384276992, 71384293376, 71381209088, 71383388160, 71384264704, 71388938240, 71388839936, 71388438528, 71388577792, 71388102656, 71387787264, 71387123712, 71386075136, 71385219072, 71390560256, 71389933568, 71390011392, 71381807104, 71379615744, 71380156416, 71380619264, 71381368832, 71379693568, 71375593472, 71384391680, 71384596480, 71384555520, 71380725760, 71373742080, 71373692928, 71373590528, 71373565952, 71374774272, 71377043456, 71381045248, 71377510400, 71376216064, 71375826944, 71375728640, 71374598144, 71374213120, 71374192640, 71374151680, 71374123008, 71384391680, 71384276992, 71381151744, 71380107264, 71381311488, 71381237760, 71381192704, 71381168128], \"disk_read_mb\": [0.14, 1.98, 2.77, 0.98, 3.9, 3.84, 5.07, 4.24, 2.84, 2.34, 3.13, 2.29, 1.91, 11.75, 2.13, 2.5, 0.35, 0.16, 0.19, 0.35, 1.34, 0.44, 0.11, 0.58, 0.51, 0.93, 0.17, 0.11, 0.04, 0.1, 0.07, 0.17, 0.14, 0.44, 0.1, 2.37, 4.11, 3.86, 5.1, 4.18, 4.59, 4.75, 4.66, 5.86, 4.3, 0.59, 2.51, 1.31, 4.21, 3.74, 5.19, 3.23, 0.48, 0.1, 0.58, 2.21, 2.4, 2.43, 5.97, 3.6], \"tok_s\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], \"prefill_tok_s_mean\": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, \"time\": 1791274173.868705}"
+        ]
+      },
+      "requested_output_tokens": 600,
+      "output_cap_reached": true
+    }
+  ]
+}

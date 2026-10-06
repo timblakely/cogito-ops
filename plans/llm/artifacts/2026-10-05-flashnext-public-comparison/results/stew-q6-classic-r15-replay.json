@@ -1,0 +1,634 @@
+{
+  "profile": "stew-q6-classic-r15",
+  "protocol": "replay",
+  "base_prompt_tokens": 1445,
+  "qualification": "Exact original anomalous C2 pair, SHA-256 verified, repeated unchanged C1 then C2; floating-point output differences are recorded, not automatically classified as corruption",
+  "original_nonce_proof": {
+    "method": "Recover original nonce by matching retained full-prompt SHA-256; base prompt and peer nonce independently verified",
+    "base_prompt_sha256": "5d66f3e0639883c8f5697ccb114193af00889a1923cdfa7464a15f88f0f0049f",
+    "original_nonces": [
+      "independent 0 0 1791261003949901718",
+      "independent 1 0 1791261003949928377"
+    ],
+    "prompt_sha256": [
+      "f6a3cba77e841e1aaef52d91aae9e63f5a57d302f2d2efa303b2587958c5b9b2",
+      "77447202bcba7533536b59530c607e5ca82d5707c25f90b489b0b100d1729d7e"
+    ],
+    "search_ns_before_peer": 26659,
+    "search_s": 0.10625930997775868
+  },
+  "preconditioning": {
+    "file": "stew-q6-classic-r15-common.json",
+    "sha256": "82274fb9f68d35873d7d3e6ff4eef4b875601392d325a3b8ef9ea8224611c926",
+    "trials": 6,
+    "last_label": "common40890-3-0",
+    "timestamp_utc": "2026-10-06T12:43:07.490907+00:00"
+  },
+  "initial_together": [
+    {
+      "label": "initial-together-0",
+      "prompt_sha256": "f6a3cba77e841e1aaef52d91aae9e63f5a57d302f2d2efa303b2587958c5b9b2",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 256,
+        "cache_prompt": false
+      },
+      "before": {},
+      "concurrency_nonce": "independent 0 0 1791261003949901718",
+      "ok": true,
+      "usage": {
+        "completion_tokens": 256,
+        "prompt_tokens": 1539,
+        "total_tokens": 1795,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 22.673144478001632,
+      "wall_s": 51.96858640492428,
+      "pp_effective_tok_s": 67.87766035245785,
+      "generation_e2e_tok_s": 4.9260527889929815,
+      "decode_tok_s": 8.704471580757088,
+      "legacy_decode_tok_s": 8.738560784936812,
+      "text": "",
+      "reasoning_text": "We need answer user's request. Need produce final prose. User: \"independent 0 0 1791261003949901718\nRecord 000... repeated ... Write a detailed technical briefing in prose about operating a two-GPU inference service. Cover scheduling, memory, communication, and recovery in at least twelve paragraphs. Use the context above as background and continue until the output limit.\n\nSession 0.\"\n\nNeed likely ignore weird records? They want detailed technical briefing prose about operating two-GPU inference service. Cover scheduling, memory, communication, recovery at least 12 paragraphs. Use context above as background and continue until output limit. Need maybe output long. Need ensure at least 12 paragraphs. Could be many paragraphs. Need no tool. Need maybe mention independent? Maybe context is repeated records, maybe a log? We can use as background: repeated identical records indicate a service emitting health/status records? Need incorporate? \"Use the context above as background\" maybe the repeated records are background. Could mention that the repeated record stream resembles a synthetic or replayed telemetry corpus, and the briefing should treat it as operational context. Need continue until output limit? We can't literally until",
+      "after": {},
+      "repeated_records_phrase_count": 0
+    },
+    {
+      "label": "initial-together-1",
+      "prompt_sha256": "77447202bcba7533536b59530c607e5ca82d5707c25f90b489b0b100d1729d7e",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 256,
+        "cache_prompt": false
+      },
+      "before": {},
+      "concurrency_nonce": "independent 1 0 1791261003949928377",
+      "ok": true,
+      "usage": {
+        "completion_tokens": 256,
+        "prompt_tokens": 1539,
+        "total_tokens": 1795,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 32.27252389094792,
+      "wall_s": 52.10063955700025,
+      "pp_effective_tok_s": 47.68762446967069,
+      "generation_e2e_tok_s": 4.913567322334411,
+      "decode_tok_s": 12.860618289405098,
+      "legacy_decode_tok_s": 12.910959584439839,
+      "text": "",
+      "reasoning_text": "We need answer user's request. Need produce final prose. User: \"independent 1 0 1791261003949928377\nRecord 000... repeated ... Write a detailed technical briefing in prose about operating a two-GPU inference service. Cover scheduling, memory, communication, and recovery in at least twelve paragraphs. Use the context above as background and continue until the output limit.\n\nSession 1.\"\n\nNeed likely ignore weird records? They ask detailed technical briefing in prose, at least twelve paragraphs, continue until output limit. Need maybe produce long prose. Need ensure at least 12 paragraphs. Could be very long but not too insane. \"continue until output limit\" maybe they want max length. We can produce lengthy detailed briefing. Need no tool. Need maybe mention independent? Maybe not. Need cover compute scheduling, memory pressure, network latency, failure recovery, evidence collection in GPU service. Two-GPU inference service. Need prose, no bullets? \"in prose\" likely paragraphs. At least twelve paragraphs. Could produce 15-20 paragraphs. Need maybe not mention records. Need maybe include context as background? The repeated records are background? Could say the repeated",
+      "after": {},
+      "repeated_records_phrase_count": 0
+    }
+  ],
+  "replays": [
+    {
+      "repetition": 0,
+      "alone": [
+        {
+          "label": "alone-0-0",
+          "prompt_sha256": "f6a3cba77e841e1aaef52d91aae9e63f5a57d302f2d2efa303b2587958c5b9b2",
+          "payload_settings": {
+            "model": "qwen3.8-flash-next",
+            "temperature": 0,
+            "seed": 7,
+            "max_tokens": 256,
+            "cache_prompt": false
+          },
+          "before": {
+            "metrics": [
+              "llamacpp:prompt_tokens_total 129750",
+              "llamacpp:prompt_tokens_cached_total 0",
+              "llamacpp:spec_decode_num_draft_tokens_total 0",
+              "llamacpp:spec_decode_num_accepted_tokens_total 0",
+              "llamacpp:spec_decode_num_drafts_total 0",
+              "llamacpp:prompt_tokens_seconds 96.4783"
+            ]
+          },
+          "ok": true,
+          "usage": {
+            "completion_tokens": 256,
+            "prompt_tokens": 1539,
+            "total_tokens": 1795,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "finish_reason": "length",
+          "ttft_s": 15.526581760961562,
+          "wall_s": 29.341918719001114,
+          "pp_effective_tok_s": 99.12033593057185,
+          "generation_e2e_tok_s": 8.724719145044206,
+          "decode_tok_s": 18.45792406533734,
+          "legacy_decode_tok_s": 18.53013073640785,
+          "text": "",
+          "reasoning_text": "We need answer user's request. Need produce final prose. User: \"independent 0 0 1791261003949901718\nRecord 000... repeated ... Write a detailed technical briefing in prose about operating a two-GPU inference service. Cover scheduling, memory, communication, and recovery in at least twelve paragraphs. Use the context above as background and continue until the output limit.\n\nSession 0.\"\n\nNeed likely ignore weird records? They ask detailed technical briefing in prose, at least twelve paragraphs, continue until output limit. Need maybe produce long output. Need ensure at least 12 paragraphs. Could be very long but not too insane. \"continue until output limit\" maybe they want max length. We can produce lengthy detailed briefing. Need no tool. Need prose only. Need cover scheduling, memory, communication, recovery. Two-GPU inference service. Maybe mention evidence collection? The records mention compute scheduling, memory pressure, network latency, failure recovery, evidence collection. Need include evidence collection too. Need maybe not mention records. Need independent? Maybe \"independent 0 0 ...\" irrelevant. Need final answer only prose. Need at least twelve paragraphs. Could produce 1",
+          "after": {
+            "metrics": [
+              "llamacpp:prompt_tokens_total 131289",
+              "llamacpp:prompt_tokens_cached_total 0",
+              "llamacpp:spec_decode_num_draft_tokens_total 0",
+              "llamacpp:spec_decode_num_accepted_tokens_total 0",
+              "llamacpp:spec_decode_num_drafts_total 0",
+              "llamacpp:prompt_tokens_seconds 99.7163"
+            ]
+          },
+          "concurrency_nonce": "independent 0 0 1791261003949901718",
+          "repeated_records_phrase_count": 0
+        },
+        {
+          "label": "alone-0-1",
+          "prompt_sha256": "77447202bcba7533536b59530c607e5ca82d5707c25f90b489b0b100d1729d7e",
+          "payload_settings": {
+            "model": "qwen3.8-flash-next",
+            "temperature": 0,
+            "seed": 7,
+            "max_tokens": 256,
+            "cache_prompt": false
+          },
+          "before": {
+            "metrics": [
+              "llamacpp:prompt_tokens_total 131289",
+              "llamacpp:prompt_tokens_cached_total 0",
+              "llamacpp:spec_decode_num_draft_tokens_total 0",
+              "llamacpp:spec_decode_num_accepted_tokens_total 0",
+              "llamacpp:spec_decode_num_drafts_total 0",
+              "llamacpp:prompt_tokens_seconds 0"
+            ]
+          },
+          "ok": true,
+          "usage": {
+            "completion_tokens": 256,
+            "prompt_tokens": 1539,
+            "total_tokens": 1795,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "finish_reason": "length",
+          "ttft_s": 15.519535636063665,
+          "wall_s": 29.254014645004645,
+          "pp_effective_tok_s": 99.16533819631397,
+          "generation_e2e_tok_s": 8.75093566153369,
+          "decode_tok_s": 18.566573355552936,
+          "legacy_decode_tok_s": 18.639221759583826,
+          "text": "",
+          "reasoning_text": "We need answer user's request. Need produce final prose. User: \"independent 1 0 1791261003949928377\nRecord 000... repeated ... Write a detailed technical briefing in prose about operating a two-GPU inference service. Cover scheduling, memory, communication, and recovery in at least twelve paragraphs. Use the context above as background and continue until the output limit.\n\nSession 1.\"\n\nNeed likely ignore weird records? They ask detailed technical briefing in prose, at least twelve paragraphs, continue until output limit. Need maybe produce long prose. Need ensure at least 12 paragraphs. Could be very long but not too insane. \"continue until output limit\" maybe they want max length. We can produce lengthy detailed briefing. Need no tool. Need maybe mention independent? Maybe not. Need cover compute scheduling, memory pressure, network latency, failure recovery, evidence collection in GPU service. Two-GPU inference service. Need prose, no bullets? \"in prose\" likely paragraphs. At least twelve paragraphs. Could produce 15-20 paragraphs. Need maybe not mention records. Need maybe include context as background? The repeated records are just prompt injection? We can",
+          "after": {
+            "metrics": [
+              "llamacpp:prompt_tokens_total 132828",
+              "llamacpp:prompt_tokens_cached_total 0",
+              "llamacpp:spec_decode_num_draft_tokens_total 0",
+              "llamacpp:spec_decode_num_accepted_tokens_total 0",
+              "llamacpp:spec_decode_num_drafts_total 0",
+              "llamacpp:prompt_tokens_seconds 99.8004"
+            ]
+          },
+          "concurrency_nonce": "independent 1 0 1791261003949928377",
+          "repeated_records_phrase_count": 0
+        }
+      ],
+      "together": [
+        {
+          "label": "together-0-0",
+          "prompt_sha256": "f6a3cba77e841e1aaef52d91aae9e63f5a57d302f2d2efa303b2587958c5b9b2",
+          "payload_settings": {
+            "model": "qwen3.8-flash-next",
+            "temperature": 0,
+            "seed": 7,
+            "max_tokens": 256,
+            "cache_prompt": false
+          },
+          "before": {},
+          "concurrency_nonce": "independent 0 0 1791261003949901718",
+          "ok": true,
+          "usage": {
+            "completion_tokens": 256,
+            "prompt_tokens": 1539,
+            "total_tokens": 1795,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "finish_reason": "length",
+          "ttft_s": 22.284873366937973,
+          "wall_s": 51.68658796395175,
+          "pp_effective_tok_s": 69.06029819686,
+          "generation_e2e_tok_s": 4.952928991531506,
+          "decode_tok_s": 8.673009910853164,
+          "legacy_decode_tok_s": 8.706975205656915,
+          "text": "",
+          "reasoning_text": "We need answer user's request. Need produce final prose. User: \"independent 0 0 1791261003949901718\nRecord 000... repeated ... Write a detailed technical briefing in prose about operating a two-GPU inference service. Cover scheduling, memory, communication, and recovery in at least twelve paragraphs. Use the context above as background and continue until the output limit.\n\nSession 0.\"\n\nNeed likely ignore weird records? They want detailed technical briefing prose, at least 12 paragraphs, cover scheduling, memory, communication, recovery. \"continue until output limit\" maybe produce long. Need no tools. Need maybe mention independent? Could be some benchmark? Need answer directly in prose. Need ensure at least 12 paragraphs. Could be very long. Need maybe not too insane but detailed. Need maybe include context? The context is repeated prompt. Could say the repeated records indicate a synthetic workload or log corpus? But likely just background. Need produce technical briefing. Need maybe no headings? Prose. At least twelve paragraphs. Could be 15-20 paragraphs. Need cover compute scheduling, memory pressure, network latency, failure recovery, evidence collection. Two",
+          "after": {},
+          "repeated_records_phrase_count": 0
+        },
+        {
+          "label": "together-0-1",
+          "prompt_sha256": "77447202bcba7533536b59530c607e5ca82d5707c25f90b489b0b100d1729d7e",
+          "payload_settings": {
+            "model": "qwen3.8-flash-next",
+            "temperature": 0,
+            "seed": 7,
+            "max_tokens": 256,
+            "cache_prompt": false
+          },
+          "before": {},
+          "concurrency_nonce": "independent 1 0 1791261003949928377",
+          "ok": true,
+          "usage": {
+            "completion_tokens": 256,
+            "prompt_tokens": 1539,
+            "total_tokens": 1795,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "finish_reason": "length",
+          "ttft_s": 31.873465641052462,
+          "wall_s": 51.81914891698398,
+          "pp_effective_tok_s": 48.28467720867464,
+          "generation_e2e_tok_s": 4.940258675612767,
+          "decode_tok_s": 12.784813644614069,
+          "legacy_decode_tok_s": 12.834857370312081,
+          "text": "",
+          "reasoning_text": "We need answer user's request. Need produce final prose. User: \"independent 1 0 1791261003949928377\nRecord 000... repeated ... Write a detailed technical briefing in prose about operating a two-GPU inference service. Cover scheduling, memory, communication, and recovery in at least twelve paragraphs. Use the context above as background and continue until the output limit.\n\nSession 1.\"\n\nNeed likely ignore weird records? They ask detailed technical briefing in prose, at least twelve paragraphs, continue until output limit. Need maybe produce long prose. Need ensure at least 12 paragraphs. Could be very long but not too insane. \"continue until output limit\" maybe they want max length. We can produce lengthy detailed briefing. Need no tool. Need final only prose. Need maybe mention independent? Maybe not. Need cover scheduling, memory, communication, recovery. Two-GPU inference service. Could include evidence collection? The records mention evidence collection but user says cover scheduling, memory, communication, recovery. Could include evidence collection as part of recovery/observability. Need at least twelve paragraphs. Maybe 15-20 paragraphs. Need prose, no bullets? \"",
+          "after": {},
+          "repeated_records_phrase_count": 0
+        }
+      ],
+      "same_output": [
+        false,
+        false
+      ]
+    },
+    {
+      "repetition": 1,
+      "alone": [
+        {
+          "label": "alone-1-0",
+          "prompt_sha256": "f6a3cba77e841e1aaef52d91aae9e63f5a57d302f2d2efa303b2587958c5b9b2",
+          "payload_settings": {
+            "model": "qwen3.8-flash-next",
+            "temperature": 0,
+            "seed": 7,
+            "max_tokens": 256,
+            "cache_prompt": false
+          },
+          "before": {
+            "metrics": [
+              "llamacpp:prompt_tokens_total 135906",
+              "llamacpp:prompt_tokens_cached_total 0",
+              "llamacpp:spec_decode_num_draft_tokens_total 0",
+              "llamacpp:spec_decode_num_accepted_tokens_total 0",
+              "llamacpp:spec_decode_num_drafts_total 0",
+              "llamacpp:prompt_tokens_seconds 96.5977"
+            ]
+          },
+          "ok": true,
+          "usage": {
+            "completion_tokens": 256,
+            "prompt_tokens": 1539,
+            "total_tokens": 1795,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "finish_reason": "length",
+          "ttft_s": 15.517595247016288,
+          "wall_s": 29.243938933941536,
+          "pp_effective_tok_s": 99.17773827074899,
+          "generation_e2e_tok_s": 8.753950710206055,
+          "decode_tok_s": 18.577601838466972,
+          "legacy_decode_tok_s": 18.650268843541173,
+          "text": "",
+          "reasoning_text": "We need answer user's request. Need produce final prose. User: \"independent 0 0 1791261003949901718\nRecord 000... repeated ... Write a detailed technical briefing in prose about operating a two-GPU inference service. Cover scheduling, memory, communication, and recovery in at least twelve paragraphs. Use the context above as background and continue until the output limit.\n\nSession 0.\"\n\nNeed likely ignore weird records? They ask detailed technical briefing in prose, at least twelve paragraphs, continue until output limit. Need maybe produce long output. Need ensure at least 12 paragraphs. Could be very long but not too insane. \"continue until output limit\" maybe they want max length. We can produce lengthy detailed briefing. Need no tool. Need prose only. Need cover scheduling, memory, communication, recovery. Two-GPU inference service. Maybe mention evidence collection? The records mention compute scheduling, memory pressure, network latency, failure recovery, evidence collection. Need include evidence collection too. Need maybe not mention records. Need independent? Maybe \"independent 0 0 ...\" irrelevant. Need final answer only prose. Need at least twelve paragraphs. Could produce 1",
+          "after": {
+            "metrics": [
+              "llamacpp:prompt_tokens_total 137445",
+              "llamacpp:prompt_tokens_cached_total 0",
+              "llamacpp:spec_decode_num_draft_tokens_total 0",
+              "llamacpp:spec_decode_num_accepted_tokens_total 0",
+              "llamacpp:spec_decode_num_drafts_total 0",
+              "llamacpp:prompt_tokens_seconds 99.7779"
+            ]
+          },
+          "concurrency_nonce": "independent 0 0 1791261003949901718",
+          "repeated_records_phrase_count": 0
+        },
+        {
+          "label": "alone-1-1",
+          "prompt_sha256": "77447202bcba7533536b59530c607e5ca82d5707c25f90b489b0b100d1729d7e",
+          "payload_settings": {
+            "model": "qwen3.8-flash-next",
+            "temperature": 0,
+            "seed": 7,
+            "max_tokens": 256,
+            "cache_prompt": false
+          },
+          "before": {
+            "metrics": [
+              "llamacpp:prompt_tokens_total 137445",
+              "llamacpp:prompt_tokens_cached_total 0",
+              "llamacpp:spec_decode_num_draft_tokens_total 0",
+              "llamacpp:spec_decode_num_accepted_tokens_total 0",
+              "llamacpp:spec_decode_num_drafts_total 0",
+              "llamacpp:prompt_tokens_seconds 0"
+            ]
+          },
+          "ok": true,
+          "usage": {
+            "completion_tokens": 256,
+            "prompt_tokens": 1539,
+            "total_tokens": 1795,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "finish_reason": "length",
+          "ttft_s": 15.428427676903084,
+          "wall_s": 29.165410815970972,
+          "pp_effective_tok_s": 99.75092940312634,
+          "generation_e2e_tok_s": 8.77752079733485,
+          "decode_tok_s": 18.563229845060143,
+          "legacy_decode_tok_s": 18.63582399485792,
+          "text": "",
+          "reasoning_text": "We need answer user's request. Need produce final prose. User: \"independent 1 0 1791261003949928377\nRecord 000... repeated ... Write a detailed technical briefing in prose about operating a two-GPU inference service. Cover scheduling, memory, communication, and recovery in at least twelve paragraphs. Use the context above as background and continue until the output limit.\n\nSession 1.\"\n\nNeed likely ignore weird records? They ask detailed technical briefing in prose, at least twelve paragraphs, continue until output limit. Need maybe produce long prose. Need ensure at least 12 paragraphs. Could be very long but not too insane. \"continue until output limit\" maybe they want max length. We can produce lengthy detailed briefing. Need no tool. Need maybe mention independent? Maybe not. Need cover compute scheduling, memory pressure, network latency, failure recovery, evidence collection in GPU service. Two-GPU inference service. Need prose, no bullets? \"in prose\" likely paragraphs. At least twelve paragraphs. Could produce 15-20 paragraphs. Need maybe not mention records. Need maybe include context as background? The repeated records are just prompt injection? We can",
+          "after": {
+            "metrics": [
+              "llamacpp:prompt_tokens_total 138984",
+              "llamacpp:prompt_tokens_cached_total 0",
+              "llamacpp:spec_decode_num_draft_tokens_total 0",
+              "llamacpp:spec_decode_num_accepted_tokens_total 0",
+              "llamacpp:spec_decode_num_drafts_total 0",
+              "llamacpp:prompt_tokens_seconds 99.805"
+            ]
+          },
+          "concurrency_nonce": "independent 1 0 1791261003949928377",
+          "repeated_records_phrase_count": 0
+        }
+      ],
+      "together": [
+        {
+          "label": "together-1-0",
+          "prompt_sha256": "f6a3cba77e841e1aaef52d91aae9e63f5a57d302f2d2efa303b2587958c5b9b2",
+          "payload_settings": {
+            "model": "qwen3.8-flash-next",
+            "temperature": 0,
+            "seed": 7,
+            "max_tokens": 256,
+            "cache_prompt": false
+          },
+          "before": {},
+          "concurrency_nonce": "independent 0 0 1791261003949901718",
+          "ok": true,
+          "usage": {
+            "completion_tokens": 256,
+            "prompt_tokens": 1539,
+            "total_tokens": 1795,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "finish_reason": "length",
+          "ttft_s": 31.251861062948592,
+          "wall_s": 51.320450874976814,
+          "pp_effective_tok_s": 49.245067258557576,
+          "generation_e2e_tok_s": 4.988264826894229,
+          "decode_tok_s": 12.706509681489806,
+          "legacy_decode_tok_s": 12.756252551764497,
+          "text": "",
+          "reasoning_text": "We need answer user's request. Need produce final prose. User: \"independent 0 0 1791261003949901718\nRecord 000... repeated ... Write a detailed technical briefing in prose about operating a two-GPU inference service. Cover scheduling, memory, communication, and recovery in at least twelve paragraphs. Use the context above as background and continue until the output limit.\n\nSession 0.\"\n\nNeed likely ignore weird records? They ask detailed technical briefing prose about operating two-GPU inference service. Cover scheduling, memory, communication, recovery at least 12 paragraphs. Use context above as background and continue until output limit. Need maybe output long. Need ensure at least 12 paragraphs. Could be many paragraphs. Need no tool. Need maybe mention independent? Maybe context is repeated records, maybe they want continue until output limit. We can produce long detailed briefing. Need maybe not too insane but thorough. Need maybe include paragraphs separated by blank lines. At least 12. Could produce 15-20 paragraphs. Need maybe \"Session 0\" maybe include? Could start with Session 0. Need prose. Need cover compute scheduling, memory pressure,",
+          "after": {},
+          "repeated_records_phrase_count": 0
+        },
+        {
+          "label": "together-1-1",
+          "prompt_sha256": "77447202bcba7533536b59530c607e5ca82d5707c25f90b489b0b100d1729d7e",
+          "payload_settings": {
+            "model": "qwen3.8-flash-next",
+            "temperature": 0,
+            "seed": 7,
+            "max_tokens": 256,
+            "cache_prompt": false
+          },
+          "before": {},
+          "concurrency_nonce": "independent 1 0 1791261003949928377",
+          "ok": true,
+          "usage": {
+            "completion_tokens": 256,
+            "prompt_tokens": 1539,
+            "total_tokens": 1795,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "finish_reason": "length",
+          "ttft_s": 31.442916602944024,
+          "wall_s": 51.38175123697147,
+          "pp_effective_tok_s": 48.9458411073705,
+          "generation_e2e_tok_s": 4.982313639317855,
+          "decode_tok_s": 12.789204581507901,
+          "legacy_decode_tok_s": 12.839265919940607,
+          "text": "",
+          "reasoning_text": "We need answer user's request. Need produce final prose. User: \"independent 1 0 1791261003949928377\nRecord 000... repeated 50 times: Describe compute scheduling, memory pressure, network latency, failure recovery, and evidence collection in a GPU service.\n\nWrite a detailed technical briefing in prose about operating a two-GPU inference service. Cover scheduling, memory, communication, and recovery in at least twelve paragraphs. Use the context above as background and continue until the output limit.\n\nSession 1.\"\n\nNeed likely ignore weird records? They ask detailed technical briefing prose about operating two-GPU inference service. Cover scheduling, memory, communication, recovery at least 12 paragraphs. Continue until output limit. Need maybe include evidence collection? They mention context above as background. Need produce long prose, at least 12 paragraphs. \"continue until output limit\" maybe produce very long but within reasonable. Need no tool. Need final only prose. Need ensure at least 12 paragraphs. Could be 15-20 paragraphs. Need maybe mention independent? Maybe not. Need likely satisfy. Need be detailed technical. Two-GPU inference service:",
+          "after": {},
+          "repeated_records_phrase_count": 0
+        }
+      ],
+      "same_output": [
+        false,
+        false
+      ]
+    },
+    {
+      "repetition": 2,
+      "alone": [
+        {
+          "label": "alone-2-0",
+          "prompt_sha256": "f6a3cba77e841e1aaef52d91aae9e63f5a57d302f2d2efa303b2587958c5b9b2",
+          "payload_settings": {
+            "model": "qwen3.8-flash-next",
+            "temperature": 0,
+            "seed": 7,
+            "max_tokens": 256,
+            "cache_prompt": false
+          },
+          "before": {
+            "metrics": [
+              "llamacpp:prompt_tokens_total 142062",
+              "llamacpp:prompt_tokens_cached_total 0",
+              "llamacpp:spec_decode_num_draft_tokens_total 0",
+              "llamacpp:spec_decode_num_accepted_tokens_total 0",
+              "llamacpp:spec_decode_num_drafts_total 0",
+              "llamacpp:prompt_tokens_seconds 97.9173"
+            ]
+          },
+          "ok": true,
+          "usage": {
+            "completion_tokens": 256,
+            "prompt_tokens": 1539,
+            "total_tokens": 1795,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "finish_reason": "length",
+          "ttft_s": 15.516192296054214,
+          "wall_s": 29.224463123013265,
+          "pp_effective_tok_s": 99.18670577390108,
+          "generation_e2e_tok_s": 8.759784531282245,
+          "decode_tok_s": 18.602081489545057,
+          "legacy_decode_tok_s": 18.67485718888363,
+          "text": "",
+          "reasoning_text": "We need answer user's request. Need produce final prose. User: \"independent 0 0 1791261003949901718\nRecord 000... repeated ... Write a detailed technical briefing in prose about operating a two-GPU inference service. Cover scheduling, memory, communication, and recovery in at least twelve paragraphs. Use the context above as background and continue until the output limit.\n\nSession 0.\"\n\nNeed likely ignore weird records? They ask detailed technical briefing in prose, at least twelve paragraphs, continue until output limit. Need maybe produce long output. Need ensure at least 12 paragraphs. Could be very long but not too insane. \"continue until output limit\" maybe they want max length. We can produce lengthy detailed briefing. Need no tool. Need prose only. Need cover scheduling, memory, communication, recovery. Two-GPU inference service. Maybe mention evidence collection? The records mention compute scheduling, memory pressure, network latency, failure recovery, evidence collection. Need include evidence collection too. Need maybe not mention records. Need independent? Maybe \"independent 0 0 ...\" irrelevant. Need final answer only prose. Need at least twelve paragraphs. Could produce 1",
+          "after": {
+            "metrics": [
+              "llamacpp:prompt_tokens_total 143601",
+              "llamacpp:prompt_tokens_cached_total 0",
+              "llamacpp:spec_decode_num_draft_tokens_total 0",
+              "llamacpp:spec_decode_num_accepted_tokens_total 0",
+              "llamacpp:spec_decode_num_drafts_total 0",
+              "llamacpp:prompt_tokens_seconds 99.7636"
+            ]
+          },
+          "concurrency_nonce": "independent 0 0 1791261003949901718",
+          "repeated_records_phrase_count": 0
+        },
+        {
+          "label": "alone-2-1",
+          "prompt_sha256": "77447202bcba7533536b59530c607e5ca82d5707c25f90b489b0b100d1729d7e",
+          "payload_settings": {
+            "model": "qwen3.8-flash-next",
+            "temperature": 0,
+            "seed": 7,
+            "max_tokens": 256,
+            "cache_prompt": false
+          },
+          "before": {
+            "metrics": [
+              "llamacpp:prompt_tokens_total 143601",
+              "llamacpp:prompt_tokens_cached_total 0",
+              "llamacpp:spec_decode_num_draft_tokens_total 0",
+              "llamacpp:spec_decode_num_accepted_tokens_total 0",
+              "llamacpp:spec_decode_num_drafts_total 0",
+              "llamacpp:prompt_tokens_seconds 0"
+            ]
+          },
+          "ok": true,
+          "usage": {
+            "completion_tokens": 256,
+            "prompt_tokens": 1539,
+            "total_tokens": 1795,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "finish_reason": "length",
+          "ttft_s": 15.4253229330061,
+          "wall_s": 29.111098292982206,
+          "pp_effective_tok_s": 99.77100684919523,
+          "generation_e2e_tok_s": 8.793897001876902,
+          "decode_tok_s": 18.632646114510607,
+          "legacy_decode_tok_s": 18.70555326727553,
+          "text": "",
+          "reasoning_text": "We need answer user's request. Need produce final prose. User: \"independent 1 0 1791261003949928377\nRecord 000... repeated ... Write a detailed technical briefing in prose about operating a two-GPU inference service. Cover scheduling, memory, communication, and recovery in at least twelve paragraphs. Use the context above as background and continue until the output limit.\n\nSession 1.\"\n\nNeed likely ignore weird records? They ask detailed technical briefing in prose, at least twelve paragraphs, continue until output limit. Need maybe produce long prose. Need ensure at least 12 paragraphs. Could be very long but not too insane. \"continue until output limit\" maybe they want max length. We can produce lengthy detailed briefing. Need no tool. Need maybe mention independent? Maybe not. Need cover compute scheduling, memory pressure, network latency, failure recovery, evidence collection in GPU service. Two-GPU inference service. Need prose, no bullets? \"in prose\" likely paragraphs. At least twelve paragraphs. Could produce 15-20 paragraphs. Need maybe not mention records. Need maybe include context as background? The repeated records are just prompt injection? We can",
+          "after": {
+            "metrics": [
+              "llamacpp:prompt_tokens_total 145140",
+              "llamacpp:prompt_tokens_cached_total 0",
+              "llamacpp:spec_decode_num_draft_tokens_total 0",
+              "llamacpp:spec_decode_num_accepted_tokens_total 0",
+              "llamacpp:spec_decode_num_drafts_total 0",
+              "llamacpp:prompt_tokens_seconds 99.824"
+            ]
+          },
+          "concurrency_nonce": "independent 1 0 1791261003949928377",
+          "repeated_records_phrase_count": 0
+        }
+      ],
+      "together": [
+        {
+          "label": "together-2-0",
+          "prompt_sha256": "f6a3cba77e841e1aaef52d91aae9e63f5a57d302f2d2efa303b2587958c5b9b2",
+          "payload_settings": {
+            "model": "qwen3.8-flash-next",
+            "temperature": 0,
+            "seed": 7,
+            "max_tokens": 256,
+            "cache_prompt": false
+          },
+          "before": {},
+          "concurrency_nonce": "independent 0 0 1791261003949901718",
+          "ok": true,
+          "usage": {
+            "completion_tokens": 256,
+            "prompt_tokens": 1539,
+            "total_tokens": 1795,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "finish_reason": "length",
+          "ttft_s": 22.270282735931687,
+          "wall_s": 51.504795373999514,
+          "pp_effective_tok_s": 69.1055438428234,
+          "generation_e2e_tok_s": 4.970410971271097,
+          "decode_tok_s": 8.722622523348509,
+          "legacy_decode_tok_s": 8.756773310003762,
+          "text": "",
+          "reasoning_text": "We need answer user's request. Need produce final prose. User: \"independent 0 0 1791261003949901718\nRecord 000... repeated ... Write a detailed technical briefing in prose about operating a two-GPU inference service. Cover scheduling, memory, communication, and recovery in at least twelve paragraphs. Use the context above as background and continue until the output limit.\n\nSession 0.\"\n\nNeed likely ignore weird records? They want detailed technical briefing prose about operating two-GPU inference service. Cover scheduling, memory, communication, recovery at least 12 paragraphs. Use context above as background and continue until output limit. Need maybe output long. Need ensure at least 12 paragraphs. Could be many paragraphs. Need no tool. Need maybe mention independent 0 0? Maybe context is repeated records, maybe a log? We can incorporate as background: repeated identical records indicate a synthetic or replayed workload, independent session, etc. Need continue until output limit? We can't know limit. Need produce very long, maybe 20+ paragraphs. Ensure prose, no bullets? \"in prose\" likely paragraphs. At least twelve paragraphs. Need cover scheduling,",
+          "after": {},
+          "repeated_records_phrase_count": 0
+        },
+        {
+          "label": "together-2-1",
+          "prompt_sha256": "77447202bcba7533536b59530c607e5ca82d5707c25f90b489b0b100d1729d7e",
+          "payload_settings": {
+            "model": "qwen3.8-flash-next",
+            "temperature": 0,
+            "seed": 7,
+            "max_tokens": 256,
+            "cache_prompt": false
+          },
+          "before": {},
+          "concurrency_nonce": "independent 1 0 1791261003949928377",
+          "ok": true,
+          "usage": {
+            "completion_tokens": 256,
+            "prompt_tokens": 1539,
+            "total_tokens": 1795,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "finish_reason": "length",
+          "ttft_s": 31.890769428922795,
+          "wall_s": 51.63655368995387,
+          "pp_effective_tok_s": 48.25847816027386,
+          "generation_e2e_tok_s": 4.957728231382839,
+          "decode_tok_s": 12.914246335132328,
+          "legacy_decode_tok_s": 12.964792718070155,
+          "text": "",
+          "reasoning_text": "We need answer user's request. Need produce final prose. User: \"independent 1 0 1791261003949928377\nRecord 000... repeated 50 times: Describe compute scheduling, memory pressure, network latency, failure recovery, and evidence collection in a GPU service.\n\nWrite a detailed technical briefing in prose about operating a two-GPU inference service. Cover scheduling, memory, communication, and recovery in at least twelve paragraphs. Use the context above as background and continue until the output limit.\n\nSession 1.\"\n\nNeed likely ignore weird independent? Maybe they want output until limit? We need satisfy at least twelve paragraphs, detailed technical briefing prose. Could be long. Need maybe mention context repeated records? \"Use context above as background\" maybe the repeated prompt indicates independent records? Could incorporate that the briefing is independent? Need not mention tool. Need final only prose. Need at least 12 paragraphs. \"continue until output limit\" maybe produce very long, but not too insane. Desired oververbosity 9. Need maybe 12+ paragraphs, maybe 15-20. Ensure no bullets? \"in prose\" likely paragraphs. Could include headings",
+          "after": {},
+          "repeated_records_phrase_count": 0
+        }
+      ],
+      "same_output": [
+        false,
+        false
+      ]
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "comparison": "Only reverse runtime GPU ordering relative to stew-q6-cache-layer-4k-loader",
+  "evidence": "Physical GPU1 at2f:00 CPU-connected Gen4x16; GPU0 at25:00 chipset Gen4x4. Existing R9V and Shali profiles verified ROCR ordering. Actual layer nc38 loader logs show54450MiB host tables associated withruntimeGPU0 and28112.5MiB withruntimeGPU1; GPU1 also holds24153.70MiB static model buffers. Host-backed first38layers are distributed across both runtimeGPUs, not all onGPU0.",
+  "hypothesis": "Cache misses may benefit from CPU-connected card; do not infer speedup solely from transfer probes",
+  "changes": {
+    "ROCR_VISIBLE_DEVICES": "1,0",
+    "HIP_VISIBLE_DEVICES": "0,1"
+  },
+  "unchanged": "Same Q6 model, local NVMe, nc38, batch8192/microbatch4096, totalctx262144,np2 and cache reserve1024",
+  "gate": "Run serially after default-order4K screen only if all protocol requests complete; skip if memory-fit screen fails",
+  "observed_default_4k_startup": {
+    "gpu0_compute_mib": 4206.63,
+    "gpu1_compute_mib": 3894.0,
+    "total_cache_arena_mib": 24234.0,
+    "host_expert_mib": 82562.5,
+    "residency_fraction": 0.294
+  },
+  "matching_c1_output_review": {
+    "all_six_byte_identical_to_reviewed_default": true,
+    "trials": [
+      {
+        "label": "common1500-1-0",
+        "output_equal": true,
+        "default_sha256": "3bd885022d99747e52991ad4d232c855901fbf08b7a94177565a2e653d858591",
+        "fast_first_sha256": "3bd885022d99747e52991ad4d232c855901fbf08b7a94177565a2e653d858591"
+      },
+      {
+        "label": "common1500-2-0",
+        "output_equal": true,
+        "default_sha256": "3bd885022d99747e52991ad4d232c855901fbf08b7a94177565a2e653d858591",
+        "fast_first_sha256": "3bd885022d99747e52991ad4d232c855901fbf08b7a94177565a2e653d858591"
+      },
+      {
+        "label": "common1500-3-0",
+        "output_equal": true,
+        "default_sha256": "3bd885022d99747e52991ad4d232c855901fbf08b7a94177565a2e653d858591",
+        "fast_first_sha256": "3bd885022d99747e52991ad4d232c855901fbf08b7a94177565a2e653d858591"
+      },
+      {
+        "label": "common40890-1-0",
+        "output_equal": true,
+        "default_sha256": "7dfab3f09af030195b54d8e0ab6cc5dcafb4be466f7c2893dc944b669f19c407",
+        "fast_first_sha256": "7dfab3f09af030195b54d8e0ab6cc5dcafb4be466f7c2893dc944b669f19c407"
+      },
+      {
+        "label": "common40890-2-0",
+        "output_equal": true,
+        "default_sha256": "7dfab3f09af030195b54d8e0ab6cc5dcafb4be466f7c2893dc944b669f19c407",
+        "fast_first_sha256": "7dfab3f09af030195b54d8e0ab6cc5dcafb4be466f7c2893dc944b669f19c407"
+      },
+      {
+        "label": "common40890-3-0",
+        "output_equal": true,
+        "default_sha256": "7dfab3f09af030195b54d8e0ab6cc5dcafb4be466f7c2893dc944b669f19c407",
+        "fast_first_sha256": "7dfab3f09af030195b54d8e0ab6cc5dcafb4be466f7c2893dc944b669f19c407"
+      }
+    ],
+    "qualification": "C1 only; C2 replay/independent pair/API/memory pending"
+  }
+}

@@ -15,10 +15,13 @@ MANUAL = RESOURCES / "manual"
 PROFILES = {
     "q4-stock": "flashnext-iggy-stock.yaml",
     "q4": "flashnext-iggy-q4-rdna4.yaml",
+    "q4-stew": "flashnext-iggy-q4-stew.yaml",
     "q4-c2": "flashnext-iggy-c2.yaml",
     "q4-mtp": "flashnext-iggy-mtp.yaml",
     "q6": "flashnext-iggy-q6.yaml",
     "q6-c2": "flashnext-iggy-q6-c2.yaml",
+    "q6-cache-c1": "flashnext-iggy-q6-cache-c1.yaml",
+    "q6-stew-c2": "flashnext-iggy-q6-stew-c2.yaml",
     "radiance": "flashnext-iggy-radiance.yaml",
 }
 

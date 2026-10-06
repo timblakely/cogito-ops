@@ -1,0 +1,21 @@
+{
+  "failure": "Host kubectl stream times out and k8s.internal DNS no longer resolves; original runtime Pod staysReady withzero restarts. DirectIPAPIgetnodes shows allReady. Remote rawclient completes9results despitehoststreamfailure, with no remainingclientprocess.",
+  "recovery": "Onlylocal administrative kubectl endpoint override to https://192.168.42.10:6443; same CA/TLS/auth config and unchanged runtime/profile/protocol. Resume existing loadedPod for PP/postPP replay/API, do not rerun completedrawsuite.",
+  "updated_local_helpers": [
+    "run-profile.py",
+    "fetch-profile-results.py",
+    "collect-artifacts.py",
+    "production-smoke.py",
+    "verify-production.py",
+    "review-remove-profile.py",
+    "finish-private-campaign.py"
+  ],
+  "artifact_note": "Originalhostfailurelogs retained separately; canonicalremote rawJSON retains full9trial outputs/timings for manual review.",
+  "completed_raw_trials": 9,
+  "raw_json_sha256": "9760025a43a59e99f1aedd71e5914419c6a815b1039718928154a9781b70ac69",
+  "host_admin_idle_gap": "About32minutes afterraw started; samePodUID318d02fe-b684-43a8-b57f-d0d7523f1019, Ready andzero restarts. PP includesitsoriginal1Kwarmup andnonce-prefix controls afterresumption.",
+  "resumed_protocols": "pp,postpp-replay thenAPI3",
+  "talos_admin_recovery": "Default Talos endpoint nuc-2 also fails host DNS; future run-profile guards use direct192.168.42.13 endpoint. The currently resumed --existing process skips Talos startupguards; inference/protocolunchanged.",
+  "second_host_interruption": "VPNroute temporarilyunreachable; localhostkubectlstreamfails again during32Ksecondrequest. RemotePPclient2668continues, atomicallysaving each trial. By16:57 allthree32K/first64Kpass,15of16saved. NoPP rerun.",
+  "detached_recovery": "Preparedlocalcontrollerthenboundedlaunch confirmedPID2692. Singletonlock andexistingprocesscheck preventdoublelaunch. WaitsPPclient2668beforepostPPreplay14/API3; runtimeandrequestsunchanged. DirectIggyAPI192.168.42.13 nowusedbylocalhelpers."
+}

@@ -1,0 +1,44 @@
+flashnext-iggy-stage pause 0 paused []
+ 
+flashnext-r9v-stage pause 0 paused []
+ 
+flashnext-davetha-stage pause 0 paused []
+ 
+flashnext-public-download pause 0 paused []
+ 
+PROTOCOL stew-q6-classic-r15-full-qualification pp exit 1
+Unable to connect to the server: dial tcp 192.168.42.10:6443: connect: network is unreachable
+flashnext-iggy-stage resume 1  Unable to connect to the server: dial tcp 192.168.42.10:6443: connect: network is unreachable
+
+flashnext-r9v-stage resume 1  Unable to connect to the server: dial tcp 192.168.42.10:6443: connect: network is unreachable
+
+flashnext-davetha-stage resume 1  Unable to connect to the server: dial tcp 192.168.42.10:6443: connect: network is unreachable
+
+flashnext-public-download resume 1  Unable to connect to the server: dial tcp 192.168.42.10:6443: connect: network is unreachable
+
+Unable to connect to the server: dial tcp 192.168.42.10:6443: connect: network is unreachable
+Traceback (most recent call last):
+  File "/tmp/flashnext-competition/run-profile.py", line 71, in <module>
+    call(['exec',runner,'--','python3',remote+'/profile-smoke.py','--endpoint',endpoint,'--output',f'{remote}/results/{profile}-smoke.json'])
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/flashnext-competition/run-profile.py", line 9, in call
+    return subprocess.run(base+args,check=True,**kwargs)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/home/tim/.local/share/mise/installs/kubectl/1.37.1/kubectl', '--kubeconfig', '/home/tim/git/cogito/kubeconfig', '--server', 'https://192.168.42.10:6443', '-n', 'llm', 'exec', 'flashnext-iggy-stage', '--', 'python3', '/workspace/flashnext-competition/profile-smoke.py', '--endpoint', 'http://10.42.2.234:8080', '--output', '/workspace/flashnext-competition/results/stew-q6-classic-r15-full-qualification-smoke.json']' returned non-zero exit status 1.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/tmp/flashnext-competition/run-profile.py", line 74, in <module>
+    with (root/(profile+'-runtime.log')).open('wb') as f:call(['logs',name],stdout=f)
+                                                         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/flashnext-competition/run-profile.py", line 9, in call
+    return subprocess.run(base+args,check=True,**kwargs)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/home/tim/.local/share/mise/installs/kubectl/1.37.1/kubectl', '--kubeconfig', '/home/tim/git/cogito/kubeconfig', '--server', 'https://192.168.42.10:6443', '-n', 'llm', 'logs', 'flashnext-stew-q6-classic-r15-full-qualification']' returned non-zero exit status 1.

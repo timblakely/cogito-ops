@@ -1,0 +1,15 @@
+import ast,json
+from pathlib import Path
+r=Path('/tmp/flashnext-competition');name='stew-q6-cache-layer-4k-fast-first'
+p=json.loads((r/'stew-q6-cache-layer-4k-loader.json').read_text());p['metadata']['name']='flashnext-'+name;c=p['spec']['containers'][0];assert not any(e['name'] in ('ROCR_VISIBLE_DEVICES','HIP_VISIBLE_DEVICES') for e in c['env']);c['env'] += [{'name':'ROCR_VISIBLE_DEVICES','value':'1,0'},{'name':'HIP_VISIBLE_DEVICES','value':'0,1'}];(r/(name+'.json')).write_text(json.dumps(p,indent=2)+'\n')
+(r/'q6-fast-first-decision.json').write_text(json.dumps({'comparison':'Only reverse runtime GPU ordering relative to stew-q6-cache-layer-4k-loader','evidence':'Physical GPU1 at2f:00 CPU-connected Gen4x16; GPU0 at25:00 chipset Gen4x4. Existing R9V and Shali profiles verified ROCR ordering. Layer nc38 places host-backed first38expert layers on runtimeGPU0 and static last10 onruntimeGPU1.','hypothesis':'Cache misses may benefit from CPU-connected card; do not infer speedup solely from transfer probes','changes':{'ROCR_VISIBLE_DEVICES':'1,0','HIP_VISIBLE_DEVICES':'0,1'},'unchanged':'Same Q6 model, local NVMe, nc38, batch8192/microbatch4096, totalctx262144,np2 and cache reserve1024','gate':'Run serially after default-order4K screen only if all protocol requests complete; skip if memory-fit screen fails'},indent=2)+'\n')
+f=r/'run-q6-layer-retry.py';s=f.read_text();needle="name='stew-q6-all-cache-layer-4k-headroom'";assert needle in s
+s=s.replace(needle,"if p.returncode==0:\n name='stew-q6-cache-layer-4k-fast-first'\n with (r/(name+'-runner.log')).open('w') as f:\n  p=subprocess.run(['/usr/bin/python3','-u',str(r/'run-profile.py'),str(r/(name+'.json')),'--llama','--smoke','--protocols','common,replay,c2'],stdout=f,stderr=subprocess.STDOUT)\n print('FAST_FIRST_LAYER_RETRY_FINISHED',p.returncode,flush=True)\nelse:print('FAST_FIRST_LAYER_RETRY_SKIPPED_AFTER_DEFAULT_FIT_FAILURE',flush=True)\n"+needle,1);ast.parse(s);f.write_text(s)
+for fn,needle,repl in [
+ ('copy-local-evidence.py',"'stew-q6-all-cache-layer-4k-headroom']",f"'stew-q6-all-cache-layer-4k-headroom','{name}']"),
+ ('copy-local-evidence.py',"'stew-q6-all-cache-layer-4k-headroom-memory-screen-decision.json']","'stew-q6-all-cache-layer-4k-headroom-memory-screen-decision.json','q6-fast-first-decision.json']"),
+ ('render-q6-screens.py',"('All-expert 4K / 2GiB reserve','stew-q6-all-cache-layer-4k-headroom')]",f"('All-expert 4K / 2GiB reserve','stew-q6-all-cache-layer-4k-headroom'),('Layer 4K fast card first','{name}')]"),
+ ('render-memory-table.py',"('Q6 all-expert 4K / 2GiB reserve','stew-q6-all-cache-layer-4k-headroom')]",f"('Q6 all-expert 4K / 2GiB reserve','stew-q6-all-cache-layer-4k-headroom'),('Q6 layer 4K fast card first','{name}')]"),
+ ('render-performance-tables.py',"def read(name):",f"profiles += [('Q6 layer cache, 4K, fast card first','{name}','{name}-pp','{name}-c2')]\ndef read(name):")]:
+ f=r/fn;s=f.read_text();assert needle in s,fn;s=s.replace(needle,repl);ast.parse(s);f.write_text(s)
+print('FAST_FIRST_COMPARISON_PREPARED')

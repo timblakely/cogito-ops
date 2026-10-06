@@ -1,0 +1,44 @@
+QUALIFY_PHYSICAL_GPU:1
+synthetic-Q2_0-GU-pass0: type=42 rows=7 experts=3 ref_rms=1.98041 rel_l2=0.00106754 max_abs/ref_rms=0.00380488 zero_row_max=0
+synthetic-Q2_0-down-pass0: type=42 rows=7 experts=3 ref_rms=2.10697 rel_l2=0.000617685 max_abs/ref_rms=0.00253579 zero_row_max=0
+synthetic-Q2_0-GU-pass1: type=42 rows=7 experts=3 ref_rms=1.98512 rel_l2=0.0011973 max_abs/ref_rms=0.00416652 zero_row_max=0
+synthetic-Q2_0-down-pass1: type=42 rows=7 experts=3 ref_rms=2.12958 rel_l2=0.000538054 max_abs/ref_rms=0.00216068 zero_row_max=0
+synthetic-Q2_0-GU-pass2: type=42 rows=5 experts=2 ref_rms=1.90121 rel_l2=0.00125928 max_abs/ref_rms=0.00443 zero_row_max=0
+synthetic-Q2_0-down-pass2: type=42 rows=5 experts=2 ref_rms=2.0192 rel_l2=0.000491596 max_abs/ref_rms=0.00196968 zero_row_max=0
+MMQ parity screen passed
+strata: STRATA_HIP_WMMA: the prompt attention on matrix cores on (gfx1201)
+PASS int8 ctx 32768, 2048 queries: vs FP64 old 2.13e-06 new 2.64e-06 (output scale 3.62); new vs old 6.32e-06 (1.7e-06 of scale); 44.923 -> 6.343 ms per chunk (7.08x)
+PASS int8 ctx 1500, 1500 queries: vs FP64 old 1.78e-06 new 3.57e-06 (output scale 3.57); new vs old 5.25e-06 (1.4e-06 of scale); 13.824 -> 1.784 ms per chunk (7.75x)
+PASS int8 ctx 2100, 256 queries: vs FP64 old 2.03e-06 new 3.13e-06 (output scale 3.61); new vs old 4.05e-06 (1.1e-06 of scale); 5.684 -> 0.816 ms per chunk (6.97x)
+FAILURES: 0
+PASS 512 experts, k 10, 65536 rows: fast kernel vs the portable kernel: 0 rows differ
+PASS 512 experts, k 10, 65536 rows: fast kernel, serial path vs the portable kernel: 0 rows differ
+  portable: 52.06 us per single-token call
+  fast: 11.45 us per single-token call
+PASS 256 experts, k 8, 8192 rows: fast kernel vs the portable kernel: 0 rows differ
+PASS 256 experts, k 8, 8192 rows: fast kernel, serial path vs the portable kernel: 0 rows differ
+  portable: 44.00 us per single-token call
+  fast: 9.09 us per single-token call
+FAILURES: 0
+QUALIFY_PHYSICAL_GPU:0
+synthetic-Q2_0-GU-pass0: type=42 rows=7 experts=3 ref_rms=1.98041 rel_l2=0.00106754 max_abs/ref_rms=0.00380488 zero_row_max=0
+synthetic-Q2_0-down-pass0: type=42 rows=7 experts=3 ref_rms=2.10697 rel_l2=0.000617685 max_abs/ref_rms=0.00253579 zero_row_max=0
+synthetic-Q2_0-GU-pass1: type=42 rows=7 experts=3 ref_rms=1.98512 rel_l2=0.0011973 max_abs/ref_rms=0.00416652 zero_row_max=0
+synthetic-Q2_0-down-pass1: type=42 rows=7 experts=3 ref_rms=2.12958 rel_l2=0.000538054 max_abs/ref_rms=0.00216068 zero_row_max=0
+synthetic-Q2_0-GU-pass2: type=42 rows=5 experts=2 ref_rms=1.90121 rel_l2=0.00125928 max_abs/ref_rms=0.00443 zero_row_max=0
+synthetic-Q2_0-down-pass2: type=42 rows=5 experts=2 ref_rms=2.0192 rel_l2=0.000491596 max_abs/ref_rms=0.00196968 zero_row_max=0
+MMQ parity screen passed
+strata: STRATA_HIP_WMMA: the prompt attention on matrix cores on (gfx1201)
+PASS int8 ctx 32768, 2048 queries: vs FP64 old 2.13e-06 new 2.64e-06 (output scale 3.62); new vs old 6.32e-06 (1.7e-06 of scale); 44.008 -> 6.017 ms per chunk (7.31x)
+PASS int8 ctx 1500, 1500 queries: vs FP64 old 1.78e-06 new 3.57e-06 (output scale 3.57); new vs old 5.25e-06 (1.4e-06 of scale); 14.319 -> 1.787 ms per chunk (8.01x)
+PASS int8 ctx 2100, 256 queries: vs FP64 old 2.03e-06 new 3.13e-06 (output scale 3.61); new vs old 4.05e-06 (1.1e-06 of scale); 5.661 -> 0.800 ms per chunk (7.08x)
+FAILURES: 0
+PASS 512 experts, k 10, 65536 rows: fast kernel vs the portable kernel: 0 rows differ
+PASS 512 experts, k 10, 65536 rows: fast kernel, serial path vs the portable kernel: 0 rows differ
+  portable: 28.84 us per single-token call
+  fast: 12.16 us per single-token call
+PASS 256 experts, k 8, 8192 rows: fast kernel vs the portable kernel: 0 rows differ
+PASS 256 experts, k 8, 8192 rows: fast kernel, serial path vs the portable kernel: 0 rows differ
+  portable: 20.85 us per single-token call
+  fast: 9.74 us per single-token call
+FAILURES: 0

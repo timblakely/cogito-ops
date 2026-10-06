@@ -1,0 +1,142 @@
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "flashnext-shali-sdk10-link-probe",
+    "namespace": "llm"
+  },
+  "spec": {
+    "restartPolicy": "Never",
+    "automountServiceAccountToken": false,
+    "nodeSelector": {
+      "kubernetes.io/hostname": "iggy"
+    },
+    "tolerations": [
+      {
+        "key": "node-role.kubernetes.io/control-plane",
+        "operator": "Exists",
+        "effect": "NoSchedule"
+      },
+      {
+        "key": "amd.com/gpu",
+        "operator": "Exists",
+        "effect": "NoSchedule"
+      }
+    ],
+    "securityContext": {
+      "seccompProfile": {
+        "type": "Unconfined"
+      }
+    },
+    "containers": [
+      {
+        "name": "runtime",
+        "image": "docker.io/stilldeadcode/vllm-radiance:0.9.3@sha256:45694209177a55a1ab3ba6702fe6e978b1b66a6e66ae3fc066f8d579f7bc4c25",
+        "command": [
+          "/bin/bash",
+          "-ec",
+          "ldd /workspace/flashnext-competition/stew-r30/build/bin/libggml-hip.so; ldd /workspace/flashnext-competition/stew-r30/build/bin/libggml-cpu.so; exec /workspace/flashnext-competition/stew-r30/build/bin/llama-server --version"
+        ],
+        "env": [
+          {
+            "name": "LD_LIBRARY_PATH",
+            "value": "/workspace/flashnext-competition/stew-r30/build/bin:/workspace/flashnext-competition:/ngram/davetha-sdk/_rocm_sdk_core/lib:/ngram/davetha-sdk/_rocm_sdk_core/lib/llvm/lib:/ngram/davetha-sdk/_rocm_sdk_core/lib/rocm_sysdeps/lib:/ngram/davetha-sdk/_rocm_sdk_core/lib/host-math/lib:/ngram/davetha-sdk/_rocm_sdk_libraries/lib:/usr/local/lib"
+          },
+          {
+            "name": "OMP_WAIT_POLICY",
+            "value": "active"
+          },
+          {
+            "name": "GGML_SCHED_DEVGATHER",
+            "value": "0"
+          },
+          {
+            "name": "MOE_EXPERT_CACHE_DEVMAP",
+            "value": "1"
+          },
+          {
+            "name": "MOE_EXPERT_CACHE_RESERVE_MIB",
+            "value": "1024"
+          },
+          {
+            "name": "MOE_EXPERT_CACHE_MIB",
+            "value": "4096"
+          },
+          {
+            "name": "ROCR_VISIBLE_DEVICES",
+            "value": "1"
+          },
+          {
+            "name": "HIP_VISIBLE_DEVICES",
+            "value": "0"
+          },
+          {
+            "name": "ROCM_PATH",
+            "value": "/ngram/davetha-sdk/_rocm_sdk_core"
+          },
+          {
+            "name": "ROCM_HOME",
+            "value": "/ngram/davetha-sdk/_rocm_sdk_core"
+          },
+          {
+            "name": "HIP_PATH",
+            "value": "/ngram/davetha-sdk/_rocm_sdk_core"
+          }
+        ],
+        "resources": {
+          "requests": {
+            "cpu": "100m",
+            "memory": "64Mi"
+          },
+          "limits": {
+            "memory": "512Mi"
+          }
+        },
+        "volumeMounts": [
+          {
+            "name": "weights",
+            "mountPath": "/models"
+          },
+          {
+            "name": "build",
+            "mountPath": "/workspace"
+          },
+          {
+            "name": "archive",
+            "mountPath": "/archive"
+          },
+          {
+            "name": "ngram",
+            "mountPath": "/ngram"
+          }
+        ]
+      }
+    ],
+    "volumes": [
+      {
+        "name": "weights",
+        "persistentVolumeClaim": {
+          "claimName": "flashnext-weights"
+        }
+      },
+      {
+        "name": "build",
+        "persistentVolumeClaim": {
+          "claimName": "cuda-dev-workspace"
+        }
+      },
+      {
+        "name": "archive",
+        "persistentVolumeClaim": {
+          "claimName": "llm-model-archive"
+        }
+      },
+      {
+        "name": "ngram",
+        "persistentVolumeClaim": {
+          "claimName": "flashnext-iggy-ngram"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "profile": "radiance-exact-c2",
+  "protocol": "c2",
+  "timestamp_utc": "2026-10-06T00:19:54.781938+00:00",
+  "thinking": "off",
+  "trials": [
+    {
+      "label": "common1500-1-0",
+      "prompt_sha256": "bb599f071be6cd5346604fbe80bbd7bff8da98d636d083e51007b26abf52a4eb",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "reasoning_effort": "none",
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "max_tokens": 256
+      },
+      "before": {},
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 1503,
+        "completion_tokens": 256,
+        "total_tokens": 1759,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 1.385762169957161,
+      "wall_s": 4.0992258039768785,
+      "pp_effective_tok_s": 1084.6016961528567,
+      "generation_e2e_tok_s": 62.45081687172263,
+      "decode_tok_s": 93.9794371457529,
+      "legacy_decode_tok_s": 94.34436370933128,
+      "text": "Operating a two-GPU inference service requires a sophisticated orchestration layer that balances raw computational throughput with the physical constraints of hardware interconnects and memory bandwidth. The foundational challenge lies in scheduling, where the system must dynamically allocate incoming inference requests to the appropriate GPU based on current load, model partitioning strategies, and latency requirements. In a dual-GPU setup, the scheduler often employs a hybrid approach, combining static model sharding for large language models with dynamic request routing for smaller, latency-sensitive tasks. This ensures that neither GPU becomes a bottleneck while the other remains idle, a common failure mode in naive round-robin scheduling schemes that ignore the varying computational costs of different token lengths or batch sizes.\n\nMemory pressure is the most critical constraint in GPU inference, particularly when dealing with large transformer models that require substantial VRAM for both weights and the key-value cache. In a two-GPU configuration, memory management must account for the overhead of model parallelism, where tensors are split across devices, introducing synchronization points that can stall execution if not carefully managed. The system must monitor VRAM usage in real-time, triggering garbage collection or cache eviction policies when utilization exceeds safe thresholds, such as eighty-five percent, to prevent out-of-memory errors that would crash the service. Additionally, the host",
+      "reasoning_text": "",
+      "after": {}
+    },
+    {
+      "label": "common1500-1-1",
+      "prompt_sha256": "6b7f368d6acf320d798dcbe59a22078c2557951d368263e238ae49ba31ad119b",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "reasoning_effort": "none",
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "max_tokens": 256
+      },
+      "before": {},
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 1503,
+        "completion_tokens": 256,
+        "total_tokens": 1759,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.9289039720315486,
+      "wall_s": 3.857093552011065,
+      "pp_effective_tok_s": 1618.035927559747,
+      "generation_e2e_tok_s": 66.37121878117868,
+      "decode_tok_s": 87.08773419509338,
+      "legacy_decode_tok_s": 87.4260333928894,
+      "text": "Operating a two-GPU inference service requires a sophisticated orchestration layer that balances raw computational throughput with the physical constraints of hardware interconnects and memory bandwidth. The foundational challenge lies in scheduling, where the system must dynamically allocate incoming inference requests to the appropriate GPU based on current load, model partitioning strategies, and latency requirements. In a dual-GPU setup, the scheduler often employs a hybrid approach, utilizing data parallelism for smaller models that fit within the VRAM of a single card, while resorting to tensor or pipeline parallelism for larger models that exceed the memory capacity of one device. This decision logic must be instantaneous, as any delay in routing decisions directly impacts the time-to-first-token metric, a critical key performance indicator for interactive applications. The scheduler must also account for the heterogeneity of workloads, distinguishing between batched requests that benefit from high throughput and single-stream requests that demand low latency, ensuring that neither type starves the other of resources.\n\nMemory pressure is the most common bottleneck in GPU inference, particularly when dealing with large language models or high-resolution image generation tasks. Each GPU possesses a finite amount of high-bandwidth memory, and the operating system must meticulously manage the allocation of model weights, activation states, and intermediate buffers. When memory pressure exceeds a",
+      "reasoning_text": "",
+      "after": {}
+    },
+    {
+      "label": "common40890-1-0",
+      "prompt_sha256": "132b753c3fd421bd6e7be097793de0b9cdf696d9877d4ac35c155859a9e823f7",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "reasoning_effort": "none",
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "max_tokens": 256
+      },
+      "before": {},
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 40703,
+        "completion_tokens": 256,
+        "total_tokens": 40959,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 18.092763063963503,
+      "wall_s": 39.765146514051594,
+      "pp_effective_tok_s": 2249.6840231700558,
+      "generation_e2e_tok_s": 6.437798485403258,
+      "decode_tok_s": 11.766222445538313,
+      "legacy_decode_tok_s": 11.812267930270467,
+      "text": "Operating a two-GPU inference service requires a sophisticated orchestration layer that balances computational throughput with latency constraints, ensuring that both hardware units are utilized efficiently without creating bottlenecks in the data pipeline. The core of this operation lies in the compute scheduling strategy, which must dynamically allocate incoming inference requests to the available GPU resources based on current load, model complexity, and priority levels. A naive round-robin approach often fails in heterogeneous workloads, so a more intelligent scheduler is necessary to track the queue depth and processing time of each GPU, directing new tasks to the unit with the lowest predicted completion time. This scheduling logic must also account for kernel launch overheads and context switching costs, which can be significant when alternating between different model architectures or batch sizes on the same device.\n\nMemory pressure is a critical constraint in GPU inference, as the high-bandwidth memory (HBM) capacity is finite and expensive to expand. The service must implement rigorous memory management policies to prevent out-of-memory errors, which can crash the entire inference engine. This involves pre-allocating memory pools for model weights, intermediate activations, and output buffers, ensuring that these allocations are contiguous to maximize memory access efficiency. When memory usage approaches critical thresholds, the scheduler must trigger backpressure mechanisms, such as rejecting new",
+      "reasoning_text": "",
+      "after": {}
+    },
+    {
+      "label": "common40890-1-1",
+      "prompt_sha256": "7dcd019b8dfcd308d9e191d42e316856732bfe305f51cff55c90897bdb86ea4a",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "reasoning_effort": "none",
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "max_tokens": 256
+      },
+      "before": {},
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 40703,
+        "completion_tokens": 256,
+        "total_tokens": 40959,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 37.59595972800162,
+      "wall_s": 40.62642886105459,
+      "pp_effective_tok_s": 1082.6429301041155,
+      "generation_e2e_tok_s": 6.301316831847048,
+      "decode_tok_s": 84.1482610062256,
+      "legacy_decode_tok_s": 84.47536957490763,
+      "text": "Operating a two-GPU inference service requires a sophisticated orchestration layer that balances computational throughput with latency constraints, ensuring that both hardware units are utilized efficiently without creating bottlenecks in the data pipeline. The core of this operation lies in the compute scheduling strategy, which must dynamically allocate incoming inference requests to the available GPUs based on real-time load metrics, model complexity, and batch size optimization. A naive round-robin approach often fails in heterogeneous workloads, so a more intelligent scheduler is required to monitor queue depths and kernel execution times, directing traffic to the GPU with the lowest predicted latency for the specific request type. This scheduling logic must also account for the overhead of context switching between different models or batch configurations, as frequent switches can degrade performance significantly due to the cost of reloading weights and resetting CUDA contexts.\n\nMemory pressure is a critical constraint in GPU inference, particularly when dealing with large language models or high-resolution image processing tasks that demand substantial VRAM. The service must implement rigorous memory management strategies, including dynamic batching and memory pooling, to prevent out-of-memory errors that can crash the inference engine. When memory usage approaches critical thresholds, the scheduler should trigger backpressure mechanisms, such as rejecting new requests or forcing smaller batch sizes, to maintain stability. Additionally, techniques like quantization and",
+      "reasoning_text": "",
+      "after": {}
+    }
+  ]
+}

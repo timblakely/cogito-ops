@@ -1,0 +1,141 @@
+{
+  "profile": "davetha-public-compat-norm2",
+  "protocol": "c2",
+  "timestamp_utc": "2026-10-06T11:12:13.573727+00:00",
+  "thinking": "default",
+  "trials": [
+    {
+      "label": "common1500-1-0",
+      "prompt_sha256": "869018ae86cd0b52a7d18bc39eacc6932275d287239bda49a3be44b459e02565",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 256
+      },
+      "before": {},
+      "concurrency_nonce": "independent 0 0 1791285133620189689",
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 1501,
+        "total_tokens": 1757,
+        "completion_tokens": 256,
+        "completion_tokens_details": {
+          "reasoning_tokens": 125
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 4.487548341974616,
+      "wall_s": 9.298385153990239,
+      "pp_effective_tok_s": 334.48107643995394,
+      "generation_e2e_tok_s": 27.531662300538507,
+      "decode_tok_s": 53.006079734261064,
+      "legacy_decode_tok_s": 53.21319554232443,
+      "text": "\n\nOperating a two-GPU inference service demands a fundamentally different operational philosophy than managing a single accelerator or a large multi-node cluster. The two-GPU topology sits in an awkward middle ground: it is too small to justify the overhead of a distributed scheduler like Slurm or Kubernetes with GPU-operator plugins, yet too large to treat as a simple single-device workload where CUDA streams and pinned host memory are the only concerns. Every design decision in such a system must account for the fact that there is exactly one peer GPU, one NVLink or PCIe interconnect between them, and a single host CPU that arbitrates all coordination. The briefing that follows addresses the",
+      "reasoning_text": "The user wants a detailed technical briefing in prose about operating a two-GPU inference service, covering scheduling, memory, communication, and recovery in at least twelve paragraphs. The repeated records all ask the same thing: \"Describe compute scheduling, memory pressure, network latency, failure recovery, and evidence collection in a GPU service.\" This is the background context. I need to write a comprehensive technical briefing in prose, at least twelve paragraphs, covering compute scheduling, memory pressure, network latency/communication, failure recovery, and evidence collection in a two-GPU inference service. Let me write this as a thorough, detailed technical document.\n",
+      "after": {},
+      "base_prompt_sha256": "5d66f3e0639883c8f5697ccb114193af00889a1923cdfa7464a15f88f0f0049f",
+      "base_prompt_tokens": 1445
+    },
+    {
+      "label": "common1500-1-1",
+      "prompt_sha256": "92b3b286ded14bbdfc7fb55ad3b739d60ca506745455ad3333bcf04de9b4bdfa",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 256
+      },
+      "before": {},
+      "concurrency_nonce": "independent 1 0 1791285133620212529",
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 1501,
+        "total_tokens": 1757,
+        "completion_tokens": 256,
+        "completion_tokens_details": {
+          "reasoning_tokens": 106
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 2.0538857340579852,
+      "wall_s": 9.160645188065246,
+      "pp_effective_tok_s": 730.8098864070613,
+      "generation_e2e_tok_s": 27.945629892261763,
+      "decode_tok_s": 35.88168571910026,
+      "legacy_decode_tok_s": 36.02204375380263,
+      "text": "\n\nOperating a two-GPU inference service demands a fundamentally different operational philosophy than managing a single-GPU deployment, because every layer of the stack\u2014from kernel scheduling to application-level request routing\u2014must now account for the presence of a second processing element that can either multiply throughput or introduce coordination overhead that erodes the very gains the second device was meant to provide. The scheduler at the heart of such a service is not merely a queue that dispatches kernels to a single CUDA stream; it is a multi-device orchestrator that must decide, for every incoming inference request, whether to place the entire workload on one GPU, split it across both GPUs via tensor parallelism or pipeline parallelism, or batch it with other requests to maximize utilization. In a two",
+      "reasoning_text": "The user wants a detailed technical briefing in prose about operating a two-GPU inference service, covering scheduling, memory, communication, and recovery in at least twelve paragraphs. The repeated records all ask the same question about compute scheduling, memory pressure, network latency, failure recovery, and evidence collection in a GPU service. I need to write a comprehensive technical briefing that addresses all these topics in the context of a two-GPU inference service. Let me write this in prose, at least twelve paragraphs, covering all the requested topics thoroughly.\n",
+      "after": {},
+      "base_prompt_sha256": "5d66f3e0639883c8f5697ccb114193af00889a1923cdfa7464a15f88f0f0049f",
+      "base_prompt_tokens": 1445
+    },
+    {
+      "label": "common40890-1-0",
+      "prompt_sha256": "48999ba295ba5a8a5c4efb637823ccb590bac8bc06cde86c5121791853995327",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 256
+      },
+      "before": {},
+      "concurrency_nonce": "independent 0 0 1791285143560256746",
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 40701,
+        "total_tokens": 40957,
+        "completion_tokens": 256,
+        "completion_tokens_details": {
+          "reasoning_tokens": 112
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 46.33921461296268,
+      "wall_s": 169.11062647693325,
+      "pp_effective_tok_s": 878.327359234408,
+      "generation_e2e_tok_s": 1.513801972905106,
+      "decode_tok_s": 2.077032383158576,
+      "legacy_decode_tok_s": 2.0851759877425318,
+      "text": "\n\nOperating a two-GPU inference service demands a fundamentally different operational posture than single-GPU deployments, because the very act of splitting a model across two devices introduces an entire class of failure modes, scheduling constraints, and performance pathologies that simply do not exist in a single-device world. The two-GPU topology is the smallest configuration in which tensor parallelism, pipeline parallelism, or expert parallelism become meaningful, and every one of those strategies imposes hard requirements on inter-device bandwidth, kernel launch ordering, and memory residency that the operator must understand at a granular level before the service can be considered production-ready. This briefing walks through the five pillars of that operational reality: compute scheduling, memory pressure, network and",
+      "reasoning_text": "The user wants a detailed technical briefing in prose about operating a two-GPU inference service, covering scheduling, memory, communication, and recovery in at least twelve paragraphs. The repeated records above are essentially noise/padding that all say the same thing - they're asking me to describe compute scheduling, memory pressure, network latency, failure recovery, and evidence collection in a GPU service. I should ignore the repetitive noise and write a substantive technical briefing.\n\nLet me write a thorough, detailed technical briefing covering all the requested topics in at least twelve paragraphs of prose.\n",
+      "after": {},
+      "base_prompt_sha256": "33dda80a6f1a40b0ebda1e0b6bd6a9db761e22b33b2c0771d1630b35cff000a3",
+      "base_prompt_tokens": 40645
+    },
+    {
+      "label": "common40890-1-1",
+      "prompt_sha256": "49483501a5dff9b0818f110da4555f80c8f323413f6c6494430380e82bebd100",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 256
+      },
+      "before": {},
+      "concurrency_nonce": "independent 1 0 1791285143560359586",
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 40701,
+        "total_tokens": 40957,
+        "completion_tokens": 256,
+        "completion_tokens_details": {
+          "reasoning_tokens": 98
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 148.82821915997192,
+      "wall_s": 170.77096901694313,
+      "pp_effective_tok_s": 273.4763624111598,
+      "generation_e2e_tok_s": 1.4990838400325575,
+      "decode_tok_s": 11.621209388126946,
+      "legacy_decode_tok_s": 11.666723709137525,
+      "text": "\n\nOperating a two-GPU inference service demands a fundamentally different operational posture than managing a single-GPU deployment, because every subsystem\u2014scheduling, memory management, inter-device communication, fault tolerance, and observability\u2014must be designed with the assumption that two accelerators are simultaneously active, potentially contending for shared host resources, and each capable of independent failure. The briefing that follows addresses each of these dimensions in depth, drawing on the operational realities of production inference workloads running on paired GPUs such as NVIDIA A100, H100, or equivalent hardware connected via NVLink or PCIe, orchestrated by a runtime such as CUDA, ROCm, or a higher-level framework like TensorRT, Triton Inference Server, or vLLM.\n\nCompute scheduling in a",
+      "reasoning_text": "The user wants a detailed technical briefing in prose about operating a two-GPU inference service, covering scheduling, memory, communication, and recovery in at least twelve paragraphs. The repeated records above are just filler/context indicating this is a GPU service operations topic. I need to write a comprehensive, detailed technical briefing in prose format covering compute scheduling, memory pressure, network latency, failure recovery, and evidence collection in a GPU service context. Let me write this as a thorough, expert-level document.\n",
+      "after": {},
+      "base_prompt_sha256": "33dda80a6f1a40b0ebda1e0b6bd6a9db761e22b33b2c0771d1630b35cff000a3",
+      "base_prompt_tokens": 40645
+    }
+  ],
+  "cache_control": "verified reset_prefix_cache before each matching chat repetition"
+}

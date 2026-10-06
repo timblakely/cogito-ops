@@ -1,0 +1,163 @@
+devices=2
+affected = the hostcall kernel is REFUSED, or its marker never prints,
+           while the plain kernel is ok on the same device
+
+--- device 0 (gfx1201) ---
+  plain     ok        launch:no error | sync:no error | lastError:no error
+    [device] HOSTCALL_MARKER reached the host
+  hostcall  ok        launch:no error | sync:no error | lastError:no error
+
+--- device 1 (gfx1201) ---
+  plain     ok        launch:no error | sync:no error | lastError:no error
+  hostcall  REFUSED   launch:the operation cannot be performed in the present state | sync:the operation cannot be performed in the present state | lastError:the operation cannot be performed in the present state
+
+If no '[device] HOSTCALL_MARKER' line appeared for a device, hostcall is
+unavailable there, whatever the return codes said.
+TORCH 2.11.0+rocm7.14 HIP 7.14.60850 DEVICES 2
+flashnext-rccl-probe:60:60 [0] NCCL INFO Kernel version: 6.18.36-talos
+flashnext-rccl-probe:60:60 [0] NCCL INFO Hipruntime version: 71460850, firmware version: -1
+flashnext-rccl-probe:60:60 [0] NCCL INFO Bootstrap: Using eth0:10.42.2.231<0>
+INFO 10-06 02:16:10 [pynccl.py:113] vLLM is using nccl==2.27.7
+flashnext-rccl-probe:61:61 [1] NCCL INFO ROCr version 1.21
+flashnext-rccl-probe:61:61 [1] NCCL INFO Dmabuf feature disabled without NCCL_DMABUF_ENABLE=1
+flashnext-rccl-probe:60:60 [0] NCCL INFO ROCr version 1.21
+flashnext-rccl-probe:61:61 [1] NCCL INFO Kernel version: 6.18.36-talos
+flashnext-rccl-probe:60:60 [0] NCCL INFO Dmabuf feature disabled without NCCL_DMABUF_ENABLE=1
+flashnext-rccl-probe:60:60 [0] NCCL INFO Kernel version: 6.18.36-talos
+flashnext-rccl-probe:61:61 [1] NCCL INFO Hipruntime version: 71460850, firmware version: -1
+flashnext-rccl-probe:60:60 [0] NCCL INFO RCCL version : 2.27.7-release/rocm-rel-7.1.1.1:bf3ebf5+
+HIP version  : 7.14.60850-0000000
+ROCm version : 7.14.0.0-9999-2b22ab01
+Hostname     : flashnext-rccl-probe
+Librccl path : /competition/librccl-nohostcall-2.27.7-multiarch.so
+flashnext-rccl-probe:61:61 [1] NCCL INFO Bootstrap: Using eth0:10.42.2.231<0>
+flashnext-rccl-probe:61:61 [1] NCCL INFO RCCL version : 2.27.7-release/rocm-rel-7.1.1.1:bf3ebf5+
+HIP version  : 7.14.60850-0000000
+ROCm version : 7.14.0.0-9999-2b22ab01
+Hostname     : flashnext-rccl-probe
+Librccl path : /competition/librccl-nohostcall-2.27.7-multiarch.so
+flashnext-rccl-probe:60:60 [0] NCCL INFO NET/Plugin: Could not find: libnccl-net.so. 
+flashnext-rccl-probe:60:60 [0] NCCL INFO Failed to open libibverbs.so[.1]
+flashnext-rccl-probe:60:60 [0] NCCL INFO NET/Socket : Using [0]eth0:10.42.2.231<0>
+flashnext-rccl-probe:60:60 [0] NCCL INFO Initialized NET plugin Socket
+flashnext-rccl-probe:60:60 [0] NCCL INFO Assigned NET plugin Socket to comm
+flashnext-rccl-probe:60:60 [0] NCCL INFO Using network Socket
+flashnext-rccl-probe:60:60 [0] NCCL INFO [node_id = 1; gpu_id = 8636; unique_id = 6913036344435248706; location_id = 9472; bdf = 9472; domain = 0; partition = 0], 
+flashnext-rccl-probe:60:60 [0] NCCL INFO [node_id = 2; gpu_id = 34362; unique_id = 8060172123639546342; location_id = 12032; bdf = 12032; domain = 0; partition = 0], 
+flashnext-rccl-probe:60:60 [0] NCCL INFO initialized internal alternative rsmi functionality
+flashnext-rccl-probe:61:61 [1] NCCL INFO NET/Plugin: Could not find: libnccl-net.so. 
+flashnext-rccl-probe:61:61 [1] NCCL INFO Failed to open libibverbs.so[.1]
+flashnext-rccl-probe:61:61 [1] NCCL INFO NET/Socket : Using [0]eth0:10.42.2.231<0>
+flashnext-rccl-probe:61:61 [1] NCCL INFO Initialized NET plugin Socket
+flashnext-rccl-probe:61:61 [1] NCCL INFO Assigned NET plugin Socket to comm
+flashnext-rccl-probe:61:61 [1] NCCL INFO Using network Socket
+flashnext-rccl-probe:61:61 [1] NCCL INFO [node_id = 1; gpu_id = 8636; unique_id = 6913036344435248706; location_id = 9472; bdf = 9472; domain = 0; partition = 0], 
+flashnext-rccl-probe:61:61 [1] NCCL INFO [node_id = 2; gpu_id = 34362; unique_id = 8060172123639546342; location_id = 12032; bdf = 12032; domain = 0; partition = 0], 
+flashnext-rccl-probe:61:61 [1] NCCL INFO initialized internal alternative rsmi functionality
+flashnext-rccl-probe:60:60 [0] NCCL INFO ncclCommInitRank_impl comm 0x48619c40 rank 0 nranks 2 cudaDev 0 nvmlDev 1 busId 2f000 commId 0x18039fc67a764fde - Init START
+flashnext-rccl-probe:61:61 [1] NCCL INFO ncclCommInitRank_impl comm 0x2c698fd0 rank 1 nranks 2 cudaDev 1 nvmlDev 0 busId 25000 commId 0x18039fc67a764fde - Init START
+flashnext-rccl-probe:61:61 [1] NCCL INFO RAS client listening socket at ::1<28028>
+flashnext-rccl-probe:60:60 [0] NCCL INFO RAS client listening socket at ::1<28028>
+flashnext-rccl-probe:60:60 [0] NCCL INFO Bootstrap timings total 0.012866 (create 0.000039, send 0.000083, recv 0.012419, ring 0.000014, delay 0.000001)
+flashnext-rccl-probe:61:61 [1] NCCL INFO Bootstrap timings total 0.000514 (create 0.000036, send 0.000079, recv 0.000099, ring 0.000016, delay 0.000001)
+flashnext-rccl-probe:60:60 [0] NCCL INFO initialized internal alternative rsmi functionality
+flashnext-rccl-probe:61:61 [1] NCCL INFO initialized internal alternative rsmi functionality
+flashnext-rccl-probe:61:61 [1] NCCL INFO Setting affinity for GPU 0 to 0-23
+flashnext-rccl-probe:61:61 [1] NCCL INFO GFX9 cheap fence is OFF
+flashnext-rccl-probe:60:60 [0] NCCL INFO Setting affinity for GPU 1 to 0-23
+flashnext-rccl-probe:60:60 [0] NCCL INFO GFX9 cheap fence is OFF
+flashnext-rccl-probe:61:61 [1] NCCL INFO comm 0x2c698fd0 rank 1 nRanks 2 nNodes 1 localRanks 2 localRank 1 MNNVL 0
+flashnext-rccl-probe:60:60 [0] NCCL INFO comm 0x48619c40 rank 0 nRanks 2 nNodes 1 localRanks 2 localRank 0 MNNVL 0
+flashnext-rccl-probe:61:61 [1] NCCL INFO Trees [0] -1/-1/-1->1->0 [1] -1/-1/-1->1->0 comm 0x2c698fd0 nRanks 02 busId 25000
+flashnext-rccl-probe:60:60 [0] NCCL INFO Channel 00/02 : 0 1
+flashnext-rccl-probe:60:60 [0] NCCL INFO Channel 01/02 : 0 1
+flashnext-rccl-probe:61:61 [1] NCCL INFO P2P Chunksize set to 131072
+flashnext-rccl-probe:60:60 [0] NCCL INFO Trees [0] 1/-1/-1->0->-1 [1] 1/-1/-1->0->-1 comm 0x48619c40 nRanks 02 busId 2f000
+flashnext-rccl-probe:60:60 [0] NCCL INFO P2P Chunksize set to 131072
+flashnext-rccl-probe:60:60 [0] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so. 
+flashnext-rccl-probe:61:61 [1] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so. 
+flashnext-rccl-probe:60:60 [0] NCCL INFO Check P2P Type isAllDirectP2p 1 directMode 0
+flashnext-rccl-probe:61:172 [1] NCCL INFO [Proxy Service] Device 1 CPU core 3
+flashnext-rccl-probe:60:175 [0] NCCL INFO [Proxy Service UDS] Device 0 CPU core 23
+flashnext-rccl-probe:61:174 [1] NCCL INFO [Proxy Service UDS] Device 1 CPU core 6
+flashnext-rccl-probe:60:173 [0] NCCL INFO [Proxy Service] Device 0 CPU core 3
+flashnext-rccl-probe:60:60 [0] NCCL INFO Channel 00/0 : 0[2f000] -> 1[25000] via P2P/IPC comm 0x48619c40 nRanks 02
+flashnext-rccl-probe:61:61 [1] NCCL INFO Channel 00/0 : 1[25000] -> 0[2f000] via P2P/IPC comm 0x2c698fd0 nRanks 02
+flashnext-rccl-probe:60:60 [0] NCCL INFO Channel 01/0 : 0[2f000] -> 1[25000] via P2P/IPC comm 0x48619c40 nRanks 02
+flashnext-rccl-probe:61:61 [1] NCCL INFO Channel 01/0 : 1[25000] -> 0[2f000] via P2P/IPC comm 0x2c698fd0 nRanks 02
+flashnext-rccl-probe:60:60 [0] NCCL INFO Connected all rings, use ring PXN 0 GDR 1
+flashnext-rccl-probe:61:61 [1] NCCL INFO Connected all rings, use ring PXN 0 GDR 1
+flashnext-rccl-probe:60:60 [0] NCCL INFO Connected all trees
+flashnext-rccl-probe:61:61 [1] NCCL INFO Connected all trees
+flashnext-rccl-probe:60:178 [0] NCCL INFO [Proxy Progress] Device 0 CPU core 4
+flashnext-rccl-probe:61:179 [1] NCCL INFO [Proxy Progress] Device 1 CPU core 23
+flashnext-rccl-probe:60:60 [0] NCCL INFO NCCL_PROTO set by environment to Simple
+flashnext-rccl-probe:60:60 [0] NCCL INFO NCCL_ALGO set by environment to Ring
+flashnext-rccl-probe:60:60 [0] NCCL INFO Enabled NCCL Func/Proto/Algo Matrix:
+     Function |       LL     LL128    Simple   |          Tree           Ring  CollNetDirect   CollNetChain           NVLS       NVLSTree            PAT  
+    AllGather |        0         0         1   |             0              1              0              0              0              0              0  
+    AllReduce |        0         0         1   |             0              1              0              0              0              0              0  
+AllToAllPivot |        0         0         1   |             0              1              0              0              0              0              0  
+    Broadcast |        0         0         1   |             0              1              0              0              0              0              0  
+       Reduce |        0         0         1   |             0              1              0              0              0              0              0  
+
+flashnext-rccl-probe:60:60 [0] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 256 | 256
+flashnext-rccl-probe:60:60 [0] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 2 p2p channels per peer
+flashnext-rccl-probe:60:60 [0] NCCL INFO CC Off, workFifoBytes 4194304
+flashnext-rccl-probe:61:61 [1] NCCL INFO NCCL_PROTO set by environment to Simple
+flashnext-rccl-probe:61:61 [1] NCCL INFO NCCL_ALGO set by environment to Ring
+flashnext-rccl-probe:61:61 [1] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 256 | 256
+flashnext-rccl-probe:61:61 [1] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 2 p2p channels per peer
+flashnext-rccl-probe:60:60 [0] NCCL INFO RCCL Unroll Factor (pre-set): 3
+flashnext-rccl-probe:61:61 [1] NCCL INFO RCCL Unroll Factor (pre-set): 3
+flashnext-rccl-probe:60:60 [0] NCCL INFO TUNER/Plugin: Could not find: libnccl-tuner.so. Using internal tuner plugin.
+flashnext-rccl-probe:61:61 [1] NCCL INFO TUNER/Plugin: Could not find: libnccl-tuner.so. Using internal tuner plugin.
+flashnext-rccl-probe:60:60 [0] NCCL INFO ncclCommInitRank_impl comm 0x48619c40 rank 0 nranks 2 cudaDev 0 nvmlDev 1 busId 2f000 commId 0x18039fc67a764fde - Init COMPLETE
+flashnext-rccl-probe:61:61 [1] NCCL INFO ncclCommInitRank_impl comm 0x2c698fd0 rank 1 nranks 2 cudaDev 1 nvmlDev 0 busId 25000 commId 0x18039fc67a764fde - Init COMPLETE
+flashnext-rccl-probe:60:60 [0] NCCL INFO Init timings - ncclCommInitRank_impl: rank 0 nranks 2 total 0.57 (kernels 0.37, alloc 0.03, bootstrap 0.01, allgathers 0.00, topo 0.12, graphs 0.00, connections 0.03, rest 0.00)
+flashnext-rccl-probe:61:61 [1] NCCL INFO Init timings - ncclCommInitRank_impl: rank 1 nranks 2 total 0.57 (kernels 0.38, alloc 0.03, bootstrap 0.00, allgathers 0.00, topo 0.12, graphs 0.00, connections 0.03, rest 0.00)
+PASS 0 torch.float32 1
+PASS 1 torch.float32 1
+ALLGATHER_PASS 0 torch.float32 1
+ALLGATHER_PASS 1 torch.float32 1
+PASS 0 torch.float32 4096
+PASS 1 torch.float32 4096
+ALLGATHER_PASS 0 torch.float32 4096
+ALLGATHER_PASS 1 torch.float32 4096
+PASS 0 torch.float32 1048576
+PASS 1 torch.float32 1048576
+ALLGATHER_PASS 0 torch.float32 1048576
+ALLGATHER_PASS 1 torch.float32 1048576
+PASS 0 torch.bfloat16 1
+PASS 1 torch.bfloat16 1
+ALLGATHER_PASS 0 torch.bfloat16 1
+ALLGATHER_PASS 1 torch.bfloat16 1
+PASS 0 torch.bfloat16 4096
+PASS 1 torch.bfloat16 4096
+ALLGATHER_PASS 0 torch.bfloat16 4096
+ALLGATHER_PASS 1 torch.bfloat16 4096
+PASS 0 torch.bfloat16 1048576
+PASS 1 torch.bfloat16 1048576
+ALLGATHER_PASS 0 torch.bfloat16 1048576
+ALLGATHER_PASS 1 torch.bfloat16 1048576
+PASS 0 torch.int64 1
+PASS 1 torch.int64 1
+ALLGATHER_PASS 0 torch.int64 1
+ALLGATHER_PASS 1 torch.int64 1
+PASS 0 torch.int64 4096
+PASS 1 torch.int64 4096
+ALLGATHER_PASS 0 torch.int64 4096
+ALLGATHER_PASS 1 torch.int64 4096
+PASS 0 torch.int64 1048576
+PASS 1 torch.int64 1048576
+ALLGATHER_PASS 0 torch.int64 1048576
+ALLGATHER_PASS 1 torch.int64 1048576
+ALLGATHER_GRAPH_PASS 0
+ALLGATHER_GRAPH_PASS 1
+COMMUNICATOR_ALLGATHER_PASSCOMMUNICATOR_ALLGATHER_PASS  10 0 
+0
+COMMUNICATOR_ALLGATHER_PASS 0 COMMUNICATOR_ALLGATHER_PASS1 
+1 1
+COMMUNICATOR_ALLGATHER_PASS 0 -1
+COMMUNICATOR_ALLGATHER_PASS 1 -1
+RCCL_PROBE_COMPLETE

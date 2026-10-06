@@ -1,0 +1,162 @@
+# Qualified Q6 profile; all model shards use checksum-verified local NVMe copies.
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: flashnext-iggy-q6
+spec:
+  source: pvc://flashnext-weights/q6/UD-Q6_K_XL/Qwen3.8-Flash-Next-UD-Q6_K_XL-00001-of-00006.gguf
+  format: gguf
+  quantization: Q6_K_XL
+  hardware:
+    accelerator: rocm
+    gpu:
+      enabled: true
+      count: 2
+      vendor: amd
+      resourceName: amd.com/gpu
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: InferenceService
+metadata:
+  name: flashnext-iggy-q6-cache-c1
+spec:
+  modelRef: flashnext-iggy-q6
+  runtime: generic
+  image: docker.io/stilldeadcode/vllm-radiance:0.9.3@sha256:45694209177a55a1ab3ba6702fe6e978b1b66a6e66ae3fc066f8d579f7bc4c25
+  replicas: 1
+  suspend: true
+  skipModelInit: true
+  nodeSelector:
+    kubernetes.io/hostname: iggy
+    amd.com/gpu.present: 'true'
+  command:
+  - /bin/bash
+  - -ec
+  - cd /workspace/flashnext-competition/stew-loader; printf '%s  build.sha256\n' "$FLASHNEXT_BUILD_MANIFEST_SHA256"
+    | sha256sum -c - >&2; sha256sum -c build.sha256 >&2; exec build/bin/llama-server
+    "$@"
+  - flashnext
+  args:
+  - --model
+  - /models/q6/UD-Q6_K_XL/Qwen3.8-Flash-Next-UD-Q6_K_XL-00001-of-00006.gguf
+  - --alias
+  - qwen3.8-flash-next
+  - --host
+  - 0.0.0.0
+  - --port
+  - '8080'
+  - --ctx-size
+  - '262144'
+  - --parallel
+  - '1'
+  - --batch-size
+  - '8192'
+  - --ubatch-size
+  - '4096'
+  - --threads
+  - '12'
+  - --threads-batch
+  - '12'
+  - --flash-attn
+  - 'on'
+  - --cache-type-k
+  - q8_0
+  - --cache-type-v
+  - q8_0
+  - --gpu-layers
+  - all
+  - --split-mode
+  - layer
+  - --tensor-split
+  - 1,1
+  - --override-tensor
+  - per_layer_token_embd=CPU
+  - --load-mode
+  - mmap
+  - --fit
+  - 'off'
+  - --cache-ram
+  - '2048'
+  - --ctx-checkpoints
+  - '0'
+  - --temp
+  - '1.0'
+  - --top-p
+  - '0.95'
+  - --top-k
+  - '20'
+  - --min-p
+  - '0.0'
+  - --jinja
+  - --slots
+  - --metrics
+  - --n-cpu-moe
+  - '38'
+  - --log-verbosity
+  - '4'
+  - --lazy-mode
+  - 'on'
+  env:
+  - name: LD_LIBRARY_PATH
+    value: /workspace/flashnext-competition/stew-loader/build/bin:/opt/rocm/core-7.14/lib:/opt/rocm/lib
+  - name: OMP_WAIT_POLICY
+    value: active
+  - name: GGML_SCHED_DEVGATHER
+    value: '0'
+  - name: MOE_EXPERT_CACHE_DEVMAP
+    value: '1'
+  - name: MOE_EXPERT_CACHE_RESERVE_MIB
+    value: '1024'
+  - name: GGML_SCHED_STAGE_MIN_TOKENS
+    value: '999999'
+  - name: LLAMA_MMAP_LOAD_PREFETCH
+    value: '0'
+  - name: FLASHNEXT_BUILD_MANIFEST_SHA256
+    value: b7f20c2eb1a77a59f26136d42926b9219bf090d3d12c8eb43871efe5c593ca27
+  extraVolumes:
+  - name: weights
+    persistentVolumeClaim:
+      claimName: flashnext-weights
+  - name: archive
+    persistentVolumeClaim:
+      claimName: llm-model-archive
+  - name: build
+    persistentVolumeClaim:
+      claimName: cuda-dev-workspace
+  - name: ngram
+    persistentVolumeClaim:
+      claimName: flashnext-iggy-ngram
+  extraVolumeMounts:
+  - name: weights
+    mountPath: /models
+    readOnly: true
+  - name: archive
+    mountPath: /archive
+    readOnly: true
+  - name: build
+    mountPath: /workspace
+    readOnly: true
+  - name: ngram
+    mountPath: /ngram
+    readOnly: true
+  resources:
+    cpu: '8'
+    memory: 110Gi
+    gpu: 2
+  endpoint:
+    port: 8080
+    path: /v1/chat/completions
+  rolloutPolicy:
+    waitForIdle: false
+  probeOverrides:
+    startup:
+      httpGet:
+        path: /health
+        port: 8080
+      periodSeconds: 10
+      failureThreshold: 180
+    readiness:
+      httpGet:
+        path: /health
+        port: 8080
+      periodSeconds: 10

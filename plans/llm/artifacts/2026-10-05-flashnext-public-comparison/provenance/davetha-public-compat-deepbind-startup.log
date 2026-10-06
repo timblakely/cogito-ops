@@ -1,0 +1,346 @@
+CONTAINER runtime
+Fail to open libdrm_amdgpu.so.1: libdrm_amdgpu.so.1: cannot open shared object file: No such file or directory
+ERROR 10-06 08:45:17 [__init__.py:72] Failed to load plugin quark_online_quant
+ERROR 10-06 08:45:17 [__init__.py:72] Traceback (most recent call last):
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/app/vllm/vllm/plugins/__init__.py", line 69, in load_plugins_by_group
+ERROR 10-06 08:45:17 [__init__.py:72]     func = plugin.load()
+ERROR 10-06 08:45:17 [__init__.py:72]            ^^^^^^^^^^^^^
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/usr/lib/python3.12/importlib/metadata/__init__.py", line 205, in load
+ERROR 10-06 08:45:17 [__init__.py:72]     module = import_module(match.group('module'))
+ERROR 10-06 08:45:17 [__init__.py:72]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+ERROR 10-06 08:45:17 [__init__.py:72]     return _bootstrap._gcd_import(name[level:], package, level)
+ERROR 10-06 08:45:17 [__init__.py:72]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 10-06 08:45:17 [__init__.py:72]   File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+ERROR 10-06 08:45:17 [__init__.py:72]   File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+ERROR 10-06 08:45:17 [__init__.py:72]   File "<frozen importlib._bootstrap>", line 1310, in _find_and_load_unlocked
+ERROR 10-06 08:45:17 [__init__.py:72]   File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+ERROR 10-06 08:45:17 [__init__.py:72]   File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+ERROR 10-06 08:45:17 [__init__.py:72]   File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+ERROR 10-06 08:45:17 [__init__.py:72]   File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+ERROR 10-06 08:45:17 [__init__.py:72]   File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+ERROR 10-06 08:45:17 [__init__.py:72]   File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+ERROR 10-06 08:45:17 [__init__.py:72]   File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/quark/online_quantization/vllm/__init__.py", line 20, in <module>
+ERROR 10-06 08:45:17 [__init__.py:72]     from .quant_method.linear import (
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/quark/online_quantization/vllm/quant_method/__init__.py", line 3, in <module>
+ERROR 10-06 08:45:17 [__init__.py:72]     from .linear import (
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/quark/online_quantization/vllm/quant_method/linear.py", line 27, in <module>
+ERROR 10-06 08:45:17 [__init__.py:72]     from vllm.model_executor.kernels.linear import init_fp8_linear_kernel
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/app/vllm/vllm/model_executor/kernels/linear/__init__.py", line 26, in <module>
+ERROR 10-06 08:45:17 [__init__.py:72]     from vllm.model_executor.kernels.linear.mixed_precision import (
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/app/vllm/vllm/model_executor/kernels/linear/mixed_precision/__init__.py", line 28, in <module>
+ERROR 10-06 08:45:17 [__init__.py:72]     from vllm.model_executor.kernels.linear.mixed_precision.marlin import (
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/app/vllm/vllm/model_executor/kernels/linear/mixed_precision/marlin.py", line 8, in <module>
+ERROR 10-06 08:45:17 [__init__.py:72]     from vllm.model_executor.layers.quantization.utils.marlin_utils import (
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/app/vllm/vllm/model_executor/layers/quantization/utils/marlin_utils.py", line 14, in <module>
+ERROR 10-06 08:45:17 [__init__.py:72]     from vllm.model_executor.layers.fused_moe import RoutedExperts
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/app/vllm/vllm/model_executor/layers/fused_moe/__init__.py", line 22, in <module>
+ERROR 10-06 08:45:17 [__init__.py:72]     from vllm.model_executor.layers.fused_moe.layer import (
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/app/vllm/vllm/model_executor/layers/fused_moe/layer.py", line 26, in <module>
+ERROR 10-06 08:45:17 [__init__.py:72]     from vllm.model_executor.layers.fused_moe.routed_experts import RoutedExperts
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/app/vllm/vllm/model_executor/layers/fused_moe/routed_experts.py", line 22, in <module>
+ERROR 10-06 08:45:17 [__init__.py:72]     from vllm.model_executor.layers.fused_moe.unquantized_fused_moe_method import (
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/app/vllm/vllm/model_executor/layers/fused_moe/unquantized_fused_moe_method.py", line 20, in <module>
+ERROR 10-06 08:45:17 [__init__.py:72]     from vllm.model_executor.layers.fused_moe.oracle.unquantized import (
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/app/vllm/vllm/model_executor/layers/fused_moe/oracle/__init__.py", line 5, in <module>
+ERROR 10-06 08:45:17 [__init__.py:72]     from vllm.model_executor.layers.fused_moe.oracle.unquantized import (
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/app/vllm/vllm/model_executor/layers/fused_moe/oracle/unquantized.py", line 15, in <module>
+ERROR 10-06 08:45:17 [__init__.py:72]     from vllm.model_executor.layers.fused_moe.all2all_utils import (
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/app/vllm/vllm/model_executor/layers/fused_moe/all2all_utils.py", line 99, in <module>
+ERROR 10-06 08:45:17 [__init__.py:72]     from .prepare_finalize.mori import MoriPrepareAndFinalize
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/app/vllm/vllm/model_executor/layers/fused_moe/prepare_finalize/mori.py", line 15, in <module>
+ERROR 10-06 08:45:17 [__init__.py:72]     class MoriPrepareAndFinalize(mk.FusedMoEPrepareAndFinalizeModular):
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/app/vllm/vllm/model_executor/layers/fused_moe/prepare_finalize/mori.py", line 22, in MoriPrepareAndFinalize
+ERROR 10-06 08:45:17 [__init__.py:72]     mori_op: mori.ops.EpDispatchCombineOp,
+ERROR 10-06 08:45:17 [__init__.py:72]              ^^^^^^^^
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/mori/__init__.py", line 38, in __getattr__
+ERROR 10-06 08:45:17 [__init__.py:72]     return importlib.import_module(f".{name}", __name__)
+ERROR 10-06 08:45:17 [__init__.py:72]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+ERROR 10-06 08:45:17 [__init__.py:72]     return _bootstrap._gcd_import(name[level:], package, level)
+ERROR 10-06 08:45:17 [__init__.py:72]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/mori/ops/__init__.py", line 22, in <module>
+ERROR 10-06 08:45:17 [__init__.py:72]     from .dispatch_combine import (
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/mori/ops/dispatch_combine.py", line 22, in <module>
+ERROR 10-06 08:45:17 [__init__.py:72]     from mori import cpp as mori_cpp
+ERROR 10-06 08:45:17 [__init__.py:72]   File "<frozen importlib._bootstrap>", line 1412, in _handle_fromlist
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/mori/__init__.py", line 38, in __getattr__
+ERROR 10-06 08:45:17 [__init__.py:72]     return importlib.import_module(f".{name}", __name__)
+ERROR 10-06 08:45:17 [__init__.py:72]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+ERROR 10-06 08:45:17 [__init__.py:72]     return _bootstrap._gcd_import(name[level:], package, level)
+ERROR 10-06 08:45:17 [__init__.py:72]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/mori/cpp/__init__.py", line 39, in <module>
+ERROR 10-06 08:45:17 [__init__.py:72]     ctypes.CDLL(_lib_full_path, mode=ctypes.RTLD_GLOBAL)
+ERROR 10-06 08:45:17 [__init__.py:72]   File "/usr/lib/python3.12/ctypes/__init__.py", line 379, in __init__
+ERROR 10-06 08:45:17 [__init__.py:72]     self._handle = _dlopen(self._name, mode)
+ERROR 10-06 08:45:17 [__init__.py:72]                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 10-06 08:45:17 [__init__.py:72] OSError: libibverbs.so.1: cannot open shared object file: No such file or directory
+INFO 10-06 08:45:18 [register.py:151] [clav_attn] priority hook installed -- CLAV_ATTN (enum slot CUSTOM) now sits directly ahead of TRITON_ATTN; configs it cannot serve fall through to Triton at select time.
+WARNING 10-06 08:45:18 [register.py:104] [clav_gdn] load/registration failed; falling back to the fla-Triton GDN path.
+WARNING 10-06 08:45:18 [register.py:104] Traceback (most recent call last):
+WARNING 10-06 08:45:18 [register.py:104]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/gdn_hip/register.py", line 102, in register
+WARNING 10-06 08:45:18 [register.py:104]     from gdn_hip import vllm_oot  # noqa: F401
+WARNING 10-06 08:45:18 [register.py:104]     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+WARNING 10-06 08:45:18 [register.py:104]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/gdn_hip/vllm_oot.py", line 30, in <module>
+WARNING 10-06 08:45:18 [register.py:104]     from vllm.model_executor.layers.mamba.gdn.qwen_gdn_linear_attn import (
+WARNING 10-06 08:45:18 [register.py:104]   File "/app/vllm/vllm/model_executor/layers/mamba/gdn/qwen_gdn_linear_attn.py", line 42, in <module>
+WARNING 10-06 08:45:18 [register.py:104]     from vllm.model_executor.layers.quantization.auto_awq import AutoAWQConfig
+WARNING 10-06 08:45:18 [register.py:104]   File "/app/vllm/vllm/model_executor/layers/quantization/auto_awq.py", line 11, in <module>
+WARNING 10-06 08:45:18 [register.py:104]     import vllm.model_executor.layers.fused_moe  # noqa
+WARNING 10-06 08:45:18 [register.py:104]     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+WARNING 10-06 08:45:18 [register.py:104]   File "/app/vllm/vllm/model_executor/layers/fused_moe/__init__.py", line 22, in <module>
+WARNING 10-06 08:45:18 [register.py:104]     from vllm.model_executor.layers.fused_moe.layer import (
+WARNING 10-06 08:45:18 [register.py:104]   File "/app/vllm/vllm/model_executor/layers/fused_moe/layer.py", line 26, in <module>
+WARNING 10-06 08:45:18 [register.py:104]     from vllm.model_executor.layers.fused_moe.routed_experts import RoutedExperts
+WARNING 10-06 08:45:18 [register.py:104]   File "/app/vllm/vllm/model_executor/layers/fused_moe/routed_experts.py", line 22, in <module>
+WARNING 10-06 08:45:18 [register.py:104]     from vllm.model_executor.layers.fused_moe.unquantized_fused_moe_method import (
+WARNING 10-06 08:45:18 [register.py:104]   File "/app/vllm/vllm/model_executor/layers/fused_moe/unquantized_fused_moe_method.py", line 20, in <module>
+WARNING 10-06 08:45:18 [register.py:104]     from vllm.model_executor.layers.fused_moe.oracle.unquantized import (
+WARNING 10-06 08:45:18 [register.py:104]   File "/app/vllm/vllm/model_executor/layers/fused_moe/oracle/__init__.py", line 5, in <module>
+WARNING 10-06 08:45:18 [register.py:104]     from vllm.model_executor.layers.fused_moe.oracle.unquantized import (
+WARNING 10-06 08:45:18 [register.py:104]   File "/app/vllm/vllm/model_executor/layers/fused_moe/oracle/unquantized.py", line 15, in <module>
+WARNING 10-06 08:45:18 [register.py:104]     from vllm.model_executor.layers.fused_moe.all2all_utils import (
+WARNING 10-06 08:45:18 [register.py:104]   File "/app/vllm/vllm/model_executor/layers/fused_moe/all2all_utils.py", line 99, in <module>
+WARNING 10-06 08:45:18 [register.py:104]     from .prepare_finalize.mori import MoriPrepareAndFinalize
+WARNING 10-06 08:45:18 [register.py:104]   File "/app/vllm/vllm/model_executor/layers/fused_moe/prepare_finalize/mori.py", line 15, in <module>
+WARNING 10-06 08:45:18 [register.py:104]     class MoriPrepareAndFinalize(mk.FusedMoEPrepareAndFinalizeModular):
+WARNING 10-06 08:45:18 [register.py:104]   File "/app/vllm/vllm/model_executor/layers/fused_moe/prepare_finalize/mori.py", line 22, in MoriPrepareAndFinalize
+WARNING 10-06 08:45:18 [register.py:104]     mori_op: mori.ops.EpDispatchCombineOp,
+WARNING 10-06 08:45:18 [register.py:104]              ^^^^^^^^
+WARNING 10-06 08:45:18 [register.py:104]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/mori/__init__.py", line 38, in __getattr__
+WARNING 10-06 08:45:18 [register.py:104]     return importlib.import_module(f".{name}", __name__)
+WARNING 10-06 08:45:18 [register.py:104]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+WARNING 10-06 08:45:18 [register.py:104]   File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+WARNING 10-06 08:45:18 [register.py:104]     return _bootstrap._gcd_import(name[level:], package, level)
+WARNING 10-06 08:45:18 [register.py:104]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+WARNING 10-06 08:45:18 [register.py:104]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/mori/ops/__init__.py", line 22, in <module>
+WARNING 10-06 08:45:18 [register.py:104]     from .dispatch_combine import (
+WARNING 10-06 08:45:18 [register.py:104]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/mori/ops/dispatch_combine.py", line 22, in <module>
+WARNING 10-06 08:45:18 [register.py:104]     from mori import cpp as mori_cpp
+WARNING 10-06 08:45:18 [register.py:104]   File "<frozen importlib._bootstrap>", line 1412, in _handle_fromlist
+WARNING 10-06 08:45:18 [register.py:104]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/mori/__init__.py", line 38, in __getattr__
+WARNING 10-06 08:45:18 [register.py:104]     return importlib.import_module(f".{name}", __name__)
+WARNING 10-06 08:45:18 [register.py:104]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+WARNING 10-06 08:45:18 [register.py:104]   File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+WARNING 10-06 08:45:18 [register.py:104]     return _bootstrap._gcd_import(name[level:], package, level)
+WARNING 10-06 08:45:18 [register.py:104]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+WARNING 10-06 08:45:18 [register.py:104]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/mori/cpp/__init__.py", line 39, in <module>
+WARNING 10-06 08:45:18 [register.py:104]     ctypes.CDLL(_lib_full_path, mode=ctypes.RTLD_GLOBAL)
+WARNING 10-06 08:45:18 [register.py:104]   File "/usr/lib/python3.12/ctypes/__init__.py", line 379, in __init__
+WARNING 10-06 08:45:18 [register.py:104]     self._handle = _dlopen(self._name, mode)
+WARNING 10-06 08:45:18 [register.py:104]                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+WARNING 10-06 08:45:18 [register.py:104] OSError: libibverbs.so.1: cannot open shared object file: No such file or directory
+WARNING 10-06 08:45:18 [register.py:74] [rfi_hip] registration failed; rfi/rfa checkpoints will not load.
+WARNING 10-06 08:45:18 [register.py:74] Traceback (most recent call last):
+WARNING 10-06 08:45:18 [register.py:74]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/rfi_hip/register.py", line 65, in register
+WARNING 10-06 08:45:18 [register.py:74]     from rfi_hip.rfa import RFAConfig
+WARNING 10-06 08:45:18 [register.py:74]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/rfi_hip/rfa.py", line 36, in <module>
+WARNING 10-06 08:45:18 [register.py:74]     from vllm.model_executor.layers.fused_moe import FusedMoEMethodBase, RoutedExperts
+WARNING 10-06 08:45:18 [register.py:74]   File "/app/vllm/vllm/model_executor/layers/fused_moe/__init__.py", line 22, in <module>
+WARNING 10-06 08:45:18 [register.py:74]     from vllm.model_executor.layers.fused_moe.layer import (
+WARNING 10-06 08:45:18 [register.py:74]   File "/app/vllm/vllm/model_executor/layers/fused_moe/layer.py", line 26, in <module>
+WARNING 10-06 08:45:18 [register.py:74]     from vllm.model_executor.layers.fused_moe.routed_experts import RoutedExperts
+WARNING 10-06 08:45:18 [register.py:74]   File "/app/vllm/vllm/model_executor/layers/fused_moe/routed_experts.py", line 22, in <module>
+WARNING 10-06 08:45:18 [register.py:74]     from vllm.model_executor.layers.fused_moe.unquantized_fused_moe_method import (
+WARNING 10-06 08:45:18 [register.py:74]   File "/app/vllm/vllm/model_executor/layers/fused_moe/unquantized_fused_moe_method.py", line 20, in <module>
+WARNING 10-06 08:45:18 [register.py:74]     from vllm.model_executor.layers.fused_moe.oracle.unquantized import (
+WARNING 10-06 08:45:18 [register.py:74]   File "/app/vllm/vllm/model_executor/layers/fused_moe/oracle/__init__.py", line 5, in <module>
+WARNING 10-06 08:45:18 [register.py:74]     from vllm.model_executor.layers.fused_moe.oracle.unquantized import (
+WARNING 10-06 08:45:18 [register.py:74]   File "/app/vllm/vllm/model_executor/layers/fused_moe/oracle/unquantized.py", line 15, in <module>
+WARNING 10-06 08:45:18 [register.py:74]     from vllm.model_executor.layers.fused_moe.all2all_utils import (
+WARNING 10-06 08:45:18 [register.py:74]   File "/app/vllm/vllm/model_executor/layers/fused_moe/all2all_utils.py", line 99, in <module>
+WARNING 10-06 08:45:18 [register.py:74]     from .prepare_finalize.mori import MoriPrepareAndFinalize
+WARNING 10-06 08:45:18 [register.py:74]   File "/app/vllm/vllm/model_executor/layers/fused_moe/prepare_finalize/mori.py", line 15, in <module>
+WARNING 10-06 08:45:18 [register.py:74]     class MoriPrepareAndFinalize(mk.FusedMoEPrepareAndFinalizeModular):
+WARNING 10-06 08:45:18 [register.py:74]   File "/app/vllm/vllm/model_executor/layers/fused_moe/prepare_finalize/mori.py", line 22, in MoriPrepareAndFinalize
+WARNING 10-06 08:45:18 [register.py:74]     mori_op: mori.ops.EpDispatchCombineOp,
+WARNING 10-06 08:45:18 [register.py:74]              ^^^^^^^^
+WARNING 10-06 08:45:18 [register.py:74]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/mori/__init__.py", line 38, in __getattr__
+WARNING 10-06 08:45:18 [register.py:74]     return importlib.import_module(f".{name}", __name__)
+WARNING 10-06 08:45:18 [register.py:74]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+WARNING 10-06 08:45:18 [register.py:74]   File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+WARNING 10-06 08:45:18 [register.py:74]     return _bootstrap._gcd_import(name[level:], package, level)
+WARNING 10-06 08:45:18 [register.py:74]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+WARNING 10-06 08:45:18 [register.py:74]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/mori/ops/__init__.py", line 22, in <module>
+WARNING 10-06 08:45:18 [register.py:74]     from .dispatch_combine import (
+WARNING 10-06 08:45:18 [register.py:74]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/mori/ops/dispatch_combine.py", line 22, in <module>
+WARNING 10-06 08:45:18 [register.py:74]     from mori import cpp as mori_cpp
+WARNING 10-06 08:45:18 [register.py:74]   File "<frozen importlib._bootstrap>", line 1412, in _handle_fromlist
+WARNING 10-06 08:45:18 [register.py:74]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/mori/__init__.py", line 38, in __getattr__
+WARNING 10-06 08:45:18 [register.py:74]     return importlib.import_module(f".{name}", __name__)
+WARNING 10-06 08:45:18 [register.py:74]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+WARNING 10-06 08:45:18 [register.py:74]   File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+WARNING 10-06 08:45:18 [register.py:74]     return _bootstrap._gcd_import(name[level:], package, level)
+WARNING 10-06 08:45:18 [register.py:74]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+WARNING 10-06 08:45:18 [register.py:74]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/mori/cpp/__init__.py", line 39, in <module>
+WARNING 10-06 08:45:18 [register.py:74]     ctypes.CDLL(_lib_full_path, mode=ctypes.RTLD_GLOBAL)
+WARNING 10-06 08:45:18 [register.py:74]   File "/usr/lib/python3.12/ctypes/__init__.py", line 379, in __init__
+WARNING 10-06 08:45:18 [register.py:74]     self._handle = _dlopen(self._name, mode)
+WARNING 10-06 08:45:18 [register.py:74]                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+WARNING 10-06 08:45:18 [register.py:74] OSError: libibverbs.so.1: cannot open shared object file: No such file or directory
+(APIServer pid=1) INFO 10-06 08:45:18 [api_utils.py:362] 
+(APIServer pid=1) INFO 10-06 08:45:18 [api_utils.py:362] ▀▀█▀▀ ▄▀▀▀▀ ▄▀▀▀▀ █     ▄▀▀▀▄ █   █ █ ▄▀▀▀▀ █▀▀▀▀ █▀▀▀▄   █   █ █     █     █▄   ▄█
+(APIServer pid=1) INFO 10-06 08:45:18 [api_utils.py:362]   █   █     █     █     █▄▄▄█ █   █ █ █  ▄▄ █▄▄▄  █▄▄▄▀ ▀ █   █ █     █     █ ▀▄▀ █
+(APIServer pid=1) INFO 10-06 08:45:18 [api_utils.py:362]   █   █     █     █     █   █  █ █  █ █   █ █     █  ▀▄ ▄  █ █  █     █     █     █
+(APIServer pid=1) INFO 10-06 08:45:18 [api_utils.py:362]   ▀   ▀▀▀▀▀ ▀▀▀▀▀ ▀▀▀▀▀ ▀   ▀   ▀   ▀ ▀▀▀▀▀ ▀▀▀▀▀ ▀   ▀     ▀   ▀▀▀▀▀ ▀▀▀▀▀ ▀     ▀
+(APIServer pid=1) INFO 10-06 08:45:18 [api_utils.py:362] version 0.28.0  model /archive/llmkube/flashnext-iggy/davetha-mxfp4  Clav Version 28.01.2  RDNA4: Custom HIP ATTN Live!
+(APIServer pid=1) INFO 10-06 08:45:18 [api_utils.py:362] 
+(APIServer pid=1) INFO 10-06 08:45:18 [api_utils.py:286] non-default args: {'model_tag': '/archive/llmkube/flashnext-iggy/davetha-mxfp4', 'chat_template': '/workspace/flashnext-competition/davetha-templates/qwen_fixed_chat_template.jinja', 'enable_auto_tool_choice': True, 'tool_call_parser': 'qwen3_coder', 'host': '0.0.0.0', 'model': '/archive/llmkube/flashnext-iggy/davetha-mxfp4', 'max_model_len': 262144, 'served_model_name': ['qwen3.8-flash-next'], 'reasoning_parser': 'qwen3', 'tensor_parallel_size': 2, 'gpu_memory_utilization': 0.97, 'kv_cache_dtype': 'fp8', 'enable_prefix_caching': True, 'cpu_offload_gb': 40.0, 'cpu_offload_params': ['experts'], 'limit_mm_per_prompt': {'image': 8, 'video': 1}, 'mm_processor_cache_gb': 0.5, 'max_num_batched_tokens': 4096, 'max_num_seqs': 4, 'enable_chunked_prefill': True, 'speculative_config': {'method': 'mtp', 'num_speculative_tokens': 4}}
+(APIServer pid=1) WARNING 10-06 08:45:18 [envs.py:2241] Unknown vLLM environment variable detected: VLLM_GDN_STRIDED_QKV
+(APIServer pid=1) WARNING 10-06 08:45:18 [envs.py:2241] Unknown vLLM environment variable detected: VLLM_FUSED_SILU_QUANT
+(APIServer pid=1) WARNING 10-06 08:45:18 [envs.py:2241] Unknown vLLM environment variable detected: VLLM_R4D_SHARE_A8
+(APIServer pid=1) WARNING 10-06 08:45:18 [envs.py:2241] Unknown vLLM environment variable detected: VLLM_FUSED_SHARED_GATE
+(APIServer pid=1) WARNING 10-06 08:45:18 [envs.py:2241] Unknown vLLM environment variable detected: VLLM_R4D_LRU_FUSE
+(APIServer pid=1) WARNING 10-06 08:45:18 [envs.py:2241] Unknown vLLM environment variable detected: VLLM_R4D_LRU_SKIP_EMPTY_COLD
+(APIServer pid=1) WARNING 10-06 08:45:18 [envs.py:2241] Unknown vLLM environment variable detected: VLLM_QSA_ROPE_GATHER
+(APIServer pid=1) WARNING 10-06 08:45:18 [envs.py:2241] Unknown vLLM environment variable detected: VLLM_UVA_OFFLOAD_EMBED
+(APIServer pid=1) WARNING 10-06 08:45:18 [envs.py:2241] Unknown vLLM environment variable detected: VLLM_R4D_LRU
+(APIServer pid=1) WARNING 10-06 08:45:18 [envs.py:2241] Unknown vLLM environment variable detected: VLLM_GEMMA_NORM_FUSED
+(APIServer pid=1) WARNING 10-06 08:45:18 [envs.py:2241] Unknown vLLM environment variable detected: VLLM_DRAFT_W4_LMHEAD
+(APIServer pid=1) WARNING 10-06 08:45:18 [envs.py:2241] Unknown vLLM environment variable detected: VLLM_UVA_OFFLOAD_VISUAL
+(APIServer pid=1) WARNING 10-06 08:45:18 [envs.py:2241] Unknown vLLM environment variable detected: VLLM_TARGET_FP8_LMHEAD
+(APIServer pid=1) WARNING 10-06 08:45:18 [envs.py:2241] Unknown vLLM environment variable detected: VLLM_R4D_HOT_PROFILE
+(APIServer pid=1) WARNING 10-06 08:45:18 [envs.py:2241] Unknown vLLM environment variable detected: VLLM_R4D_HOT_GB
+(APIServer pid=1) WARNING 10-06 08:45:18 [envs.py:2241] Unknown vLLM environment variable detected: VLLM_R4D_MOE_CFG2
+(APIServer pid=1) WARNING 10-06 08:45:18 [envs.py:2241] Unknown vLLM environment variable detected: VLLM_R4D_MOE_CFG1
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090] Error in inspecting model architecture 'Qwen4ExpForConditionalGeneration'
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090] Traceback (most recent call last):
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/model_executor/models/registry.py", line 1525, in _run_in_subprocess
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     returned.check_returncode()
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/usr/lib/python3.12/subprocess.py", line 502, in check_returncode
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     raise CalledProcessError(self.returncode, self.args, self.stdout,
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090] subprocess.CalledProcessError: Command '['/opt/vllm/bin/python3', '-m', 'vllm.model_executor.models.registry']' returned non-zero exit status 1.
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090] 
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090] The above exception was the direct cause of the following exception:
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090] 
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090] Traceback (most recent call last):
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/model_executor/models/registry.py", line 1088, in _try_inspect_model_cls
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     return model.inspect_model_cls()
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]            ^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/logging_utils/log_time.py", line 21, in _wrapper
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     result = func(*args, **kwargs)
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]              ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/model_executor/models/registry.py", line 1049, in inspect_model_cls
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     mi = _run_in_subprocess(
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]          ^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/model_executor/models/registry.py", line 1528, in _run_in_subprocess
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     raise RuntimeError(
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090] RuntimeError: Error raised in subprocess:
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090] Fail to open libdrm_amdgpu.so.1: libdrm_amdgpu.so.1: cannot open shared object file: No such file or directory
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090] <frozen runpy>:128: RuntimeWarning: 'vllm.model_executor.models.registry' found in sys.modules after import of package 'vllm.model_executor.models', but prior to execution of 'vllm.model_executor.models.registry'; this may result in unpredictable behaviour
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090] Traceback (most recent call last):
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "<frozen runpy>", line 198, in _run_module_as_main
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "<frozen runpy>", line 88, in _run_code
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/model_executor/models/registry.py", line 1551, in <module>
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     _run()
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/model_executor/models/registry.py", line 1544, in _run
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     result = fn()
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]              ^^^^
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/model_executor/models/registry.py", line 1050, in <lambda>
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     lambda: _ModelInfo.from_model_cls(self.load_model_cls())
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]                                       ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/model_executor/models/registry.py", line 1064, in load_model_cls
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     return getattr(mod, self.class_name)
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/models/qwen4_exp/__init__.py", line 33, in __getattr__
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     from .amd.model import (
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/models/qwen4_exp/amd/model.py", line 17, in <module>
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     from vllm.model_executor.layers.mamba.gdn.qwen_gdn_linear_attn import (
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/model_executor/layers/mamba/gdn/qwen_gdn_linear_attn.py", line 42, in <module>
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     from vllm.model_executor.layers.quantization.auto_awq import AutoAWQConfig
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/model_executor/layers/quantization/auto_awq.py", line 11, in <module>
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     import vllm.model_executor.layers.fused_moe  # noqa
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/model_executor/layers/fused_moe/__init__.py", line 22, in <module>
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     from vllm.model_executor.layers.fused_moe.layer import (
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/model_executor/layers/fused_moe/layer.py", line 26, in <module>
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     from vllm.model_executor.layers.fused_moe.routed_experts import RoutedExperts
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/model_executor/layers/fused_moe/routed_experts.py", line 22, in <module>
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     from vllm.model_executor.layers.fused_moe.unquantized_fused_moe_method import (
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/model_executor/layers/fused_moe/unquantized_fused_moe_method.py", line 20, in <module>
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     from vllm.model_executor.layers.fused_moe.oracle.unquantized import (
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/model_executor/layers/fused_moe/oracle/__init__.py", line 5, in <module>
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     from vllm.model_executor.layers.fused_moe.oracle.unquantized import (
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/model_executor/layers/fused_moe/oracle/unquantized.py", line 15, in <module>
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     from vllm.model_executor.layers.fused_moe.all2all_utils import (
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/model_executor/layers/fused_moe/all2all_utils.py", line 99, in <module>
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     from .prepare_finalize.mori import MoriPrepareAndFinalize
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/model_executor/layers/fused_moe/prepare_finalize/mori.py", line 15, in <module>
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     class MoriPrepareAndFinalize(mk.FusedMoEPrepareAndFinalizeModular):
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/app/vllm/vllm/model_executor/layers/fused_moe/prepare_finalize/mori.py", line 22, in MoriPrepareAndFinalize
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     mori_op: mori.ops.EpDispatchCombineOp,
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]              ^^^^^^^^
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/mori/__init__.py", line 38, in __getattr__
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     return importlib.import_module(f".{name}", __name__)
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     return _bootstrap._gcd_import(name[level:], package, level)
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/mori/ops/__init__.py", line 22, in <module>
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     from .dispatch_combine import (
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/mori/ops/dispatch_combine.py", line 22, in <module>
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     from mori import cpp as mori_cpp
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "<frozen importlib._bootstrap>", line 1412, in _handle_fromlist
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/mori/__init__.py", line 38, in __getattr__
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     return importlib.import_module(f".{name}", __name__)
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     return _bootstrap._gcd_import(name[level:], package, level)
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/mori/cpp/__init__.py", line 39, in <module>
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     ctypes.CDLL(_lib_full_path, mode=ctypes.RTLD_GLOBAL)
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]   File "/usr/lib/python3.12/ctypes/__init__.py", line 379, in __init__
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]     self._handle = _dlopen(self._name, mode)
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090]                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090] OSError: libibverbs.so.1: cannot open shared object file: No such file or directory
+(APIServer pid=1) ERROR 10-06 08:46:48 [registry.py:1090] 
+(APIServer pid=1) Traceback (most recent call last):
+(APIServer pid=1)   File "<frozen runpy>", line 198, in _run_module_as_main
+(APIServer pid=1)   File "<frozen runpy>", line 88, in _run_code
+(APIServer pid=1)   File "/app/vllm/vllm/entrypoints/cli/main.py", line 103, in <module>
+(APIServer pid=1)     main()
+(APIServer pid=1)   File "/app/vllm/vllm/entrypoints/cli/main.py", line 97, in main
+(APIServer pid=1)     args.dispatch_function(args)
+(APIServer pid=1)   File "/app/vllm/vllm/entrypoints/cli/serve.py", line 166, in cmd
+(APIServer pid=1)     uvloop.run(run_server(args))
+(APIServer pid=1)   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/uvloop/__init__.py", line 96, in run
+(APIServer pid=1)     return __asyncio.run(
+(APIServer pid=1)            ^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+(APIServer pid=1)     return runner.run(main)
+(APIServer pid=1)            ^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+(APIServer pid=1)     return self._loop.run_until_complete(task)
+(APIServer pid=1)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
+(APIServer pid=1)   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/uvloop/__init__.py", line 48, in wrapper
+(APIServer pid=1)     return await main
+(APIServer pid=1)            ^^^^^^^^^^
+(APIServer pid=1)   File "/app/vllm/vllm/entrypoints/launchers/api_server/entry.py", line 176, in run_server
+(APIServer pid=1)     await run_server_worker(listen_address, sock, args, **uvicorn_kwargs)
+(APIServer pid=1)   File "/app/vllm/vllm/entrypoints/launchers/api_server/entry.py", line 190, in run_server_worker
+(APIServer pid=1)     async with build_async_engine_client(
+(APIServer pid=1)   File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+(APIServer pid=1)     return await anext(self.gen)
+(APIServer pid=1)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/app/vllm/vllm/entrypoints/launchers/api_server/entry.py", line 58, in build_async_engine_client
+(APIServer pid=1)     async with build_async_engine_client_from_engine_args(
+(APIServer pid=1)   File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+(APIServer pid=1)     return await anext(self.gen)
+(APIServer pid=1)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/app/vllm/vllm/entrypoints/launchers/api_server/entry.py", line 82, in build_async_engine_client_from_engine_args
+(APIServer pid=1)     vllm_config = engine_args.create_engine_config(usage_context=usage_context)
+(APIServer pid=1)                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/app/vllm/vllm/engine/arg_utils.py", line 2028, in create_engine_config
+(APIServer pid=1)     model_config = self.create_model_config()
+(APIServer pid=1)                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/app/vllm/vllm/engine/arg_utils.py", line 1784, in create_model_config
+(APIServer pid=1)     return ModelConfig(
+(APIServer pid=1)            ^^^^^^^^^^^^
+(APIServer pid=1)   File "/archive/llmkube/flashnext-iggy/davetha-compat/deps/pydantic/_internal/_dataclasses.py", line 121, in __init__
+(APIServer pid=1)     s.__pydantic_validator__.validate_python(ArgsKwargs(args, kwargs), self_instance=s)
+(APIServer pid=1) pydantic_core._pydantic_core.ValidationError: 1 validation error for ModelConfig
+(APIServer pid=1)   Value error, Model architectures ['Qwen4ExpForConditionalGeneration'] failed to be inspected. Please check the logs for more details. [type=value_error, input_value=ArgsKwargs((), {'model': ...nderer_num_workers': 1}), input_type=ArgsKwargs]
+(APIServer pid=1)     For further information visit https://errors.pydantic.dev/2.13/v/value_error

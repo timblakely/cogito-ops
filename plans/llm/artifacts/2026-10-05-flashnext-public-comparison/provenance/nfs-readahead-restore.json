@@ -1,0 +1,65 @@
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "flashnext-nfs-readahead-restore",
+    "namespace": "llm"
+  },
+  "spec": {
+    "restartPolicy": "Never",
+    "automountServiceAccountToken": false,
+    "nodeSelector": {
+      "kubernetes.io/hostname": "iggy"
+    },
+    "tolerations": [
+      {
+        "key": "node-role.kubernetes.io/control-plane",
+        "operator": "Exists",
+        "effect": "NoSchedule"
+      },
+      {
+        "key": "amd.com/gpu",
+        "operator": "Exists",
+        "effect": "NoSchedule"
+      }
+    ],
+    "containers": [
+      {
+        "name": "tune",
+        "image": "docker.io/library/r9v-qwen38-flash-next-wmma:20260915-r2",
+        "securityContext": {
+          "privileged": true
+        },
+        "command": [
+          "python3",
+          "-c",
+          "from pathlib import Path; import json; p=Path('/nfs-bdi/read_ahead_kb'); old=int(p.read_text()); assert old in (128,15360); p.write_text('128\\n'); assert int(p.read_text())==128; print(json.dumps({'path':'/sys/class/bdi/0:462/read_ahead_kb','before_kib':old,'after_kib':128,'scope':'restore Iggy NFS archive pre-campaign setting'}))"
+        ],
+        "resources": {
+          "requests": {
+            "cpu": "10m",
+            "memory": "32Mi"
+          },
+          "limits": {
+            "memory": "96Mi"
+          }
+        },
+        "volumeMounts": [
+          {
+            "name": "nfs-bdi",
+            "mountPath": "/nfs-bdi"
+          }
+        ]
+      }
+    ],
+    "volumes": [
+      {
+        "name": "nfs-bdi",
+        "hostPath": {
+          "path": "/sys/devices/virtual/bdi/0:462",
+          "type": "Directory"
+        }
+      }
+    ]
+  }
+}

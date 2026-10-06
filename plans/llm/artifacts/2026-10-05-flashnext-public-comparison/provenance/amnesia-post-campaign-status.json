@@ -1,0 +1,86 @@
+{
+  "node_conditions": [
+    {
+      "lastHeartbeatTime": "2026-09-28T00:23:19Z",
+      "lastTransitionTime": "2026-09-28T00:23:19Z",
+      "message": "Cilium is running on this node",
+      "reason": "CiliumIsUp",
+      "status": "False",
+      "type": "NetworkUnavailable"
+    },
+    {
+      "lastHeartbeatTime": "2026-10-06T23:32:51Z",
+      "lastTransitionTime": "2026-09-29T22:54:47Z",
+      "message": "kubelet has sufficient memory available",
+      "reason": "KubeletHasSufficientMemory",
+      "status": "False",
+      "type": "MemoryPressure"
+    },
+    {
+      "lastHeartbeatTime": "2026-10-06T23:32:51Z",
+      "lastTransitionTime": "2026-09-29T22:54:47Z",
+      "message": "kubelet has no disk pressure",
+      "reason": "KubeletHasNoDiskPressure",
+      "status": "False",
+      "type": "DiskPressure"
+    },
+    {
+      "lastHeartbeatTime": "2026-10-06T23:32:51Z",
+      "lastTransitionTime": "2026-09-29T22:54:47Z",
+      "message": "kubelet has sufficient PID available",
+      "reason": "KubeletHasSufficientPID",
+      "status": "False",
+      "type": "PIDPressure"
+    },
+    {
+      "lastHeartbeatTime": "2026-10-06T23:32:51Z",
+      "lastTransitionTime": "2026-09-29T22:54:47Z",
+      "message": "kubelet is posting ready status",
+      "reason": "KubeletReady",
+      "status": "True",
+      "type": "Ready"
+    }
+  ],
+  "node_gpu_allocatable": {
+    "nvidia.com/gpu": "2"
+  },
+  "pods": [
+    {
+      "name": "flashnext-67b7496f94-6lxqv",
+      "phase": "Pending",
+      "conditions": [
+        {
+          "lastProbeTime": null,
+          "lastTransitionTime": "2026-10-06T23:30:47Z",
+          "message": "0/6 nodes are available: 1 Insufficient memory, 1 Insufficient nvidia.com/gpu, 5 node(s) didn't match Pod's node affinity/selector. no new claims to deallocate, preemption: 0/6 nodes are available: 1 Insufficient nvidia.com/gpu, 5 Preemption is not helpful for scheduling.",
+          "observedGeneration": 1,
+          "reason": "Unschedulable",
+          "status": "False",
+          "type": "PodScheduled"
+        }
+      ],
+      "nodeSelector": {
+        "kubernetes.io/hostname": "amnesia"
+      },
+      "gpu_requests": [
+        {
+          "nvidia.com/gpu": "2"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "reason": "FailedScheduling",
+      "message": "0/6 nodes are available: 1 Insufficient memory, 1 Insufficient nvidia.com/gpu, 5 node(s) didn't match Pod's node affinity/selector. no new claims to deallocate, preemption: 0/6 nodes are available: 1 Insufficient memory, 1 Insufficient nvidia.com/gpu, 5 Preemption is not helpful for scheduling."
+    },
+    {
+      "reason": "FailedScheduling",
+      "message": "0/6 nodes are available: 1 Insufficient memory, 1 Insufficient nvidia.com/gpu, 5 node(s) didn't match Pod's node affinity/selector. no new claims to deallocate, preemption: 0/6 nodes are available: 1 Insufficient nvidia.com/gpu, 5 Preemption is not helpful for scheduling."
+    },
+    {
+      "reason": "FailedScheduling",
+      "message": "0/6 nodes are available: 1 Insufficient memory, 1 Insufficient nvidia.com/gpu, 5 node(s) didn't match Pod's node affinity/selector. no new claims to deallocate, preemption: 0/6 nodes are available: 1 Insufficient nvidia.com/gpu, 5 Preemption is not helpful for scheduling."
+    }
+  ]
+}

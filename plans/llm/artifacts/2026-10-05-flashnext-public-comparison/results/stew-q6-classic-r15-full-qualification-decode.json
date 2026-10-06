@@ -1,0 +1,467 @@
+{
+  "profile": "stew-q6-classic-r15-full-qualification",
+  "protocol": "decode",
+  "timestamp_utc": "2026-10-06T15:14:58.637069+00:00",
+  "thinking": "raw completion; no chat template",
+  "trials": [
+    {
+      "label": "prose-1",
+      "prompt_sha256": "7ac99008a68dbca728efad04cc050e621beca41dfe65756e5d472888c7fc9e18",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "cache_prompt": false,
+        "max_tokens": 256
+      },
+      "before": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 0",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 0"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "completion_tokens": 256,
+        "prompt_tokens": 16,
+        "total_tokens": 272,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.32443512394092977,
+      "wall_s": 13.99174987198785,
+      "pp_effective_tok_s": 49.316485236392396,
+      "generation_e2e_tok_s": 18.296496316913455,
+      "decode_tok_s": 18.657759606216953,
+      "legacy_decode_tok_s": 18.730819090603205,
+      "text": " Start by describing the physical storage of a table (specifically mentioning 8KB pages and the concept of a 'heap' where rows are unordered). Then, explain the inefficiency of a full table scan for a query like 'WHERE id = 1000'. \n\nProceed to explain the B-tree structure using a specific analogy of a 'phone book' (referencing the 'S' section and 'Smith' to explain the concept of a 'seek'). \n\nFinally, detail the internal mechanics of the index, specifically covering:\n1. The role of the root node and leaf nodes.\n2. How the index handles non-unique values (specifically mentioning the inclusion of the primary key in the index).\n3. The concept of 'covering indexes' and how they avoid accessing the table data.\n\nMaintain a conversational, educational tone throughout.\n\nTo understand how a B-tree index works, we first need to look at how data is physically stored. A table is stored in 8KB pages, and these pages are not in any particular order. Consequently, the rows within those pages are also not in any particular order. This unordered collection is called a heap.\n\nBecause the data is in a heap, if you want to find a",
+      "reasoning_text": "",
+      "after": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 16",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 49.7084"
+        ]
+      },
+      "requested_output_tokens": 256,
+      "output_cap_reached": true
+    },
+    {
+      "label": "prose-2",
+      "prompt_sha256": "7ac99008a68dbca728efad04cc050e621beca41dfe65756e5d472888c7fc9e18",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "cache_prompt": false,
+        "max_tokens": 256
+      },
+      "before": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 16",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 0"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "completion_tokens": 256,
+        "prompt_tokens": 16,
+        "total_tokens": 272,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.32830388308502734,
+      "wall_s": 13.99057702103164,
+      "pp_effective_tok_s": 48.735335840837934,
+      "generation_e2e_tok_s": 18.29803013951193,
+      "decode_tok_s": 18.664624824810282,
+      "legacy_decode_tok_s": 18.73773107997428,
+      "text": " Start by describing the physical storage of a table (specifically mentioning 8KB pages and the concept of a 'heap' where rows are unordered). Then, explain the inefficiency of a full table scan for a query like 'WHERE id = 1000'. \n\nProceed to explain the B-tree structure using a specific analogy of a 'phone book' (referencing the 'S' section and 'Smith' to explain the concept of a 'seek'). \n\nFinally, detail the internal mechanics of the index, specifically covering:\n1. The role of the root node and leaf nodes.\n2. How the index handles non-unique values (specifically mentioning the inclusion of the primary key in the index).\n3. The concept of 'covering indexes' and how they avoid accessing the table data.\n\nMaintain a conversational, educational tone throughout.\n\nTo understand how a B-tree index works, we first need to look at how data is physically stored. A table is stored in 8KB pages, and these pages are not in any particular order. Consequently, the rows within those pages are also not in any particular order. This unordered collection is called a heap.\n\nBecause the data is in a heap, if you want to find a",
+      "reasoning_text": "",
+      "after": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 32",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 61.8587"
+        ]
+      },
+      "requested_output_tokens": 256,
+      "output_cap_reached": true
+    },
+    {
+      "label": "prose-3",
+      "prompt_sha256": "7ac99008a68dbca728efad04cc050e621beca41dfe65756e5d472888c7fc9e18",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "cache_prompt": false,
+        "max_tokens": 256
+      },
+      "before": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 32",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 0"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "completion_tokens": 256,
+        "prompt_tokens": 16,
+        "total_tokens": 272,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.26496319903526455,
+      "wall_s": 13.86197094002273,
+      "pp_effective_tok_s": 60.385744353390464,
+      "generation_e2e_tok_s": 18.46779228636734,
+      "decode_tok_s": 18.75420753413176,
+      "legacy_decode_tok_s": 18.82767185814725,
+      "text": " Start by describing the physical storage of a table (specifically mentioning 8KB pages and the concept of a 'heap' where rows are unordered). Then, explain the inefficiency of a full table scan for a query like 'WHERE id = 1000'. \n\nProceed to explain the B-tree structure using a specific analogy of a 'phone book' (referencing the 'S' section and 'Smith' to explain the concept of a 'seek'). \n\nFinally, detail the internal mechanics of the index, specifically covering:\n1. The role of the root node and leaf nodes.\n2. How the index handles non-unique values (specifically mentioning the inclusion of the primary key in the index).\n3. The concept of 'covering indexes' and how they avoid accessing the table data.\n\nMaintain a conversational, educational tone throughout.\n\nTo understand how a B-tree index works, we first need to look at how data is physically stored. A table is stored in 8KB pages, and these pages are not in any particular order. Consequently, the rows within those pages are also not in any particular order. This unordered collection is called a heap.\n\nBecause the data is in a heap, if you want to find a",
+      "reasoning_text": "",
+      "after": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 48",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 60.886"
+        ]
+      },
+      "requested_output_tokens": 256,
+      "output_cap_reached": true
+    },
+    {
+      "label": "JSON-1",
+      "prompt_sha256": "11b16d604e79c2114dc8d6b8ee7cba9ae355a443d81ac3779c4c8318938a6c7a",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "cache_prompt": false,
+        "max_tokens": 800
+      },
+      "before": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 48",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 0"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "completion_tokens": 800,
+        "prompt_tokens": 24,
+        "total_tokens": 824,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.40998751507140696,
+      "wall_s": 43.32081226701848,
+      "pp_effective_tok_s": 58.53836792034985,
+      "generation_e2e_tok_s": 18.466874422136947,
+      "decode_tok_s": 18.62003762462315,
+      "legacy_decode_tok_s": 18.643314469589637,
+      "text": "\n\n<think>\nThe user wants me to output a JSON array of 200 objects with fields: id, name, category, price, in_stock. Only JSON, no other text.\n\nLet me generate 200 objects with varied names, categories, prices, and in_stock boolean values. I'll make them realistic with different product categories like Electronics, Clothing, Food, Books, Home, Sports, Toys, Beauty, Garden, Office.\n\nLet me create this systematically with varied data.\n</think>\n\n[{\"id\":1,\"name\":\"Wireless Mouse\",\"category\":\"Electronics\",\"price\":29.99,\"in_stock\":true},{\"id\":2,\"name\":\"Cotton T-Shirt\",\"category\":\"Clothing\",\"price\":14.99,\"in_stock\":true},{\"id\":3,\"name\":\"Organic Honey\",\"category\":\"Food\",\"price\":8.50,\"in_stock\":true},{\"id\":4,\"name\":\"Python Cookbook\",\"category\":\"Books\",\"price\":39.99,\"in_stock\":false},{\"id\":5,\"name\":\"LED Desk Lamp\",\"category\":\"Home\",\"price\":24.99,\"in_stock\":true},{\"id\":6,\"name\":\"Yoga Mat\",\"category\":\"Sports\",\"price\":19.99,\"in_stock\":true},{\"id\":7,\"name\":\"Building Blocks Set\",\"category\":\"Toys\",\"price\":34.99,\"in_stock\":true},{\"id\":8,\"name\":\"Moisturizing Cream\",\"category\":\"Beauty\",\"price\":12.99,\"in_stock\":true},{\"id\":9,\"name\":\"Garden Hose 50ft\",\"category\":\"Garden\",\"price\":27.99,\"in_stock\":false},{\"id\":10,\"name\":\"Stapler Heavy Duty\",\"category\":\"Office\",\"price\":9.99,\"in_stock\":true},{\"id\":11,\"name\":\"Bluetooth Speaker\",\"category\":\"Electronics\",\"price\":49.99,\"in_stock\":true},{\"id\":12,\"name\":\"Denim Jacket\",\"category\":\"Clothing\",\"price\":59.99,\"in_stock\":true},{\"id\":13,\"name\":\"Dark Chocolate Bar\",\"category\":\"Food\",\"price\":4.99,\"in_stock\":true},{\"id\":14,\"name\":\"Sci-Fi Novel\",\"category\":\"Books\",\"price\":12.99,\"in_stock\":true},{\"id\":15,\"name\":\"Throw Pillow\",\"category\":\"Home\",\"price\":15.99,\"in_stock\":true},{\"id\":16,\"name\":\"Tennis Racket\",\"category\":\"Sports\",\"price\":79.99,\"in_stock\":false},{\"id\":17,\"name\":\"RC Car\",\"category\":\"Toys\",\"price\":44.99,\"in_stock\":true},{\"id\":18,\"name\":\"Lip Balm Set\",\"category\":\"Beauty\",\"price\":7.99,\"in_stock\":true},{\"id\":19,\"name\":\"Pruning Shears\",\"category\":\"Garden\",\"price\":18.99,\"in_stock\":true},{\"id\":20,\"name\":\"Notebook A5\",\"category\":\"Office\",\"price\":5.99,\"in_stock\":true},{\"id\":21,\"name\":\"USB-C Cable\",\"category\":\"Electronics\",\"price\":11.99,\"in_stock\":true},{\"id\":22,\"name\":\"Wool Sweater\",\"category\":\"Clothing\",\"price\":44.99,\"in_stock\":true},{\"id\":23,\"name\":\"Green Tea Pack\",\"category\":\"Food\",\"price\":6.99,\"in_stock\":true},{\"id\":24,\"name\":\"History Atlas\",\"category\":\"Books\",\"price\":29.99,\"in_stock\":false},{\"id\":25,\"name\":\"Wall Clock\",\"category\":\"Home\",\"price\":",
+      "reasoning_text": "",
+      "after": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 72",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 58.7602"
+        ]
+      },
+      "requested_output_tokens": 800,
+      "output_cap_reached": true
+    },
+    {
+      "label": "JSON-2",
+      "prompt_sha256": "11b16d604e79c2114dc8d6b8ee7cba9ae355a443d81ac3779c4c8318938a6c7a",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "cache_prompt": false,
+        "max_tokens": 800
+      },
+      "before": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 72",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 0"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "completion_tokens": 800,
+        "prompt_tokens": 24,
+        "total_tokens": 824,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.41035643697250634,
+      "wall_s": 43.231257393956184,
+      "pp_effective_tok_s": 58.485740292184055,
+      "generation_e2e_tok_s": 18.505129117799882,
+      "decode_tok_s": 18.65913862955204,
+      "legacy_decode_tok_s": 18.68246538772388,
+      "text": "\n\n<think>\nThe user wants me to output a JSON array of 200 objects with fields: id, name, category, price, in_stock. Only JSON, no other text.\n\nLet me generate 200 objects with varied names, categories, prices, and in_stock boolean values. I'll make them realistic with different product categories like Electronics, Clothing, Food, Books, Home, Sports, Toys, Beauty, Garden, Office.\n\nLet me create this systematically with varied data.\n</think>\n\n[{\"id\":1,\"name\":\"Wireless Mouse\",\"category\":\"Electronics\",\"price\":29.99,\"in_stock\":true},{\"id\":2,\"name\":\"Cotton T-Shirt\",\"category\":\"Clothing\",\"price\":14.99,\"in_stock\":true},{\"id\":3,\"name\":\"Organic Honey\",\"category\":\"Food\",\"price\":8.50,\"in_stock\":true},{\"id\":4,\"name\":\"Python Cookbook\",\"category\":\"Books\",\"price\":39.99,\"in_stock\":false},{\"id\":5,\"name\":\"LED Desk Lamp\",\"category\":\"Home\",\"price\":24.99,\"in_stock\":true},{\"id\":6,\"name\":\"Yoga Mat\",\"category\":\"Sports\",\"price\":19.99,\"in_stock\":true},{\"id\":7,\"name\":\"Building Blocks Set\",\"category\":\"Toys\",\"price\":34.99,\"in_stock\":true},{\"id\":8,\"name\":\"Moisturizing Cream\",\"category\":\"Beauty\",\"price\":12.99,\"in_stock\":true},{\"id\":9,\"name\":\"Garden Hose 50ft\",\"category\":\"Garden\",\"price\":27.99,\"in_stock\":false},{\"id\":10,\"name\":\"Stapler Heavy Duty\",\"category\":\"Office\",\"price\":9.99,\"in_stock\":true},{\"id\":11,\"name\":\"Bluetooth Speaker\",\"category\":\"Electronics\",\"price\":49.99,\"in_stock\":true},{\"id\":12,\"name\":\"Denim Jacket\",\"category\":\"Clothing\",\"price\":59.99,\"in_stock\":true},{\"id\":13,\"name\":\"Dark Chocolate Bar\",\"category\":\"Food\",\"price\":4.99,\"in_stock\":true},{\"id\":14,\"name\":\"Sci-Fi Novel\",\"category\":\"Books\",\"price\":12.99,\"in_stock\":true},{\"id\":15,\"name\":\"Throw Pillow\",\"category\":\"Home\",\"price\":15.99,\"in_stock\":true},{\"id\":16,\"name\":\"Tennis Racket\",\"category\":\"Sports\",\"price\":79.99,\"in_stock\":false},{\"id\":17,\"name\":\"RC Car\",\"category\":\"Toys\",\"price\":44.99,\"in_stock\":true},{\"id\":18,\"name\":\"Lip Balm Set\",\"category\":\"Beauty\",\"price\":7.99,\"in_stock\":true},{\"id\":19,\"name\":\"Pruning Shears\",\"category\":\"Garden\",\"price\":18.99,\"in_stock\":true},{\"id\":20,\"name\":\"Notebook A5\",\"category\":\"Office\",\"price\":5.99,\"in_stock\":true},{\"id\":21,\"name\":\"USB-C Cable\",\"category\":\"Electronics\",\"price\":11.99,\"in_stock\":true},{\"id\":22,\"name\":\"Wool Sweater\",\"category\":\"Clothing\",\"price\":44.99,\"in_stock\":true},{\"id\":23,\"name\":\"Green Tea Pack\",\"category\":\"Food\",\"price\":6.99,\"in_stock\":true},{\"id\":24,\"name\":\"History Atlas\",\"category\":\"Books\",\"price\":29.99,\"in_stock\":false},{\"id\":25,\"name\":\"Wall Clock\",\"category\":\"Home\",\"price\":",
+      "reasoning_text": "",
+      "after": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 96",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 70.2262"
+        ]
+      },
+      "requested_output_tokens": 800,
+      "output_cap_reached": true
+    },
+    {
+      "label": "JSON-3",
+      "prompt_sha256": "11b16d604e79c2114dc8d6b8ee7cba9ae355a443d81ac3779c4c8318938a6c7a",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "cache_prompt": false,
+        "max_tokens": 800
+      },
+      "before": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 96",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 0"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "completion_tokens": 800,
+        "prompt_tokens": 24,
+        "total_tokens": 824,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.33956477395258844,
+      "wall_s": 43.133515121997334,
+      "pp_effective_tok_s": 70.67870945692084,
+      "generation_e2e_tok_s": 18.54706248116593,
+      "decode_tok_s": 18.670891135743,
+      "legacy_decode_tok_s": 18.694231158693484,
+      "text": "\n\n<think>\nThe user wants me to output a JSON array of 200 objects with fields: id, name, category, price, in_stock. Only JSON, no other text.\n\nLet me generate 200 objects with varied names, categories, prices, and in_stock boolean values. I'll make them realistic with different product categories like Electronics, Clothing, Food, Books, Home, Sports, Toys, Beauty, Garden, Office.\n\nLet me create this systematically with varied data.\n</think>\n\n[{\"id\":1,\"name\":\"Wireless Mouse\",\"category\":\"Electronics\",\"price\":29.99,\"in_stock\":true},{\"id\":2,\"name\":\"Cotton T-Shirt\",\"category\":\"Clothing\",\"price\":14.99,\"in_stock\":true},{\"id\":3,\"name\":\"Organic Honey\",\"category\":\"Food\",\"price\":8.50,\"in_stock\":true},{\"id\":4,\"name\":\"Python Cookbook\",\"category\":\"Books\",\"price\":39.99,\"in_stock\":false},{\"id\":5,\"name\":\"LED Desk Lamp\",\"category\":\"Home\",\"price\":24.99,\"in_stock\":true},{\"id\":6,\"name\":\"Yoga Mat\",\"category\":\"Sports\",\"price\":19.99,\"in_stock\":true},{\"id\":7,\"name\":\"Building Blocks Set\",\"category\":\"Toys\",\"price\":34.99,\"in_stock\":true},{\"id\":8,\"name\":\"Moisturizing Cream\",\"category\":\"Beauty\",\"price\":12.99,\"in_stock\":true},{\"id\":9,\"name\":\"Garden Hose 50ft\",\"category\":\"Garden\",\"price\":27.99,\"in_stock\":false},{\"id\":10,\"name\":\"Stapler Heavy Duty\",\"category\":\"Office\",\"price\":9.99,\"in_stock\":true},{\"id\":11,\"name\":\"Bluetooth Speaker\",\"category\":\"Electronics\",\"price\":49.99,\"in_stock\":true},{\"id\":12,\"name\":\"Denim Jacket\",\"category\":\"Clothing\",\"price\":59.99,\"in_stock\":true},{\"id\":13,\"name\":\"Dark Chocolate Bar\",\"category\":\"Food\",\"price\":4.99,\"in_stock\":true},{\"id\":14,\"name\":\"Sci-Fi Novel\",\"category\":\"Books\",\"price\":12.99,\"in_stock\":true},{\"id\":15,\"name\":\"Throw Pillow\",\"category\":\"Home\",\"price\":15.99,\"in_stock\":true},{\"id\":16,\"name\":\"Tennis Racket\",\"category\":\"Sports\",\"price\":79.99,\"in_stock\":false},{\"id\":17,\"name\":\"RC Car\",\"category\":\"Toys\",\"price\":44.99,\"in_stock\":true},{\"id\":18,\"name\":\"Lip Balm Set\",\"category\":\"Beauty\",\"price\":7.99,\"in_stock\":true},{\"id\":19,\"name\":\"Pruning Shears\",\"category\":\"Garden\",\"price\":18.99,\"in_stock\":true},{\"id\":20,\"name\":\"Notebook A5\",\"category\":\"Office\",\"price\":5.99,\"in_stock\":true},{\"id\":21,\"name\":\"USB-C Cable\",\"category\":\"Electronics\",\"price\":11.99,\"in_stock\":true},{\"id\":22,\"name\":\"Wool Sweater\",\"category\":\"Clothing\",\"price\":44.99,\"in_stock\":true},{\"id\":23,\"name\":\"Green Tea Pack\",\"category\":\"Food\",\"price\":6.99,\"in_stock\":true},{\"id\":24,\"name\":\"History Atlas\",\"category\":\"Books\",\"price\":29.99,\"in_stock\":false},{\"id\":25,\"name\":\"Wall Clock\",\"category\":\"Home\",\"price\":",
+      "reasoning_text": "",
+      "after": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 120",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 71.1514"
+        ]
+      },
+      "requested_output_tokens": 800,
+      "output_cap_reached": true
+    },
+    {
+      "label": "code-1",
+      "prompt_sha256": "8e6134d79e69df6b7a98b98f19f353712544b2abb5b9e729f895da2bc954d7e0",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "cache_prompt": false,
+        "max_tokens": 600
+      },
+      "before": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 120",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 0"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "completion_tokens": 600,
+        "prompt_tokens": 20,
+        "total_tokens": 620,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.3013217629631981,
+      "wall_s": 32.66024140594527,
+      "pp_effective_tok_s": 66.3742300035683,
+      "generation_e2e_tok_s": 18.370960353366513,
+      "decode_tok_s": 18.511156655068053,
+      "legacy_decode_tok_s": 18.542028183259408,
+      "text": "\n\n<think>\n\n</think>\n\n```python\n\"\"\"\nA thread-safe LRU (Least Recently Used) cache with TTL (Time-To-Live) expiry.\n\nThis module provides a generic LRU cache that automatically evicts the least\nrecently used items when the cache reaches its maximum capacity, and also\nexpires items after a specified time-to-live duration.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport threading\nimport time\nfrom collections import OrderedDict\nfrom typing import Any, Callable, Generic, Hashable, Optional, TypeVar\n\nK = TypeVar(\"K\", bound=Hashable)\nV = TypeVar(\"V\")\n\n\nclass LRUCache(Generic[K, V]):\n    \"\"\"\n    A thread-safe LRU cache with optional TTL (Time-To-Live) expiry.\n\n    The cache stores key-value pairs and automatically evicts the least\n    recently used items when the cache exceeds its maximum size. Additionally,\n    items expire after a specified TTL duration (in seconds).\n\n    Attributes:\n        maxsize: The maximum number of items the cache can hold.\n        ttl: The time-to-live for each item in seconds. If None, items do not expire.\n    \"\"\"\n\n    def __init__(self, maxsize: int = 128, ttl: Optional[float] = None) -> None:\n        \"\"\"\n        Initialize the LRU cache.\n\n        Args:\n            maxsize: The maximum number of items the cache can hold. Must be positive.\n            ttl: The time-to-live for each item in seconds. If None, items do not expire.\n\n        Raises:\n            ValueError: If maxsize is not positive.\n        \"\"\"\n        if maxsize <= 0:\n            raise ValueError(\"maxsize must be a positive integer\")\n        if ttl is not None and ttl <= 0:\n            raise ValueError(\"ttl must be a positive number or None\")\n\n        self._maxsize = maxsize\n        self._ttl = ttl\n        self._cache: OrderedDict[K, tuple[V, float]] = OrderedDict()\n        self._lock = threading.RLock()\n\n    @property\n    def maxsize(self) -> int:\n        \"\"\"Return the maximum size of the cache.\"\"\"\n        return self._maxsize\n\n    @property\n    def ttl(self) -> Optional[float]:\n        \"\"\"Return the TTL (time-to-live) in seconds, or None if no expiry.\"\"\"\n        return self._ttl\n\n    def get(self, key: K, default: Optional[V] = None) -> Optional[V]:\n        \"\"\"\n        Retrieve a value from the cache.\n\n        If the key exists and has not expired, the value is returned and the\n        item is marked as recently used. If the key does not exist or has\n        expired, the default value is returned.\n\n        Args:\n           ",
+      "reasoning_text": "",
+      "after": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 140",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 67.0378"
+        ]
+      },
+      "requested_output_tokens": 600,
+      "output_cap_reached": true
+    },
+    {
+      "label": "code-2",
+      "prompt_sha256": "8e6134d79e69df6b7a98b98f19f353712544b2abb5b9e729f895da2bc954d7e0",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "cache_prompt": false,
+        "max_tokens": 600
+      },
+      "before": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 140",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 0"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "completion_tokens": 600,
+        "prompt_tokens": 20,
+        "total_tokens": 620,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.35880628100130707,
+      "wall_s": 32.44613212207332,
+      "pp_effective_tok_s": 55.74038432155301,
+      "generation_e2e_tok_s": 18.49218876822042,
+      "decode_tok_s": 18.66784769071275,
+      "legacy_decode_tok_s": 18.698971767600387,
+      "text": "\n\n<think>\n\n</think>\n\n```python\n\"\"\"\nA thread-safe LRU (Least Recently Used) cache with TTL (Time-To-Live) expiry.\n\nThis module provides a generic LRU cache that automatically evicts the least\nrecently used items when the cache reaches its maximum capacity, and also\nexpires items after a specified time-to-live duration.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport threading\nimport time\nfrom collections import OrderedDict\nfrom typing import Any, Callable, Generic, Hashable, Optional, TypeVar\n\nK = TypeVar(\"K\", bound=Hashable)\nV = TypeVar(\"V\")\n\n\nclass LRUCache(Generic[K, V]):\n    \"\"\"\n    A thread-safe LRU cache with optional TTL (Time-To-Live) expiry.\n\n    The cache stores key-value pairs and automatically evicts the least\n    recently used items when the cache exceeds its maximum size. Additionally,\n    items expire after a specified TTL duration (in seconds).\n\n    Attributes:\n        maxsize: The maximum number of items the cache can hold.\n        ttl: The time-to-live for each item in seconds. If None, items do not expire.\n    \"\"\"\n\n    def __init__(self, maxsize: int = 128, ttl: Optional[float] = None) -> None:\n        \"\"\"\n        Initialize the LRU cache.\n\n        Args:\n            maxsize: The maximum number of items the cache can hold. Must be positive.\n            ttl: The time-to-live for each item in seconds. If None, items do not expire.\n\n        Raises:\n            ValueError: If maxsize is not positive.\n        \"\"\"\n        if maxsize <= 0:\n            raise ValueError(\"maxsize must be a positive integer\")\n        if ttl is not None and ttl <= 0:\n            raise ValueError(\"ttl must be a positive number or None\")\n\n        self._maxsize = maxsize\n        self._ttl = ttl\n        self._cache: OrderedDict[K, tuple[V, float]] = OrderedDict()\n        self._lock = threading.RLock()\n\n    @property\n    def maxsize(self) -> int:\n        \"\"\"Return the maximum size of the cache.\"\"\"\n        return self._maxsize\n\n    @property\n    def ttl(self) -> Optional[float]:\n        \"\"\"Return the TTL (time-to-live) in seconds, or None if no expiry.\"\"\"\n        return self._ttl\n\n    def get(self, key: K, default: Optional[V] = None) -> Optional[V]:\n        \"\"\"\n        Retrieve a value from the cache.\n\n        If the key exists and has not expired, the value is returned and the\n        item is marked as recently used. If the key does not exist or has\n        expired, the default value is returned.\n\n        Args:\n           ",
+      "reasoning_text": "",
+      "after": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 160",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 67.8645"
+        ]
+      },
+      "requested_output_tokens": 600,
+      "output_cap_reached": true
+    },
+    {
+      "label": "code-3",
+      "prompt_sha256": "8e6134d79e69df6b7a98b98f19f353712544b2abb5b9e729f895da2bc954d7e0",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "cache_prompt": false,
+        "max_tokens": 600
+      },
+      "before": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 160",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 0"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "completion_tokens": 600,
+        "prompt_tokens": 20,
+        "total_tokens": 620,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.2971133489627391,
+      "wall_s": 32.37561757792719,
+      "pp_effective_tok_s": 67.31437705448971,
+      "generation_e2e_tok_s": 18.53246501185088,
+      "decode_tok_s": 18.672985232436854,
+      "legacy_decode_tok_s": 18.70411399850264,
+      "text": "\n\n<think>\n\n</think>\n\n```python\n\"\"\"\nA thread-safe LRU (Least Recently Used) cache with TTL (Time-To-Live) expiry.\n\nThis module provides a generic LRU cache that automatically evicts the least\nrecently used items when the cache reaches its maximum capacity, and also\nexpires items after a specified time-to-live duration.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport threading\nimport time\nfrom collections import OrderedDict\nfrom typing import Any, Callable, Generic, Hashable, Optional, TypeVar\n\nK = TypeVar(\"K\", bound=Hashable)\nV = TypeVar(\"V\")\n\n\nclass LRUCache(Generic[K, V]):\n    \"\"\"\n    A thread-safe LRU cache with optional TTL (Time-To-Live) expiry.\n\n    The cache stores key-value pairs and automatically evicts the least\n    recently used items when the cache exceeds its maximum size. Additionally,\n    items expire after a specified TTL duration (in seconds).\n\n    Attributes:\n        maxsize: The maximum number of items the cache can hold.\n        ttl: The time-to-live for each item in seconds. If None, items do not expire.\n    \"\"\"\n\n    def __init__(self, maxsize: int = 128, ttl: Optional[float] = None) -> None:\n        \"\"\"\n        Initialize the LRU cache.\n\n        Args:\n            maxsize: The maximum number of items the cache can hold. Must be positive.\n            ttl: The time-to-live for each item in seconds. If None, items do not expire.\n\n        Raises:\n            ValueError: If maxsize is not positive.\n        \"\"\"\n        if maxsize <= 0:\n            raise ValueError(\"maxsize must be a positive integer\")\n        if ttl is not None and ttl <= 0:\n            raise ValueError(\"ttl must be a positive number or None\")\n\n        self._maxsize = maxsize\n        self._ttl = ttl\n        self._cache: OrderedDict[K, tuple[V, float]] = OrderedDict()\n        self._lock = threading.RLock()\n\n    @property\n    def maxsize(self) -> int:\n        \"\"\"Return the maximum size of the cache.\"\"\"\n        return self._maxsize\n\n    @property\n    def ttl(self) -> Optional[float]:\n        \"\"\"Return the TTL (time-to-live) in seconds, or None if no expiry.\"\"\"\n        return self._ttl\n\n    def get(self, key: K, default: Optional[V] = None) -> Optional[V]:\n        \"\"\"\n        Retrieve a value from the cache.\n\n        If the key exists and has not expired, the value is returned and the\n        item is marked as recently used. If the key does not exist or has\n        expired, the default value is returned.\n\n        Args:\n           ",
+      "reasoning_text": "",
+      "after": {
+        "metrics": [
+          "llamacpp:prompt_tokens_total 180",
+          "llamacpp:prompt_tokens_cached_total 0",
+          "llamacpp:spec_decode_num_draft_tokens_total 0",
+          "llamacpp:spec_decode_num_accepted_tokens_total 0",
+          "llamacpp:spec_decode_num_drafts_total 0",
+          "llamacpp:prompt_tokens_seconds 67.9244"
+        ]
+      },
+      "requested_output_tokens": 600,
+      "output_cap_reached": true
+    }
+  ]
+}

@@ -1,0 +1,284 @@
+{
+  "description": "Explicit bounded output reviews; successful HTTP requests and caps alone do not qualify a configuration",
+  "profiles": {
+    "stew-q6-cache-hybrid-replay": {
+      "c2_qualified": false,
+      "reason": "Concurrent together-0-0 loops a three-sentence briefing/context block through the output cap, while corresponding alone output proceeds coherently. Original literal phrase counter remains zero; this demonstrates why it is not a sufficient correctness check.",
+      "reviewed_trial": "together-0-0",
+      "completion_tokens": 256,
+      "finish_reason": "length",
+      "output_sha256": "1b4f9b27ee4c4c62d1eae3dcc1dbedc678d37035e01b113e24ec50bf96ccfcf7",
+      "cause": "Not established; differing floating-point outputs alone are not classified as corruption.",
+      "replay_source_sha256": "a6bbfa07258c7edddb2748316d3c171cfb1ff8ae8f92f9f0051a5dbf49a88861",
+      "replay_trials": 14,
+      "replay_all_reach_256": true,
+      "reviewed_c1_replays": 6,
+      "reviewed_c2_replays": 8,
+      "explicit_loop_trials": [
+        "together-0-0"
+      ],
+      "c1_screen": "All six matching C1 and six exact-nonce alone replays reviewed coherent; a deployable C1 preset would require separate single-slot qualification.",
+      "independent_c2": "All4caps256, reviewed coherent; longpair378.5936s with prefill interference. Exact-nonce replay loop still prevents C2 qualification.",
+      "api_checks": "Arithmetic, JSON-object and automatic tool probes all passed.",
+      "screen_complete": true,
+      "c2_failure_kind": "repeated output"
+    },
+    "stew-q6-cache-pure-rccl-loader": {
+      "c2_qualified": false,
+      "c2_failure_kind": "premature EOS",
+      "reason": "The exact original concurrent pair produces initial-together-0 ending mid-sentence after17 reasoning tokens, EOS, no finalanswer. Corresponding C1 common outputs all match the already-reviewed coherent hybrid C1 outputs.",
+      "reviewed_trial": "initial-together-0",
+      "completion_tokens": 17,
+      "finish_reason": "stop",
+      "output_sha256": "5cbc75d305d06af94665ca3d6bdada4fa886272973edf6d99dc780845818a422",
+      "cause": "Not established; pure RCCL does not remove the concurrent output failure.",
+      "replay_source_sha256": "33e8082ed8871b0d81bee7469f75a5dfa922a86e60ee980bfce496ad8bbf5b99",
+      "replay_trials": 14,
+      "replay_all_reach_256": false,
+      "reviewed_c1_replays": 6,
+      "reviewed_c2_replays": 8,
+      "explicit_premature_eos_trials": [
+        "initial-together-0"
+      ],
+      "c1_screen": "All6common and all6exact-nonce-alone reviewed coherent and byte-identical to hybrid C1 counterparts.",
+      "independent_c2": "All4caps256 and reviewed coherent; shortpair41.5947s and longpair376.7013s with prefill interference. Exact-nonce prematureEOS still prevents C2 qualification.",
+      "api_checks": "Arithmetic, JSON-object and automatic tool probes all passed.",
+      "screen_complete": true
+    },
+    "stew-q6-cache-layer-wide-loader": {
+      "screen_complete": true,
+      "c1_qualified": false,
+      "c2_qualified": false,
+      "c2_failure_kind": "GPU OOM",
+      "reason": "GPU1 cannot allocate7330MiB compute buffer before readiness; no timed trials",
+      "cause": "Insufficient allocatable VRAM at requested compute allocation; exact fragmentation/scratch breakdown not established"
+    },
+    "stew-q6-all-cache-layer-wide-loader": {
+      "screen_complete": true,
+      "c1_qualified": false,
+      "c2_qualified": false,
+      "c2_failure_kind": "GPU OOM",
+      "reason": "All3long C1 trials fail with GPU0 compute-buffer allocation OOM; short results and API probes alone do not qualify this profile",
+      "cause": "Insufficient allocatable VRAM at requested compute allocation; exact fragmentation/scratch breakdown not established"
+    },
+    "stew-q6-classic-r15": {
+      "c1_screen": "All6matching outputs manually reviewed coherent; all3short byte-identical; first2long byte-identical and third varies. All256tokens. This bounded throughput check usually ends during reasoning; no bit-exact long repeatability claim.",
+      "reviewed_c1_trials": 6,
+      "common_source_sha256": "82274fb9f68d35873d7d3e6ff4eef4b875601392d325a3b8ef9ea8224611c926",
+      "screen_complete": true,
+      "replay_trials": 14,
+      "replay_all_reach_256": true,
+      "reviewed_c1_replays": 6,
+      "reviewed_c2_replays": 8,
+      "replay_source_sha256": "30f6ce8182d39c5217b21a74050a6233db5a8cf009a7944ed9e191236da86d46",
+      "replay_review": "All14full outputs manually reviewed coherent; no explicit paragraph loop or prematureEOS. Sixalone repetitions byte-identical by session. Concurrentoutputs differ coherently; no bit-exact concurrentoutput claim.",
+      "independent_c2_review": "All4outputs reviewed coherent/all256; shortpair51.87577s,longpair841.65307s, marked prefill interference on earlierstream.",
+      "c1_qualified": true,
+      "c2_qualified": true,
+      "reason": "Original6C1+14replay+4independentC2+3API bounded screen passes; identical-spec fullqualification nowalso passes9raw+16PP+14post64Kreplay+3API, see stew-q6-classic-r15-full-qualification.",
+      "api_checks": "Arithmetic, JSON-object and automatic tool probes allPASS",
+      "c2_source_sha256": "9716f2914f08e477ffffab306c5dce660f589d968fadd19a9c7fbb81b0208841",
+      "api_source_sha256": "5f4c1d6a7cc008a4520b1d47038e0691c8acd401d678fbdf90a1692868d6ef6e",
+      "alone_repeat_byte_identity": [
+        true,
+        true
+      ]
+    },
+    "stew-q6-cache-layer-4k-loader": {
+      "screen_complete": true,
+      "c1_screen": "All6matching outputs reviewed coherent and reach256; all3short byte-identical, all3long byte-identical. Long TTFT88.22\u201388.26s; no compute allocation failure.",
+      "reviewed_c1_trials": 6,
+      "common_source_sha256": "0c5a4ed841a1075dd6ee0310061eaa0e2c34ed10ad0f3110c9232d98af127e9b",
+      "c2_qualified": false,
+      "c2_failure_kind": "repeated output",
+      "reason": "initial-together-1 and together-0-1 repeat I will use the full string they provided through256cap; corresponding alone-0-1 coherent. Literal oldphrasecounterzero.",
+      "reviewed_trial": "initial-together-1",
+      "output_sha256": "9ee8ccb1793f0024c8d05693a0afd13ece9334f750e73e15c04381410e6e4110",
+      "reviewed_c1_replays": 6,
+      "reviewed_c2_replays": 8,
+      "cause": "Not established; layer split and smaller microbatch resolve memory fit but do not eliminate concurrentoutput failure.",
+      "replay_trials": 14,
+      "replay_all_reach_256": true,
+      "explicit_loop_trials": [
+        "initial-together-1",
+        "together-0-1",
+        "together-1-1",
+        "together-2-1"
+      ],
+      "replay_source_sha256": "43e5d3a69b24e1c92ffa324219284142c4459efd72f8ea0494341b0c6cc7c5fe",
+      "independent_c2_review": "All4caps256; bothlong manuallyreviewedcoherent, pair206.86961s withprefillinterference. Shortsession0coherent; session1off-tasknumericcontinuation. ExactreplayfourloopsstillrejectC2.",
+      "api_checks": "Arithmetic/JSON-object/automatictool3PASS",
+      "c2_source_sha256": "19007f37421b5025ceedefb903ed47c94e42aadb3cc0c82eea38522a476988b1"
+    },
+    "stew-q6-cache-layer-4k-fast-first": {
+      "screen_complete": true,
+      "c1_screen": "All6C1caps256; all6byte-identical to corresponding manually-reviewed coherent default-order outputs. Reversal improves40KTTFT but worsensdecode/shortlatency.",
+      "common_source_sha256": "be7e4281550b6da724a11ec0fc6e8df7a64b7ab204c7b7e3f9edbbad2b46078f",
+      "reviewed_c1_trials": 6,
+      "c2_qualified": false,
+      "c2_failure_kind": "repeated output",
+      "reason": "initial-together-0 and together-0-0 emit malformed unrelatedrecords then1.000...zeroes throughcap; correspondingalone0coherent and matches reviewed default-orderalone0. Otherinitial/rep0stream1coherent.",
+      "reviewed_trial": "initial-together-0",
+      "output_sha256": "1f6f1c6c0439be68a108131927731de70ba48583e5f88703f2c84941b405c143",
+      "reviewed_c1_replays": 6,
+      "reviewed_c2_replays": 8,
+      "cause": "Not established; device ordering alone does not remove Q6 cachedC2 output failure.",
+      "replay_trials": 14,
+      "replay_all_reach_256": true,
+      "replay_source_sha256": "bb61040a9165f92848d6ee37d36914df68cb2d11fdb816bda2c95149af5b32f7",
+      "explicit_loop_trials": [
+        "initial-together-0",
+        "together-0-0",
+        "together-1-0",
+        "together-2-0"
+      ],
+      "replay_review": "All14reviewed; all6alone byteidentical to corresponding revieweddefaultalone. All4concurrent-session0 contain identical malformedrecords+zeroes; other4concurrent outputs coherent.",
+      "independent_c2_review": "All4caps256; bothlong manuallyreviewedcoherent,pair191.37191s/prefillinterference. Shortsession0coherent, session1unrelated3lines followed byblanklines throughcap. ExactfourconcurrentreplayfailuresstillrejectC2.",
+      "api_checks": "Arithmetic/JSON-object/automatictool3PASS",
+      "c2_source_sha256": "939f7de632dcecd88956639251bc51316b9475a93069cad89bda1748421b8d0f"
+    },
+    "stew-q6-all-cache-layer-4k-headroom": {
+      "screen_complete": true,
+      "c1_qualified": false,
+      "c2_qualified": false,
+      "c2_failure_kind": "GPU OOM",
+      "reason": "All3matching40K C1 requests failGPU1compute allocation at4554.5MiB afterfirst8192tokens. Shortgeneration up to31.62tokens/s and3APIpasses do not qualify longcontext. No replay/C2 after failedcommonprotocol.",
+      "cause": "Insufficient allocatableVRAM atresize; separatekernelpoolretention observed insource isplausible. Exactscratch/fragmentationbreakdownnotmeasured.",
+      "api_checks": "Arithmetic/JSON-object/automatictool3PASS"
+    },
+    "stew-q6-cache-layer-4k-host-map": {
+      "screen_complete": true,
+      "c1_screen": "All6C1outputs byte-identical to manually-reviewed coherent device-map/default-order outputs; allreach256.",
+      "reviewed_c1_trials": 6,
+      "common_source_sha256": "d0b5a91aa186662bae2a0972ba83ad80ce4cdb09c580165a261fe4b785dc705b",
+      "c2_qualified": false,
+      "c2_failure_kind": "repeated output",
+      "reason": "initial-together-1 and together-1-1 reproduce exactly the revieweddevice-map loopIwillusethefullstringtheyprovided throughcapSHA9ee8...; together-0-0 and together-0-1coherent. Thus eagerhostmappingdoesnotreliablyremoveC2failure.",
+      "reviewed_trial": "initial-together-1",
+      "output_sha256": "9ee8ccb1793f0024c8d05693a0afd13ece9334f750e73e15c04381410e6e4110",
+      "reviewed_c1_replays": 6,
+      "reviewed_c2_replays": 8,
+      "cause": "Not established. DEVMAP0also disablesDEVPOLICY/KSLOT; thosecontrols alone areinsufficient tofix observedconcurrentfailure.",
+      "replay_trials": 14,
+      "replay_all_reach_256": true,
+      "explicit_loop_trials": [
+        "initial-together-1",
+        "together-1-1",
+        "together-2-1"
+      ],
+      "replay_source_sha256": "9a491138b3eefd4419d2047977c08daf2e78a384205b369cfab8e409991b9e9b",
+      "replay_review": "All14reviewed: sixalonecoherent/sessionidentical; threeconcurrent-session1loop exactlymatchesdevice-mapSHA9ee8..., otherconcurrentoutputscoherent, includingbothrep0streams.",
+      "independent_c2_review": "All4reach256. Shortsession1loops hiddenmessage/spacecharacter; othershortandbothlongcoherent. Longpair207.15259s/prefillinterference. StillrejectC2.",
+      "api_checks": "Arithmetic/JSON-object/automatictool3PASS",
+      "c2_source_sha256": "9d580ffc991fe243989cee59b7256101462f2fd6a076eaf8798dc6519cf26ed6"
+    },
+    "stew-q6-all-cache-c1-reserve4-full": {
+      "c1_qualified": false,
+      "c2_qualified": false,
+      "screen_complete": true,
+      "reason": "All three 40K inputs fail GPU1 compute resize4466.50->4554.50MiB despite one slot and4096MiB reserve. Three short outputs manually reviewed coherent; API3pass; no raw/PP qualification attempted after failure.",
+      "memory_capture": "After three failed40K requests and passingAPI, not healthy long-prefill peak. Pod110.93GiB/limit114GiB, anon+shmem103.47GiB,file6.97GiB,cgroupOOMzero; physicalCPU-card27.18GiB/chipset-card28.51GiB may drop aftercompute buffer freed."
+    },
+    "stew-q6-cache-layer-c1-qualified-full": {
+      "c1_qualified": true,
+      "c2_qualified": false,
+      "scope": "One active slot only; no concurrent C2 claim",
+      "common_screen": "All six reach256 and are byte-identical to the previously manually reviewed coherent default layer4K C1 outputs. Full output comparison retained separately.",
+      "remaining": null,
+      "screen_complete": true,
+      "raw_review": "All9 full raw outputs reviewed through3 byte-identical groups; all256/800/600 caps. Prose begins with instruction-like elaboration then starts the B-tree tutorial; JSON contains a think section and coherent product entries; code begins a plausible typed LRU implementation. These are truncated raw continuations, not completed structured-answer or executable-code correctness tests. No explicit repeated loop/premature EOS.",
+      "raw_output_hashes": {
+        "prose-1": "eb5d91120e763f37cb72a01871c8125083075b6336dc2fd79a2f7c6a55b9cb8a",
+        "prose-2": "eb5d91120e763f37cb72a01871c8125083075b6336dc2fd79a2f7c6a55b9cb8a",
+        "prose-3": "eb5d91120e763f37cb72a01871c8125083075b6336dc2fd79a2f7c6a55b9cb8a",
+        "JSON-1": "e8c1a14654011b67e22b366c5bd64e0ce6042664f0a658500b1a98acff33bb83",
+        "JSON-2": "e8c1a14654011b67e22b366c5bd64e0ce6042664f0a658500b1a98acff33bb83",
+        "JSON-3": "e8c1a14654011b67e22b366c5bd64e0ce6042664f0a658500b1a98acff33bb83",
+        "code-1": "56ed538fbcceb2612f187db33f15d32d73f2c9a5218a13960e7f675e8912b9c4",
+        "code-2": "56ed538fbcceb2612f187db33f15d32d73f2c9a5218a13960e7f675e8912b9c4",
+        "code-3": "56ed538fbcceb2612f187db33f15d32d73f2c9a5218a13960e7f675e8912b9c4"
+      },
+      "reason": "Single-slot configuration passes6matchingC1+9raw+16PP+3APIchecks. Allmatchingoutputs match reviewedcoherentdefault C1 bytes; rawoutputs manuallyreviewed. PPtokenizerusageequal andcached0, includingtwo64K. NoGPUor cgroupOOM. C1only; no concurrentC2claim.",
+      "pp_input_accounting_pass": true,
+      "api_checks": {
+        "arithmetic": true,
+        "json": true,
+        "tool": true
+      },
+      "physical_memory": "CPUcard31.84071GiB,chipset31.79563GiB,Pod104.39661GiB,anon+shmem84.51007GiB,otherfile19.30821GiB,max/OOM0"
+    },
+    "stew-q6-classic-r15-full-qualification": {
+      "c1_qualified": true,
+      "c2_qualified": true,
+      "screen_complete": true,
+      "screen_reference": "stew-q6-classic-r15 passesC1/14replay/4C2/API withidenticalspec",
+      "raw_review": "All9fullraw outputs manuallyreviewed through3byte-identical groups. Coherent capped Btree/prodJSON/LRU continuations, no explicitloops/EOS; notcompletedJSON/codecorrectness tests. Remoteclientfinisheddespitehost kubectlstreamfailure.",
+      "raw_output_hashes": {
+        "prose-1": "c75c81a5304d85029178cba6009e83f41559512e06d0ef21bb21455fe82962e2",
+        "prose-2": "c75c81a5304d85029178cba6009e83f41559512e06d0ef21bb21455fe82962e2",
+        "prose-3": "c75c81a5304d85029178cba6009e83f41559512e06d0ef21bb21455fe82962e2",
+        "JSON-1": "cfab29daf2a3d41e385e13fbdbf0553ed66676a602e424ef13633b37164b0ee4",
+        "JSON-2": "cfab29daf2a3d41e385e13fbdbf0553ed66676a602e424ef13633b37164b0ee4",
+        "JSON-3": "cfab29daf2a3d41e385e13fbdbf0553ed66676a602e424ef13633b37164b0ee4",
+        "code-1": "44fa757337488b6015f5b4385319c115fac243ac3495f5ade0330198c42bb34d",
+        "code-2": "44fa757337488b6015f5b4385319c115fac243ac3495f5ade0330198c42bb34d",
+        "code-3": "44fa757337488b6015f5b4385319c115fac243ac3495f5ade0330198c42bb34d"
+      },
+      "remaining": null,
+      "transport_recovery": "q6-classic-transport-recovery.json",
+      "reason": "Identical-specification originalscreen passes6C1+14replay+4independentC2+3API; fullrunadds9raw+16PP+14originalnoncereplay AFTER64K+3API, allfulloutputs manuallyreviewedcoherent. No fatalGPUor cgroupOOM. HostVPNinterruptions preserved, remotecompletedrequests notrerun.",
+      "postpp_review": {
+        "trials": 14,
+        "all_reach_256": true,
+        "full_manual_review": "All14fulloutputs reviewed through10uniquegroups. Coherent capped reasoning aboutrequestedbriefing, no explicitloop/off-tasknumeric/blankcontinuation/prematureEOS. Sixaloneoutputs identicalby-session across3reps; concurrentoutputs differ coherently.",
+        "output_hashes": {
+          "initial-together-0": "dba8400bb1bce1c2f3b8b3f275505a7dd744c51a60336f364128be13e66cbce5",
+          "initial-together-1": "94bb748b87a7ff43a6f24c0b44d44ab25ae8f5340e71b408c886cc96bde7c7a2",
+          "alone-0-0": "664a7d1eee8532d59465beb5f1faf7449c6900914a5a6cc515ebe7683ee886b5",
+          "alone-0-1": "b898f5e79199fdf8dd5797e31b2d799c1763cdd690dce5a479b9809997939d38",
+          "together-0-0": "912c332db84e590d42240788e209917f97b7795e716ed8faea65038a6a67740d",
+          "together-0-1": "3d6a9fd271af096573a4aae4736bbcc932ba3ae479a2c81829350eaf1633a336",
+          "alone-1-0": "664a7d1eee8532d59465beb5f1faf7449c6900914a5a6cc515ebe7683ee886b5",
+          "alone-1-1": "b898f5e79199fdf8dd5797e31b2d799c1763cdd690dce5a479b9809997939d38",
+          "together-1-0": "80f12273b7bec61b9815d605f9c6da95825fecf8734f966ac2400a1694df53cc",
+          "together-1-1": "ef68f11adb8507282f06f96cedc65fb291c610f3d4c770191b190353e74e5ead",
+          "alone-2-0": "664a7d1eee8532d59465beb5f1faf7449c6900914a5a6cc515ebe7683ee886b5",
+          "alone-2-1": "b898f5e79199fdf8dd5797e31b2d799c1763cdd690dce5a479b9809997939d38",
+          "together-2-0": "5f2ad47bf0e36a156cafaaa409821717d7f5cbcd224fa34120ca782f7563510a",
+          "together-2-1": "35336cd06c9e950941576e7160cbf8ef4253bcc5ded8be4d8beb76c445877123"
+        },
+        "preconditioning": {
+          "file": "stew-q6-classic-r15-full-qualification-pp.json",
+          "sha256": "084cb58eaa66d142e8fa25937783b7ac74e1c4f929dd2e6b756fad7a1ab11025",
+          "protocol": "pp",
+          "trials": 16,
+          "last_label": "pp65536-2",
+          "timestamp_utc": "2026-10-06T15:52:07.395981+00:00"
+        }
+      },
+      "memory": {
+        "gpuGiB": {
+          "0000:2f:00.0": 30.874229431152344,
+          "0000:25:00.0": 30.355430603027344
+        },
+        "podGiB": 107.39057540893555,
+        "anonGiB": 57.90665817260742,
+        "fileGiB": 49.25466537475586,
+        "events": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      },
+      "pp_input_accounting_pass": true,
+      "api_checks": {
+        "arithmetic": true,
+        "json": true,
+        "tool": true
+      }
+    }
+  }
+}

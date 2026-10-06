@@ -1,0 +1,8 @@
+{
+  "trigger": "Real repeated output in Q6 tensorhybrid, pureRCCL earlyEOS, and now memory-fit layer4K exactconcurrentreplay",
+  "source_control": "moe-expert-cache.cu lines379\u2013400 explicitlydocuments DEVMAP0 eager per-op host routing readback and sync; also gates off devicepolicy and in-kernel slotlookup",
+  "change": "Only MOE_EXPERT_CACHE_DEVMAP1->0 compared to stew-q6-cache-layer-4k-loader",
+  "unchanged": "SameQ6/NVMe/CPU-expert split/two128Kslots/batch8192/ub4096/reserve1024",
+  "hypothesis": "Test whether device-side cache-remap path contributes; cause not established before results",
+  "qualification": "All matching C1/exactreplay/independentC2 outputs must be reviewed; API and memory checks required. Serial after currentretrycontroller."
+}

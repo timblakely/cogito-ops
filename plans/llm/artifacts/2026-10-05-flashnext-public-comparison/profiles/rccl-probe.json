@@ -1,0 +1,522 @@
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "flashnext-rccl-probe",
+    "namespace": "llm"
+  },
+  "spec": {
+    "restartPolicy": "Never",
+    "automountServiceAccountToken": false,
+    "nodeSelector": {
+      "kubernetes.io/hostname": "iggy"
+    },
+    "tolerations": [
+      {
+        "key": "node-role.kubernetes.io/control-plane",
+        "operator": "Exists",
+        "effect": "NoSchedule"
+      },
+      {
+        "key": "amd.com/gpu",
+        "operator": "Exists",
+        "effect": "NoSchedule"
+      }
+    ],
+    "securityContext": {
+      "seccompProfile": {
+        "type": "Unconfined"
+      }
+    },
+    "containers": [
+      {
+        "name": "runtime",
+        "image": "docker.io/library/r9v-qwen38-flash-next-wmma:20260915-r2",
+        "imagePullPolicy": "Never",
+        "env": [
+          {
+            "name": "PYTHONUNBUFFERED",
+            "value": "1"
+          },
+          {
+            "name": "PYTHONFAULTHANDLER",
+            "value": "1"
+          },
+          {
+            "name": "QWEN38_EXPERT_TP_SPLIT",
+            "value": "416,224"
+          },
+          {
+            "name": "R9V_RETAINED_MTP4",
+            "value": "1"
+          },
+          {
+            "name": "R9V_DRAFT_W2_RANK_ROWS",
+            "value": "8192"
+          },
+          {
+            "name": "R9V_CACHE_FILL_BATCH",
+            "value": "1"
+          },
+          {
+            "name": "R9V_CACHE80",
+            "value": "1"
+          },
+          {
+            "name": "R9V_CACHE192",
+            "value": "1"
+          },
+          {
+            "name": "R9V_Q6K_HEAD_ROWS5",
+            "value": "1"
+          },
+          {
+            "name": "R9V_DENSE_ROWS45",
+            "value": "1"
+          },
+          {
+            "name": "R9V_DENSE_ROWS2",
+            "value": "0"
+          },
+          {
+            "name": "R9V_HC_ROWS45",
+            "value": "0"
+          },
+          {
+            "name": "R9V_HC_MMQ4",
+            "value": "1"
+          },
+          {
+            "name": "R9V_HC_MIX_MMQ4",
+            "value": "1"
+          },
+          {
+            "name": "R9V_HC_MIX_MMQ45",
+            "value": "1"
+          },
+          {
+            "name": "R9V_HC_SAFE_PADDING",
+            "value": "1"
+          },
+          {
+            "name": "R9V_ATTENTION_OUTPUT4",
+            "value": "1"
+          },
+          {
+            "name": "R9V_SHARED_SAFE_PADDING",
+            "value": "1"
+          },
+          {
+            "name": "R9V_NATIVE_CUSTOM_AR",
+            "value": "1"
+          },
+          {
+            "name": "R9V_NATIVE_ALIGN_IPC",
+            "value": "1"
+          },
+          {
+            "name": "R9V_Q8_MMVQ5_SHAPES",
+            "value": "[\"2560,3072\",\"640,2560\",\"2560,320\"]"
+          },
+          {
+            "name": "VLLM_ROCM_USE_AITER_CUSTOM_AR",
+            "value": "0"
+          },
+          {
+            "name": "VLLM_ROCM_QUICK_REDUCE_QUANTIZATION",
+            "value": "NONE"
+          },
+          {
+            "name": "HIP_VISIBLE_DEVICES",
+            "value": "0,1"
+          },
+          {
+            "name": "ROCR_VISIBLE_DEVICES",
+            "value": "1,0"
+          },
+          {
+            "name": "VLLM_CACHE_ROOT",
+            "value": "/cache/vllm/iggy-wmma-r2"
+          },
+          {
+            "name": "TRITON_CACHE_DIR",
+            "value": "/cache/vllm/iggy-wmma-r2/bootstrap/triton"
+          },
+          {
+            "name": "TRITON_CACHE_AUTOTUNING",
+            "value": "1"
+          },
+          {
+            "name": "TORCHINDUCTOR_CACHE_DIR",
+            "value": "/cache/vllm/iggy-wmma-r2/bootstrap/inductor"
+          },
+          {
+            "name": "TORCH_EXTENSIONS_DIR",
+            "value": "/cache/vllm/iggy-wmma-r2/extensions"
+          },
+          {
+            "name": "RADIANCE_CPU_OFFLOAD_GB_BY_DEVICE",
+            "value": "146.25,78.75"
+          },
+          {
+            "name": "R9V_CPU_OFFLOAD_GB_BY_DEVICE",
+            "value": "146.25,78.75"
+          },
+          {
+            "name": "RADIANCE_TIERED_EXPERT_MANIFEST",
+            "value": "/placement/experts.json"
+          },
+          {
+            "name": "RADIANCE_UVA_HOST_COHERENCE",
+            "value": "default"
+          },
+          {
+            "name": "RADIANCE_UVA_HOST_NONCOHERENT",
+            "value": "0"
+          },
+          {
+            "name": "RADIANCE_USE_R4D",
+            "value": "0"
+          },
+          {
+            "name": "RADIANCE_USE_R4D_AR",
+            "value": "0"
+          },
+          {
+            "name": "RADIANCE_USE_R4D_GDN",
+            "value": "0"
+          },
+          {
+            "name": "RADIANCE_USE_R4D_AR_QUANT",
+            "value": "0"
+          },
+          {
+            "name": "QWEN38_USE_TIERED_IQ_MOE_HIP",
+            "value": "1"
+          },
+          {
+            "name": "QWEN38_TIERED_IQ_MOE_VARIANT",
+            "value": "reuse3v2"
+          },
+          {
+            "name": "QWEN38_TIERED_PREFILL_GROUP_SIZE",
+            "value": "32"
+          },
+          {
+            "name": "QWEN38_TIERED_EXPERT_CACHE_SLOTS",
+            "value": "160"
+          },
+          {
+            "name": "QWEN38_TIERED_EXPERT_CACHE_RANKS",
+            "value": "0"
+          },
+          {
+            "name": "QWEN38_TIERED_EXPERT_CACHE_POLICY",
+            "value": "lru"
+          },
+          {
+            "name": "QWEN38_TIERED_EXPERT_CACHE_ASYNC",
+            "value": "0"
+          },
+          {
+            "name": "QWEN38_TIERED_STREAM_COMPACTION",
+            "value": "1"
+          },
+          {
+            "name": "QWEN38_USE_DENSE_MMVQ_HIP",
+            "value": "1"
+          },
+          {
+            "name": "QWEN38_USE_DENSE_MMVQ_REUSE2",
+            "value": "1"
+          },
+          {
+            "name": "QWEN38_USE_DENSE_MMVQ_Q8_REUSE2",
+            "value": "1"
+          },
+          {
+            "name": "QWEN38_USE_DENSE_MMVQ_REUSE3",
+            "value": "1"
+          },
+          {
+            "name": "QWEN38_USE_DENSE_MMVQ_REUSE4",
+            "value": "0"
+          },
+          {
+            "name": "QWEN38_USE_DENSE_MMVQ_Q8_ATTN_M3",
+            "value": "1"
+          },
+          {
+            "name": "QWEN38_DENSE_MMVQ_Q8_ATTN_M3_VARIANT",
+            "value": "exact4-w8"
+          },
+          {
+            "name": "QWEN38_USE_DENSE_HC_DOWN_BF16_M3",
+            "value": "1"
+          },
+          {
+            "name": "QWEN38_FUSED_HC_UP_MIX",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_GGUF_FUSED_MOE_SHARED_EPILOGUE",
+            "value": "1"
+          },
+          {
+            "name": "QWEN38_USE_HIP_FUSED_GDN_MTP",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_QWEN4_EXP_RDNA4_QSA_STRIDED",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_GGUF_NATIVE_SAFE_MOE_IDS",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_GGUF_QWEN4_EXP_MULTIMODAL",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_QWEN4_EXP_MTP_FP8_EXPERT_ONLY",
+            "value": "0"
+          },
+          {
+            "name": "VLLM_QWEN4_EXP_MTP_FUSED_FC_GATHER",
+            "value": "0"
+          },
+          {
+            "name": "VLLM_KV_CACHE_LAYOUT",
+            "value": "BLHNC"
+          },
+          {
+            "name": "VLLM_ROCM_MOE_PADDING",
+            "value": "0"
+          },
+          {
+            "name": "NCCL_ALGO",
+            "value": "Ring"
+          },
+          {
+            "name": "NCCL_PROTO",
+            "value": "Simple"
+          },
+          {
+            "name": "VLLM_ROCM_USE_AITER",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_ROCM_USE_AITER_LINEAR",
+            "value": "0"
+          },
+          {
+            "name": "VLLM_ROCM_USE_AITER_MHA",
+            "value": "0"
+          },
+          {
+            "name": "VLLM_ROCM_USE_AITER_MLA",
+            "value": "0"
+          },
+          {
+            "name": "VLLM_ROCM_USE_AITER_MOE",
+            "value": "0"
+          },
+          {
+            "name": "VLLM_ROCM_USE_AITER_RMSNORM",
+            "value": "0"
+          },
+          {
+            "name": "VLLM_ROCM_USE_AITER_FP8BMM",
+            "value": "0"
+          },
+          {
+            "name": "VLLM_ROCM_USE_AITER_FP4BMM",
+            "value": "0"
+          },
+          {
+            "name": "VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_PLE_CPU_OFFLOAD",
+            "value": "1"
+          },
+          {
+            "name": "R9V_PLE_HOST_FENCE",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_PLE_RESIDENCY_MODE",
+            "value": "ssd"
+          },
+          {
+            "name": "VLLM_PLE_MMAP_HOST_REGISTER",
+            "value": "0"
+          },
+          {
+            "name": "VLLM_PLE_MMAP_HOST_REGISTER_EXPECTED_BYTES",
+            "value": "28800138240"
+          },
+          {
+            "name": "VLLM_PLE_PINNED_RESERVE_BYTES",
+            "value": "17179869184"
+          },
+          {
+            "name": "VLLM_PLE_BOUNDED_BYTES",
+            "value": "4294967296"
+          },
+          {
+            "name": "VLLM_PLE_BOUNDED_CHUNK_BYTES",
+            "value": "4096"
+          },
+          {
+            "name": "VLLM_PLE_MMAP_READAHEAD",
+            "value": "1"
+          },
+          {
+            "name": "VLLM_PLE_RSS_LOG_ROWS",
+            "value": "131072"
+          },
+          {
+            "name": "VLLM_PLE_WORKER_TIMING",
+            "value": "0"
+          },
+          {
+            "name": "R9V_WORKER_DIAGNOSTICS",
+            "value": "1"
+          },
+          {
+            "name": "R9V_CONTAINER_NAME",
+            "value": "flashnext-r9v-public"
+          },
+          {
+            "name": "R9V_OBSERVABILITY_TARGET",
+            "value": ""
+          },
+          {
+            "name": "R9V_STAGE_DIAGNOSTICS",
+            "value": "1"
+          },
+          {
+            "name": "R9V_EXPECTED_GPU_BDFS",
+            "value": "0000:2f:00.0,0000:25:00.0"
+          },
+          {
+            "name": "VLLM_CUSTOM_SCOPES_FOR_PROFILING",
+            "value": "0"
+          },
+          {
+            "name": "QWEN38_PROFILE_DENSE_SHAPES",
+            "value": "0"
+          },
+          {
+            "name": "GGUF_PLE_MMAP_PATH",
+            "value": "/ple/per_layer_token_embd.iq4_nl.bin"
+          },
+          {
+            "name": "GGUF_PLE_MMAP_TRIM_ROWS",
+            "value": "131072"
+          },
+          {
+            "name": "VLLM_NCCL_SO_PATH",
+            "value": "/competition/librccl-nohostcall-2.27.7-multiarch.so"
+          },
+          {
+            "name": "NCCL_DEBUG",
+            "value": "INFO"
+          },
+          {
+            "name": "LD_LIBRARY_PATH",
+            "value": "/competition:/opt/rocm/lib"
+          }
+        ],
+        "volumeMounts": [
+          {
+            "name": "mount0",
+            "mountPath": "/models",
+            "subPath": "llmkube/flashnext-iggy/r9v-iq4",
+            "readOnly": true
+          },
+          {
+            "name": "mount1",
+            "mountPath": "/ple/per_layer_token_embd.iq4_nl.bin",
+            "subPath": "r9v/per_layer_token_embd.iq4_nl.bin",
+            "readOnly": true
+          },
+          {
+            "name": "mount2",
+            "mountPath": "/cache",
+            "subPath": "flashnext-competition/r9v-cache",
+            "readOnly": false
+          },
+          {
+            "name": "mount2",
+            "mountPath": "/placement/experts.json",
+            "subPath": "flashnext-competition/r9v-placement/manifest.json",
+            "readOnly": true
+          },
+          {
+            "name": "shm",
+            "mountPath": "/dev/shm"
+          },
+          {
+            "name": "mount2",
+            "mountPath": "/competition",
+            "subPath": "flashnext-competition"
+          }
+        ],
+        "resources": {
+          "requests": {
+            "cpu": "8",
+            "memory": "1Gi",
+            "amd.com/gpu": 2
+          },
+          "limits": {
+            "memory": "8Gi",
+            "amd.com/gpu": 2
+          }
+        },
+        "securityContext": {
+          "capabilities": {
+            "add": [
+              "IPC_LOCK"
+            ]
+          }
+        },
+        "command": [
+          "/bin/bash",
+          "-ec",
+          "/competition/hipgate3; /opt/r9v/bin/python /competition/rccl-probe.py"
+        ]
+      }
+    ],
+    "volumes": [
+      {
+        "name": "mount0",
+        "persistentVolumeClaim": {
+          "claimName": "llm-model-archive"
+        }
+      },
+      {
+        "name": "mount1",
+        "persistentVolumeClaim": {
+          "claimName": "flashnext-iggy-ngram"
+        }
+      },
+      {
+        "name": "mount2",
+        "persistentVolumeClaim": {
+          "claimName": "cuda-dev-workspace"
+        }
+      },
+      {
+        "name": "shm",
+        "emptyDir": {
+          "medium": "Memory",
+          "sizeLimit": "32Gi"
+        }
+      }
+    ]
+  }
+}

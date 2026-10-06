@@ -1,0 +1,451 @@
+{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "annotations": {
+            "k8s.v1.cni.cncf.io/network-status": "[{\n    \"name\": \"cilium\",\n    \"interface\": \"eth0\",\n    \"ips\": [\n        \"10.42.2.42\"\n    ],\n    \"default\": true,\n    \"dns\": {},\n    \"gateway\": [\n        \"10.42.2.92\"\n    ]\n}]",
+            "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"annotations\":{},\"name\":\"flashnext-davetha-cache-route-probe\",\"namespace\":\"llm\"},\"spec\":{\"automountServiceAccountToken\":false,\"containers\":[{\"command\":[\"/bin/bash\",\"-ec\",\"if test -d /opt/vllm/lib/python3.12/site-packages/aiter; then mv /opt/vllm/lib/python3.12/site-packages/aiter /tmp/flashnext-disabled-base-aiter; fi\\nexec python3 /workspace/flashnext-competition/davetha-cache-route-probe.py\"],\"env\":[{\"name\":\"PYTHONPATH\",\"value\":\"/app/r4dhip:/ngram/davetha-sdk:/app/vllm:/workspace/flashnext-competition/davetha-compat-local/deps\"},{\"name\":\"ROCM_PATH\",\"value\":\"/ngram/davetha-sdk/_rocm_sdk_core\"},{\"name\":\"ROCM_HOME\",\"value\":\"/ngram/davetha-sdk/_rocm_sdk_core\"},{\"name\":\"HIP_PATH\",\"value\":\"/ngram/davetha-sdk/_rocm_sdk_core\"},{\"name\":\"LD_LIBRARY_PATH\",\"value\":\"/workspace/flashnext-competition/davetha-native:/workspace/flashnext-competition:/workspace/flashnext-competition:/ngram/davetha-sdk/_rocm_sdk_core/lib:/ngram/davetha-sdk/_rocm_sdk_core/lib/rocm_sysdeps/lib:/ngram/davetha-sdk/_rocm_sdk_core/lib/host-math/lib:/ngram/davetha-sdk/_rocm_sdk_libraries/lib:/usr/local/lib\"},{\"name\":\"ROCR_VISIBLE_DEVICES\",\"value\":\"0,1\"},{\"name\":\"HIP_VISIBLE_DEVICES\",\"value\":\"0,1\"},{\"name\":\"HIP_FORCE_DEV_KERNARG\",\"value\":\"1\"},{\"name\":\"VLLM_NCCL_SO_PATH\",\"value\":\"/workspace/flashnext-competition/librccl-nohostcall-2.27.7-multiarch.so\"},{\"name\":\"VLLM_ROCM_USE_AITER\",\"value\":\"0\"},{\"name\":\"VLLM_PLE_CPU_OFFLOAD\",\"value\":\"1\"},{\"name\":\"VLLM_R4D_HOT_PROFILE\",\"value\":\"/workspace/flashnext-competition/davetha-profile/hot_profile.json\"},{\"name\":\"VLLM_R4D_HOT_GB\",\"value\":\"15.0\"},{\"name\":\"VLLM_R4D_LRU\",\"value\":\"1\"},{\"name\":\"VLLM_R4D_LRU_FUSE\",\"value\":\"1\"},{\"name\":\"R4D_LRU_LIB\",\"value\":\"/workspace/flashnext-competition/davetha-kernels/librlu.so\"},{\"name\":\"VLLM_R4D_SHARE_A8\",\"value\":\"0\"},{\"name\":\"VLLM_GDN_STRIDED_QKV\",\"value\":\"1\"},{\"name\":\"VLLM_FUSED_SHARED_GATE\",\"value\":\"1\"},{\"name\":\"VLLM_FUSED_SILU_QUANT\",\"value\":\"1\"},{\"name\":\"VLLM_QSA_ROPE_GATHER\",\"value\":\"1\"},{\"name\":\"VLLM_UVA_OFFLOAD_EMBED\",\"value\":\"1\"},{\"name\":\"VLLM_UVA_OFFLOAD_VISUAL\",\"value\":\"1\"},{\"name\":\"VLLM_DRAFT_W4_LMHEAD\",\"value\":\"1\"},{\"name\":\"VLLM_R4D_MOE_CFG1\",\"value\":\"1,2,4\"},{\"name\":\"VLLM_R4D_MOE_CFG2\",\"value\":\"1,1,1\"},{\"name\":\"VLLM_TARGET_FP8_LMHEAD\",\"value\":\"1\"},{\"name\":\"VLLM_R4D_LRU_SKIP_EMPTY_COLD\",\"value\":\"1\"},{\"name\":\"VLLM_GEMMA_NORM_FUSED\",\"value\":\"0\"},{\"name\":\"FLASHNEXT_PLE_NVME_PATH\",\"value\":\"/ngram/davetha/ple-fp8.bin\"},{\"name\":\"TRITON_CACHE_DIR\",\"value\":\"/ngram/davetha-cache/triton\"},{\"name\":\"VLLM_CACHE_ROOT\",\"value\":\"/ngram/davetha-cache/vllm\"},{\"name\":\"FLASHNEXT_PYNCCL_ALLGATHER\",\"value\":\"1\"},{\"name\":\"FLASHNEXT_PYNCCL_DEEPBIND\",\"value\":\"1\"},{\"name\":\"VLLM_SERVER_DEV_MODE\",\"value\":\"1\"}],\"image\":\"docker.io/stilldeadcode/vllm-radiance:0.9.3@sha256:45694209177a55a1ab3ba6702fe6e978b1b66a6e66ae3fc066f8d579f7bc4c25\",\"name\":\"runtime\",\"resources\":{\"limits\":{\"memory\":\"8Gi\"},\"requests\":{\"cpu\":\"1\",\"memory\":\"2Gi\"}},\"volumeMounts\":[{\"mountPath\":\"/models\",\"name\":\"weights\"},{\"mountPath\":\"/workspace\",\"name\":\"build\"},{\"mountPath\":\"/archive\",\"name\":\"archive\"},{\"mountPath\":\"/ngram\",\"name\":\"ngram\"},{\"mountPath\":\"/dev/shm\",\"name\":\"shm\"},{\"mountPath\":\"/app/vllm\",\"name\":\"build\",\"readOnly\":true,\"subPath\":\"flashnext-competition/davetha-compat-local/vllm\"},{\"mountPath\":\"/app/fp8hip\",\"name\":\"build\",\"readOnly\":true,\"subPath\":\"flashnext-competition/davetha-compat-local/fp8hip\"},{\"mountPath\":\"/app/r4dhip\",\"name\":\"build\",\"readOnly\":true,\"subPath\":\"flashnext-competition/davetha-compat-local/r4dhip\"},{\"mountPath\":\"/app/vllm/vllm/distributed/device_communicators/pynccl_wrapper.py\",\"name\":\"build\",\"readOnly\":true,\"subPath\":\"flashnext-competition/davetha-pynccl-wrapper-deepbind.py\"}]}],\"nodeSelector\":{\"kubernetes.io/hostname\":\"iggy\"},\"restartPolicy\":\"Never\",\"securityContext\":{\"seccompProfile\":{\"type\":\"Unconfined\"}},\"tolerations\":[{\"effect\":\"NoSchedule\",\"key\":\"node-role.kubernetes.io/control-plane\",\"operator\":\"Exists\"},{\"effect\":\"NoSchedule\",\"key\":\"amd.com/gpu\",\"operator\":\"Exists\"}],\"volumes\":[{\"name\":\"weights\",\"persistentVolumeClaim\":{\"claimName\":\"flashnext-weights\"}},{\"name\":\"build\",\"persistentVolumeClaim\":{\"claimName\":\"cuda-dev-workspace\"}},{\"name\":\"archive\",\"persistentVolumeClaim\":{\"claimName\":\"llm-model-archive\"}},{\"name\":\"ngram\",\"persistentVolumeClaim\":{\"claimName\":\"flashnext-iggy-ngram\"}},{\"emptyDir\":{\"medium\":\"Memory\",\"sizeLimit\":\"64Gi\"},\"name\":\"shm\"}]}}\n"
+        },
+        "creationTimestamp": "2026-10-06T10:24:05Z",
+        "generation": 1,
+        "name": "flashnext-davetha-cache-route-probe",
+        "namespace": "llm",
+        "resourceVersion": "279832351",
+        "uid": "561fff5c-5f39-49c7-b86f-d6c158769381"
+    },
+    "spec": {
+        "automountServiceAccountToken": false,
+        "containers": [
+            {
+                "command": [
+                    "/bin/bash",
+                    "-ec",
+                    "if test -d /opt/vllm/lib/python3.12/site-packages/aiter; then mv /opt/vllm/lib/python3.12/site-packages/aiter /tmp/flashnext-disabled-base-aiter; fi\nexec python3 /workspace/flashnext-competition/davetha-cache-route-probe.py"
+                ],
+                "env": [
+                    {
+                        "name": "PYTHONPATH",
+                        "value": "/app/r4dhip:/ngram/davetha-sdk:/app/vllm:/workspace/flashnext-competition/davetha-compat-local/deps"
+                    },
+                    {
+                        "name": "ROCM_PATH",
+                        "value": "/ngram/davetha-sdk/_rocm_sdk_core"
+                    },
+                    {
+                        "name": "ROCM_HOME",
+                        "value": "/ngram/davetha-sdk/_rocm_sdk_core"
+                    },
+                    {
+                        "name": "HIP_PATH",
+                        "value": "/ngram/davetha-sdk/_rocm_sdk_core"
+                    },
+                    {
+                        "name": "LD_LIBRARY_PATH",
+                        "value": "/workspace/flashnext-competition/davetha-native:/workspace/flashnext-competition:/workspace/flashnext-competition:/ngram/davetha-sdk/_rocm_sdk_core/lib:/ngram/davetha-sdk/_rocm_sdk_core/lib/rocm_sysdeps/lib:/ngram/davetha-sdk/_rocm_sdk_core/lib/host-math/lib:/ngram/davetha-sdk/_rocm_sdk_libraries/lib:/usr/local/lib"
+                    },
+                    {
+                        "name": "ROCR_VISIBLE_DEVICES",
+                        "value": "0,1"
+                    },
+                    {
+                        "name": "HIP_VISIBLE_DEVICES",
+                        "value": "0,1"
+                    },
+                    {
+                        "name": "HIP_FORCE_DEV_KERNARG",
+                        "value": "1"
+                    },
+                    {
+                        "name": "VLLM_NCCL_SO_PATH",
+                        "value": "/workspace/flashnext-competition/librccl-nohostcall-2.27.7-multiarch.so"
+                    },
+                    {
+                        "name": "VLLM_ROCM_USE_AITER",
+                        "value": "0"
+                    },
+                    {
+                        "name": "VLLM_PLE_CPU_OFFLOAD",
+                        "value": "1"
+                    },
+                    {
+                        "name": "VLLM_R4D_HOT_PROFILE",
+                        "value": "/workspace/flashnext-competition/davetha-profile/hot_profile.json"
+                    },
+                    {
+                        "name": "VLLM_R4D_HOT_GB",
+                        "value": "15.0"
+                    },
+                    {
+                        "name": "VLLM_R4D_LRU",
+                        "value": "1"
+                    },
+                    {
+                        "name": "VLLM_R4D_LRU_FUSE",
+                        "value": "1"
+                    },
+                    {
+                        "name": "R4D_LRU_LIB",
+                        "value": "/workspace/flashnext-competition/davetha-kernels/librlu.so"
+                    },
+                    {
+                        "name": "VLLM_R4D_SHARE_A8",
+                        "value": "0"
+                    },
+                    {
+                        "name": "VLLM_GDN_STRIDED_QKV",
+                        "value": "1"
+                    },
+                    {
+                        "name": "VLLM_FUSED_SHARED_GATE",
+                        "value": "1"
+                    },
+                    {
+                        "name": "VLLM_FUSED_SILU_QUANT",
+                        "value": "1"
+                    },
+                    {
+                        "name": "VLLM_QSA_ROPE_GATHER",
+                        "value": "1"
+                    },
+                    {
+                        "name": "VLLM_UVA_OFFLOAD_EMBED",
+                        "value": "1"
+                    },
+                    {
+                        "name": "VLLM_UVA_OFFLOAD_VISUAL",
+                        "value": "1"
+                    },
+                    {
+                        "name": "VLLM_DRAFT_W4_LMHEAD",
+                        "value": "1"
+                    },
+                    {
+                        "name": "VLLM_R4D_MOE_CFG1",
+                        "value": "1,2,4"
+                    },
+                    {
+                        "name": "VLLM_R4D_MOE_CFG2",
+                        "value": "1,1,1"
+                    },
+                    {
+                        "name": "VLLM_TARGET_FP8_LMHEAD",
+                        "value": "1"
+                    },
+                    {
+                        "name": "VLLM_R4D_LRU_SKIP_EMPTY_COLD",
+                        "value": "1"
+                    },
+                    {
+                        "name": "VLLM_GEMMA_NORM_FUSED",
+                        "value": "0"
+                    },
+                    {
+                        "name": "FLASHNEXT_PLE_NVME_PATH",
+                        "value": "/ngram/davetha/ple-fp8.bin"
+                    },
+                    {
+                        "name": "TRITON_CACHE_DIR",
+                        "value": "/ngram/davetha-cache/triton"
+                    },
+                    {
+                        "name": "VLLM_CACHE_ROOT",
+                        "value": "/ngram/davetha-cache/vllm"
+                    },
+                    {
+                        "name": "FLASHNEXT_PYNCCL_ALLGATHER",
+                        "value": "1"
+                    },
+                    {
+                        "name": "FLASHNEXT_PYNCCL_DEEPBIND",
+                        "value": "1"
+                    },
+                    {
+                        "name": "VLLM_SERVER_DEV_MODE",
+                        "value": "1"
+                    }
+                ],
+                "image": "docker.io/stilldeadcode/vllm-radiance:0.9.3@sha256:45694209177a55a1ab3ba6702fe6e978b1b66a6e66ae3fc066f8d579f7bc4c25",
+                "imagePullPolicy": "IfNotPresent",
+                "name": "runtime",
+                "resources": {
+                    "limits": {
+                        "memory": "8Gi"
+                    },
+                    "requests": {
+                        "cpu": "1",
+                        "memory": "2Gi"
+                    }
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/models",
+                        "name": "weights"
+                    },
+                    {
+                        "mountPath": "/workspace",
+                        "name": "build"
+                    },
+                    {
+                        "mountPath": "/archive",
+                        "name": "archive"
+                    },
+                    {
+                        "mountPath": "/ngram",
+                        "name": "ngram"
+                    },
+                    {
+                        "mountPath": "/dev/shm",
+                        "name": "shm"
+                    },
+                    {
+                        "mountPath": "/app/vllm",
+                        "name": "build",
+                        "readOnly": true,
+                        "subPath": "flashnext-competition/davetha-compat-local/vllm"
+                    },
+                    {
+                        "mountPath": "/app/fp8hip",
+                        "name": "build",
+                        "readOnly": true,
+                        "subPath": "flashnext-competition/davetha-compat-local/fp8hip"
+                    },
+                    {
+                        "mountPath": "/app/r4dhip",
+                        "name": "build",
+                        "readOnly": true,
+                        "subPath": "flashnext-competition/davetha-compat-local/r4dhip"
+                    },
+                    {
+                        "mountPath": "/app/vllm/vllm/distributed/device_communicators/pynccl_wrapper.py",
+                        "name": "build",
+                        "readOnly": true,
+                        "subPath": "flashnext-competition/davetha-pynccl-wrapper-deepbind.py"
+                    }
+                ]
+            }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "nodeName": "iggy",
+        "nodeSelector": {
+            "kubernetes.io/hostname": "iggy"
+        },
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Never",
+        "schedulerName": "default-scheduler",
+        "securityContext": {
+            "seccompProfile": {
+                "type": "Unconfined"
+            }
+        },
+        "serviceAccount": "default",
+        "serviceAccountName": "default",
+        "terminationGracePeriodSeconds": 30,
+        "tolerations": [
+            {
+                "effect": "NoSchedule",
+                "key": "node-role.kubernetes.io/control-plane",
+                "operator": "Exists"
+            },
+            {
+                "effect": "NoSchedule",
+                "key": "amd.com/gpu",
+                "operator": "Exists"
+            },
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/not-ready",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            },
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/unreachable",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            }
+        ],
+        "volumes": [
+            {
+                "name": "weights",
+                "persistentVolumeClaim": {
+                    "claimName": "flashnext-weights"
+                }
+            },
+            {
+                "name": "build",
+                "persistentVolumeClaim": {
+                    "claimName": "cuda-dev-workspace"
+                }
+            },
+            {
+                "name": "archive",
+                "persistentVolumeClaim": {
+                    "claimName": "llm-model-archive"
+                }
+            },
+            {
+                "name": "ngram",
+                "persistentVolumeClaim": {
+                    "claimName": "flashnext-iggy-ngram"
+                }
+            },
+            {
+                "emptyDir": {
+                    "medium": "Memory",
+                    "sizeLimit": "64Gi"
+                },
+                "name": "shm"
+            }
+        ]
+    },
+    "status": {
+        "conditions": [
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-10-06T10:24:23Z",
+                "observedGeneration": 1,
+                "status": "False",
+                "type": "PodReadyToStartContainers"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-10-06T10:24:05Z",
+                "observedGeneration": 1,
+                "status": "True",
+                "type": "Initialized"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-10-06T10:24:22Z",
+                "observedGeneration": 1,
+                "reason": "PodFailed",
+                "status": "False",
+                "type": "Ready"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-10-06T10:24:22Z",
+                "observedGeneration": 1,
+                "reason": "PodFailed",
+                "status": "False",
+                "type": "ContainersReady"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-10-06T10:24:05Z",
+                "observedGeneration": 1,
+                "status": "True",
+                "type": "PodScheduled"
+            }
+        ],
+        "containerStatuses": [
+            {
+                "allocatedResources": {
+                    "cpu": "1",
+                    "memory": "2Gi"
+                },
+                "containerID": "containerd://6bba2a46c10bfbba3583ed5257c632504eda01e1e7ea72f06787a6404472f42f",
+                "image": "sha256:bebc00145d7d7c908fa2755c727952f9ecaca7e0e56e8bf772ca506f8eaed4a8",
+                "imageID": "docker.io/stilldeadcode/vllm-radiance@sha256:45694209177a55a1ab3ba6702fe6e978b1b66a6e66ae3fc066f8d579f7bc4c25",
+                "lastState": {},
+                "name": "runtime",
+                "ready": false,
+                "resources": {
+                    "limits": {
+                        "memory": "8Gi"
+                    },
+                    "requests": {
+                        "cpu": "1",
+                        "memory": "2Gi"
+                    }
+                },
+                "restartCount": 0,
+                "started": false,
+                "state": {
+                    "terminated": {
+                        "containerID": "containerd://6bba2a46c10bfbba3583ed5257c632504eda01e1e7ea72f06787a6404472f42f",
+                        "exitCode": 1,
+                        "finishedAt": "2026-10-06T10:24:21Z",
+                        "reason": "Error",
+                        "startedAt": "2026-10-06T10:24:06Z"
+                    }
+                },
+                "user": {
+                    "linux": {
+                        "gid": 0,
+                        "supplementalGroups": [
+                            0
+                        ],
+                        "uid": 0
+                    }
+                },
+                "volumeMounts": [
+                    {
+                        "mountPath": "/models",
+                        "name": "weights"
+                    },
+                    {
+                        "mountPath": "/workspace",
+                        "name": "build"
+                    },
+                    {
+                        "mountPath": "/archive",
+                        "name": "archive"
+                    },
+                    {
+                        "mountPath": "/ngram",
+                        "name": "ngram"
+                    },
+                    {
+                        "mountPath": "/dev/shm",
+                        "name": "shm"
+                    },
+                    {
+                        "mountPath": "/app/vllm",
+                        "name": "build",
+                        "readOnly": true,
+                        "recursiveReadOnly": "Disabled"
+                    },
+                    {
+                        "mountPath": "/app/fp8hip",
+                        "name": "build",
+                        "readOnly": true,
+                        "recursiveReadOnly": "Disabled"
+                    },
+                    {
+                        "mountPath": "/app/r4dhip",
+                        "name": "build",
+                        "readOnly": true,
+                        "recursiveReadOnly": "Disabled"
+                    },
+                    {
+                        "mountPath": "/app/vllm/vllm/distributed/device_communicators/pynccl_wrapper.py",
+                        "name": "build",
+                        "readOnly": true,
+                        "recursiveReadOnly": "Disabled"
+                    }
+                ]
+            }
+        ],
+        "hostIP": "192.168.42.13",
+        "hostIPs": [
+            {
+                "ip": "192.168.42.13"
+            }
+        ],
+        "observedGeneration": 1,
+        "phase": "Failed",
+        "podIP": "10.42.2.42",
+        "podIPs": [
+            {
+                "ip": "10.42.2.42"
+            }
+        ],
+        "qosClass": "Burstable",
+        "startTime": "2026-10-06T10:24:05Z"
+    }
+}

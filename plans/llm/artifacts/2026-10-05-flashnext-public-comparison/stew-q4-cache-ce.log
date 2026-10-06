@@ -1,0 +1,39 @@
+0.00.030.244 I srv  llama_server: initializing ...
+0.00.030.255 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.030.606 W srv  llama_server: security: no API key is set and CORS allows all origins (see https://github.com/ggml-org/llama.cpp/pull/25655)
+0.00.032.841 I srv    load_model: loading model '/models/atomic/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00001-of-00033.gguf'
+0.00.425.969 W llama_model_loader: tensor overrides to CPU are used with mmap enabled - consider using --load-mode none for better performance
+0.22.622.972 I cmn          init: llama threadpool init, n_threads = 12
+0.24.384.304 W alloc_all_locked: MoE expert cache (auto): arena 29315.7 MiB of 31500.0 MiB host experts (93.1% residency).  MOE_EXPERT_CACHE_MIB=0 disables the cache; set a positive value to size it explicitly.
+0.24.783.118 W moe_cache_update_host: device-remap fast path armed after a uniform eager pass over 192 tables
+0.24.828.301 I srv    load_model: initializing, n_slots = 2, n_ctx_slot = 131072, kv_unified = 'false'
+0.24.832.876 W srv          init: chat template supports preserving reasoning, it is enabled by default (may use more tokens, disable via --no-reasoning-preserve)
+0.24.832.905 I srv  llama_server: model loaded
+0.24.832.911 I srv  llama_server: listening on http://0.0.0.0:8080
+0.24.832.912 W srv  llama_server: notice: server default port will be changed to :9931 in a future release (ref: https://github.com/ggml-org/llama.cpp/pull/26508)
+1.23.658.522 I slot get_availabl: id  1 | task -1 | selected slot by LRU, t_last = -1
+1.23.658.589 I slot launch_slot_: id  1 | task 1 | processing task, is_child = 0
+1.35.007.988 I slot print_timing: id  1 | task 1 | n_gen =    100, tg =  17.75 t/s, tg_3s =  17.93 t/s
+1.38.029.685 I slot print_timing: id  1 | task 1 | n_gen =    203, tg =  23.49 t/s, tg_3s =  34.09 t/s
+1.39.436.754 I slot print_timing: id  1 | task 1 | prompt eval time =    5773.21 ms /  1512 tokens (    3.82 ms per token,   261.90 tokens per second)
+1.39.436.758 I slot print_timing: id  1 | task 1 |        eval time =   10004.92 ms /   256 tokens (   39.23 ms per token,    25.49 tokens per second)
+1.39.436.759 I slot print_timing: id  1 | task 1 |       total time =   15778.14 ms /  1768 tokens
+1.39.436.761 I slot print_timing: id  1 | task 1 |    graphs reused =        254
+1.39.436.825 I slot      release: id  1 | task 1 | stop processing: n_tokens = 1767, truncated = 0
+1.39.445.181 I slot get_availabl: id  1 | task -1 | selected slot by LCP similarity, f_sim_best = 1.000 (> 0.100 thold), f_keep = 0.856
+1.39.445.230 I slot launch_slot_: id  1 | task 260 | processing task, is_child = 0
+1.40.427.266 W alias_find_checked: ignoring a stale MoE-cache alias (table device 0 layer 12, op device 0 layer 9)
+1.46.204.730 I slot print_timing: id  1 | task 260 | n_gen =    122, tg =  40.27 t/s, tg_3s =  40.60 t/s
+1.49.176.606 I slot print_timing: id  1 | task 260 | prompt eval time =    3754.39 ms /  1512 tokens (    2.48 ms per token,   402.73 tokens per second)
+1.49.176.609 I slot print_timing: id  1 | task 260 |        eval time =    5976.96 ms /   256 tokens (   23.44 ms per token,    42.66 tokens per second)
+1.49.176.610 I slot print_timing: id  1 | task 260 |       total time =    9731.35 ms /  1768 tokens
+1.49.176.611 I slot print_timing: id  1 | task 260 |    graphs reused =        507
+1.49.176.656 I slot      release: id  1 | task 260 | stop processing: n_tokens = 1767, truncated = 0
+1.49.184.295 I slot get_availabl: id  1 | task -1 | selected slot by LCP similarity, f_sim_best = 1.000 (> 0.100 thold), f_keep = 0.856
+1.49.184.356 I slot launch_slot_: id  1 | task 519 | processing task, is_child = 0
+1.55.923.267 I slot print_timing: id  1 | task 519 | n_gen =    127, tg =  41.72 t/s, tg_3s =  42.05 t/s
+1.58.773.620 I slot print_timing: id  1 | task 519 | prompt eval time =    3718.86 ms /  1512 tokens (    2.46 ms per token,   406.58 tokens per second)
+1.58.773.624 I slot print_timing: id  1 | task 519 |        eval time =    5870.39 ms /   256 tokens (   23.02 ms per token,    43.44 tokens per second)
+1.58.773.624 I slot print_timing: id  1 | task 519 |       total time =    9589.24 ms /  1768 tokens
+1.58.773.625 I slot print_timing: id  1 | task 519 |    graphs reused =        760
+1.58.773.678 I slot      release: id  1 | task 519 | stop processing: n_tokens = 1767, truncated = 0

@@ -1,0 +1,139 @@
+Fail to open libdrm_amdgpu.so.1: libdrm_amdgpu.so.1: cannot open shared object file: No such file or directory
+cat: /proc/sys/kernel/numa_balancing: No such file or directory
+[aiter] [pid=7 pname=MainProcess] start build [module_aiter_core] under /opt/vllm/lib/python3.12/site-packages/aiter/jit/build/module_aiter_core
+[aiter] Current hipcc not support: --offload-arch=gfx1201, skip it.
+[aiter] Current hipcc not support: -DDLLVM_MAIN_REVISION=554785, skip it.
+[aiter] Current hipcc not support: -DENABLE_CK=0, skip it.
+[aiter] Current hipcc not support: -DENABLE_ROPE_POSITIONS_INT32=0, skip it.
+[aiter] Current hipcc not support: -DLEGACY_HIPBLAS_DIRECT, skip it.
+[aiter] Current hipcc not support: -DUSE_PROF_API=1, skip it.
+[aiter] Current hipcc not support: -D__Float4_e2m1fn_x2, skip it.
+[aiter] Current hipcc not support: -D__HIP_PLATFORM_AMD__=1, skip it.
+[aiter] Current hipcc not support: -D__HIP_PLATFORM_HCC__=1, skip it.
+[aiter] Current hipcc not support: -U__HIP_NO_HALF_CONVERSIONS__, skip it.
+[aiter] Current hipcc not support: -U__HIP_NO_HALF_OPERATORS__, skip it.
+[aiter] Current hipcc not support: -Wno-macro-redefined, skip it.
+[aiter] Current hipcc not support: -Wno-missing-template-arg-list-after-template-kw, skip it.
+[aiter] Current hipcc not support: -Wno-switch-bool, skip it.
+[aiter] Current hipcc not support: -Wno-undefined-func-template, skip it.
+[aiter] Current hipcc not support: -Wno-unused-result, skip it.
+[aiter] Current hipcc not support: -Wno-vla-cxx-extension, skip it.
+[aiter] Current hipcc not support: -fgpu-flush-denormals-to-zero, skip it.
+[aiter] Current hipcc not support: -fno-offload-uniform-block, skip it.
+[aiter] Current hipcc not support: -mllvm --amdgpu-kernarg-preload-count=16, skip it.
+[aiter] Current hipcc not support: -mllvm --lsr-drop-solution=1, skip it.
+[aiter] Current hipcc not support: -mllvm -amdgpu-coerce-illegal-types=1, skip it.
+[aiter] Current hipcc not support: -mllvm -amdgpu-early-inline-all=true, skip it.
+[aiter] Current hipcc not support: -mllvm -amdgpu-function-calls=false, skip it.
+[aiter] Current hipcc not support: -mllvm -enable-post-misched=0, skip it.
+torch 2.11.0+rocm10.0.0 hip 7.15.26333 cuda avail True
+devices ['AMD Radeon AI PRO R9700', 'AMD Radeon AI PRO R9700']
+HIP runtime mapped:
+/ngram/davetha-sdk/_rocm_sdk_core/lib/libamdhip64.so.7
+/ngram/davetha-sdk/_rocm_sdk_core/lib/libhsa-runtime64.so.1
+
+matmul ok 18.01786231994629
+fp8hip ctypes OK
+r4d ctypes: <CDLL '/app/r4dhip/r4d.so', handle 251b5850 at 0x7f31b8e7a9c0>
+r4d pybind11 module: <module 'r4d' from '/opt/vllm/lib/python3.12/site-packages/r4d.so'> ['AR_MAX_BLOCKS', 'AR_WHT6_BITS', 'AR_WHT6_CHUNK_ELEMS', 'AR_WHT6_GROUP', 'ATTN_BLOCK_SIZE', 'ATTN_GQA', 'ATTN_HEAD_DIM', 'ATTN_MAX_DECODE_ROWS', 'ATTN_VIT_HEAD_DIM', 'ATTN_VIT_ROWS_LARGE', 'ATTN_VIT_ROWS_SMALL', 'ATTN_VIT_SPLIT']
+vllm _C op scaled_fp8_quant OK torch.float8_e4m3fn torch.Size([512, 1])
+{"fp8_quant_relative_rmse": 0.026308748871088028, "qualification": "finite output and numerical roundtrip"}
+_moe_C OK
+[aiter] [31mfailed jit build [module_aiter_core][0m↓↓↓↓↓↓↓↓↓↓
+-->[History]: Traceback (most recent call last):
+-->  File "/opt/vllm/lib/python3.12/site-packages/aiter/jit/core.py", line 1519, in wrapper
+    module = get_module(md)
+             ^^^^^^^^^^^^^^
+-->  File "/opt/vllm/lib/python3.12/site-packages/aiter/jit/core.py", line 655, in get_module
+    get_module_custom_op(md_name)
+-->  File "/opt/vllm/lib/python3.12/site-packages/aiter/jit/utils/torch_guard.py", line 290, in wrapper_custom
+    else getattr(torch.ops.aiter, f"{loadName}")(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-->  File "/ngram/davetha-sdk/torch/_ops.py", line 1269, in __call__
+    return self._op(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+-->  File "/opt/vllm/lib/python3.12/site-packages/aiter/jit/utils/torch_guard.py", line 328, in outer_wrapper_dummy
+    wrapper(*args, **kwargs)
+-->  File "/opt/vllm/lib/python3.12/site-packages/aiter/jit/utils/torch_guard.py", line 206, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+-->  File "/opt/vllm/lib/python3.12/site-packages/aiter/jit/core.py", line 606, in get_module_custom_op
+    __mds[md_name] = importlib.import_module(f"{__package__}.{md_name}")
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-->  File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-->  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+-->  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+-->  File "<frozen importlib._bootstrap>", line 1324, in _find_and_load_unlocked
+-->ModuleNotFound[31merror:[0m No module named 'aiter.jit.module_aiter_core'
+-->
+During handling of the above exception, another exception occurred:
+
+-->Traceback (most recent call last):
+-->  File "/opt/vllm/lib/python3.12/site-packages/aiter/jit/utils/cpp_extension.py", line 1543, in _run_ninja_build
+    subprocess.run(
+-->  File "/usr/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+-->subprocess.CalledProcess[31merror:[0m Command '['ninja', '-v', '-j', '19']' returned non-zero exit status 1.
+-->
+The above exception was the direct cause of the following exception:
+
+-->Traceback (most recent call last):
+-->  File "/opt/vllm/lib/python3.12/site-packages/aiter/jit/core.py", line 985, in MainFunc
+    _jit_compile(
+-->  File "/opt/vllm/lib/python3.12/site-packages/aiter/jit/utils/cpp_extension.py", line 1289, in _jit_compile
+    _write_ninja_file_and_build_library(
+-->  File "/opt/vllm/lib/python3.12/site-packages/aiter/jit/utils/cpp_extension.py", line 1418, in _write_ninja_file_and_build_library
+    _run_ninja_build(
+-->  File "/opt/vllm/lib/python3.12/site-packages/aiter/jit/utils/cpp_extension.py", line 1560, in _run_ninja_build
+    raise RuntimeError(message) from e
+-->Runtime[31merror:[0m Error building extension 'module_aiter_core': [1/2] /ngram/davetha-sdk/_rocm_sdk_core/bin/hipcc  -DWITH_HIP -D_GLIBCXX_USE_CXX11_ABI=1 -I/opt/vllm/lib/python3.12/site-packages/aiter_meta/3rdparty/ck_helper -I/opt/vllm/lib/python3.12/site-packages/aiter_meta/3rdparty/composable_kernel/include -I/opt/vllm/lib/python3.12/site-packages/aiter_meta/3rdparty/composable_kernel/library/include -I/opt/vllm/lib/python3.12/site-packages/aiter_meta/csrc/include -I/opt/vllm/lib/python3.12/site-packages/aiter/jit/build/module_aiter_core/blob -I/archive/llmkube/flashnext-iggy/davetha-compat/deps/pybind11/include -isystem /usr/include/python3.12 -fPIC -std=c++20 -O3 -std=c++20 -Wno-unknown-warning-option -DENABLE_ROPE_POSITIONS_INT32=0 -DENABLE_CK=0 -fPIC -D__HIP_PLATFORM_AMD__=1 -DUSE_ROCM=1 -DHIPBLAS_V2 -DCUDA_HAS_FP16=1 -D__HIP_NO_HALF_OPERATORS__=1 -D__HIP_NO_HALF_CONVERSIONS__=1 -mcmodel=large -fno-unique-section-names -ffunction-sections -fdata-sections -fvisibility=hidden -fvisibility-inlines-hidden --offload-arch=gfx1201 -fno-gpu-rdc -c /opt/vllm/lib/python3.12/site-packages/aiter_meta/csrc/pybind/aiter_core_pybind.cu -o aiter_core_pybind.cuda.o 
+FAILED: [code=1] aiter_core_pybind.cuda.o 
+/ngram/davetha-sdk/_rocm_sdk_core/bin/hipcc  -DWITH_HIP -D_GLIBCXX_USE_CXX11_ABI=1 -I/opt/vllm/lib/python3.12/site-packages/aiter_meta/3rdparty/ck_helper -I/opt/vllm/lib/python3.12/site-packages/aiter_meta/3rdparty/composable_kernel/include -I/opt/vllm/lib/python3.12/site-packages/aiter_meta/3rdparty/composable_kernel/library/include -I/opt/vllm/lib/python3.12/site-packages/aiter_meta/csrc/include -I/opt/vllm/lib/python3.12/site-packages/aiter/jit/build/module_aiter_core/blob -I/archive/llmkube/flashnext-iggy/davetha-compat/deps/pybind11/include -isystem /usr/include/python3.12 -fPIC -std=c++20 -O3 -std=c++20 -Wno-unknown-warning-option -DENABLE_ROPE_POSITIONS_INT32=0 -DENABLE_CK=0 -fPIC -D__HIP_PLATFORM_AMD__=1 -DUSE_ROCM=1 -DHIPBLAS_V2 -DCUDA_HAS_FP16=1 -D__HIP_NO_HALF_OPERATORS__=1 -D__HIP_NO_HALF_CONVERSIONS__=1 -mcmodel=large -fno-unique-section-names -ffunction-sections -fdata-sections -fvisibility=hidden -fvisibility-inlines-hidden --offload-arch=gfx1201 -fno-gpu-rdc -c /opt/vllm/lib/python3.12/site-packages/aiter_meta/csrc/pybind/aiter_core_pybind.cu -o aiter_core_pybind.cuda.o 
+clang++: [31merror:[0m cannot find ROCm device library; provide its path via '--rocm-path' or '--rocm-device-lib-path', or pass '-nogpulib' to build without ROCm device library
+aiter import FAILED: RuntimeError [aiter] build [module_aiter_core] under /opt/vllm/lib/python3.12/site-packages/aiter/jit/build/module_aiter_core/build failed !!!!!!
+triton 3.8.0
+PROBE-OK
+failed to execute:/ngram/davetha-sdk/_rocm_sdk_core/lib/llvm/bin/clang++  --offload-arch=gfx1201  -DWITH_HIP -D_GLIBCXX_USE_CXX11_ABI=1 -I/opt/vllm/lib/python3.12/site-packages/aiter_meta/3rdparty/ck_helper -I/opt/vllm/lib/python3.12/site-packages/aiter_meta/3rdparty/composable_kernel/include -I/opt/vllm/lib/python3.12/site-packages/aiter_meta/3rdparty/composable_kernel/library/include -I/opt/vllm/lib/python3.12/site-packages/aiter_meta/csrc/include -I/opt/vllm/lib/python3.12/site-packages/aiter/jit/build/module_aiter_core/blob -I/archive/llmkube/flashnext-iggy/davetha-compat/deps/pybind11/include -isystem /usr/include/python3.12 -fPIC -std=c++20 -O3 -std=c++20 -Wno-unknown-warning-option -DENABLE_ROPE_POSITIONS_INT32=0 -DENABLE_CK=0 -fPIC -D__HIP_PLATFORM_AMD__=1 -DUSE_ROCM=1 -DHIPBLAS_V2 -DCUDA_HAS_FP16=1 -D__HIP_NO_HALF_OPERATORS__=1 -D__HIP_NO_HALF_CONVERSIONS__=1 -mcmodel=large -fno-unique-section-names -ffunction-sections -fdata-sections -fvisibility=hidden -fvisibility-inlines-hidden -fno-gpu-rdc -c -x hip /opt/vllm/lib/python3.12/site-packages/aiter_meta/csrc/pybind/aiter_core_pybind.cu -o "aiter_core_pybind.cuda.o"
+ninja: build stopped: subcommand failed.
+
+[31mfailed jit build [module_aiter_core][0m↑↑↑↑↑↑↑↑↑↑
+[aiter] [pid=7 pname=MainProcess] [32mfinish build [module_aiter_core], cost 3.1s [0m
+Fail to open libdrm_amdgpu.so.1: libdrm_amdgpu.so.1: cannot open shared object file: No such file or directory
+TORCH 2.11.0+rocm10.0.0 HIP 7.15.26333 DEVICES 2
+Fail to open libdrm_amdgpu.so.1: libdrm_amdgpu.so.1: cannot open shared object file: No such file or directory
+Fail to open libdrm_amdgpu.so.1: libdrm_amdgpu.so.1: cannot open shared object file: No such file or directory
+Fail to open libdrm_amdgpu.so.1: libdrm_amdgpu.so.1: cannot open shared object file: No such file or directory
+INFO 10-06 08:36:40 [pynccl.py:113] vLLM is using nccl==2.27.7
+W1006 08:36:42.313000 1 torch/multiprocessing/spawn.py:165] Terminating process 254 via signal SIGTERM
+Traceback (most recent call last):
+  File "/workspace/flashnext-competition/davetha-rccl-probe.py", line 51, in <module>
+    mp.spawn(worker,nprocs=2,join=True)
+  File "/ngram/davetha-sdk/torch/multiprocessing/spawn.py", line 340, in spawn
+    return start_processes(fn, args, nprocs, join, daemon, start_method="spawn")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/ngram/davetha-sdk/torch/multiprocessing/spawn.py", line 296, in start_processes
+    while not context.join():
+              ^^^^^^^^^^^^^^
+  File "/ngram/davetha-sdk/torch/multiprocessing/spawn.py", line 211, in join
+    raise ProcessRaisedException(msg, error_index, failed_process.pid)
+torch.multiprocessing.spawn.ProcessRaisedException: 
+
+-- Process 1 terminated with the following error:
+Traceback (most recent call last):
+  File "/ngram/davetha-sdk/torch/multiprocessing/spawn.py", line 87, in _wrap
+    fn(i, *args)
+  File "/workspace/flashnext-competition/davetha-rccl-probe.py", line 11, in worker
+    comm=PyNcclCommunicator(dist.group.WORLD,rank,library_path='/workspace/flashnext-competition/librccl-nohostcall-2.27.7-multiarch.so')
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/vllm/vllm/distributed/device_communicators/pynccl.py", line 144, in __init__
+    self.all_reduce(data)
+  File "/app/vllm/vllm/distributed/device_communicators/pynccl.py", line 188, in all_reduce
+    self.nccl.ncclAllReduce(
+  File "/app/vllm/vllm/distributed/device_communicators/pynccl_wrapper.py", line 473, in ncclAllReduce
+    self.NCCL_CHECK(
+  File "/app/vllm/vllm/distributed/device_communicators/pynccl_wrapper.py", line 417, in NCCL_CHECK
+    raise RuntimeError(f"NCCL error: {error_str}")
+RuntimeError: NCCL error: invalid argument (run with NCCL_DEBUG=WARN for details)
+

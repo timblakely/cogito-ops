@@ -1,0 +1,45 @@
+SOURCE_REF {'name': 'refs/heads/main'}
+► annotating GitRepository flux-system in flux-system namespace
+✔ GitRepository annotated
+◎ waiting for GitRepository reconciliation
+✔ fetched revision refs/heads/main@sha1:896ac30bff32f3b7b5999670c2b0dcc834f6969c
+inferenceservice.inference.llmkube.dev/flashnext-iggy annotated
+kustomization.kustomize.toolkit.fluxcd.io/llmkube-resources annotated
+kustomization.kustomize.toolkit.fluxcd.io/llmkube-resources patched
+► annotating GitRepository flux-system in flux-system namespace
+✔ GitRepository annotated
+◎ waiting for GitRepository reconciliation
+✔ fetched revision refs/heads/main@sha1:896ac30bff32f3b7b5999670c2b0dcc834f6969c
+► annotating Kustomization llmkube-resources in llm namespace
+✔ Kustomization annotated
+◎ waiting for Kustomization reconciliation
+✔ applied revision refs/heads/main@sha1:896ac30bff32f3b7b5999670c2b0dcc834f6969c
+WAIT_NATIVE_PRODUCTION [('flashnext-iggy-794bf5ff89-j97jh', 'Running', [('inference-server', False, 0)])]
+WAIT_NATIVE_PRODUCTION [('flashnext-iggy-794bf5ff89-j97jh', 'Running', [('inference-server', False, 0)])]
+WAIT_NATIVE_PRODUCTION [('flashnext-iggy-794bf5ff89-j97jh', 'Running', [('inference-server', False, 0)])]
+WAIT_NATIVE_PRODUCTION [('flashnext-iggy-794bf5ff89-j97jh', 'Running', [('inference-server', False, 0)])]
+WAIT_NATIVE_PRODUCTION [('flashnext-iggy-794bf5ff89-j97jh', 'Running', [('inference-server', True, 0)])]
+error: Internal error occurred: Internal error occurred: error executing command in container: failed to exec in container: failed to start exec "df7af9efc57488f9bc5ea70bd9cb3ea790ee1cb9b9080530e45e1f95f9fa36fd": OCI runtime exec failed: exec failed: unable to start container process: exec: "cat": executable file not found in $PATH
+Traceback (most recent call last):
+  File "/tmp/flashnext-competition/verify-production.py", line 17, in <module>
+    mountinfo=subprocess.check_output(k+['-n','llm','exec',record['name'],'-c','inference-server','--','cat','/proc/self/mountinfo'],text=True)
+  File "/usr/lib64/python3.14/subprocess.py", line 473, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               **kwargs).stdout
+               ^^^^^^^^^
+  File "/usr/lib64/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/home/tim/.local/share/mise/installs/kubectl/1.37.1/kubectl', '--kubeconfig', '/home/tim/git/cogito/kubeconfig', '--server', 'https://192.168.42.13:6443', '-n', 'llm', 'exec', 'flashnext-iggy-794bf5ff89-j97jh', '-c', 'inference-server', '--', 'cat', '/proc/self/mountinfo']' returned non-zero exit status 1.
+Traceback (most recent call last):
+  File "/tmp/flashnext-competition/restore-native-production.py", line 19, in <module>
+    call(['/usr/bin/python3',str(r/'verify-production.py'),sha,'--output',str(r/'production-deployment-verification.json')]);call(['/usr/bin/python3',str(r/'production-smoke.py')]);print('PRODUCTION_RESTORED_AND_ALIAS_VERIFIED',sha,flush=True)
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/flashnext-competition/restore-native-production.py", line 6, in call
+    def call(args):subprocess.run(args,check=True)
+                   ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/usr/bin/python3', '/tmp/flashnext-competition/verify-production.py', '896ac30bff32f3b7b5999670c2b0dcc834f6969c', '--output', '/tmp/flashnext-competition/production-deployment-verification.json']' returned non-zero exit status 1.

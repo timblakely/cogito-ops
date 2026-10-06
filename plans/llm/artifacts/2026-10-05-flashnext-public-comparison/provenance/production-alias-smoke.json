@@ -1,0 +1,210 @@
+[
+  {
+    "test": "arithmetic",
+    "passed": true,
+    "response": {
+      "id": "chatcmpl-f6f257c00fe6edf3f729ee5b",
+      "created": 1791329748,
+      "model": "flashnext-iggy",
+      "object": "chat.completion",
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "message": {
+            "content": "323",
+            "role": "assistant",
+            "provider_specific_fields": {
+              "refusal": null
+            }
+          },
+          "provider_specific_fields": {}
+        }
+      ],
+      "usage": {
+        "completion_tokens": 4,
+        "prompt_tokens": 28,
+        "total_tokens": 32,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 28,
+        "prompt_ms": 236.583697,
+        "prompt_per_token_ms": 8.44941775,
+        "prompt_per_second": 118.35135030458164,
+        "predicted_n": 4,
+        "predicted_ms": 151.822181,
+        "predicted_per_token_ms": 50.60739366666667,
+        "predicted_per_second": 19.75995852674518,
+        "draft_n": 6,
+        "draft_n_accepted": 1
+      }
+    }
+  },
+  {
+    "test": "json_object",
+    "passed": true,
+    "response": {
+      "id": "chatcmpl-0fda0b827711efe66840654f",
+      "created": 1791329749,
+      "model": "flashnext-iggy",
+      "object": "chat.completion",
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "message": {
+            "content": "{\"result\": 323}",
+            "role": "assistant",
+            "provider_specific_fields": {
+              "refusal": null
+            }
+          },
+          "provider_specific_fields": {}
+        }
+      ],
+      "usage": {
+        "completion_tokens": 9,
+        "prompt_tokens": 31,
+        "total_tokens": 40,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 31,
+        "prompt_ms": 183.812995,
+        "prompt_per_token_ms": 5.929451451612903,
+        "prompt_per_second": 168.64966484007292,
+        "predicted_n": 9,
+        "predicted_ms": 110.076734,
+        "predicted_per_token_ms": 13.75959175,
+        "predicted_per_second": 72.67657487003567,
+        "draft_n": 6,
+        "draft_n_accepted": 6
+      }
+    }
+  },
+  {
+    "test": "schema",
+    "passed": true,
+    "response": {
+      "id": "chatcmpl-0628b54eda58f5e2aa76dcd1",
+      "created": 1791329749,
+      "model": "flashnext-iggy",
+      "object": "chat.completion",
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "message": {
+            "content": "{\n  \"status\": \"IGGY_SCHEMA_OK\"\n}",
+            "role": "assistant",
+            "provider_specific_fields": {
+              "refusal": null
+            }
+          },
+          "provider_specific_fields": {}
+        }
+      ],
+      "usage": {
+        "completion_tokens": 20,
+        "prompt_tokens": 20,
+        "total_tokens": 40,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 20,
+        "prompt_ms": 86.658816,
+        "prompt_per_token_ms": 4.3329408,
+        "prompt_per_second": 230.79013680500782,
+        "predicted_n": 20,
+        "predicted_ms": 172.093226,
+        "predicted_per_token_ms": 9.057538210526316,
+        "predicted_per_second": 110.40527533605537,
+        "draft_n": 15,
+        "draft_n_accepted": 14
+      }
+    }
+  },
+  {
+    "test": "tool_auto",
+    "passed": true,
+    "response": {
+      "id": "chatcmpl-fcad69950a481eb409164138",
+      "created": 1791329749,
+      "model": "flashnext-iggy",
+      "object": "chat.completion",
+      "choices": [
+        {
+          "finish_reason": "tool_calls",
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "function": {
+                  "arguments": "{\"city\":\"Denver\"}",
+                  "name": "get_weather"
+                },
+                "id": "call_43052311f63d25be03dae110",
+                "type": "function"
+              }
+            ],
+            "provider_specific_fields": {
+              "refusal": null
+            },
+            "content": null
+          },
+          "provider_specific_fields": {}
+        }
+      ],
+      "usage": {
+        "completion_tokens": 26,
+        "prompt_tokens": 279,
+        "total_tokens": 305,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 279,
+        "prompt_ms": 685.291019,
+        "prompt_per_token_ms": 2.456240211469534,
+        "prompt_per_second": 407.126304394192,
+        "predicted_n": 26,
+        "predicted_ms": 307.699948,
+        "predicted_per_token_ms": 12.30799792,
+        "predicted_per_second": 81.24798253134577,
+        "draft_n": 21,
+        "draft_n_accepted": 18
+      }
+    }
+  },
+  {
+    "test": "tool_required",
+    "passed": false,
+    "status": 400,
+    "error": "{\"error\":{\"message\":\"litellm.BadRequestError: OpenAIException - tool_choice: \\\"auto\\\" and \\\"none\\\" are implemented. \\\"required\\\" is not: the grammar this model's template produces for it admits prose before the call and an unbounded run of calls after it, so it does not force one call -- it produces a reply that runs to max_tokens. Send \\\"auto\\\" and check the response for a call.. Received Model Group=flashnext-iggy\\nAvailable Model Group Fallbacks=None\",\"type\":\"invalid_request_error\",\"param\":\"tool_choice\",\"code\":\"400\"}}"
+  }
+]

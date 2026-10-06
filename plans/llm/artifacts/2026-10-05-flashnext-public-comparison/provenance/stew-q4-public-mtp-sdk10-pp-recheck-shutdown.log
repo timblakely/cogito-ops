@@ -1,0 +1,204 @@
+0.00.000.590 I srv  llama_server: initializing ...
+0.00.076.683 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.078.081 W srv  llama_server: security: no API key is set and CORS allows all origins (see https://github.com/ggml-org/llama.cpp/pull/25655)
+0.00.081.187 I srv    load_model: loading model '/models/atomic/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00001-of-00033.gguf'
+0.27.918.444 I cmn          init: llama threadpool init, n_threads = 6
+0.28.715.582 I common_speculative_init_result: loading draft model '/models/mtp/MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf'
+0.30.069.367 I srv    load_model: initializing, n_slots = 2, n_ctx_slot = 131072, kv_unified = 'false'
+0.30.109.949 W srv          init: chat template supports preserving reasoning, it is enabled by default (may use more tokens, disable via --no-reasoning-preserve)
+0.30.109.977 I srv  llama_server: model loaded
+0.30.109.983 I srv  llama_server: listening on http://0.0.0.0:8080
+0.30.109.984 W srv  llama_server: notice: server default port will be changed to :9931 in a future release (ref: https://github.com/ggml-org/llama.cpp/pull/26508)
+0.46.596.390 I slot get_availabl: id  1 | task -1 | selected slot by LRU, t_last = -1
+0.46.596.427 I slot launch_slot_: id  1 | task 1 | processing task, is_child = 0
+0.46.740.623 W sched_stage_issue: H2D staging disabled: a 471859200-byte upload does not fit GGML_SCHED_STAGE_MAX_MB
+0.50.474.796 I slot print_timing: id  1 | task 1 | prompt eval time =    3878.33 ms /  1024 tokens (    3.79 ms per token,   264.03 tokens per second)
+0.50.474.800 I slot print_timing: id  1 | task 1 |        eval time =       0.00 ms /     1 tokens (    0.00 ms per token,     0.00 tokens per second)
+0.50.474.800 I slot print_timing: id  1 | task 1 |       total time =    3878.33 ms /  1025 tokens
+0.50.474.802 I slot print_timing: id  1 | task 1 |    graphs reused =          0
+0.50.474.863 I slot      release: id  1 | task 1 | stop processing: n_tokens = 1024, truncated = 0
+0.54.436.592 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = -1
+0.54.436.673 I slot launch_slot_: id  0 | task 5 | processing task, is_child = 0
+1.01.208.751 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =   2048, progress = 0.03, t =   6.51 s / 314.63 tokens per second
+1.07.804.742 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =   4096, progress = 0.06, t =  13.20 s / 310.28 tokens per second
+1.14.689.404 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =   6144, progress = 0.09, t =  20.02 s / 306.82 tokens per second
+1.21.854.991 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =   8192, progress = 0.12, t =  27.20 s / 301.20 tokens per second
+1.28.914.515 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  10240, progress = 0.16, t =  34.24 s / 299.05 tokens per second
+1.35.798.706 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  12288, progress = 0.19, t =  41.13 s / 298.73 tokens per second
+1.42.750.579 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  14336, progress = 0.22, t =  48.07 s / 298.24 tokens per second
+1.49.149.338 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  16384, progress = 0.25, t =  54.48 s / 300.76 tokens per second
+1.55.470.745 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  18432, progress = 0.28, t =  60.78 s / 303.28 tokens per second
+2.01.924.625 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  20480, progress = 0.31, t =  67.24 s / 304.59 tokens per second
+2.08.448.865 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  22528, progress = 0.34, t =  73.75 s / 305.47 tokens per second
+2.15.349.105 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  24576, progress = 0.38, t =  80.66 s / 304.70 tokens per second
+2.22.692.918 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  26624, progress = 0.41, t =  87.98 s / 302.61 tokens per second
+2.29.998.851 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  28672, progress = 0.44, t =  95.30 s / 300.87 tokens per second
+2.37.261.607 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  30720, progress = 0.47, t = 102.55 s / 299.57 tokens per second
+2.44.615.683 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  32768, progress = 0.50, t = 109.93 s / 298.08 tokens per second
+2.51.690.287 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  34816, progress = 0.53, t = 117.06 s / 297.42 tokens per second
+2.58.888.727 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  36864, progress = 0.56, t = 124.27 s / 296.63 tokens per second
+3.06.194.749 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  38912, progress = 0.59, t = 131.58 s / 295.72 tokens per second
+3.13.477.165 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  40960, progress = 0.62, t = 138.86 s / 294.97 tokens per second
+3.20.665.734 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  43008, progress = 0.66, t = 146.04 s / 294.50 tokens per second
+3.27.957.021 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  45056, progress = 0.69, t = 153.34 s / 293.83 tokens per second
+3.35.217.851 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  47104, progress = 0.72, t = 160.59 s / 293.32 tokens per second
+3.42.522.322 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  49152, progress = 0.75, t = 167.90 s / 292.74 tokens per second
+3.49.927.114 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  51200, progress = 0.78, t = 175.30 s / 292.07 tokens per second
+3.57.331.615 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  53248, progress = 0.81, t = 182.72 s / 291.43 tokens per second
+4.04.768.011 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  55296, progress = 0.84, t = 190.14 s / 290.82 tokens per second
+4.12.243.439 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  57344, progress = 0.88, t = 197.62 s / 290.17 tokens per second
+4.19.697.228 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  59392, progress = 0.91, t = 205.07 s / 289.62 tokens per second
+4.27.207.869 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  61440, progress = 0.94, t = 212.59 s / 289.01 tokens per second
+4.34.715.049 I slot print_timing: id  0 | task 5 | prompt processing, n_tokens =  63488, progress = 0.97, t = 220.08 s / 288.48 tokens per second
+4.42.405.610 W apply_prefill_seed_locked: layer=0 role=blk.0.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66048 prefill tokens)
+4.42.407.203 W apply_prefill_seed_locked: layer=0 role=blk.0.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66048 prefill tokens)
+4.42.409.112 W apply_prefill_seed_locked: layer=0 role=blk.0.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66048 prefill tokens)
+4.42.410.696 W apply_prefill_seed_locked: layer=1 role=blk.1.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66048 prefill tokens)
+4.42.412.291 W apply_prefill_seed_locked: layer=1 role=blk.1.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66048 prefill tokens)
+4.42.414.222 W apply_prefill_seed_locked: layer=1 role=blk.1.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.415.805 W apply_prefill_seed_locked: layer=2 role=blk.2.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.417.375 W apply_prefill_seed_locked: layer=2 role=blk.2.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.419.272 W apply_prefill_seed_locked: layer=2 role=blk.2.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.420.861 W apply_prefill_seed_locked: layer=3 role=blk.3.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.422.426 W apply_prefill_seed_locked: layer=3 role=blk.3.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.424.335 W apply_prefill_seed_locked: layer=3 role=blk.3.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.425.620 W apply_prefill_seed_locked: layer=4 role=blk.4.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.426.931 W apply_prefill_seed_locked: layer=4 role=blk.4.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.428.839 W apply_prefill_seed_locked: layer=4 role=blk.4.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.430.146 W apply_prefill_seed_locked: layer=5 role=blk.5.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.431.439 W apply_prefill_seed_locked: layer=5 role=blk.5.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.433.373 W apply_prefill_seed_locked: layer=5 role=blk.5.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.434.665 W apply_prefill_seed_locked: layer=6 role=blk.6.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.435.978 W apply_prefill_seed_locked: layer=6 role=blk.6.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.437.902 W apply_prefill_seed_locked: layer=6 role=blk.6.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.439.166 W apply_prefill_seed_locked: layer=7 role=blk.7.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.440.428 W apply_prefill_seed_locked: layer=7 role=blk.7.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.442.309 W apply_prefill_seed_locked: layer=7 role=blk.7.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.443.575 W apply_prefill_seed_locked: layer=8 role=blk.8.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.444.899 W apply_prefill_seed_locked: layer=8 role=blk.8.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.446.777 W apply_prefill_seed_locked: layer=8 role=blk.8.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.448.043 W apply_prefill_seed_locked: layer=9 role=blk.9.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.449.302 W apply_prefill_seed_locked: layer=9 role=blk.9.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.451.180 W apply_prefill_seed_locked: layer=9 role=blk.9.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.452.446 W apply_prefill_seed_locked: layer=10 role=blk.10.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.453.755 W apply_prefill_seed_locked: layer=10 role=blk.10.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.455.640 W apply_prefill_seed_locked: layer=10 role=blk.10.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.456.925 W apply_prefill_seed_locked: layer=11 role=blk.11.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.458.194 W apply_prefill_seed_locked: layer=11 role=blk.11.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.460.070 W apply_prefill_seed_locked: layer=11 role=blk.11.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.461.327 W apply_prefill_seed_locked: layer=12 role=blk.12.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.462.596 W apply_prefill_seed_locked: layer=12 role=blk.12.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.464.498 W apply_prefill_seed_locked: layer=12 role=blk.12.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.465.779 W apply_prefill_seed_locked: layer=13 role=blk.13.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.467.050 W apply_prefill_seed_locked: layer=13 role=blk.13.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.468.951 W apply_prefill_seed_locked: layer=13 role=blk.13.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.470.264 W apply_prefill_seed_locked: layer=14 role=blk.14.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.471.522 W apply_prefill_seed_locked: layer=14 role=blk.14.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.473.523 W apply_prefill_seed_locked: layer=14 role=blk.14.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.474.921 W apply_prefill_seed_locked: layer=15 role=blk.15.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.476.181 W apply_prefill_seed_locked: layer=15 role=blk.15.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.478.061 W apply_prefill_seed_locked: layer=15 role=blk.15.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.479.399 W apply_prefill_seed_locked: layer=16 role=blk.16.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.480.706 W apply_prefill_seed_locked: layer=16 role=blk.16.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.482.612 W apply_prefill_seed_locked: layer=16 role=blk.16.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.483.916 W apply_prefill_seed_locked: layer=17 role=blk.17.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.485.199 W apply_prefill_seed_locked: layer=17 role=blk.17.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.487.341 W apply_prefill_seed_locked: layer=17 role=blk.17.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.488.623 W apply_prefill_seed_locked: layer=18 role=blk.18.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.489.908 W apply_prefill_seed_locked: layer=18 role=blk.18.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.491.820 W apply_prefill_seed_locked: layer=18 role=blk.18.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.493.098 W apply_prefill_seed_locked: layer=19 role=blk.19.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.494.389 W apply_prefill_seed_locked: layer=19 role=blk.19.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.496.280 W apply_prefill_seed_locked: layer=19 role=blk.19.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.497.559 W apply_prefill_seed_locked: layer=20 role=blk.20.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.498.861 W apply_prefill_seed_locked: layer=20 role=blk.20.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.500.752 W apply_prefill_seed_locked: layer=20 role=blk.20.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.502.029 W apply_prefill_seed_locked: layer=21 role=blk.21.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.503.328 W apply_prefill_seed_locked: layer=21 role=blk.21.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.505.206 W apply_prefill_seed_locked: layer=21 role=blk.21.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.506.480 W apply_prefill_seed_locked: layer=22 role=blk.22.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.507.766 W apply_prefill_seed_locked: layer=22 role=blk.22.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.509.657 W apply_prefill_seed_locked: layer=22 role=blk.22.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.510.939 W apply_prefill_seed_locked: layer=23 role=blk.23.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.512.225 W apply_prefill_seed_locked: layer=23 role=blk.23.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.514.110 W apply_prefill_seed_locked: layer=23 role=blk.23.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.515.380 W apply_prefill_seed_locked: layer=24 role=blk.24.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.516.655 W apply_prefill_seed_locked: layer=24 role=blk.24.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.518.548 W apply_prefill_seed_locked: layer=24 role=blk.24.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.519.866 W apply_prefill_seed_locked: layer=25 role=blk.25.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.521.150 W apply_prefill_seed_locked: layer=25 role=blk.25.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.523.265 W apply_prefill_seed_locked: layer=25 role=blk.25.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.524.538 W apply_prefill_seed_locked: layer=26 role=blk.26.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.525.840 W apply_prefill_seed_locked: layer=26 role=blk.26.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.527.739 W apply_prefill_seed_locked: layer=26 role=blk.26.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.529.020 W apply_prefill_seed_locked: layer=27 role=blk.27.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.530.312 W apply_prefill_seed_locked: layer=27 role=blk.27.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.532.224 W apply_prefill_seed_locked: layer=27 role=blk.27.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.533.513 W apply_prefill_seed_locked: layer=28 role=blk.28.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.534.820 W apply_prefill_seed_locked: layer=28 role=blk.28.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.536.739 W apply_prefill_seed_locked: layer=28 role=blk.28.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.538.026 W apply_prefill_seed_locked: layer=29 role=blk.29.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.539.307 W apply_prefill_seed_locked: layer=29 role=blk.29.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.541.200 W apply_prefill_seed_locked: layer=29 role=blk.29.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.542.496 W apply_prefill_seed_locked: layer=30 role=blk.30.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.543.811 W apply_prefill_seed_locked: layer=30 role=blk.30.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.545.714 W apply_prefill_seed_locked: layer=30 role=blk.30.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.546.993 W apply_prefill_seed_locked: layer=31 role=blk.31.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.548.269 W apply_prefill_seed_locked: layer=31 role=blk.31.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.550.154 W apply_prefill_seed_locked: layer=31 role=blk.31.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.551.423 W apply_prefill_seed_locked: layer=32 role=blk.32.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.552.710 W apply_prefill_seed_locked: layer=32 role=blk.32.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.554.674 W apply_prefill_seed_locked: layer=32 role=blk.32.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.555.980 W apply_prefill_seed_locked: layer=33 role=blk.33.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.557.261 W apply_prefill_seed_locked: layer=33 role=blk.33.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.559.176 W apply_prefill_seed_locked: layer=33 role=blk.33.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.560.451 W apply_prefill_seed_locked: layer=34 role=blk.34.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.561.721 W apply_prefill_seed_locked: layer=34 role=blk.34.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.563.613 W apply_prefill_seed_locked: layer=34 role=blk.34.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.564.897 W apply_prefill_seed_locked: layer=35 role=blk.35.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.566.189 W apply_prefill_seed_locked: layer=35 role=blk.35.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.568.074 W apply_prefill_seed_locked: layer=35 role=blk.35.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.569.359 W apply_prefill_seed_locked: layer=36 role=blk.36.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.570.658 W apply_prefill_seed_locked: layer=36 role=blk.36.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.572.538 W apply_prefill_seed_locked: layer=36 role=blk.36.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.573.840 W apply_prefill_seed_locked: layer=37 role=blk.37.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.575.105 W apply_prefill_seed_locked: layer=37 role=blk.37.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.576.989 W apply_prefill_seed_locked: layer=37 role=blk.37.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.578.293 W apply_prefill_seed_locked: layer=38 role=blk.38.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.579.571 W apply_prefill_seed_locked: layer=38 role=blk.38.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.581.472 W apply_prefill_seed_locked: layer=38 role=blk.38.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.582.765 W apply_prefill_seed_locked: layer=39 role=blk.39.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.584.035 W apply_prefill_seed_locked: layer=39 role=blk.39.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.585.914 W apply_prefill_seed_locked: layer=39 role=blk.39.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.587.484 W apply_prefill_seed_locked: layer=40 role=blk.40.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.589.051 W apply_prefill_seed_locked: layer=40 role=blk.40.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.590.937 W apply_prefill_seed_locked: layer=40 role=blk.40.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.592.480 W apply_prefill_seed_locked: layer=41 role=blk.41.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.594.046 W apply_prefill_seed_locked: layer=41 role=blk.41.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.595.937 W apply_prefill_seed_locked: layer=41 role=blk.41.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.597.476 W apply_prefill_seed_locked: layer=42 role=blk.42.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.599.051 W apply_prefill_seed_locked: layer=42 role=blk.42.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.600.934 W apply_prefill_seed_locked: layer=42 role=blk.42.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.602.477 W apply_prefill_seed_locked: layer=43 role=blk.43.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.604.050 W apply_prefill_seed_locked: layer=43 role=blk.43.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.605.936 W apply_prefill_seed_locked: layer=43 role=blk.43.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.607.488 W apply_prefill_seed_locked: layer=44 role=blk.44.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.609.051 W apply_prefill_seed_locked: layer=44 role=blk.44.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.610.935 W apply_prefill_seed_locked: layer=44 role=blk.44.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.612.481 W apply_prefill_seed_locked: layer=45 role=blk.45.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.614.048 W apply_prefill_seed_locked: layer=45 role=blk.45.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.615.932 W apply_prefill_seed_locked: layer=45 role=blk.45.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.617.481 W apply_prefill_seed_locked: layer=46 role=blk.46.ffn_gate_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.619.039 W apply_prefill_seed_locked: layer=46 role=blk.46.ffn_up_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.620.946 W apply_prefill_seed_locked: layer=46 role=blk.46.ffn_down_exps.weight prefill-seeded 44/44 slots (512 experts; 66560 prefill tokens)
+4.42.859.690 W moe_cache_update_host: device-remap fast path armed after a uniform eager pass over 141 tables
+4.43.081.313 W seed_prefill_lazy_locked: prompt-routing seed dev=0: 141 tables, 3165 provisional slots
+4.43.617.312 I slot print_timing: id  0 | task 5 | prompt eval time =  227859.40 ms / 65536 tokens (    3.48 ms per token,   287.62 tokens per second)
+4.43.617.317 I slot print_timing: id  0 | task 5 |        eval time =    1270.49 ms /    16 tokens (   84.70 ms per token,    11.81 tokens per second)
+4.43.617.318 I slot print_timing: id  0 | task 5 |       total time =  229129.89 ms / 65552 tokens
+4.43.617.318 I slot print_timing: id  0 | task 5 |    graphs reused =          4
+4.43.617.322 I slot print_timing: id  0 | task 5 | draft acceptance = 0.60000 (    9 accepted /    15 generated), mean len =  2.80
+4.43.618.902 I slot      release: id  0 | task 5 | stop processing: n_tokens = 65551, truncated = 0
+4.44.965.300 I srv    operator(): operator(): cleaning up before exit...
+4.44.990.939 W ~llama_context:  ROCm_Host compute buffer size of  56.5216 MiB, does not match expectation of  29.2755 MiB
+4.45.061.838 W ~llama_context:      ROCm0 compute buffer size of 1588.5112 MiB, does not match expectation of 1588.3958 MiB
