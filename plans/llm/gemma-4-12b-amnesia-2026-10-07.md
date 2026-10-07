@@ -97,9 +97,13 @@ top-k 64).
   on reasoning content; clients need max_tokens headroom or reasoning-off.
 - Model loaded multimodal (mmproj OK, CPU-side) and served
   `google/gemma-4-12b-it` cleanly; E2E through the proxy returned READY.
-- 65536 ctx: applied in git (KV math +2.1 GiB against 3.1 GiB headroom);
-  pod restart pending after the verify job frees the pipeline; record
-  VRAM/decode here next.
+- 65536 ctx: SHIPPED (fd504d7b). Post-roll VRAM 13478-13496/16303 MiB
+  steady, incl. under a ~36k-token prompt (TTFT 18.7s ~= 1900 prompt
+  tok/s). Decode unchanged (~40 tok/s, single slot). 131k stays out of
+  reach (~8.8 GiB q8 KV vs 2.8 GiB headroom). The FlashNext Q4-M64 shard
+  archive was released to trust after a size-verified 33/33 copy (md5
+  spot-check passed on the first shard; full re-verify waived by the
+  operator - re-downloadable from AtomicChat if ever suspect).
 - Ops notes this run: litellm-operator re-issued the Hermes key during its
   22:44 retry (transient 401s while secrets/DB/PushSecret settled —
   harmless once settled); scope edits are NOT pushed to existing keys, so
