@@ -85,7 +85,27 @@ top-k 64).
    verifier pod keeps it pvc-protection-pinned until md5s pass); then
    `kubectl delete pv pvc-97284458-…` (Retain PV) and wipe the hostpath
    dir on Amnesia.
-4. PENDING — bench ladder, adjust context, record results below.
+4. IN PROGRESS — bench ladder; md5 job `flashnext-amnesia-verify-v3`
+   (94.5 GB x2 reads) pins the Terminating PVC until it completes.
+
+## Bench results (2026-10-07, RTX 5070 Ti, b10991, Q8_0, --parallel 1)
+
+- 32768 ctx (ship state): VRAM 13140-13158/16303 MiB steady (~3.1 GiB
+  headroom). Decode ~40 tok/s single-stream; TTFT ~1.1 s for a ~4k-token
+  prompt; LiteLLM passthrough E2E OK, cached-token accounting works.
+  Note: Gemma 4 is a thinking model — short answers burn the token budget
+  on reasoning content; clients need max_tokens headroom or reasoning-off.
+- Model loaded multimodal (mmproj OK, CPU-side) and served
+  `google/gemma-4-12b-it` cleanly; E2E through the proxy returned READY.
+- 65536 ctx: applied in git (KV math +2.1 GiB against 3.1 GiB headroom);
+  pod restart pending after the verify job frees the pipeline; record
+  VRAM/decode here next.
+- Ops notes this run: litellm-operator re-issued the Hermes key during its
+  22:44 retry (transient 401s while secrets/DB/PushSecret settled —
+  harmless once settled); scope edits are NOT pushed to existing keys, so
+  `/key/update` by key_alias was run manually for Hermes + open-webui per
+  the standing note in open-webui.yaml. The rsync-based archive v1 was
+  OOMKilled; v2 `cp` succeeded and the 33-file byte map matches.
 
 ## Validation actually performed (2026-10-07)
 
