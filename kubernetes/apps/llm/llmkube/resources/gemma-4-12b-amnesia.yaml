@@ -1,0 +1,124 @@
+---
+# Gemma 4 12B (it) on Amnesia's RTX 5070 Ti - the preemptible local lane.
+#
+# Weights are served straight from the NFS cold tier (/model-source), the
+# vision-cpu pattern: a single 12.7 GB Q8_0 file that lives entirely in VRAM
+# once loaded, so the mmap page-in over LAN is a startup cost only and no
+# node-local PVC is warranted. Staged by cache-prime-gemma-4-12b-v1.
+#
+# Q8_0 is the fp8-class fidelity tier: llama.cpp has no FP8 weight path and no
+# FP8 checkpoint exists upstream; Q8_0 is the nearest fidelity/size point.
+#
+# VRAM budget (16303 MiB card, driver leaves ~15.8 GiB to the process):
+#   weights 11.8 GiB + KV (q8_0) 2.15 GiB @ 32k + compute buffers ~1 GiB
+#   ~= 15.0 GiB. 32768 is the guaranteed-fit window; plans/llm/
+#   gemma-4-12b-amnesia-2026-10-07.md records the bench ladder toward 65k.
+#   KV is cheap here because 40 of the 48 layers are sliding-window (1024):
+#   q8 KV costs 2.15/4.25/8.4 GiB at 32k/64k/128k.
+#
+# Priority: LOW by standing design. Amnesia is the Fenrir gaming node; a
+# Direwolf session pod carries gaming-interactive (20000, PreemptLowerPriority)
+# and reclaims the card from this lane (llmkube-low, 1000) the moment one
+# launches. Do not raise this.
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: gemma-4-12b-amnesia
+spec:
+  # unsloth/gemma-4-12b-it-GGUF @ fc034cfff751157913579611efad8462ac1be606
+  # sha256 f20e7ff1be28c283eeeb18fc895733791c56a5851d5cd3fe9691b7f7d12afa72
+  # (verified at stage time by the cache-prime Job; pvc:// sources are
+  # already-staged read-only mounts, so the operator runs no download).
+  source: pvc://llm-model-archive/llmkube/gemma-4-12b-it/gemma-4-12b-it-Q8_0.gguf
+  format: gguf
+  quantization: Q8_0
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      # Two advertised time-sliced units map to Amnesia's one physical card.
+      count: 2
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: InferenceService
+metadata:
+  name: gemma-4-12b
+spec:
+  modelRef: gemma-4-12b-amnesia
+  runtime: llamacpp
+  # Same pinned build the FlashNext Amnesia lane ran on this exact
+  # card/driver: gemma4 arch + the 2026-09-04 gemma4 vision fix + Gemma4 MTP
+  # are all in; CUDA arch 120a (Blackwell) is compiled in.
+  image: ghcr.io/ggml-org/llama.cpp:server-cuda-b10991@sha256:d4bdfe78ad26a1ef3ccc834fc4e4a106d882e0f2163dd9a06e067c580c742101
+  replicas: 1
+  # Staged 2026-10-07 by manual/cache-prime-gemma-4-12b.yaml (all three
+  # sha256s verified OK in-job); unsuspended the same day.
+  suspend: false
+  priority: low
+  nodeSelector:
+    kubernetes.io/hostname: amnesia
+  runtimeClassName: nvidia
+  env:
+    - name: NVIDIA_DRIVER_CAPABILITIES
+      value: compute,utility
+  contextSize: 32768
+  parallelSlots: 1
+  jinja: true
+  flashAttention: true
+  cacheTypeK: q8_0
+  cacheTypeV: q8_0
+  batchSize: 1024
+  uBatchSize: 768
+  extraArgs:
+    # Unified multimodality: the 35M embedder projector, kept off the GPU
+    # (the Muse precedent). Advertised in the catalogue as text-only until
+    # the vision path is verified on this build; see the plan note.
+    - --mmproj
+    - /model-source/llmkube/gemma-4-12b-it/mmproj-F16.gguf
+    - --no-mmproj-offload
+    # Served name LiteLLM routes on: openai/google/gemma-4-12b-it.
+    - --alias
+    - google/gemma-4-12b-it
+    # Proven on this node by the FlashNext lane.
+    - --threads
+    - "12"
+    - --threads-batch
+    - "12"
+    # Deterministic memory layout - no silent auto-shrink of the window.
+    - --fit
+    - "off"
+    # google/gemma-4-12b-it generation defaults (HF generation_config.json).
+    - --temp
+    - "1.0"
+    - --top-p
+    - "0.95"
+    - --top-k
+    - "64"
+  resources:
+    cpu: "4"
+    # mmap page-in of the 12.7 GiB file lands in this cgroup's page cache.
+    memory: 24Gi
+    # Claim both time-sliced units so nothing else can consume the rest of
+    # the card's VRAM behind our back.
+    gpu: 2
+  rolloutPolicy:
+    # llmkube's generic idle check does not apply; plain rollout.
+    waitForIdle: false
+  endpoint:
+    port: 8080
+    path: /v1/chat/completions
+  probeOverrides:
+    startup:
+      httpGet:
+        path: /health
+        port: 8080
+      periodSeconds: 10
+      # Cold NFS read of 12.7 GiB dominates startup.
+      failureThreshold: 360
+    readiness:
+      httpGet:
+        path: /health
+        port: 8080
+      periodSeconds: 10

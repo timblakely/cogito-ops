@@ -1,0 +1,55 @@
+# Apply manually ONCE (never add to resources/kustomization.yaml): copies the
+# retired FlashNext Amnesia shard set off the retained node-local PVC into the
+# NFS cold tier. Run to completion BEFORE letting the Flux prune of
+# flashnext-amnesia.yaml GC the PVC; the copy is source-only (rsync without
+# --delete), so a re-run is idempotent. Verification prints shard count and
+# total bytes for comparison against the source listing.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flashnext-amnesia-archive-v2
+  namespace: llm
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 14400
+  template:
+    spec:
+      restartPolicy: OnFailure
+      # The source claim is RWO openebs-hostpath pinned to amnesia.
+      nodeSelector:
+        kubernetes.io/hostname: amnesia
+      containers:
+        - name: copy
+          image: docker.io/library/alpine:3.22
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              src=/src/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64
+              dst=/dst/llmkube/flashnext-amnesia-q4-m64
+              test -d "$src" || { echo "source dir missing"; exit 1; }
+              mkdir -p "$dst"
+              # cp, not rsync: rsync's 140 GiB pass OOMKilled at 1Gi; cp
+              # streams with no per-file hash buffers. No --delete semantics
+              # anywhere, so re-runs are idempotent.
+              cp -a "$src/." "$dst/"
+              echo "SRC files: $(find "$src" -maxdepth 1 -name '*.gguf' | wc -l), bytes: $(du -sb "$src" | cut -f1)"
+              echo "DST files: $(find "$dst" -maxdepth 1 -name '*.gguf' | wc -l), bytes: $(du -sb "$dst" | cut -f1)"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              memory: 2Gi
+          volumeMounts:
+            - name: src
+              mountPath: /src
+              readOnly: true
+            - name: dst
+              mountPath: /dst
+      volumes:
+        - name: src
+          persistentVolumeClaim:
+            claimName: flashnext-amnesia
+        - name: dst
+          persistentVolumeClaim:
+            claimName: llm-model-archive

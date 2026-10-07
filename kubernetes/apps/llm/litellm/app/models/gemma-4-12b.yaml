@@ -1,0 +1,34 @@
+---
+# The preemptible Amnesia lane's passthrough alias (HF-style name, like the
+# Qwen one). Best-effort by design: a Fenrir game launch on Amnesia preempts
+# this backend (gaming-interactive 20000 vs llmkube-low 1000), so the proxy
+# may see the backend vanish mid-session. Deliberately NO fallback: the
+# validator's preemptible rule keys off the cogito.dev/preemptible annotation
+# and this lane has no same-model peer to fall back to; consumers choose it
+# knowingly.
+#
+# maxInputTokens mirrors contextSize in
+# llmkube/resources/gemma-4-12b-amnesia.yaml exactly (32768 = the measured
+# guaranteed fit of Q8_0 + q8 KV on the 16 GB card; the bench ladder up from
+# there is tracked in plans/llm/gemma-4-12b-amnesia-2026-10-07.md).
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: gemma-4-12b
+spec:
+  modelName: google/gemma-4-12b-it
+  proxyRef: litellm
+  params:
+    model: openai/google/gemma-4-12b-it
+    apiBase: http://gemma-4-12b.llm.svc.cluster.local:8080/v1
+    apiKey: not-needed
+    additional:
+      timeout: 1800
+  info:
+    supportsFunctionCalling: true
+    maxInputTokens: 32768
+    maxOutputTokens: 8192
+    extra:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+      supports_reasoning: true

@@ -1,0 +1,81 @@
+---
+# Stage the Gemma 4 12B lane into the NFS cold tier: main Q8_0, the unified
+# multimodality projector, and the MTP draft head kept on disk for the
+# speculative-decoding bench pass (not referenced by the serving args yet).
+# Rotate metadata.name on change - Job templates are immutable.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cache-prime-gemma-4-12b-v1
+  annotations:
+    kustomize.toolkit.fluxcd.io/force: Enabled
+  labels:
+    app.kubernetes.io/name: cache-prime-gemma-4-12b
+spec:
+  activeDeadlineSeconds: 7200
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cache-prime-gemma-4-12b
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: OnFailure
+      containers:
+        - name: download
+          image: docker.io/library/python:3.13-slim
+          env:
+            - name: HOME
+              value: /tmp
+            - name: HF_HOME
+              value: /tmp/huggingface
+            - name: PIP_DISABLE_PIP_VERSION_CHECK
+              value: "1"
+          command:
+            - sh
+            - -ec
+            - |
+              python -m venv /tmp/venv
+              /tmp/venv/bin/pip install --no-cache-dir "huggingface_hub[cli]"
+              dir=/models/llmkube/gemma-4-12b-it
+              mkdir -p "$dir"
+              # Pinned revision + per-file sha256: the archive must not drift
+              # under the serving args that quote these hashes.
+              /tmp/venv/bin/hf download unsloth/gemma-4-12b-it-GGUF \
+                gemma-4-12b-it-Q8_0.gguf \
+                --revision fc034cfff751157913579611efad8462ac1be606 \
+                --local-dir "$dir" --max-workers 4
+              /tmp/venv/bin/hf download unsloth/gemma-4-12b-it-GGUF \
+                mmproj-F16.gguf \
+                --revision fc034cfff751157913579611efad8462ac1be606 \
+                --local-dir "$dir" --max-workers 2
+              /tmp/venv/bin/hf download unsloth/gemma-4-12b-it-GGUF \
+                MTP/mtp-gemma-4-12b-it-Q8_0.gguf \
+                --revision fc034cfff751157913579611efad8462ac1be606 \
+                --local-dir "$dir" --max-workers 2
+              cd "$dir"
+              echo "f20e7ff1be28c283eeeb18fc895733791c56a5851d5cd3fe9691b7f7d12afa72  gemma-4-12b-it-Q8_0.gguf" \
+                | sha256sum -c
+              echo "91f086971e56d7a7d8d39e271873fccdb49541bd259d6e02c401a4f1cb7a219e  mmproj-F16.gguf" \
+                | sha256sum -c
+              echo "145db9094bc0f85f1701e255a2ed216dcc9800fc8bc8631ad00905b456bd451b  MTP/mtp-gemma-4-12b-it-Q8_0.gguf" \
+                | sha256sum -c
+              ls -lR "$dir"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 256Mi
+            limits:
+              memory: 2Gi
+          volumeMounts:
+            - name: archive
+              mountPath: /models
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: archive
+          persistentVolumeClaim:
+            claimName: llm-model-archive
+        - name: tmp
+          emptyDir: {}

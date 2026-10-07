@@ -10,6 +10,12 @@ spec:
   appAssetWebP: UklGRhwBAABXRUJQVlA4IBABAADQHACdASosAZABPm02mUmkIqKhICgAgA2JaW7hd2EbQAnsA99snIe+2Yy09snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPekAAD+/9O4f/1K366KRn9B8NO3tyIAAAAAAAAAAAAAAAAAAA==
   template:
     spec:
+      # Must match steam.yaml: a game pod only reclaims Amnesia's GPU from
+      # the inference lane by outscoring it (gaming-interactive 20000 vs the
+      # lane's llmkube-low 1000). Test Ball's pod template had no priority
+      # class at all - value 0, below every inference lane - so launching
+      # Test Ball could never preempt a running server.
+      priorityClassName: gaming-interactive
       runtimeClassName: nvidia
       nodeSelector:
         kubernetes.io/hostname: amnesia
