@@ -22,7 +22,7 @@ metadata:
 spec:
   modelRef: flashnext-iggy-radiance
   runtime: generic
-  image: docker.io/stilldeadcode/radiance:1.0.13@sha256:4c3f484564bb2872784e46b0a59cbd71becc9c1e746e301a3596ffae253c322e
+  image: docker.io/stilldeadcode/radiance:1.2.3@sha256:7318df30fc95aab1fe73aa1eb0b04fa1d65aff9a1e717d51c7457be685b08398
   replicas: 1
   suspend: false
   skipModelInit: true
@@ -52,8 +52,6 @@ spec:
   - disk
   - --gpu-headroom-mib
   - '512'
-  - --expert-vs-cache-ratio
-  - '0.82'
   - --kv-cache-dtype
   - fp8
   - --num-speculative-tokens
