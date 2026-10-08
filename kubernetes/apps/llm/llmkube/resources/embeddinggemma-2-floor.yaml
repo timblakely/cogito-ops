@@ -1,0 +1,59 @@
+---
+# EmbeddingGemma 2 (text lane) - A/B side-by-side against bge-m3 on the
+# retrieval floor's A380. Deliberately NOT wired into litellm yet: this is a
+# shadow endpoint for retrieval-quality comparison before any embedder alias
+# switch. Text-only Q8_0 (271M, ~310MB); the 740M multimodal encoders are not
+# servable through llama.cpp's OpenAI API.
+#
+# Runtime: pinned to the server-intel amd64 digest (build b11459) which is
+# AFTER upstream 4fbc76de "model: support embeddinggemma2" - the tag the
+# existing floor pods pull (Aug 21, b10548) does NOT know this architecture.
+# Do not "simplify" this back to the floating tag.
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: embeddinggemma-2
+spec:
+  source: pvc://llm-model-archive/llmkube/embeddinggemma-2/embeddinggemma-2-Q8_0.gguf
+  format: gguf
+  quantization: Q8_0
+  hardware:
+    accelerator: intel
+    gpu:
+      enabled: true
+      vendor: intel
+      resourceName: gpu.intel.com/i915
+      count: 1
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: InferenceService
+metadata:
+  name: embeddinggemma-2
+spec:
+  modelRef: embeddinggemma-2
+  runtime: llamacpp
+  image: ghcr.io/ggml-org/llama.cpp@sha256:6ccaebb6432e64df295dfc2cceaa7329e98420d1967d41d922dc5c4dbca4f2f0
+  replicas: 1
+  nodeSelector:
+    kubernetes.io/hostname: kristeva
+  # Gemma-embedding2 advertises a 262k GGUF context but is trained/published
+  # at 8k; 8192 also keeps the A/B apples-to-apples with bge-m3. Pooling is
+  # LAST and recorded in the GGUF (pooling_type=1), so no --pooling override.
+  contextSize: 8192
+  batchSize: 8192
+  uBatchSize: 8192
+  extraArgs:
+    - --embedding
+  resources:
+    gpu: 1
+    cpu: "2"
+    memory: 4Gi
+  endpoint:
+    port: 8080
+  probeOverrides:
+    startup:
+      httpGet:
+        path: /health
+        port: 8080
+      periodSeconds: 5
+      failureThreshold: 120
