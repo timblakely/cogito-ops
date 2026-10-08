@@ -1,8 +1,10 @@
 # Knowledge corpus
 
 `knowledge` is the shared RAG service for Hermes and Open WebUI. It keeps the
-GPU LLM deployment untouched: BGE-M3 runs in `knowledge-embeddings`, a separate
-CPU-only vLLM server with the OpenAI-compatible `/v1/embeddings` endpoint.
+GPU LLM deployment untouched. The standalone CPU `knowledge-embeddings` vLLM
+lane was retired in October 2026 pending a RAG redesign; `EMBEDDING_URL` must
+be repointed (for example at the `llm` namespace BGE-M3 lane) before embedding
+operations work again.
 
 ## Sources
 

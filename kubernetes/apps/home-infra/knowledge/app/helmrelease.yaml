@@ -40,21 +40,6 @@ spec:
             probes:
               liveness: &probes {enabled: true, custom: true, spec: {httpGet: {path: /healthz, port: &apiPort 8080}}}
               readiness: *probes
-      embeddings:
-        enabled: true
-        pod:
-          nodeSelector:
-            feature.node.kubernetes.io/cpu-cpuid.AVX2: "true"
-        containers:
-          main:
-            image: {repository: vllm/vllm-openai-cpu, tag: latest-x86_64}
-            args: [BAAI/bge-m3, --hf-overrides, '{"architectures":["BgeM3EmbeddingModel"]}', --runner, pooling, --gpu-memory-utilization, "0.5", --host, 0.0.0.0, --port, "8000"]
-            env:
-              HF_HOME: /root/.cache/huggingface
-              VLLM_CPU_NUM_OF_RESERVED_CPU: "1"
-            resources:
-              requests: {cpu: "4", memory: 12Gi}
-              limits: {cpu: "4", memory: 12Gi}
       tika:
         enabled: true
         containers:
@@ -80,7 +65,6 @@ spec:
               limits: {memory: 1Gi}
     service:
       api: {controller: api, ports: {http: {port: *apiPort}}}
-      embeddings: {controller: embeddings, ports: {http: {port: 8000}}}
       tika: {controller: tika, ports: {http: {port: 9998}}}
     route:
       api:
@@ -98,14 +82,3 @@ spec:
           ingest:
             main:
               - {path: /config/sources.yaml, subPath: sources.yaml}
-      hf-cache:
-        type: persistentVolumeClaim
-        forceRename: knowledge-hf-cache
-        annotations:
-          kustomize.toolkit.fluxcd.io/prune: disabled
-        accessMode: ReadWriteOnce
-        size: 5Gi
-        advancedMounts:
-          embeddings:
-            main:
-              - {path: /root/.cache/huggingface}
