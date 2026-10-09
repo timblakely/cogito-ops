@@ -12,8 +12,15 @@ machine:
     diskSelector:
       model: "Samsung SSD 9100 PRO 2TB"
       serial: S7YCNJ0L214027M
-    image: factory.talos.dev/metal-installer/2b5d5bac65ac2e1f4d620f4b7f29320708cef681a5ffa025cf8e5b48bc4862dd@sha256:7ad6bb3742a2316d993a7ac93d528d98a6ab060889c40ec086a1790f0f883a1f
+    # Custom-kernel installer (NVIDIA 615.78.08 on Talos v1.14.2), built by
+    # https://github.com/timblakely/talos-nvidia-open-extension
+    # (hack/rebase-amnesia.sh there). The public factory kernel rejects these
+    # signed modules; do not revert this image to factory.talos.dev.
+    image: ghcr.io/timblakely/installer-amd64@sha256:78f6941b8aba004a4e7c05de4dfe192097427e8800893ba67fc9986de6b0f703
     wipe: false
+  sysctls:
+    # Required by the nvidia-open-toolkit system extension.
+    net.core.bpf_jit_harden: "1"
   kernel:
     modules:
       - name: nvidia
