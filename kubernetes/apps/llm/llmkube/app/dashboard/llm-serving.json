@@ -1,0 +1,1604 @@
+{
+  "title": "LLM Serving Engines",
+  "uid": "cogito-llm-serving",
+  "tags": [
+    "llm",
+    "llmkube",
+    "inference"
+  ],
+  "editable": true,
+  "graphTooltip": 1,
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "schemaVersion": 39,
+  "version": 1,
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "refresh": 1
+      },
+      {
+        "name": "lane",
+        "label": "Serving lane",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "hide": 0,
+        "query": "label_values({__name__=~\"llamacpp:requests_processing|vllm:num_requests_running|radiance:http_queue_depth\"}, service)"
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Overview",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Serving lanes",
+      "description": "Distinct llmkube inference services reporting engine metrics right now. A lane disappears when its pods stop being scraped (scaled to zero, suspended, or recreated).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "count(count by (service) ({__name__=~\"llamacpp:requests_processing|vllm:num_requests_running|radiance:http_queue_depth\"}))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Engine families",
+      "description": "How many distinct engine metric families are live: llama.cpp, vLLM and Radiance each contribute their own prefix, all scraped by the llmkube-inference PodMonitor.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "count(count by (__name__) (group by (__name__) ({__name__=~\"llamacpp:requests_processing|vllm:num_requests_running|radiance:http_queue_depth\"})))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Scrape targets down",
+      "description": "llmkube-inference targets whose last scrape failed. Engine metrics only exist where the server is reachable on its /metrics endpoint - a lane with --metrics missing shows as absent, not down.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "count(up{job=\"llmkube-inference\"} == 0) or vector(0)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "LiteLLM in-flight",
+      "description": "HTTP requests in flight on the proxy (summed across uvicorn workers). Proxy-level only: this is NOT engine concurrency - see the Concurrency row for slots.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum(litellm_in_flight_requests)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Serving lanes: engine, node, model",
+      "description": "One row per inference service. Engine is derived from which metric family the pod emits, NOT from the runtime label: the PodMonitor's `runtime` is 'generic' for any InferenceService that overrides container args, which covers both the llama.cpp muse-glimmer-30b lane and the Radiance flashnext-iggy lane.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "footer": {
+          "show": false,
+          "reducer": [],
+          "fields": ""
+        },
+        "sortBy": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "(  label_replace(count by (service, model) (radiance:http_queue_depth), \"engine\", \"radiance\", \"\", \"\")\nor label_replace(count by (service, model) (\n     llamacpp:requests_processing\n     unless on (service) (count by (service) (radiance:http_queue_depth))\n   ), \"engine\", \"llama.cpp\", \"\", \"\")\nor label_replace(count by (service, model) (\n     vllm:num_requests_running\n     unless on (service) (\n       count by (service) (radiance:http_queue_depth)\n       or count by (service) (llamacpp:requests_processing)\n     )\n   ), \"engine\", \"vllm\", \"\", \"\"))\n* on (service) group_left (node)\n(count by (service, node) (\n  (up{job=\"llmkube-inference\"} == 1)\n  * on (pod) group_left (node) (count by (pod, node) (kube_pod_info{namespace=\"llm\"}))\n))",
+          "refId": "A",
+          "format": "table",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "row",
+      "title": "Token throughput by serving model",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 13
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Prompt processing speed (tok/s)",
+      "description": "Prompt/prefill tokens computed per second, per inference service. Unified across engines from counters: llama.cpp prompt_tokens_total excludes cached tokens, so a cache-hit-heavy lane reads lower than its real wall-clock prefill; Radiance and vLLM prompt counters include cached work.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (service) (rate(llamacpp:prompt_tokens_total{service=~\"$lane\"}[$__rate_interval]))\nor sum by (service) (rate(vllm:prompt_tokens_total{service=~\"$lane\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Generation speed (tok/s)",
+      "description": "Generated tokens per second per inference service, summed across replicas - lane throughput, not per-stream speed. Per-stream decode is the native-gauge panel on the right.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (service) (rate(llamacpp:tokens_predicted_total{service=~\"$lane\"}[$__rate_interval]))\nor sum by (service) (rate(vllm:generation_tokens_total{service=~\"$lane\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Prompt processing - engine-native rate (tok/s)",
+      "description": "Engine's own prompt-processing rate. Radiance reports prefill_tokens_per_second over the scheduler's recent window; llama.cpp reports prompt_tokens_seconds as a per-scrape bucket that resets on EVERY scrape, so it must be read as an instant gauge - rate() over it is always 0/NaN. Idle lanes read 0 by design.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 22
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max by (service, pod) (radiance:prefill_tokens_per_second{service=~\"$lane\"})\nor max by (service, pod) (llamacpp:prompt_tokens_seconds{service=~\"$lane\"})",
+          "refId": "A",
+          "legendFormat": "{{service}} {{pod}}"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Decode speed - engine-native rate (tok/s)",
+      "description": "Engine's own decode throughput. Radiance decode_tokens_per_second is a live scheduler-window gauge; llama.cpp predicted_tokens_seconds is the same reset-per-scrape bucket trick (it is NOT a counter-rate), and llama.cpp counts generated tokens so a spec-decoding lane's accepted drafts appear here too.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 22
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max by (service, pod) (radiance:decode_tokens_per_second{service=~\"$lane\"})\nor max by (service, pod) (llamacpp:predicted_tokens_seconds{service=~\"$lane\"})",
+          "refId": "A",
+          "legendFormat": "{{service}} {{pod}}"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Decode speed per active stream (tok/s)",
+      "description": "Lane decode throughput divided by running requests - what one user perceives. Only meaningful on vLLM/Radiance surfaces (Radiance re-exports the vLLM-compat metrics, so num_requests_running covers it); llama.cpp parallel slots are per-slot, not aggregate-safe.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 30
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max by (service) (radiance:decode_tokens_per_second{service=~\"$lane\"})\n  / clamp_min(max by (service) (vllm:num_requests_running{service=~\"$lane\"}), 1)",
+          "refId": "A",
+          "legendFormat": "{{service}} (radiance)"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Prompt vs generated tokens (rate)",
+      "description": "The prompt:generation ratio per lane tells you whether a lane is doing agentic re-feeding (huge prompt column) or long single generations.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 30
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (service) (rate(llamacpp:prompt_tokens_total{service=~\"$lane\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{service}} prompt (llama.cpp)"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (service) (rate(vllm:prompt_tokens_total{service=~\"$lane\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{service}} prompt (vLLM/Radiance)"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (service) (rate(llamacpp:tokens_predicted_total{service=~\"$lane\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{service}} generated (llama.cpp)"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (service) (rate(vllm:generation_tokens_total{service=~\"$lane\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{service}} generated (vLLM/Radiance)"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "row",
+      "title": "Concurrency & queueing",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 38
+      }
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Requests in flight (engine view)",
+      "description": "llama.cpp counts busy slots (requests_processing); vLLM and Radiance count running requests (num_requests_running). Radiance re-exports the vLLM-compat surface, so one expression covers both; the `or` keeps llama.cpp lanes visible when a vLLM lane is absent.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 39
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (service) (llamacpp:requests_processing{service=~\"$lane\"})\nor sum by (service) (vllm:num_requests_running{service=~\"$lane\"})",
+          "refId": "A",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "Queued / deferred at the engine",
+      "description": "llama.cpp defers a request when no slot or KV space is free; vLLM/Radiance keep a waiting queue. Sustained nonzero here with idle replicas means the lane is KV- or slot-bound.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 39
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (service) (llamacpp:requests_deferred{service=~\"$lane\"})\nor sum by (service) (vllm:num_requests_waiting{service=~\"$lane\"})",
+          "refId": "A",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "Radiance admission: queue depth & rejects",
+      "description": "http_queue_depth is admitted-but-unfinished at the HTTP layer; admission_rejected counts 429s when the admission queue is full. Radiance-specific.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 47
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (service) (radiance:http_queue_depth{service=~\"$lane\"})",
+          "refId": "A",
+          "legendFormat": "{{service}} depth"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (service) (rate(radiance:http_admission_rejected_total{service=~\"$lane\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{service}} rejected/s"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "type": "timeseries",
+      "title": "llama.cpp effective batch width",
+      "description": "n_busy_slots_per_decode: average slots fed into each llama_decode() call. ~1 means the lane never actually batches (parallel slots configured but unused); N means real batch sharing.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 47
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "avg by (service) (llamacpp:n_busy_slots_per_decode{service=~\"$lane\"})",
+          "refId": "A",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "type": "timeseries",
+      "title": "Proxy concurrency vs engine concurrency",
+      "description": "litellm_in_flight_requests is proxy-side HTTP concurrency (no model label, uvicorn-worker livesum) - the gap against engine in-flight is LiteLLM + network overhead, not model work.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 55
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (lane) (label_replace(rate(litellm_deployment_total_requests_total{api_base=~\"https?://$lane\\\\.[^/]*svc\\\\.cluster\\\\.local.*\"}[$__rate_interval]), \"lane\", \"$1\", \"api_base\", \"https?://([^./]+)[.:].*\"))",
+          "refId": "A",
+          "legendFormat": "{{lane}} started/s"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum(litellm_in_flight_requests)",
+          "refId": "A",
+          "legendFormat": "proxy total in-flight"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "Request rate per serving lane (LiteLLM view)",
+      "description": "Which engine lane LiteLLM actually routed to, derived from deployment api_base's service hostname - reliable where requested_model is a catalogue alias (google/gemma-4-12b-it) rather than the service name.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 55
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (lane) (label_replace(rate(litellm_deployment_total_requests_total{api_base=~\"https?://$lane\\\\.[^/]*svc\\\\.cluster\\\\.local.*\"}[$__rate_interval]), \"lane\", \"$1\", \"api_base\", \"https?://([^./]+)[.:].*\"))",
+          "refId": "A",
+          "legendFormat": "{{lane}}"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "type": "row",
+      "title": "KV cache: usage & hit rate",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 63
+      }
+    },
+    {
+      "id": 22,
+      "type": "timeseries",
+      "title": "KV cache usage (% of pool)",
+      "description": "vLLM and Radiance only: kv_cache_usage_perc is the fraction of the KV block pool in use. llama.cpp has NO KV-occupancy metric at all - it pre-allocates slots - so llama.cpp lanes legitimately never appear here.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 64
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max by (service) (vllm:kv_cache_usage_perc{service=~\"$lane\"})",
+          "refId": "A",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "type": "timeseries",
+      "title": "Prefix-cache hit rate (unified)",
+      "description": "One curve per lane from whatever the engine reports: Radiance/vLLM expose gpu_prefix_cache_hit_rate or hits/queries counters; llama.cpp derives it from prompt_tokens_cached_total against cached+uncached prompt tokens (its prompt_tokens_total EXCLUDES cached tokens, so the denominator has to add them back).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 64
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max by (service) (vllm:gpu_prefix_cache_hit_rate{service=~\"$lane\"})\nor (\n  sum by (service) (rate(llamacpp:prompt_tokens_cached_total{service=~\"$lane\"}[$__rate_interval]))\n  / clamp_min(\n      sum by (service) (rate(llamacpp:prompt_tokens_cached_total{service=~\"$lane\"}[$__rate_interval]))\n    + sum by (service) (rate(llamacpp:prompt_tokens_total{service=~\"$lane\"}[$__rate_interval])), 1)\n)\nor (\n  sum by (service) (rate(vllm:prefix_cache_hits_total{service=~\"$lane\"}[$__rate_interval]))\n  / clamp_min(sum by (service) (rate(vllm:prefix_cache_queries_total{service=~\"$lane\"}[$__rate_interval])), 1)\n)",
+          "refId": "A",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "type": "timeseries",
+      "title": "KV tokens in use (Radiance)",
+      "description": "kv_cache_usage_perc x kv_cache_max_tokens gives absolute context tokens resident in the KV cache. Radiance publishes the capacity gauge directly (486788 on flashnext-iggy at 262k context); vLLM carries capacity in the vllm:cache_config_info info-metric labels, which are gone when the lane is suspended, so this panel is Radiance-shaped on purpose.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 72
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max by (service) (\n  vllm:kv_cache_usage_perc{service=~\"$lane\"}\n  * on (service, pod, instance) group_left () radiance:kv_cache_max_tokens{service=~\"$lane\"}\n)",
+          "refId": "A",
+          "legendFormat": "{{service}} tokens"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "type": "timeseries",
+      "title": "llama.cpp context pressure (largest sequence)",
+      "description": "n_tokens_max: largest observed prompt+generation sequence since start. llama.cpp's closest analogue to KV pressure - compare against the lane's --ctx-size (65536 gemma, 393216 muse). Approaching ctx means slot eviction, not a KV percentage.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 72
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max by (service) (llamacpp:n_tokens_max{service=~\"$lane\"})",
+          "refId": "A",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "type": "timeseries",
+      "title": "Radiance cache internals: evictions & preemptions",
+      "description": "prefix_cache_evictions_total is attention blocks pushed out of the prefix cache; num_requests_preempted counts requests kicked back for recompute. Both are Radiance-only and both explain a hit-rate drop better than the ratio itself.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 80
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (service) (rate(radiance:prefix_cache_evictions_total{service=~\"$lane\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{service}} evictions/s"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (service) (rate(radiance:prefix_cache_ckpt_evictions_total{service=~\"$lane\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{service}} ckpt evictions/s"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max by (service) (radiance:num_requests_preempted{service=~\"$lane\"})",
+          "refId": "A",
+          "legendFormat": "{{service}} preempted"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "type": "timeseries",
+      "title": "vLLM/Radiance preemptions",
+      "description": "A preempted request must recompute its prompt - preemption spikes alongside KV usage near 1 mean the lane is overcommitted on context.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 80
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (service) (rate(vllm:num_preemptions_total{service=~\"$lane\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "type": "row",
+      "title": "Speculative decoding & router-side cache accounting",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 88
+      }
+    },
+    {
+      "id": 29,
+      "type": "timeseries",
+      "title": "Speculative-decoding acceptance",
+      "description": "Fraction of draft tokens accepted. Radiance: draft_acceptance_ratio gauge; llama.cpp and vLLM: accepted/draft counter pairs. Below ~0.5 the drafter is costing more than it saves; muse-glimmer runs a dflash drafter, flashnext-iggy runs --num-speculative-tokens 3.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 89
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max by (service) (radiance:draft_acceptance_ratio{service=~\"$lane\"})\nor (\n  sum by (service) (rate(llamacpp:spec_decode_num_accepted_tokens_total{service=~\"$lane\"}[$__rate_interval]))\n  / clamp_min(sum by (service) (rate(llamacpp:spec_decode_num_draft_tokens_total{service=~\"$lane\"}[$__rate_interval])), 1)\n)\nor (\n  sum by (service) (rate(vllm:spec_decode_num_accepted_tokens_total{service=~\"$lane\"}[$__rate_interval]))\n  / clamp_min(sum by (service) (rate(vllm:spec_decode_num_draft_tokens_total{service=~\"$lane\"}[$__rate_interval])), 1)\n)",
+          "refId": "A",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "type": "timeseries",
+      "title": "Radiance acceptance by draft position",
+      "description": "Conditional acceptance at each draft position given all earlier ones were taken - where the drafter starts losing the thread. Radiance-only.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 89
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max by (service, position) (radiance:draft_position_acceptance_ratio{service=~\"$lane\"})",
+          "refId": "A",
+          "legendFormat": "{{service}} pos {{position}}"
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "Router-reported prompt-cache reads (LiteLLM usage accounting)",
+      "description": "NOT KV cache: these are usage.prompt_tokens_details reported by the upstream per response. For local OpenAI-compatible lanes the engine fills this in, so it cross-checks the engine-side hit rate above; for API lanes it is the provider's own prompt cache.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 97
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (requested_model) (rate(litellm_input_cached_tokens_metric_total[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{requested_model}} cached-in"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (requested_model) (rate(litellm_provider_cache_read_input_tokens_metric_total[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{requested_model}} provider-read"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "Radiance cached-token sources",
+      "description": "attn_cached_tokens_total (paged attention prefix cache) vs linear_cached_tokens_total (linear-state checkpoints) against prefill_tokens_total - which of the two cache tiers is actually paying on a hybrid model. Radiance-only.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 97
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (service) (rate(radiance:attn_cached_tokens_total{service=~\"$lane\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{service}} attn cached"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (service) (rate(radiance:linear_cached_tokens_total{service=~\"$lane\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{service}} linear ckpt"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (service) (rate(radiance:draft_refill_tokens_total{service=~\"$lane\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{service}} draft refill"
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "type": "row",
+      "title": "Engine-side latency (vLLM-compat surface: vLLM + Radiance)",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 105
+      }
+    },
+    {
+      "id": 34,
+      "type": "timeseries",
+      "title": "Time to first token p95",
+      "description": "Histogram exists on the vLLM surface, which Radiance re-exports, so both appear; llama.cpp lanes have no TTFT histogram - use the LiteLLM dashboard's TTFT panel for those. Lanes with no streamed responses in-window drop out (bucket-rate > 0 filter) instead of drawing a NaN.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 106
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, service) (\n  rate(vllm:time_to_first_token_seconds_bucket{service=~\"$lane\"}[$__rate_interval])\n)) and on (service) (\n  sum by (service) (rate(vllm:time_to_first_token_seconds_count{service=~\"$lane\"}[$__rate_interval])) > 0\n)",
+          "refId": "A",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "id": 35,
+      "type": "timeseries",
+      "title": "Inter-token latency p95",
+      "description": "Stream-level decode cadence at the engine, before proxy buffering. The inverse is per-stream tok/s without the batch-division guesswork.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 106
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, service) (\n  rate(vllm:inter_token_latency_seconds_bucket{service=~\"$lane\"}[$__rate_interval])\n)) and on (service) (\n  sum by (service) (rate(vllm:inter_token_latency_seconds_count{service=~\"$lane\"}[$__rate_interval])) > 0\n)",
+          "refId": "A",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "type": "timeseries",
+      "title": "Scheduler queue wait p95",
+      "description": "Time a request sat in the engine scheduler before prefill - the KV/concurrency-bound signal for gaming-box lanes sharing a GPU. vLLM-only today: Radiance exports the other vLLM-compat families but not request_queue_time, so this stays empty until a real vLLM lane runs (qwen3-8-27b is suspended). Radiance's equivalent is http_queue_depth + its engine_step step-time counters.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 114
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, service) (\n  rate(vllm:request_queue_time_seconds_bucket{service=~\"$lane\"}[$__rate_interval])\n)) and on (service) (\n  sum by (service) (rate(vllm:request_queue_time_seconds_count{service=~\"$lane\"}[$__rate_interval])) > 0\n)",
+          "refId": "A",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "id": 37,
+      "type": "timeseries",
+      "title": "Proxy per-output-token latency p95 per lane",
+      "description": "litellm_deployment_latency_per_output_token: what LiteLLM measured between the backend's first and last token. Covers llama.cpp lanes too, at the cost of proxy-side measurement noise.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 114
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, lane) (\n  label_replace(rate(litellm_deployment_latency_per_output_token_bucket{api_base=~\"https?://$lane\\\\.[^/]*svc\\\\.cluster\\\\.local.*\"}[$__rate_interval]),\n    \"lane\", \"$1\", \"api_base\", \"https?://([^./]+)[.:].*\")\n))\nand on (lane) (\n  sum by (lane) (label_replace(rate(litellm_deployment_latency_per_output_token_count{api_base=~\"https?://$lane\\\\.[^/]*svc\\\\.cluster\\\\.local.*\"}[$__rate_interval]),\n    \"lane\", \"$1\", \"api_base\", \"https?://([^./]+)[.:].*\")) > 0\n)",
+          "refId": "A",
+          "legendFormat": "{{lane}}"
+        }
+      ]
+    },
+    {
+      "id": 38,
+      "type": "row",
+      "title": "Coverage: what each engine does NOT expose",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 122
+      }
+    },
+    {
+      "id": 39,
+      "type": "text",
+      "title": "Engine metric coverage",
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 123
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "Derived from the live `/metrics` endpoints and the 197 series the `llmkube-inference` PodMonitor scrapes, not from documentation.\n\n| Capability | llama.cpp (`llamacpp:`) | vLLM (`vllm:`) | Radiance (`radiance:` + vLLM-compat) |\n|---|---|---|---|\n| Prompt speed | `prompt_tokens_seconds` gauge, resets per scrape | derive: `rate(prompt_tokens_total)` | native `prefill_tokens_per_second` |\n| Generation speed | `predicted_tokens_seconds` gauge, resets per scrape | derive: `rate(generation_tokens_total)` | native `decode_tokens_per_second` |\n| Concurrency | `requests_processing` slots + `requests_deferred` | `num_requests_running` / `waiting` | `http_queue_depth` + compat `num_requests_*` |\n| KV usage % | **absent** (pre-allocated slots; watch `n_tokens_max` vs ctx-size) | `kv_cache_usage_perc` | `kv_cache_usage_perc` (compat) x `kv_cache_max_tokens` |\n| Cache hit rate | derive from `prompt_tokens_cached_total` | `gpu_prefix_cache_hit_rate`, hits/queries | compat hit-rate + `linear_prefix_cache_hit_rate` |\n| TTFT / ITL | **absent** (use LiteLLM proxy histograms) | native histograms | compat histograms |\n\n**Scrape precondition:** llama.cpp lanes need `--metrics` (all current ones have it); Radiance exports its own and vLLM-compat families unconditionally. A lane with no series here is unsraped or scaled to zero, not idle.\n\n**LiteLLM contributes none of these**: the proxy exports request/token/spend/latency families only (verified against 81 live families, v1.97.0). KV-cache, slots and engine tok/s exist only at the engines. Its `*_cached_tokens` counters are provider usage accounting, not KV occupancy. Spend/cost stays on the LiteLLM dashboard.\n\n**`runtime` label is not an engine label** - it reports `generic` for every InferenceService that overrides container args. Engine identity above comes from metric-family presence."
+      }
+    }
+  ]
+}

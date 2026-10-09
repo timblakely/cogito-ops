@@ -20,6 +20,15 @@
 # cogito's real-money paths are metered keys whose real prices LiteLLM already
 # knows, so that dashboard would be someone else's cost model wearing our
 # labels.
+#
+# Scope line, deliberately drawn: everything here is what the PROXY observes -
+# requests, tokens, spend, latency, cache accounting as reported by upstreams.
+# Engine-level telemetry (prompt/generation tokens per second, per-lane
+# concurrency and slots, KV-cache occupancy and hit rate) does not exist in
+# LiteLLM's /metrics at all and lives on the `llm-serving` dashboard in
+# llmkube/app, which reads the llama.cpp / vLLM / Radiance families the
+# llmkube-inference PodMonitor scrapes. The dashboard-bar link on the LiteLLM
+# dashboard jumps there with the time range preserved.
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaDashboard
 metadata:

@@ -1,0 +1,36 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/grafana.integreatly.org/grafanadashboard_v1beta1.json
+#
+# Per-serving-model engine telemetry: prompt-processing speed, generation
+# speed, concurrency, and KV-cache usage/hit rate, broken down per llmkube
+# inference service and discriminated by inference engine.
+#
+# Why this lives here and not on the LiteLLM dashboard: none of these four
+# exist in LiteLLM. Its /metrics (verified on v1.97.0, 81 families live) is
+# request/token/spend/latency accounting only; `litellm_in_flight_requests`
+# is uvicorn-worker HTTP concurrency with no model label, and its
+# `*_cached_tokens` counters are provider-reported usage accounting, not KV
+# occupancy. Tokens/s, slots, and KV percentages exist only at the engines,
+# and the llmkube-inference PodMonitor already scrapes all three engine
+# families (llama.cpp, vLLM, Radiance) with service/model/pod relabeling.
+# Spend, cost, and per-key accounting stay on the LiteLLM dashboard.
+#
+# Radiance re-exports the vLLM metric surface, so vLLM-targeted panels cover
+# it for free; panels whose semantics differ per engine say so in their
+# descriptions, and the closing text panel lists what each engine does NOT
+# expose (llama.cpp has no KV-occupancy and no TTFT metric at all).
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: llm-serving
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  datasources:
+    - datasourceName: prometheus
+      inputName: DS_PROMETHEUS
+  configMapRef:
+    name: llm-serving-dashboard
+    key: llm-serving.json

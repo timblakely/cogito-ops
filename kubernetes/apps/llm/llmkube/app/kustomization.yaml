@@ -5,3 +5,24 @@ kind: Kustomization
 resources:
   - ./repo.yaml
   - ./helmrelease.yaml
+  - ./grafanadashboard.yaml
+configMapGenerator:
+  # Dashboard JSON for the GrafanaDashboard above. Same fixed-name +
+  # substitute-disabled treatment as the litellm dashboard's own app
+  # kustomization (the pattern this file mirrors).
+  - name: llm-serving-dashboard
+    files:
+      - dashboard/llm-serving.json
+generatorOptions:
+  # The GrafanaDashboard references this ConfigMap by name, so the content
+  # hash kustomize would otherwise append has to go - a rolling name would
+  # break that reference on every dashboard edit.
+  disableNameSuffixHash: true
+  annotations:
+    # Load-bearing. The dashboard JSON is full of ${datasource}, ${__range}
+    # and $__rate_interval Grafana tokens, and this app's Flux Kustomization
+    # runs postBuild envsubst over everything it renders. Without this
+    # annotation Flux would try to resolve those as cluster variables and
+    # substitute them away, producing a dashboard whose every query is
+    # malformed.
+    kustomize.toolkit.fluxcd.io/substitute: disabled
