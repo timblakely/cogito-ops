@@ -312,7 +312,8 @@ See [Iggy's P2P record](talos/2026-09-iggy-gpu-p2p.md) and
   Check `llmkube/resources/single-card-models.yaml` and the suspended Muse
   service before either is enabled. The Muse definition pins a 3090 UUID in
   `NVIDIA_VISIBLE_DEVICES`; replace that with AMD allocation and a ROCm
-  llama.cpp image. Keep Amnesia's `flashnext-amnesia.yaml` on NVIDIA.
+  llama.cpp image. Amnesia's FlashNext lane is retired; only
+  `gemma-4-12b-amnesia.yaml` remains on NVIDIA there.
 - Replace `llm/cuda-dev` and its GPU-bearing mode templates with a ROCm
   development image and `amd.com/gpu` requests, or retire those templates
   explicitly. The mode README says the split/dark mutation recipes are
