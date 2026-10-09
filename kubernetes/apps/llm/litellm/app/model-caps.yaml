@@ -1,0 +1,301 @@
+---
+# Reasoning-capability annotator for the LiteLLM catalogue.
+#
+# Why this exists: LiteLLM's /v1/models publishes only ids and token limits and
+# will not surface custom model_info to virtual-key holders (upstream issue
+# BerriAI/litellm#21855), while the backends disagree wildly about per-request
+# reasoning controls (llama.cpp accepts and IGNORES reasoning_effort and any
+# per-request budget; vLLM here is binary thinking with a working "none").
+# Capability consumers (Hermes' litellm-caps provider plugin) therefore get an
+# honest, operator-curated OpenRouter-schema document from this server instead:
+#
+#   {"id": ..., "supported_parameters": [..., "reasoning"],
+#    "reasoning": {"supported_efforts": [...], "mandatory": bool}}
+#
+# The LiteLLMProxy CRD has no sidecar field, so this is a sibling Deployment
+# next to the proxy rather than an actual sidecar container.
+#
+# caps.json is derived from LIVE PROBES of each backing runtime (see the notes
+# beside each entry; reproducers in the Hermes scratch scripts). A model with no
+# entry is passed through with NO reasoning block, which consumers parse as
+# "unknown" and fall back to their prior behavior — never a guessed verdict.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: model-caps
+data:
+  caps.json: |
+    {
+      "Muse-Glimmer-30B": {
+        "supported_efforts": [],
+        "mandatory": true
+      },
+      "flashnext-iggy": {
+        "supported_efforts": ["none"],
+        "mandatory": false
+      },
+      "google/gemma-4-12b-it": {
+        "supported_efforts": ["none"],
+        "mandatory": false
+      }
+    }
+  # Probe evidence for the values above (Oct 2026, fixed prompt/temperature,
+  # reasoning_content length compared per variant):
+  #
+  # Muse-Glimmer-30B (llama.cpp server-cuda on Kristeva, --reasoning-budget
+  # 16384): reasoning_effort omitted/none/low/medium/high/xhigh/bogus and
+  # per-request reasoning_budget 0/64/1024 produced identical reasoning output;
+  # chat_template_kwargs.enable_thinking is not consulted by the ATEM template.
+  # Thinking is always on (mandatory: true) and NO named level exists, hence the
+  # empty ladder: the honest wire is to omit reasoning fields entirely. The only
+  # real throttle is the server-start --reasoning-budget flag on the
+  # InferenceService.
+  #
+  # flashnext-iggy (vLLM on iggy): reasoning_effort="none" disables thinking
+  # (reasoning_content 5138 -> 0 chars); low/medium/xhigh were indistinguishable
+  # from omitted (4142-5138, within sampling noise). Binary with a working off
+  # switch -> ["none"].
+  #
+  # google/gemma-4-12b-it: same shape - none -> 0 chars, xhigh ~ omitted. -> ["none"].
+  #
+  # Qwen/Qwen3.8-27B-INT8-W8A16: deliberately absent (pod was not running when
+  # probed; unknown must stay unknown).
+  server.py: |
+    #!/usr/bin/env python3
+    """Serve the LiteLLM model catalogue annotated with reasoning caps.
+
+    Proxies the proxy's /v1/models server-side (admin key stays inside this pod)
+    and merges the operator-curated caps document. Serves stale-but-usable data
+    when upstream is briefly down; 503 only before the first successful load.
+    """
+    import json
+    import os
+    import threading
+    import time
+    import urllib.request
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    UPSTREAM = os.environ.get(
+        "UPSTREAM_MODELS_URL", "http://litellm.llm.svc.cluster.local:4000/v1/models")
+    UPSTREAM_KEY = os.environ.get("PROXY_MASTER_KEY", "")
+    CAPS_FILE = os.environ.get("CAPS_FILE", "/etc/model-caps/caps.json")
+    REFRESH_SECONDS = float(os.environ.get("REFRESH_SECONDS", "60"))
+    PORT = int(os.environ.get("PORT", "8090"))
+
+    _lock = threading.Lock()
+    _snapshot = None
+
+    def _load_caps():
+        with open(CAPS_FILE, encoding="utf-8") as handle:
+            return json.load(handle)
+
+    def _fetch_upstream():
+        headers = {"Accept": "application/json", "User-Agent": "model-caps-annotator/1"}
+        if UPSTREAM_KEY:
+            headers["Authorization"] = "Bearer " + UPSTREAM_KEY
+        req = urllib.request.Request(UPSTREAM, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read().decode())
+
+    def _annotate(items, caps):
+        out = []
+        for item in items or []:
+            if not isinstance(item, dict):
+                continue
+            entry = dict(item)
+            model_caps = caps.get(str(item.get("id") or "").strip())
+            if model_caps is not None:
+                params = list(dict.fromkeys(
+                    list(entry.get("supported_parameters") or []) + ["reasoning"]))
+                entry["supported_parameters"] = params
+                entry["reasoning"] = {
+                    "supported_efforts": model_caps.get("supported_efforts"),
+                    "mandatory": bool(model_caps.get("mandatory", False)),
+                }
+            out.append(entry)
+        return out
+
+    def _refresh_loop():
+        global _snapshot
+        while True:
+            try:
+                payload = _fetch_upstream()
+                doc = {"object": "list",
+                       "data": _annotate(payload.get("data"), _load_caps())}
+                with _lock:
+                    _snapshot = doc
+            except Exception as exc:
+                print("model-caps: refresh failed: %r" % (exc,), flush=True)
+            time.sleep(REFRESH_SECONDS)
+
+    class Handler(BaseHTTPRequestHandler):
+        def _send(self, code, body):
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_GET(self):
+            path = self.path.split("?", 1)[0].rstrip("/")
+            # The gateway forwards /caps/* verbatim (no prefix rewrite), so
+            # accept both bare and prefixed health/model paths.
+            if path.endswith("/healthz") or path.endswith("/health"):
+                return self._send(200, b'{"status":"ok"}')
+            if path.endswith("/v1/models"):
+                with _lock:
+                    snapshot = _snapshot
+                if snapshot is None:
+                    return self._send(503, b'{"error":"catalog not loaded yet"}')
+                return self._send(200, json.dumps(snapshot).encode())
+            return self._send(404, b'{"error":"not found"}')
+
+        def log_message(self, fmt, *args):
+            pass
+
+    def _serve():
+        # Prefer the IPv6 wildcard (dual-stack on, serves v4 too); fall back to
+        # IPv4-only where IPv6 is off, so the container binds on any stack.
+        for address in ("::", "0.0.0.0"):
+            try:
+                server = ThreadingHTTPServer((address, PORT), Handler)
+            except OSError:
+                continue
+            server.serve_forever()
+            return
+        raise SystemExit("model-caps: could not bind port %d" % PORT)
+
+    threading.Thread(target=_refresh_loop, daemon=True).start()
+    _serve()
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: model-caps
+  labels:
+    app.kubernetes.io/name: model-caps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: model-caps
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: model-caps
+      annotations:
+        # subPath mounts do not hot-reload; restart the pod when caps/server change.
+        # (The *_reloader.stakater.com/auto form only tracks env-referenced
+        # ConfigMaps; volume-mounted ones need the name form.)
+        configmap.reloader.stakater.com/name: "model-caps"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: annotator
+          image: docker.io/library/python:3.13-slim
+          command: ["python", "/app/server.py"]
+          env:
+            - name: UPSTREAM_MODELS_URL
+              value: http://litellm.llm.svc.cluster.local:4000/v1/models
+            - name: CAPS_FILE
+              value: /etc/model-caps/caps.json
+            - name: PORT
+              value: "8090"
+            # PROXY_MASTER_KEY only (not envFrom on litellm-secrets): this pod
+            # reads the admin-scoped model list server-side and publishes
+            # id+caps; the provider keys in the same Secret stay out of it.
+            - name: PROXY_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-secrets
+                  key: PROXY_MASTER_KEY
+          ports:
+            - name: http
+              containerPort: 8090
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: config
+              mountPath: /app/server.py
+              subPath: server.py
+              readOnly: true
+            - name: config
+              mountPath: /etc/model-caps/caps.json
+              subPath: caps.json
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: model-caps
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: model-caps
+  labels:
+    app.kubernetes.io/name: model-caps
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: model-caps
+  ports:
+    - name: http
+      port: 8090
+      targetPort: http
+---
+# The caps document is capability metadata only (ids + effort vocabulary), no
+# credentials and no per-key scoping, so it rides the same internal hostname as
+# the proxy on a distinct path. More-specific prefix match wins over the proxy
+# route's "/" for /caps/v1 traffic.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: model-caps
+spec:
+  hostnames:
+    - litellm.${DOMAIN_NAME}
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: envoy-internal
+      namespace: envoy-system
+      sectionName: https
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /caps
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: model-caps
+          port: 8090
+          weight: 1
