@@ -82,9 +82,13 @@ data:
 
 
 def stamp_pod_annotation(blob: bytes) -> None:
-    """Write the bundle digest into the pod-template annotation so a bundle
-    change alters the pod hash and Flux/app-template rolls the deployment."""
-    digest = hashlib.sha256(blob).hexdigest()
+    """Write the bundle+configure digests into the pod-template annotation so
+    either change alters the pod hash and Flux/app-template rolls the
+    deployment (app-template has no ConfigMap checksum feature)."""
+    digest = (
+        hashlib.sha256(blob).hexdigest()
+        + hashlib.sha256(CONFIGURE.read_bytes()).hexdigest()
+    )
     text = HR.read_text()
     old_line = next((l for l in text.splitlines() if ANNOT in l), None)
     if old_line is None:
@@ -108,7 +112,10 @@ def main() -> int:
     blob = build_tarball()
     rendered = render(blob)
     bootstrap = render_configure_configmap()
-    digest = hashlib.sha256(blob).hexdigest()
+    digest = (
+        hashlib.sha256(blob).hexdigest()
+        + hashlib.sha256(CONFIGURE.read_bytes()).hexdigest()
+    )
     annotated = bool(re.search(rf'{re.escape(ANNOT)}: "{digest}"', HR.read_text()))
     if args.check:
         fresh = (

@@ -33,16 +33,17 @@ data:
     BUNDLE = Path("/bundle")
     
     
-    def _chown_tree(path: Path):
-        """Best-effort hand the tree to the hermes uid (init runs as root; be a
-        no-op rather than a crash if that is ever not the case)."""
-        try:
-            os.chown(path, 1000, 1000)
-            for root, dirs, files in os.walk(path):
-                for name in dirs + files:
-                    os.chown(os.path.join(root, name), 1000, 1000)
-        except PermissionError:
-            pass
+    def _allow_group_write(path: Path):
+        """Make the copied tree writable by the hermes group. Init runs as root
+        but WITHOUT capabilities: chown would EPERM, so instead lean on the PVC's
+        setgid directories for group inheritance and chmod (root owns the files it
+        just copied, so chmod needs no capability)."""
+        os.chmod(path, 0o2775 if path.is_dir() else 0o664)
+        for root, dirs, files in os.walk(path):
+            for name in dirs:
+                os.chmod(os.path.join(root, name), 0o2775)
+            for name in files:
+                os.chmod(os.path.join(root, name), 0o664)
     
     # ---------------------------------------------------------------------------
     # 1. Agent bundle: skills, model-provider plugins, personality/memory seeds
@@ -72,7 +73,7 @@ data:
         with tarfile.open(tarball, "r:gz") as tf:
             members = [m for m in tf.getmembers()
                        if m.isfile() and not (m.name.startswith("/") or ".." in m.name.split("/"))]
-            tf.extractall(work, members=members)
+            tf.extractall(work, members=members, filter="data")
     
         synced = 0
         # Mirror per LEAF skill dir (one containing SKILL.md) or plugin dir (one
@@ -95,7 +96,7 @@ data:
                     shutil.rmtree(dst)
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copytree(src_dir, dst)
-                _chown_tree(dst)
+                _allow_group_write(dst)
                 synced += 1
     
         # SOUL.md is GitOps-owned: mirror it on every bundle change. Memory files
@@ -104,12 +105,9 @@ data:
         soul = work / "seeds" / "SOUL.md"
         if soul.is_file():
             dst = Path("/opt/data/SOUL.md")
+            # copyfile onto the existing file keeps its owner and mode (init runs
+            # as root WITHOUT capabilities, so chown/chmod here would EPERM).
             shutil.copyfile(soul, dst)
-            try:
-                os.chown(dst, 1000, 1000)
-            except PermissionError:
-                pass
-            os.chmod(dst, 0o664)
         for name, dst in {
             "MEMORY.md": Path("/opt/data/memories/MEMORY.md"),
             "USER.md": Path("/opt/data/memories/USER.md"),
@@ -118,7 +116,7 @@ data:
             if src.is_file() and (not dst.exists() or dst.stat().st_size == 0):
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(src, dst)
-                _chown_tree(dst)
+                _allow_group_write(dst)
                 seeded.append(name)
         shutil.rmtree(work, ignore_errors=True)
         stamp.write_text(digest + "\n")
