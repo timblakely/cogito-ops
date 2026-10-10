@@ -1,0 +1,1 @@
+User prefers GPU/LLM changes to avoid disrupting active gaming sessions: wait for the GPU to become free before scheduling disruptive work, and explicitly protect gaming workloads from accidental preemption or deletion.

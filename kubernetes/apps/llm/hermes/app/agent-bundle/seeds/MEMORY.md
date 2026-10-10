@@ -1,0 +1,5 @@
+User's desktop: Fedora 44, KDE Plasma on Wayland, hybrid NVIDIA RTX 3070 + AMD Vega GPU. App GUI apps via AppImage in ~/Applications (AppImageLauncher-managed .desktop entries in ~/.local/share/applications/appimagekit_*).
+§
+BambuStudio has no Fedora package in any enabled repo (fedora/updates/rpmfusion/terra); its AppImage bundles its own Qt/WebKit so dnf-installed Qt/webkitgtk cannot fix its rendering bugs — use WEBKIT_DISABLE_DMABUF_RENDERER=1 env workaround.
+§
+Talos GPU nodes get NVIDIA drivers via Factory schematic extensions (cogito: talos/schematics/<node>.yaml.j2; driver locked to Talos version). Exception: Amnesia (gaming box, RTX 5070 Ti) runs custom NVIDIA 615.78.08 on Talos v1.14.2 (kernel 6.18.54-talos) from github.com/timblakely/talos-nvidia-open-extension CI -> ghcr.io/timblakely/*, digest-pinned in cogito amnesia.yaml.j2. Full procedure + pitfalls: talos-custom-nvidia-driver skill.

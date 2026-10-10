@@ -4,6 +4,27 @@ The Hermes gateway and dashboard run in one supervised container and share the
 VolSync/Kopia-backed `hermes` PVC mounted at `/opt/data`.  The dashboard is
 available at `https://hermes.${DOMAIN_NAME}` through the internal Envoy gateway.
 
+## Agent bundle (skills, plugins, personality)
+
+`agent-bundle/` holds the GitOps-owned identity of the cluster agent, mirrored
+from the workstation profile: custom skills (`skills/`), the litellm-caps
+model-provider plugin (`plugins/model-providers/`), and seeds (`seeds/`).
+`gen-bundle.py` packs it into `bundle.yaml` (ConfigMap binaryData tarball —
+regenerate with `../.venv/bin/python gen-bundle.py` after any change; Flux
+rollout restarts the pod when its data hash changes). The `configure-provider`
+init container unpacks it into `/opt/data` before every start: skill/plugin
+directories are overwritten wholesale, `SOUL.md` is mirrored, and
+`memories/MEMORY.md` / `memories/USER.md` are seeded only when empty — after
+first start the agent owns its memory. The same script reconciles the
+provider/model/behavior keys of `config.yaml` (see `configure.py`, embedded via
+the `hermes-provider-bootstrap` ConfigMap; regenerate it after editing
+configure.py by re-embedding, e.g. with the same pattern gen-bundle uses).
+
+To reach the cluster agent from a workstation terminal:
+`kubectl -n llm exec -it deploy/hermes -- hermes` (interactive CLI on the
+cluster profile), or open the dashboard URL. The CLI's own agent runtime is
+always local; there is no remote-agent attach flag.
+
 Before Flux can start the pod, create a `hermes` item in 1Password.  Its fields
 is synced to the `hermes` Kubernetes secret. Add model-provider credentials and
 optional integrations (for example, `OPENAI_API_KEY`, `FIRECRAWL_API_URL`, and

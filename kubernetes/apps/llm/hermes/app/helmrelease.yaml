@@ -24,19 +24,25 @@ spec:
     controllers:
       hermes:
         pod:
+          annotations:
+            # Managed by gen-bundle.py — bumping it rolls the pod so the init
+            # container re-unpacks the agent bundle. Do not edit by hand.
+            hermes.home-operations.com/bundle-sha256: "4a197cb96a6e1cb5c54fc5c32b7cd6f5ca080de5c5f67a8dd3506ff47dac0feb"
           automountServiceAccountToken: false
           securityContext:
             fsGroup: 1000
             fsGroupChangePolicy: OnRootMismatch
             seccompProfile: {type: RuntimeDefault}
-        # Hermes keeps its mutable config on the backed-up PVC. Reconcile only
-        # the provider/model keys owned by GitOps before every start so a new
+        # Hermes keeps its mutable config on the backed-up PVC. Before every
+        # start the init container (a) unpacks the GitOps agent bundle — custom
+        # skills, model-provider plugins, SOUL.md, memory seeds — and (b)
+        # reconciles the provider/model/behavior keys owned by GitOps, so a new
         # PVC and an old llm-switch-era PVC converge to the same state.
         initContainers:
           configure-provider:
             image:
               repository: nousresearch/hermes-agent
-              tag: v2026.7.7.2
+              tag: v2026.9.24
             command: [python, /bootstrap/configure.py]
             securityContext:
               allowPrivilegeEscalation: false
@@ -46,7 +52,7 @@ spec:
           main:
             image:
               repository: nousresearch/hermes-agent
-              tag: v2026.7.7.2
+              tag: v2026.9.24
             args: [gateway, run]
             env:
               HERMES_DASHBOARD: "1"
@@ -132,4 +138,13 @@ spec:
             configure-provider:
               - path: /bootstrap/configure.py
                 subPath: configure.py
+                readOnly: true
+      agent-bundle:
+        type: configMap
+        name: hermes-agent-bundle
+        advancedMounts:
+          hermes:
+            configure-provider:
+              - path: /bundle/bundle.tgz
+                subPath: bundle.tgz
                 readOnly: true
