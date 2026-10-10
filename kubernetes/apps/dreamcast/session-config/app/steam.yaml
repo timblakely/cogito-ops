@@ -57,6 +57,13 @@ spec:
               done
               # The operator mounts a fresh per-app subdirectory of the PVC.
               chown -R "${PUID:-1000}:${PGID:-1000}" /home/retro
+              # The custom Talos 615 stack loads nvidia_modeset but omits its
+              # device node. Vulkan Xwayland presentation needs it; keep access
+              # limited to the gaming user in this container's private /dev.
+              if [ ! -e /dev/nvidia-modeset ]; then
+                mknod -m 600 /dev/nvidia-modeset c 195 254
+                chown "${PUID:-1000}:${PGID:-1000}" /dev/nvidia-modeset
+              fi
               exec /entrypoint.sh
           volumeMounts:
             - name: dshm
