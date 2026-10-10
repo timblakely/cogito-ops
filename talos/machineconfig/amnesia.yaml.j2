@@ -16,7 +16,8 @@ machine:
     # https://github.com/timblakely/talos-nvidia-open-extension
     # (hack/rebase-amnesia.sh there). The public factory kernel rejects these
     # signed modules; do not revert this image to factory.talos.dev.
-    image: ghcr.io/timblakely/installer-amd64@sha256:78f6941b8aba004a4e7c05de4dfe192097427e8800893ba67fc9986de6b0f703
+    # Includes the driver-matched DLSS bridges and modeset device fix.
+    image: ghcr.io/timblakely/installer-amd64@sha256:864d59e41eba85ebc017fb6757f9a6be7cd8bdb5dade00caa00511670e6e44bf
     wipe: false
   sysctls:
     # Required by the nvidia-open-toolkit system extension.
