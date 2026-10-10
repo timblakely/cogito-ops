@@ -126,6 +126,12 @@ def row(title, y):
     }
 
 
+# Grafana keys query results per panel by refId: two targets sharing "A"
+# collide and the whole panel renders "No data" even though every expr
+# returns data on its own. Never reuse a refId inside one panel.
+RID = [chr(ord("A") + i) for i in range(26)]
+
+
 def timeseries(title, desc, targets, x, y, w=12, h=8, unit="short", legend="{{service}}"):
     return {
         "id": nid(), "type": "timeseries", "title": title, "description": desc,
@@ -133,7 +139,7 @@ def timeseries(title, desc, targets, x, y, w=12, h=8, unit="short", legend="{{se
         "fieldConfig": {"defaults": {"unit": unit}, "overrides": []},
         "options": {"legend": {"displayMode": "list", "placement": "bottom"},
                     "tooltip": {"mode": "multi", "sort": "desc"}},
-        "targets": [target(e, l or legend) for e, l in targets],
+        "targets": [target(e, l or legend, refid=RID[i]) for i, (e, l) in enumerate(targets)],
     }
 
 
@@ -159,7 +165,7 @@ def table(title, desc, targets, x, y, w=24, h=8, format="table", instant=True):
                                                 "inspect": False}}, "overrides": []},
         "options": {"showHeader": True, "footer": {"show": False, "reducer": [], "fields": ""},
                     "sortBy": []},
-        "targets": [target(e, fmt=format, instant=instant) for e in targets],
+        "targets": [target(e, fmt=format, instant=instant, refid=RID[i]) for i, e in enumerate(targets)],
     }
 
 
@@ -180,8 +186,8 @@ def histogram(metric_bucket, q="0.95", by=("le", "service"), gate_by=("service",
             f')){gate}')
 
 
-def target(expr, legend=None, fmt=None, instant=None):
-    t = {"datasource": DS, "expr": expr, "refId": "A"}
+def target(expr, legend=None, fmt=None, instant=None, refid="A"):
+    t = {"datasource": DS, "expr": expr, "refId": refid}
     if legend:
         t["legendFormat"] = legend
     if fmt:

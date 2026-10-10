@@ -574,7 +574,7 @@
             "uid": "${datasource}"
           },
           "expr": "sum by (service) (rate(vllm:prompt_tokens_total{service=~\"$lane\"}[$__rate_interval]))",
-          "refId": "A",
+          "refId": "B",
           "legendFormat": "{{service}} prompt (vLLM/Radiance)"
         },
         {
@@ -583,7 +583,7 @@
             "uid": "${datasource}"
           },
           "expr": "sum by (service) (rate(llamacpp:tokens_predicted_total{service=~\"$lane\"}[$__rate_interval]))",
-          "refId": "A",
+          "refId": "C",
           "legendFormat": "{{service}} generated (llama.cpp)"
         },
         {
@@ -592,7 +592,7 @@
             "uid": "${datasource}"
           },
           "expr": "sum by (service) (rate(vllm:generation_tokens_total{service=~\"$lane\"}[$__rate_interval]))",
-          "refId": "A",
+          "refId": "D",
           "legendFormat": "{{service}} generated (vLLM/Radiance)"
         }
       ]
@@ -743,7 +743,7 @@
             "uid": "${datasource}"
           },
           "expr": "sum by (service) (rate(radiance:http_admission_rejected_total{service=~\"$lane\"}[$__rate_interval]))",
-          "refId": "A",
+          "refId": "B",
           "legendFormat": "{{service}} rejected/s"
         }
       ]
@@ -838,7 +838,7 @@
             "uid": "${datasource}"
           },
           "expr": "sum(litellm_in_flight_requests)",
-          "refId": "A",
+          "refId": "B",
           "legendFormat": "proxy total in-flight"
         }
       ]
@@ -1118,7 +1118,7 @@
             "uid": "${datasource}"
           },
           "expr": "sum by (service) (rate(radiance:prefix_cache_ckpt_evictions_total{service=~\"$lane\"}[$__rate_interval]))",
-          "refId": "A",
+          "refId": "B",
           "legendFormat": "{{service}} ckpt evictions/s"
         },
         {
@@ -1127,7 +1127,7 @@
             "uid": "${datasource}"
           },
           "expr": "max by (service) (radiance:num_requests_preempted{service=~\"$lane\"})",
-          "refId": "A",
+          "refId": "C",
           "legendFormat": "{{service}} preempted"
         }
       ]
@@ -1321,7 +1321,7 @@
             "uid": "${datasource}"
           },
           "expr": "sum by (requested_model) (rate(litellm_provider_cache_read_input_tokens_metric_total[$__rate_interval]))",
-          "refId": "A",
+          "refId": "B",
           "legendFormat": "{{requested_model}} provider-read"
         }
       ]
@@ -1373,7 +1373,7 @@
             "uid": "${datasource}"
           },
           "expr": "sum by (service) (rate(radiance:linear_cached_tokens_total{service=~\"$lane\"}[$__rate_interval]))",
-          "refId": "A",
+          "refId": "B",
           "legendFormat": "{{service}} linear ckpt"
         },
         {
@@ -1382,7 +1382,7 @@
             "uid": "${datasource}"
           },
           "expr": "sum by (service) (rate(radiance:draft_refill_tokens_total{service=~\"$lane\"}[$__rate_interval]))",
-          "refId": "A",
+          "refId": "C",
           "legendFormat": "{{service}} draft refill"
         }
       ]

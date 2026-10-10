@@ -74,19 +74,84 @@ def collect_targets(dash):
     return out
 
 
+def iter_panels(dash):
+    for p in dash.get("panels", []):
+        yield p
+        for sub in p.get("panels", []) or []:
+            yield sub
+
+
+def check_structure(dash):
+    """Structural failures that parse fine in Prometheus but break Grafana.
+
+    Returns a list of (panel_title, problem) strings.
+    """
+    problems = []
+    for p in iter_panels(dash):
+        targets = p.get("targets") or []
+        refids = [t.get("refId") for t in targets]
+        dupes = {r for r in refids if refids.count(r) > 1}
+        if dupes:
+            # Grafana keys results per panel by refId; duplicates collide and
+            # the whole panel renders "No data" despite valid expressions.
+            problems.append((p.get("title", "?"),
+                             f"duplicate refId(s) {sorted(dupes)} across "
+                             f"{len(targets)} targets"))
+    return problems
+
+
+def self_test(base, dash):
+    """The gate must be able to fail. Assert known-bad things are caught."""
+    ok = True
+
+    bad_struct = {"panels": [{"title": "dup", "targets": [
+        {"refId": "A", "expr": "up"}, {"refId": "A", "expr": "up"}]}]}
+    if not check_structure(bad_struct):
+        ok = False
+        print("SELF-TEST FAIL: duplicate-refId panel not caught")
+    if check_structure(dash):
+        ok = False
+        print("SELF-TEST FAIL: committed dashboard has duplicate refIds")
+
+    # A broken expr must FAIL against the live endpoint...
+    q = api(base, "/api/v1/query", query="qwen:nonexistent_metric_total{")
+    if q.get("status") == "success":
+        ok = False
+        print("SELF-TEST FAIL: broken expr did not fail")
+    # ...and a known-real one must return series (proves the endpoint is up,
+    # so an all-green run above is trustworthy).
+    q = api(base, "/api/v1/query", query="llamacpp:prompt_tokens_total")
+    if q.get("status") != "success" or not q.get("data", {}).get("result"):
+        ok = False
+        print("SELF-TEST FAIL: known-real expr returned nothing (endpoint down?)")
+
+    print("SELF-TEST:", "PASS" if ok else "FAIL")
+    return 0 if ok else 1
+
+
 def main():
     if len(sys.argv) < 3:
         print(__doc__)
         return 2
     base = sys.argv[1].rstrip("/")
+    if "--self-test" in sys.argv[2:]:
+        files = [f for f in sys.argv[2:] if f != "--self-test"]
+        return self_test(base, json.load(open(files[0])))
     var_defaults = {}
     failures = 0
     for file in sys.argv[2:]:
+        if file == "--self-test":
+            continue
         dash = json.load(open(file))
         for v in dash.get("templating", {}).get("list", []):
             if v.get("type") == "query":
                 var_defaults[v["name"]] = v.get("allValue") or ".*"
         print(f"== {file}  ({dash.get('title')})")
+        # Structural gate first: defects that parse fine in Prometheus but
+        # make Grafana render "No data" anyway (duplicate refIds in a panel).
+        for title, problem in check_structure(dash):
+            failures += 1
+            print(f"   STRUCT-FAIL  {title}: {problem}")
         print(f"   variable emulation: {var_defaults}")
         for panel, expr in collect_targets(dash):
             q = emulate(expr, var_defaults)
