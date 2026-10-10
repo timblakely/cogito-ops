@@ -64,6 +64,16 @@ spec:
                 mknod -m 600 /dev/nvidia-modeset c 195 254
                 chown "${PUID:-1000}:${PGID:-1000}" /dev/nvidia-modeset
               fi
+              # Talos omits the driver's Wine NGX bridge DLLs. Expose the
+              # version-matched copies retained on the Steam PVC to Proton.
+              nvidia_version="$(nvidia-smi --query-gpu=driver_version --format=csv,noheader | head -n 1)"
+              nvidia_wine_dir="/home/retro/.local/share/nvidia/wine/$nvidia_version"
+              if [ -s "$nvidia_wine_dir/nvngx.dll" ] && [ -s "$nvidia_wine_dir/_nvngx.dll" ]; then
+                mkdir -p /usr/local/lib/nvidia/wine
+                for dll in nvngx.dll _nvngx.dll; do
+                  ln -sfn "$nvidia_wine_dir/$dll" "/usr/local/lib/nvidia/wine/$dll"
+                done
+              fi
               exec /entrypoint.sh
           volumeMounts:
             - name: dshm
