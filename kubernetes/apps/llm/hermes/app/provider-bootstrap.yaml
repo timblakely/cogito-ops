@@ -51,11 +51,15 @@ data:
     
     
     def sync_bundle():
-        """Unpack the GitOps agent bundle and mirror it into /opt/data.
+        """Seed the GitOps agent bundle into /opt/data — ONCE.
     
-        The bundle arrives as a ConfigMap-mounted tarball (bundle.tgz). Content is
-        stamped by its sha256 so unchanged deploys cost one hash. Agent-owned
-        memory files are seeded only when absent or empty — never clobbered.
+        The bundle is a one-time bootstrap, not a standing mirror: every unit
+        (leaf skill dir, plugin dir, SOUL.md, memory file) is copied only when
+        absent.
+        After seeding, the agent on the PVC owns the whole identity — its skill
+        edits and new skills survive every deploy and are backed up by the
+        PVC's Kopia snapshots. To re-seed from GitOps deliberately, delete the
+        affected path (or the whole skills tree) on the PVC and restart the pod.
         """
         tarball = BUNDLE / "bundle.tgz"
         if not tarball.is_file():
@@ -75,52 +79,43 @@ data:
                        if m.isfile() and not (m.name.startswith("/") or ".." in m.name.split("/"))]
             tf.extractall(work, members=members, filter="data")
     
-        synced = 0
-        # Mirror per LEAF skill dir (one containing SKILL.md) or plugin dir (one
-        # containing plugin.yaml), never whole category dirs — a wholesale
-        # devops/ or research/ copy would delete bundled skills that share the
-        # category.
+        seeded, present = [], 0
+        # Per LEAF skill dir (marker SKILL.md) / plugin dir (marker plugin.yaml),
+        # never whole category dirs — copying those would sweep bundled skills
+        # that share the category. Seed only when the leaf does not exist yet.
         for kind in ("skills", "plugins/model-providers"):
             src_root = work / kind
             if not src_root.is_dir():
                 continue
             marker = "SKILL.md" if kind == "skills" else "plugin.yaml"
-            entries = sorted(
-                p for p in src_root.rglob(marker)
-                if p.parent != src_root
-            )
-            for src_dir in (p.parent for p in entries):
+            for src_dir in sorted(p.parent for p in src_root.rglob(marker) if p.parent != src_root):
                 rel = src_dir.relative_to(src_root)
                 dst = Path("/opt/data") / kind / rel
                 if dst.exists():
-                    shutil.rmtree(dst)
+                    present += 1
+                    continue
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copytree(src_dir, dst)
                 _allow_group_write(dst)
-                synced += 1
+                seeded.append(str(rel))
     
-        # SOUL.md is GitOps-owned: mirror it on every bundle change. Memory files
-        # are agent-owned after first start — seed only when absent or empty.
-        seeded = []
-        soul = work / "seeds" / "SOUL.md"
-        if soul.is_file():
-            dst = Path("/opt/data/SOUL.md")
-            # copyfile onto the existing file keeps its owner and mode (init runs
-            # as root WITHOUT capabilities, so chown/chmod here would EPERM).
-            shutil.copyfile(soul, dst)
+        # Same seed-once rule for the personality and memory files.
         for name, dst in {
+            "SOUL.md": Path("/opt/data/SOUL.md"),
             "MEMORY.md": Path("/opt/data/memories/MEMORY.md"),
             "USER.md": Path("/opt/data/memories/USER.md"),
         }.items():
             src = work / "seeds" / name
-            if src.is_file() and (not dst.exists() or dst.stat().st_size == 0):
+            if src.is_file() and not dst.exists():
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(src, dst)
                 _allow_group_write(dst)
                 seeded.append(name)
+            elif dst.exists():
+                present += 1
         shutil.rmtree(work, ignore_errors=True)
         stamp.write_text(digest + "\n")
-        print(f"configure: bundle {digest[:12]} synced ({synced} skill/plugin dirs, seeds: {seeded or 'none'}, SOUL.md mirrored)")
+        print(f"configure: bundle {digest[:12]} seeded ({len(seeded)} new: {seeded or 'none'}; {present} already present, untouched)")
     
     
     sync_bundle()

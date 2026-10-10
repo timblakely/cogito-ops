@@ -6,19 +6,24 @@ available at `https://hermes.${DOMAIN_NAME}` through the internal Envoy gateway.
 
 ## Agent bundle (skills, plugins, personality)
 
-`agent-bundle/` holds the GitOps-owned identity of the cluster agent, mirrored
-from the workstation profile: custom skills (`skills/`), the litellm-caps
-model-provider plugin (`plugins/model-providers/`), and seeds (`seeds/`).
-`gen-bundle.py` packs it into `bundle.yaml` (ConfigMap binaryData tarball —
-regenerate with `../.venv/bin/python gen-bundle.py` after any change; Flux
-rollout restarts the pod when its data hash changes). The `configure-provider`
-init container unpacks it into `/opt/data` before every start: skill/plugin
-directories are overwritten wholesale, `SOUL.md` is mirrored, and
-`memories/MEMORY.md` / `memories/USER.md` are seeded only when empty — after
-first start the agent owns its memory. The same script reconciles the
-provider/model/behavior keys of `config.yaml` (see `configure.py`, embedded via
-the `hermes-provider-bootstrap` ConfigMap; regenerate it after editing
-configure.py by re-embedding, e.g. with the same pattern gen-bundle uses).
+`agent-bundle/` holds the GitOps bootstrap of the cluster agent, mirrored
+from the workstation profile at the time of writing: custom skills
+(`skills/`), the litellm-caps model-provider plugin
+(`plugins/model-providers/`), and seeds (`seeds/`).  `gen-bundle.py` packs it
+into `bundle.yaml` (ConfigMap binaryData tarball — regenerate with
+`../.venv/bin/python gen-bundle.py` after any change; the pod-template
+`bundle-sha256` annotation rolls the pod).
+
+**Seeding is one-way and one-time.** The `configure-provider` init container
+copies each leaf skill/plugin dir, `SOUL.md`, and the memory files into
+`/opt/data` only when absent; after that the agent on the PVC owns its whole
+identity — skill edits and agent-created skills survive every deploy, are
+never clobbered by a bundle change, and ride the PVC's Kopia snapshots.  To
+re-seed deliberately, delete the path on the PVC (`kubectl -n llm exec
+deploy/hermes -- rm -rf /opt/data/skills/<name>`) and restart the pod.  The
+same script reconciles the provider/model/behavior keys of `config.yaml`
+(those stay GitOps-owned; see `configure.py`, embedded via the
+`hermes-provider-bootstrap` ConfigMap — `gen-bundle.py` re-embeds it).
 
 To reach the cluster agent from a workstation terminal:
 `kubectl -n llm exec -it deploy/hermes -- hermes` (interactive CLI on the
