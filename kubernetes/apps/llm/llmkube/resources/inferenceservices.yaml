@@ -115,6 +115,11 @@ metadata:
 spec:
   modelRef: muse-glimmer-30b
   replicas: 1
+  # Held in reserve on the kristeva 3090: suspend releases the GPU and
+  # deletes the pod, the operator keeps co-owning .spec.replicas, and the
+  # staged weights stay on the retained muse-kristeva claim. Clearing this
+  # field alone brings the lane back.
+  suspend: true
   runtime: generic
   image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:6ac921528d613deb0fd142c654735e594a446a1c37a069eeab08d8fd974d4bec
   runtimeClassName: nvidia
