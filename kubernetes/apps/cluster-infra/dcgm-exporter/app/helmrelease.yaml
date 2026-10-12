@@ -21,8 +21,23 @@ spec:
   values:
     runtimeClassName: nvidia
     nodeSelector:
-      kubernetes.io/hostname: iggy
-      nvidia.com/gpu.present: "true"
+      # Was `kubernetes.io/hostname: iggy` + `nvidia.com/gpu.present: "true"`.
+      # Both went stale at once when the 3090s left iggy: the hostname pinned
+      # telemetry to a now GPU-less machine, and `nvidia.com/gpu.present` is a
+      # label NO node in this cluster carries - NFD emits the PCI vendor label
+      # instead - so the DaemonSet sat at DESIRED=0 cluster-wide and the RTX
+      # 3090 that IS serving Qwen AWQ exported nothing.
+      # Pinned to kristeva rather than to a generic `pci-0300_10de` selector,
+      # even though that selector would be more future-proof: amnesia also
+      # reports it, and its 5070 Ti is the gaming card, currently claimed by
+      # the tim-steam workload. DCGM is read-only telemetry, but "read-only"
+      # is still a new privileged container with runtimeClassName: nvidia
+      # landing on the machine that gets gamed on, and that is not a change to
+      # make as a side effect of fixing something else. Add amnesia here if
+      # gaming-box GPU telemetry is ever actually wanted, and iggy when the
+      # 3090s go back.
+      kubernetes.io/hostname: kristeva
+      feature.node.kubernetes.io/pci-0300_10de.present: "true"
     tolerations:
       - key: node-role.kubernetes.io/control-plane
         operator: Exists

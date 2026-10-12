@@ -22,8 +22,26 @@ spec:
         app.kubernetes.io/name: fan-control
     spec:
       nodeSelector:
-        kubernetes.io/hostname: iggy
-        nvidia.com/gpu.present: "true"
+        # Pinned to kristeva, not to a generic NVIDIA selector, on purpose.
+        # This container sets NVML MANUAL fan policy and would do that on every
+        # node it lands on: amnesia also reports pci-0300_10de, and its 5070 Ti
+        # is the gaming box's GPU - right now allocated to the tim-steam VM. A
+        # fan curve that suits an open-air 3090 under sustained inference is not
+        # a decision to make silently on the machine someone is gaming on, so
+        # the inference card gets explicit control and the gaming card keeps
+        # whatever policy the host/VM already runs. The previous selector was
+        # `hostname: iggy` + `nvidia.com/gpu.present: "true"` and both went
+        # stale when the 3090s left iggy - the second label exists on no node in
+        # this cluster - which is why DESIRED sat at 0 and nobody was touching
+        # fan policy anywhere.
+        # Board fans are NOT touched here: fanctl only drives pwm3-7 when it
+        # finds an NCT6775/NCT6797 hwmon, and kristeva exposes neither (its
+        # hwmons are coretemp, nvme, i350bb, drivetemp, i915), so it logs
+        # "board hwmon not found" and leaves case fans on BIOS auto. Card fans
+        # are the part that matters and they are NVML-driven on any node.
+        # When the 3090s return to iggy, add that hostname here.
+        kubernetes.io/hostname: kristeva
+        feature.node.kubernetes.io/pci-0300_10de.present: "true"
       tolerations:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
