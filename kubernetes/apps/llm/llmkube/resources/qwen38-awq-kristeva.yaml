@@ -103,6 +103,15 @@ spec:
     # 20 GiB weight read is page-cache heavy, so the pressure is permanent.
     cpu: "4"
     memory: 16Gi
+  # Declared, not inherited. llmkube derives the container port and the
+  # Service target from this field and defaults it to 8080; the first render of
+  # this lane advertised 8080 while vLLM was told to listen on 8000, which is
+  # an endpoint that answers nothing. 8000 is vLLM's own default and matches
+  # the apiBase port in every LiteLLM entry that points here.
+  endpoint:
+    port: 8000
+    path: /v1/chat/completions
+    type: ClusterIP
   rolloutPolicy:
     # The generic runtime cannot perform llmkube's native /slots idle check.
     waitForIdle: false
@@ -111,7 +120,7 @@ spec:
     - vllm
   args:
     - serve
-    - /model-source/llmkube/qwen-3-8-awq-int4
+    - /models/llmkube/qwen-3-8-awq-int4
     # Must stay byte-identical to the `openai/<name>` string in every LiteLLM
     # entry that points here, or the request 404s at the backend.
     - --served-model-name
@@ -178,13 +187,17 @@ spec:
       value: "1"
     - name: TRITON_CACHE_DIR
       value: /tmp/triton-cache
-  # No model volume declared here on purpose. llmkube surfaces a pvc:// Model
-  # source as a read-only `model-source` volume at that mountPath itself - the
-  # vision-cpu lane on this same node declares no volumes at all and its pod
-  # still carries the archive mount - and declaring it a second time here would
-  # collide with the operator's volume name. Muse declares its own because its
-  # weights live on a per-lane claim rather than the shared archive.
+  # The weights mount must be declared here. llmkube auto-injects the pvc://
+  # Model source as `model-source` at /model-source for the llamacpp runtime
+  # only - vision-cpu declares no volumes and gets the mount - but the generic
+  # runtime does not: the rendered pod for this lane came up with just shm and
+  # tmp until this block was added. flashnext-iggy, the other generic lane,
+  # declares its own the same way.
   extraVolumes:
+    - name: weights
+      persistentVolumeClaim:
+        claimName: llm-model-archive
+        readOnly: true
     - name: shm
       emptyDir:
         medium: Memory
@@ -192,6 +205,9 @@ spec:
     - name: tmp
       emptyDir: {}
   extraVolumeMounts:
+    - name: weights
+      mountPath: /models
+      readOnly: true
     - name: shm
       mountPath: /dev/shm
     - name: tmp
