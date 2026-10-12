@@ -205,11 +205,14 @@ spec:
     - "512"
     - --enable-chunked-prefill
     - --enable-prefix-caching
-    # fp8 KV is NOT used. sm_86 has no FP8 tensor cores; the two-card lane
-    # needed a digest-pinned SM86 FA2+fp8-KV plugin to make it work at all.
-    # Not a baseline risk.
-    - --kv-cache-dtype
-    - auto
+    # (fp8 KV dtype is set above, next to --max-model-len. It used to be
+    # pinned to auto here with an "sm_86 has no FP8 tensor cores" comment -
+    # stale reasoning: the objection is about attention COMPUTE, and this
+    # vLLM's FA2 backend lists fp8_e4m3 KV support on Ampere via store-fp8 +
+    # dequant. Worse, leaving this pair here made argparse see the flag
+    # twice and the LAST one won: --kv-cache-dtype fp8_e4m3 placed above
+    # silently did nothing - check kv_cache_dtype= in the engine-init config
+    # line, not just the args list, when this flag matters.)
     # Tool calls in this checkpoint's chat template are
     # <tool_call><function=name><parameter=k>value</parameter></function>,
     # which is qwen3_xml - the parser the two-card Qwen lane also used for
