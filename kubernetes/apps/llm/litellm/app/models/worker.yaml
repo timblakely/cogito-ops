@@ -31,8 +31,9 @@ spec:
     # Equal to the backend ceiling now, not below it. On the two-card backend
     # this alias deliberately declared 131072 against a 262144 serving window so
     # fan-out stayed cheap. The AWQ INT4 lane on Kristeva's 3090 has no such
-    # headroom to give away: it serves 32768 at all, so declaring more would
-    # tell clients they may send a prompt vLLM will reject. The annotation above
+    # headroom to give away: the fp8 KV ceiling is 65536 (see coder.yaml), so
+    # declaring more would tell clients they may send a prompt vLLM will
+    # reject. The annotation above
     # is left in place - it remains true that this alias is budget-constrained,
     # and it stays accurate if the lane is ever re-raised and this number held
     # down again.
@@ -42,7 +43,7 @@ spec:
     # max_input_tokens as capability metadata for clients to plan against and
     # enforces only the backend's real ceiling. A client that ignores it gets
     # a four-minute prefill, not a 400.
-    maxInputTokens: 32768
+    maxInputTokens: 65536
     maxOutputTokens: 16384
     extra:
       input_cost_per_token: 0

@@ -48,7 +48,7 @@
 # use it). The consequence to remember: VLLMConfig is then unused, so the
 # catalogue validator reads no maxModelLen from this object and CANNOT
 # enforce the advertised-context mirror. The LiteLLM entries that point here
-# are therefore held at 32768 by hand, and any change to --max-model-len
+# are therefore held at 65536 by hand, and any change to --max-model-len
 # below must be made in the same commit as their maxInputTokens.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: Model
@@ -134,12 +134,31 @@ spec:
     - 0.0.0.0
     - --port
     - "8000"
-    # 32768, not the model's 262144. vLLM refuses to start unless the KV pool
-    # can hold one full-length sequence, so this number is a floor on the
-    # pool, not a cap on usage: raising it costs KV headroom directly. Raise
-    # only from the "GPU KV cache size" figure in the startup log.
+    # 65536, not the model's 262144, and only reachable because the KV cache
+    # runs fp8 below. vLLM refuses to start unless the KV pool can hold one
+    # full-length sequence, so this number is a floor on the pool, not a cap
+    # on usage: raising it costs KV headroom directly. Raise only from the
+    # "GPU KV cache size" figure in the startup log.
     - --max-model-len
-    - "32768"
+    - "65536"
+    # KV cache in fp8_e4m3 (was auto = bf16). This is THE lever for context on
+    # this card: attention KV costs 64.2 KiB/token bf16 (fitted from vLLM's
+    # three boot-time refusals), so bf16 caps the window at ~34.8K no matter
+    # how utilization is tuned - and utilization is already at its ceiling
+    # (0.99 fails the free-memory startup check). fp8 halves storage to
+    # 32.1 KiB/token: 65536 x 32.1 KiB + 0.32 GiB GDN state = 2.33 GiB against
+    # the 2.46 GiB pool, fitting with the same ~0.1 GiB margin the bf16 boot
+    # accepted. The two-card lane's comment rejecting fp8 KV cited sm_86's
+    # missing FP8 tensor cores, but that objection is about COMPUTE, not
+    # storage: this vLLM's FlashAttention backend lists fp8_e4m3 as a
+    # supported KV dtype with no sm gate (the sm90-only branch is the FA4
+    # block-size path), and on Ampere KV is stored fp8 and dequantized to
+    # bf16 for the attention math. Quality risk is real (e4m3 has 3 mantissa
+    # bits) and is validated with long-context needle tests after boot; if
+    # recall degrades, revert this flag and --max-model-len together and the
+    # lane goes back to bf16 @ 32768.
+    - --kv-cache-dtype
+    - "fp8_e4m3"
     # One seat for the baseline, as specified. The recurrent-state cache for
     # the 48 GDN layers is sized PER CONCURRENT SEQUENCE, so unlike a pure
     # transformer this model's per-seat cost is not just KV: each additional
