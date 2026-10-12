@@ -20,6 +20,9 @@ machine:
     image: ghcr.io/timblakely/installer-amd64@sha256:864d59e41eba85ebc017fb6757f9a6be7cd8bdb5dade00caa00511670e6e44bf
     wipe: false
   sysctls:
+    # Wine needs access to its own game processes; Talos defaults to admin-only.
+    # Keep ptrace restricted to descendants or explicitly permitted tracers.
+    kernel.yama.ptrace_scope: "1"
     # Required by the nvidia-open-toolkit system extension.
     net.core.bpf_jit_harden: "1"
   kernel:
