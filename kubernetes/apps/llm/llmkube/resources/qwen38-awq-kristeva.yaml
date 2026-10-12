@@ -153,24 +153,29 @@ spec:
     # with "estimated maximum model length is 9408". The card is genuinely
     # tight: vLLM reported "Model loading took 18.05 GiB" of a ~23.5 GiB
     # usable budget, so almost everything else has to come out of 5 GiB.
-    # 0.96 bought 0.87 -> 1.86 GiB but still missed the 2.3 GiB requirement
-    # ("estimated maximum model length is 24304"), so the remaining ~0.5 GiB
-    # comes from 0.98 plus a smaller prefill batch below. This is deliberately
-    # close to the ceiling: vLLM profiles a real forward pass to reserve
-    # activation memory, so the number is a measured target rather than a
-    # 0.98 landed within 10 MiB of the requirement (2.29 GiB available against
-    # 2.3 needed, "estimated maximum model length is 32144"), so the last
-    # increment comes from 0.99 rather than from shortening the window by 2%
-    # and having every LiteLLM alias lie about its context. 0.99 leaves ~230
-    # MiB of uncommitted VRAM on the card, which is thin; it is survivable
-    # because vLLM reserves activations from a real profiled forward pass
-    # rather than a guess, and because --max-num-seqs above is 1 so the batch
-    # shape cannot grow out from under that reservation.
-    # FALLBACK, if this ever OOMs at runtime instead of at boot: 0.96 with
-    # --max-model-len 24576. A lane that serves 24K beats one that crash-loops
-    # at 32K.
+    # 0.985 is not a taste value, it is the only two-decimal value that clears
+    # both of vLLM's independent gates on this card. They pull in opposite
+    # directions, which is what took four boots to find:
+    #   - KV gate: 0.98 gave 2.29 GiB against the 2.328 GiB that 32768 tokens
+    #     need ("estimated maximum model length is 32144") and refused to boot.
+    #     Fitting the three refusals vLLM printed (9408/0.92, 24304/1.81,
+    #     32144/2.29) gives fixed 0.322 GiB + 0.1 KiB/token, so KV scales as
+    #     21.5 GiB per unit of utilization: 0.985 -> 2.40 GiB, margin +0.07.
+    #   - Startup gate: vLLM compares util * 23.56 against the memory actually
+    #     free at attach time, which was 23.3 GiB - the ~0.26 GiB the driver and
+    #     CUDA context take before any allocation. nvidia-smi on an idle card
+    #     reported 24126 MiB free and zero compute processes, so that gap is
+    #     vLLM's own context, NOT a neighbouring workload. 0.99 wants 23.33 >
+    #     23.3 and dies with "Free memory on device cuda:0 (23.3/23.56 GiB) on
+    #     startup is less than desired GPU memory utilization".
+    # 0.985 asks for 23.21 (0.09 under the startup limit) and yields 2.40 GiB
+    # of KV (0.07 over the requirement). Thin on both sides by design - the
+    # card is 18.05 GiB of weights and there is nothing else to sell.
+    # FALLBACK if it OOMs at runtime rather than at boot: 0.96 with
+    # --max-model-len 24576 and update maxInputTokens in every LiteLLM alias
+    # that points here. A lane that serves 24K beats one that crash-loops.
     - --gpu-memory-utilization
-    - "0.99"
+    - "0.985"
     # Chunked prefill with a small batch: peak activation memory scales with
     # this, and on a card where weights already take 18.05 GiB it is the
     # cheapest place to give up some prefill speed for a fit. 2048 -> 1024 ->
