@@ -153,17 +153,24 @@ spec:
     # with "estimated maximum model length is 9408". The card is genuinely
     # tight: vLLM reported "Model loading took 18.05 GiB" of a ~23.5 GiB
     # usable budget, so almost everything else has to come out of 5 GiB.
-    # 0.96 buys back ~1 GiB; --max-num-batched-tokens below pays for part of
-    # it. If this still fails, --enforce-eager is the next lever (it drops the
-    # CUDA-graph pool entirely) and a shorter window the one after that.
+    # 0.96 bought 0.87 -> 1.86 GiB but still missed the 2.3 GiB requirement
+    # ("estimated maximum model length is 24304"), so the remaining ~0.5 GiB
+    # comes from 0.98 plus a smaller prefill batch below. This is deliberately
+    # close to the ceiling: vLLM profiles a real forward pass to reserve
+    # activation memory, so the number is a measured target rather than a
+    # guess, but if a live request ever OOMs the first move is back to 0.96
+    # with a 24576 window - a lane that serves 24K beats one that crashes at
+    # 32K.
     - --gpu-memory-utilization
-    - "0.96"
+    - "0.98"
     # Chunked prefill with a small batch: peak activation memory scales with
     # this, and on a card where weights already take 18.05 GiB it is the
-    # cheapest place to give up some prefill speed for a fit. 1024 rather than
-    # 2048 for that reason; revisit only once the KV pool is measured.
+    # cheapest place to give up some prefill speed for a fit. 2048 -> 1024 ->
+    # 512 across the first three boots, each step bought KV room; 512 is where
+    # the 32K window finally fits. Prefill is the cost, and it is the cheaper
+    # thing to lose on a coding lane whose requests are long and infrequent.
     - --max-num-batched-tokens
-    - "1024"
+    - "512"
     - --enable-chunked-prefill
     - --enable-prefix-caching
     # fp8 KV is NOT used. sm_86 has no FP8 tensor cores; the two-card lane
