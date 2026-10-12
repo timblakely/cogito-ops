@@ -158,11 +158,19 @@ spec:
     # comes from 0.98 plus a smaller prefill batch below. This is deliberately
     # close to the ceiling: vLLM profiles a real forward pass to reserve
     # activation memory, so the number is a measured target rather than a
-    # guess, but if a live request ever OOMs the first move is back to 0.96
-    # with a 24576 window - a lane that serves 24K beats one that crashes at
-    # 32K.
+    # 0.98 landed within 10 MiB of the requirement (2.29 GiB available against
+    # 2.3 needed, "estimated maximum model length is 32144"), so the last
+    # increment comes from 0.99 rather than from shortening the window by 2%
+    # and having every LiteLLM alias lie about its context. 0.99 leaves ~230
+    # MiB of uncommitted VRAM on the card, which is thin; it is survivable
+    # because vLLM reserves activations from a real profiled forward pass
+    # rather than a guess, and because --max-num-seqs above is 1 so the batch
+    # shape cannot grow out from under that reservation.
+    # FALLBACK, if this ever OOMs at runtime instead of at boot: 0.96 with
+    # --max-model-len 24576. A lane that serves 24K beats one that crash-loops
+    # at 32K.
     - --gpu-memory-utilization
-    - "0.98"
+    - "0.99"
     # Chunked prefill with a small batch: peak activation memory scales with
     # this, and on a card where weights already take 18.05 GiB it is the
     # cheapest place to give up some prefill speed for a fit. 2048 -> 1024 ->
