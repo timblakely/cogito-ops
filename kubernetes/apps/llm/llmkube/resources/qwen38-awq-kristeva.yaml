@@ -96,13 +96,18 @@ spec:
   priority: normal
   resources:
     gpu: 1
-    # Requests exist to buy a QoS class, not because vLLM needs this much.
-    # Talos's userspace OOM controller kills BestEffort cgroups first: a prior
-    # Qwen lane was SIGKILLed four times under page-cache pressure while it
-    # was BestEffort. This node also runs ~60 infrastructure pods and the
-    # 20 GiB weight read is page-cache heavy, so the pressure is permanent.
+    # Requests exist to buy a QoS class, and this one is load-bearing in a
+    # second way: the weights are read over NFS, so the page cache they fill
+    # is charged to THIS cgroup, not to the node. At 16 Gi the container hit
+    # its own limit part-way through the 19.57 GiB load and vLLM skipped its
+    # NFS read-ahead ("exceeds 90% of available RAM (13.52 GiB)"), which is why
+    # the cold load took 448 s. 32 Gi holds the whole checkpoint in cache and
+    # leaves headroom; the node has ~107 Gi free, so this is not a contention
+    # risk. Talos's userspace OOM controller kills BestEffort cgroups first - a
+    # prior Qwen lane was SIGKILLed four times under page-cache pressure while
+    # it was BestEffort - so staying Guaranteed here matters twice.
     cpu: "4"
-    memory: 16Gi
+    memory: 32Gi
   # Declared, not inherited. llmkube derives the container port and the
   # Service target from this field and defaults it to 8080; the first render of
   # this lane advertised 8080 while vLLM was told to listen on 8000, which is
@@ -142,17 +147,23 @@ spec:
     # decision here and not a free knob.
     - --max-num-seqs
     - "1"
-    # 0.92 rather than the two-card lane's 0.90: one card, one worker, no
-    # second process to leave room for. The ceiling is vLLM's own profiling
-    # run, so this is a target, not a reservation - if CUDA-graph capture
-    # OOMs, --enforce-eager is the first lever and lowering this the second.
+    # MEASURED 2026-10-12, first boot: 0.92 gave 0.92 GiB of KV against the
+    # 2.3 GiB that 32768 tokens requires (64 KiB/token of full-attention KV
+    # plus ~0.3 GiB of GDN recurrent state), and the engine refused to start
+    # with "estimated maximum model length is 9408". The card is genuinely
+    # tight: vLLM reported "Model loading took 18.05 GiB" of a ~23.5 GiB
+    # usable budget, so almost everything else has to come out of 5 GiB.
+    # 0.96 buys back ~1 GiB; --max-num-batched-tokens below pays for part of
+    # it. If this still fails, --enforce-eager is the next lever (it drops the
+    # CUDA-graph pool entirely) and a shorter window the one after that.
     - --gpu-memory-utilization
-    - "0.92"
-    # Chunked prefill with a modest batch: peak activation memory scales with
-    # this, and on a card where weights already take ~18.7 GiB it is the
-    # cheapest place to give up a little prefill speed for a stable fit.
+    - "0.96"
+    # Chunked prefill with a small batch: peak activation memory scales with
+    # this, and on a card where weights already take 18.05 GiB it is the
+    # cheapest place to give up some prefill speed for a fit. 1024 rather than
+    # 2048 for that reason; revisit only once the KV pool is measured.
     - --max-num-batched-tokens
-    - "2048"
+    - "1024"
     - --enable-chunked-prefill
     - --enable-prefix-caching
     # fp8 KV is NOT used. sm_86 has no FP8 tensor cores; the two-card lane
