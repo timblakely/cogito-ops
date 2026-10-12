@@ -1,0 +1,193 @@
+---
+# Scratch claim for staging the AWQ INT4 Qwen checkpoint onto Kristeva's NVMe.
+#
+# This is NOT a serving volume. The serving pod mounts the shared
+# `llm-model-archive` NFS claim directly (the vision-cpu pattern), so nothing
+# needs a per-node hot copy at steady state. This claim exists only so the
+# one-shot download below has somewhere to land, which keeps ~21 GB of HF
+# traffic off Kristeva's root disk (/var, 463 GiB, already 133 GiB used, the
+# Talos container store). Deleting this file also deletes the copy - that is
+# intentional; the authoritative copy is the NFS archive, which is Retain.
+#
+# Declared BEFORE the Job in this file and listed BEFORE it in the
+# Kustomization on purpose: openebs hostpath uses WaitForFirstConsumer, so an
+# unconsumed claim stays Unbound until a pod asks for it. Binding is therefore
+# driven by the pod's own nodeSelector, and a claim that binds early could be
+# pinned to a node other than the one the Job runs on.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qwen38-awq-stage
+  annotations:
+    volume.kubernetes.io/selected-node: kristeva
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: openebs-hostpath
+  resources:
+    requests:
+      # 30 GiB of content plus headroom for huggingface_hub's bookkeeping and
+      # the temporary .partial files the copy step makes.
+      storage: 40Gi
+---
+# One-shot staging of cyankiwi/Qwen3.8-27B-AWQ-INT4 into the cold archive.
+#
+# WHY IT IS ONE-SHOT AND THEN INERT
+#
+# The serving pod reads the archive directly, so the archive being correct is
+# the only correctness requirement; nothing re-reads this Job's output.
+# `force: Enabled` means Flux DELETES and RECREATES this Job whenever the
+# rendered object changes. Because every sha is already in the archive and the
+# script short-circuits when verification passes, a recreate costs the pod
+# scheduling and nothing else - no 21 GB re-copy. Comments alone do not change
+# the rendered object, so editing commentary will not even trigger that.
+#
+# GPU-SHARING HAZARD (the reason the fast path is written the way it is)
+#
+# This Job must never hold GPU-adjacent memory while the lane is loading
+# weights. Kristeva has 128 GiB of host RAM; the archive copy is page-cache
+# heavy, and Talos's userspace OOM controller kills BestEffort cgroups first -
+# which is what an inference pod without CPU/memory requests would be. The
+# pod below therefore requests CPU and memory so it is not BestEffort, and the
+# fast path exits before touching the page cache at all when the bytes are
+# already verified in place. Observed cost of getting this wrong on the
+# sibling cache-prime Job: a re-run competed with a 28 GB weight load on the
+# same storage and was killed mid-copy, leaving the Kustomization red while
+# both tiers were actually byte-correct.
+#
+# PINNING
+#
+# Revision 6e134bae811fb5adac50ee042ae5f029ac6779aa (2026-09-11, HEAD of main
+# at staging time). Every LFS blob is pinned by the sha256 HF reports; the
+# non-LFS files by hashes computed independently from the same revision. A
+# drift here is a supply-chain event, not a version bump: recompute all of
+# them deliberately and say so in the commit message.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cache-prime-qwen38-awq-int4-v1
+  annotations:
+    kustomize.toolkit.fluxcd.io/force: Enabled
+  labels:
+    app.kubernetes.io/name: cache-prime-qwen38-awq-int4
+spec:
+  activeDeadlineSeconds: 21600
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cache-prime-qwen38-awq-int4
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: kristeva
+      containers:
+        - name: download
+          image: docker.io/library/python:3.13-slim
+          env:
+            - name: HOME
+              value: /tmp
+            - name: HF_HOME
+              value: /tmp/huggingface
+            - name: PIP_DISABLE_PIP_VERSION_CHECK
+              value: "1"
+          command:
+            - sh
+            - -ec
+            - |
+              target_repo=cyankiwi/Qwen3.8-27B-AWQ-INT4
+              target_rev=6e134bae811fb5adac50ee042ae5f029ac6779aa
+              target_archive=/archive/llmkube/qwen-3-8-awq-int4
+              stage=/stage/qwen-3-8-awq-int4
+
+              # HF-reported LFS oids for the five weight shards and the
+              # tokenizer, at the pinned revision.
+              cat > /tmp/sha-lfs <<'SHA'
+              54d83c1d36631de231876217a8e0c2483eccee8746369a482b79442bdfc5d958  model-00001-of-00005.safetensors
+              64be5fc2f66a3e5679ba229261a7a0d8112b06f6f560c750a62ca9457f90006c  model-00002-of-00005.safetensors
+              7b90d6c7059d615a560cd4d2e766d328210605041061681550d80f380a8b529b  model-00003-of-00005.safetensors
+              03b2624ec788780a2915003cd2871c29c87dfb6f2a8d189ef3918662d6a1ed56  model-00004-of-00005.safetensors
+              eb5ea1fbef28b13ac89158924ee7cfe7c9f111c79ae177b290c0abd45c38925c  model-00005-of-00005.safetensors
+              0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3  tokenizer.json
+              SHA
+              # Non-LFS files, hashed independently from the same revision.
+              cat > /tmp/sha-plain <<'SHA'
+              c3cf9e34abf4f9e36c2d72165aa9c132d3e2a725b6c2586aaa3a8af9d7a81041  chat_template.jinja
+              8a4c7cc94e338329a92ec9a1bb78cbd86f936de1c26aa82af90361ed5d3ef6a7  config.json
+              e70c136c1b78ddc1fb0905bac8e733a4dc448d4f852a5dd75143fffc70be550e  generation_config.json
+              a9d356d7bdf1ef4949e3e748e95b8e10ad9d4e2e838eddc38a0a7b6b94d1db8d  merges.txt
+              82b1bf79f5b61333e83da17ec3bf89c9f178e29395a14c6b3ce3bbc474e1ead8  model.safetensors.index.json
+              27225450ac9c6529872ee1924fcb0962ff5634834f817040f444118116f4e516  preprocessor_config.json
+              b11349aafa7cdc6a320767cf7ceb29ed82f7eda5d65e8e0819e76f0ce947bf27  tokenizer_config.json
+              7768af27c1fafa9cc9011c1dc20067e03f8915e03b63504550e11d5066986d13  video_preprocessor_config.json
+              ce99b4cb2983d118806ce0a8b777a35b093e2000a503ebde25853284c9dfa003  vocab.json
+              bbedc3fda3305820b977265f01b8619d87570a6739de3a5582c3464840f1e57a  LICENSE
+              SHA
+              sed -i 's/^ *//' /tmp/sha-lfs /tmp/sha-plain
+              cat /tmp/sha-lfs /tmp/sha-plain > /tmp/sha-all
+
+              # Fast path: if the ARCHIVE already holds every pinned byte, the
+              # objective is met and there is nothing to do. Note the archive
+              # is the verification target here, not the staging copy - a
+              # previous run may have downloaded and copied successfully and
+              # then died before recording success.
+              if [ -f "$target_archive/.promoted" ] &&
+                 (cd "$target_archive" && sha256sum --check --status --strict /tmp/sha-all); then
+                echo "cold archive already holds the pinned revision, sha256-verified; nothing to do"
+                du -sh "$target_archive"
+                exit 0
+              fi
+
+              python -m venv /tmp/venv
+              /tmp/venv/bin/pip install --no-cache-dir "huggingface_hub[cli]"
+              mkdir -p "$target_archive" "$stage"
+
+              # Download to the node-local scratch claim, never into the NFS
+              # archive: huggingface_hub wants hardlinks and its own .cache,
+              # and a partial write onto the authoritative archive is exactly
+              # the failure mode the archive's Retain policy exists to survive.
+              /tmp/venv/bin/hf download "$target_repo" --revision "$target_rev" \
+                --local-dir "$stage" --max-workers 2
+
+              (cd "$stage" && sha256sum --check --strict /tmp/sha-all)
+
+              # Promote into the archive file by file, atomically, verifying
+              # the copy at its destination rather than trusting the source.
+              # .cache is huggingface_hub's bookkeeping and must not appear in
+              # the served directory tree.
+              for file in $(cd "$stage" && find . -type f -not -path './.cache/*' | sed 's|^\./||'); do
+                mkdir -p "$target_archive/$(dirname "$file")"
+                cp "$stage/$file" "$target_archive/$file.partial"
+                mv "$target_archive/$file.partial" "$target_archive/$file"
+              done
+
+              (cd "$target_archive" && sha256sum --check --strict /tmp/sha-all)
+
+              # The barrier file: its presence is what lets a later run take
+              # the fast path, so it is written only after full verification.
+              touch "$target_archive/.promoted"
+              sync
+              du -sh "$target_archive"
+          resources:
+            requests:
+              cpu: "1"
+              memory: 1Gi
+            limits:
+              memory: 4Gi
+          volumeMounts:
+            - name: archive
+              mountPath: /archive
+            - name: stage
+              mountPath: /stage
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: archive
+          persistentVolumeClaim:
+            claimName: llm-model-archive
+        - name: stage
+          persistentVolumeClaim:
+            claimName: qwen38-awq-stage
+        - name: tmp
+          emptyDir: {}

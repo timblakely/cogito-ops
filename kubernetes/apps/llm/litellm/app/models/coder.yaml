@@ -8,7 +8,7 @@ spec:
   proxyRef: litellm
   params:
     model: openai/qwen3.8-27b
-    apiBase: http://qwen3-8-27b.llm.svc.cluster.local:18020/v1
+    apiBase: http://qwen3-8-awq-kristeva.llm.svc.cluster.local:8000/v1
     apiKey: not-needed
     additional:
       timeout: 3600
@@ -16,7 +16,13 @@ spec:
         - reasoning_effort
   info:
     supportsFunctionCalling: true
-    maxInputTokens: 131072
+    # Mirrors the backend's --max-model-len (32768) exactly. The AWQ INT4
+    # lane on Kristeva's 3090 cannot hold a wider window: weights are 19.58
+    # GiB of the 24 GiB card, and vLLM will not start unless the KV pool can
+    # hold one full-length sequence, so the window is whatever the leftover
+    # VRAM affords. Raise only together with --max-model-len in
+    # llmkube/resources/qwen38-awq-kristeva.yaml, in the same commit.
+    maxInputTokens: 32768
     maxOutputTokens: 16384
     extra:
       input_cost_per_token: 0

@@ -1,0 +1,222 @@
+---
+# Qwen 3.8 27B, AWQ INT4, on Kristeva's single RTX 3090. The coding lane:
+# repository changes, tests, debugging, PR preparation, for delegated work
+# handed down from the planner.
+#
+# GPU IDENTITY
+#
+# Kristeva carries exactly one NVIDIA GPU: PCI 0000:02:00.0, UUID
+# GPU-a5982685-6ed7-6fce-8096-52d29e241396, RTX 3090 24576 MiB, sm_86,
+# driver 595.71.05. The device plugin advertises it exclusively
+# (nvidia.com/gpu.count=1, replicas=1, sharing-strategy none), so one
+# nvidia.com/gpu request is the whole physical card and no other workload
+# can share it. Following muse-glimmer-30b, the physical GPU is requested
+# THROUGH THE DEVICE PLUGIN with no UUID override: NVIDIA_VISIBLE_DEVICES is
+# what the plugin injects for the allocated device, and setting it by hand
+# here would fight the allocation rather than pin it. The stable identity is
+# therefore asserted, not assumed - check the pod's own nvidia-smi against
+# the UUID above after any BIOS/board change, because GPU index 0 is only
+# unambiguous while it is the sole NVIDIA function on this host.
+#
+# WHY IT FITS, AND WHAT IS DELIBERATELY NOT LOADED
+#
+# Weights are 19.58 GiB of 24 GiB: 12.49 GiB quantised attention/MLP,
+# 3.07 GiB GDN linear-attention (kept at higher precision by the recipe's
+# ignore list, which is why it costs more than its parameter count),
+# 2.37 GiB lm_head, 0.86 GiB vision tower, 0.79 GiB MTP head. Two of those
+# are not resident at baseline:
+#
+#   - vision tower: dropped by --language-model-only. Vision on this cluster
+#     lives on the kristeva vision-cpu lane and the cloud tier; nothing in
+#     the coding lane sends images. Returns 0.86 GiB to the KV pool.
+#   - MTP head: belongs to the draft model, so vLLM loads it only when a
+#     --speculative-config is present. Baseline runs without speculative
+#     decoding, so its 0.79 GiB is available headroom, not savings.
+#
+# Net baseline expectation is roughly 18.7 GiB of weights, which leaves
+# ~3.5 GiB for KV, activations and CUDA graphs. That is genuinely tight, so
+# context and concurrency are both pinned low and must be raised only against
+# a measured KV pool size from the startup log, never against the model's
+# advertised 262144 ceiling.
+#
+# WHY THE GENERIC RUNTIME RATHER THAN THE vllm BLOCK
+#
+# The same reason muse-glimmer-30b does: llmkube's model-init stages weights
+# into `llmkube-model-cache`, whose PV is pinned to iggy, so a Kristeva lane
+# cannot route through it. skipModelInit plus a direct read-only mount of the
+# NFS archive is the established Kristeva pattern (vision-cpu and Muse both
+# use it). The consequence to remember: VLLMConfig is then unused, so the
+# catalogue validator reads no maxModelLen from this object and CANNOT
+# enforce the advertised-context mirror. The LiteLLM entries that point here
+# are therefore held at 32768 by hand, and any change to --max-model-len
+# below must be made in the same commit as their maxInputTokens.
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: qwen-3-8-awq-int4
+spec:
+  # Cold tier, served in place: no per-node hot copy at steady state.
+  source: pvc://llm-model-archive/llmkube/qwen-3-8-awq-int4
+  format: safetensors
+  quantization: AWQ-INT4
+  hardware:
+    # cuda is load-bearing: the cpu default serves silently from the host.
+    accelerator: cuda
+    gpu:
+      enabled: true
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+      count: 1
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: InferenceService
+metadata:
+  name: qwen3-8-awq-kristeva
+  annotations:
+    inference.llmkube.dev/idle-endpoint: /health
+spec:
+  modelRef: qwen-3-8-awq-int4
+  replicas: 1
+  runtime: generic
+  # vLLM 0.31.0, amd64, CUDA 13.0.2, built with sm_86 in TORCH_CUDA_ARCH_LIST
+  # (7.5 8.0 8.6 8.9 9.0 10.0 12.0), vllm commit db9527a4. Pinned by digest,
+  # not tag: this is the release that carries the qwen3_5 architecture and the
+  # --language-model-only flag this lane depends on, and a floating tag would
+  # silently move that ground under a working lane.
+  image: docker.io/vllm/vllm-openai@sha256:c1c9f6fd5c109ba7f0546a59f5b2f15fb87f64c77782e90a27b648b42a8e67c3
+  runtimeClassName: nvidia
+  nodeSelector:
+    kubernetes.io/hostname: kristeva
+  # Default (normal), stated rather than inherited. Nothing interactive runs
+  # on Kristeva's NVIDIA GPU, and this lane holds long delegated coding tasks
+  # that must not be preempted mid-task by lower-priority batch work. Muse
+  # wants the same card and is deliberately suspended; if it is ever resumed,
+  # the two lanes are mutually exclusive on this GPU and one must be scaled
+  # down first - the scheduler will not share the card.
+  priority: normal
+  resources:
+    gpu: 1
+    # Requests exist to buy a QoS class, not because vLLM needs this much.
+    # Talos's userspace OOM controller kills BestEffort cgroups first: a prior
+    # Qwen lane was SIGKILLed four times under page-cache pressure while it
+    # was BestEffort. This node also runs ~60 infrastructure pods and the
+    # 20 GiB weight read is page-cache heavy, so the pressure is permanent.
+    cpu: "4"
+    memory: 16Gi
+  rolloutPolicy:
+    # The generic runtime cannot perform llmkube's native /slots idle check.
+    waitForIdle: false
+  skipModelInit: true
+  command:
+    - vllm
+  args:
+    - serve
+    - /model-source/llmkube/qwen-3-8-awq-int4
+    # Must stay byte-identical to the `openai/<name>` string in every LiteLLM
+    # entry that points here, or the request 404s at the backend.
+    - --served-model-name
+    - qwen3.8-27b
+    - --host
+    - 0.0.0.0
+    - --port
+    - "8000"
+    # 32768, not the model's 262144. vLLM refuses to start unless the KV pool
+    # can hold one full-length sequence, so this number is a floor on the
+    # pool, not a cap on usage: raising it costs KV headroom directly. Raise
+    # only from the "GPU KV cache size" figure in the startup log.
+    - --max-model-len
+    - "32768"
+    # One seat for the baseline, as specified. The recurrent-state cache for
+    # the 48 GDN layers is sized PER CONCURRENT SEQUENCE, so unlike a pure
+    # transformer this model's per-seat cost is not just KV: each additional
+    # seat spends real gigabytes, which is why concurrency is a measured
+    # decision here and not a free knob.
+    - --max-num-seqs
+    - "1"
+    # 0.92 rather than the two-card lane's 0.90: one card, one worker, no
+    # second process to leave room for. The ceiling is vLLM's own profiling
+    # run, so this is a target, not a reservation - if CUDA-graph capture
+    # OOMs, --enforce-eager is the first lever and lowering this the second.
+    - --gpu-memory-utilization
+    - "0.92"
+    # Chunked prefill with a modest batch: peak activation memory scales with
+    # this, and on a card where weights already take ~18.7 GiB it is the
+    # cheapest place to give up a little prefill speed for a stable fit.
+    - --max-num-batched-tokens
+    - "2048"
+    - --enable-chunked-prefill
+    - --enable-prefix-caching
+    # fp8 KV is NOT used. sm_86 has no FP8 tensor cores; the two-card lane
+    # needed a digest-pinned SM86 FA2+fp8-KV plugin to make it work at all.
+    # Not a baseline risk.
+    - --kv-cache-dtype
+    - auto
+    # Tool calls in this checkpoint's chat template are
+    # <tool_call><function=name><parameter=k>value</parameter></function>,
+    # which is qwen3_xml - the parser the two-card Qwen lane also used for
+    # this same base model. Verified registered in vLLM 0.31.0.
+    - --enable-auto-tool-choice
+    - --tool-call-parser
+    - qwen3_xml
+    - --reasoning-parser
+    - qwen3
+    - --default-chat-template-kwargs
+    - '{"enable_thinking": true}'
+    - --language-model-only
+    - --trust-remote-code
+  env:
+    # Weights are on disk; never let the engine resolve anything from the Hub.
+    - name: HF_HUB_OFFLINE
+      value: "1"
+    - name: VLLM_NO_USAGE_STATS
+      value: "1"
+    - name: VLLM_WORKER_MULTIPROC_METHOD
+      value: spawn
+    - name: PYTORCH_CUDA_ALLOC_CONF
+      value: expandable_segments:True,max_split_size_mb:512
+    - name: OMP_NUM_THREADS
+      value: "1"
+    - name: TRITON_CACHE_DIR
+      value: /tmp/triton-cache
+  # No model volume declared here on purpose. llmkube surfaces a pvc:// Model
+  # source as a read-only `model-source` volume at that mountPath itself - the
+  # vision-cpu lane on this same node declares no volumes at all and its pod
+  # still carries the archive mount - and declaring it a second time here would
+  # collide with the operator's volume name. Muse declares its own because its
+  # weights live on a per-lane claim rather than the shared archive.
+  extraVolumes:
+    - name: shm
+      emptyDir:
+        medium: Memory
+        sizeLimit: 2Gi
+    - name: tmp
+      emptyDir: {}
+  extraVolumeMounts:
+    - name: shm
+      mountPath: /dev/shm
+    - name: tmp
+      mountPath: /tmp
+  probeOverrides:
+    startup:
+      httpGet:
+        path: /health
+        port: 8000
+      periodSeconds: 10
+      # 19.58 GiB off NFS at ~1 GbE is ~3 minutes, then torch.compile and
+      # CUDA-graph capture. Bounded generously so a slow cold load reads as
+      # slow, not as failed.
+      failureThreshold: 360
+    readiness:
+      httpGet:
+        path: /health
+        port: 8000
+      initialDelaySeconds: 20
+      periodSeconds: 10
+      failureThreshold: 6
+    liveness:
+      httpGet:
+        path: /health
+        port: 8000
+      initialDelaySeconds: 60
+      periodSeconds: 30
+      failureThreshold: 6

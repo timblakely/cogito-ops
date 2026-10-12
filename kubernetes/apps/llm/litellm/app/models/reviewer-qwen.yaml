@@ -8,7 +8,7 @@ spec:
   proxyRef: litellm
   params:
     model: openai/qwen3.8-27b
-    apiBase: http://qwen3-8-27b.llm.svc.cluster.local:18020/v1
+    apiBase: http://qwen3-8-awq-kristeva.llm.svc.cluster.local:8000/v1
     apiKey: not-needed
     additional:
       timeout: 1800
@@ -16,7 +16,9 @@ spec:
         - reasoning_effort
   info:
     supportsFunctionCalling: true
-    maxInputTokens: 131072
+    # Mirrors the AWQ lane's --max-model-len. See coder.yaml for why this lane
+    # cannot advertise the 131072 it carried on the two-card backend.
+    maxInputTokens: 32768
     maxOutputTokens: 16384
     extra:
       input_cost_per_token: 0

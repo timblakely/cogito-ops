@@ -19,7 +19,7 @@ spec:
   proxyRef: litellm
   params:
     model: openai/qwen3.8-27b
-    apiBase: http://qwen3-8-27b.llm.svc.cluster.local:18020/v1
+    apiBase: http://qwen3-8-awq-kristeva.llm.svc.cluster.local:8000/v1
     apiKey: not-needed
     additional:
       reasoning_effort: low
@@ -28,13 +28,14 @@ spec:
       - reasoning_effort
   info:
     supportsFunctionCalling: true
-    # NOT the backend ceiling. The backend serves 262144; this alias holds the
-    # coordination budget at 131072 on purpose, so fan-out stays cheap: the KV
-    # pool is ~275k tokens total, and agents that plan against a 262k window
-    # would each try to hold most of it. The full window lives on the
-    # Qwen/Qwen3.8-27B-INT8-W8A16 passthrough alias, for interactive use.
-    # Gap from the backend is licensed by the cogito.dev/context-budget
-    # annotation above; the validator asserts this never EXCEEDS the backend.
+    # Equal to the backend ceiling now, not below it. On the two-card backend
+    # this alias deliberately declared 131072 against a 262144 serving window so
+    # fan-out stayed cheap. The AWQ INT4 lane on Kristeva's 3090 has no such
+    # headroom to give away: it serves 32768 at all, so declaring more would
+    # tell clients they may send a prompt vLLM will reject. The annotation above
+    # is left in place - it remains true that this alias is budget-constrained,
+    # and it stays accurate if the lane is ever re-raised and this number held
+    # down again.
     #
     # Advisory, not a guard rail - verified 2026-08-28: a 257,600-token prompt
     # sent to this alias was ACCEPTED and answered. LiteLLM publishes
