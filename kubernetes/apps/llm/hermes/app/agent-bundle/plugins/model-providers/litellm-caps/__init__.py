@@ -88,7 +88,13 @@ def _openai_compat_providers() -> list[dict[str, str]]:
     if isinstance(custom, list):
         raw.extend(p for p in custom if isinstance(p, dict))
     for entry in raw:
-        base_url = str(entry.get("base_url") or "").strip()
+        # ``providers:`` entries spell the endpoint ``api:``; ``custom_providers:``
+        # entries spell it ``base_url:``. Hermes' own readers (runtime_provider_custom,
+        # model_switch, agent_init) accept every alias — so must we, or a correctly
+        # configured provider is invisible to caps and every model falls back to the
+        # bundled widest ladder.
+        base_url = str(entry.get("base_url") or entry.get("api")
+                       or entry.get("url") or "").strip()
         if not base_url or not urlparse(base_url).hostname:
             continue
         caps_url = str(entry.get("caps_url") or "").strip()
