@@ -2,6 +2,11 @@
 
 Updated: 2026-10-11. This is the running comparison for Cogito's `amnesia` gaming deployment. Add a row or expand an existing row **when a new difference is observed**, with the source revision, runtime evidence, local remedy, and an upstream issue or PR once filed. An observation in another deployment is not proof of the behavior of its published image.
 
+For how the deployment is wired today (topology, pins, permissions, Talos
+prerequisites, debugging order), read the
+[Dreamcast app README](../kubernetes/apps/dreamcast/README.md); this file is the
+evidence log of *why* each workaround exists.
+
 ## Source and deployment identities
 
 | System | Evidence pinned for this comparison |

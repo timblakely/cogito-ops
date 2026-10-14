@@ -5,6 +5,12 @@ Research date: 2026-09-26. Owner/operator: Tim, using the Fedora laptop.
 
 Track each native Fenrir / Shrinedogg / Amnesia difference and upstream candidate in the [running upstream findings](fenrir-upstream-findings.md); update it as new differences appear.
 
+This document is the dated plan and execution record. For how the deployment
+works today — topology, image provenance, permissions, Talos prerequisites,
+driver/DLSS details, failure modes and redeploy guidance — read the
+[Dreamcast app README](../kubernetes/apps/dreamcast/README.md). Where the two
+disagree about current pins or configuration, the README and the manifests win.
+
 ## Decision
 
 Convert the Ryzen 9900X / 64 GB / RTX 5070 Ti 16 GB workstation into a **Cogito control plane named `amnesia` that also hosts dedicated gaming workloads**. Physically remove and preserve its existing NVMe, install a fresh blank NVMe, and administer everything from the Fedora laptop. Start with one Moonlight client and one Steam session through Fenrir and Games on Whales Wolf. First establish a working official-driver baseline: Steam must launch and at least one installed game must be playable over Moonlight. Only after that baseline passes, create and test a newer-driver image to assess feasibility. A custom build pipeline is a future milestone contingent on a successful experiment; pipeline design and implementation are outside this plan’s current scope.
