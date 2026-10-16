@@ -99,7 +99,7 @@ Nothing in this stack floats. Everything is digest-pinned.
 | CRDs | vendored at `kubernetes/crds/fenrir/`, from fork `29eb075` | HelmRelease runs `crds: Skip` (both install and upgrade) so the chart's **older bundled CRDs** can never clobber the vendored ones |
 | operator | `ghcr.io/timblakely/fenrir-operator@sha256:7a73d323…` | shrinedogg `29eb075` + [`patches/fenrir-operator-fixes.patch`](../../../patches/fenrir-operator-fixes.patch), built by CI |
 | moonlight proxy | `ghcr.io/timblakely/fenrir-moonlight-proxy@sha256:9c8576cc…` | shrinedogg `29eb075` as-is, built by CI |
-| Wolf sidecar | `docker.io/shrinedogg/wolf@sha256:9d062c45…` | fork image (`AGENT_IMAGE`/`WOLF_IMAGE` env on the operator) |
+| Wolf sidecar | `ghcr.io/timblakely/wolf@sha256:4e5d97f7…` | Wolf `5ee830a` + upstream held-modifier fix #459; retains Shrinedogg `9d062c45…` runtime/compositor layers |
 | wolf-agent | `docker.io/shrinedogg/wolf-agent@sha256:f51e52ce…` | fork image |
 | Steam app | `ghcr.io/games-on-whales/steam@sha256:4f88a5e3…` | upstream GoW image |
 | uinput plugin | `ghcr.io/squat/generic-device-plugin:2cc50b0@sha256:dc192e16…` | upstream |
@@ -111,14 +111,33 @@ build attestations show operator `v0.1.3` ← `14b57e1`, agent `v0.1.3` ←
 published proxy does not understand the pin page's username field and cannot
 pair against these CRDs.
 
-### Rebuilding the operator or proxy
+### Rebuilding Wolf, the operator, or proxy
 
+- Wolf: [`.github/workflows/amnesia-wolf-image.yaml`](../../../.github/workflows/amnesia-wolf-image.yaml)
+  checks out the original image's Wolf source `5ee830ae0e03322a6cf044652f5ea271f60161f0`,
+  applies [`patches/wolf-held-modifiers.patch`](../../../patches/wolf-held-modifiers.patch)
+  from upstream commit `579e72adc88b593c1c5e3805a7baffeb14942e29`
+  ([wolf#459](https://github.com/games-on-whales/wolf/pull/459)), and replaces
+  only `/wolf/wolf` in the pinned Shrinedogg base. Its GStreamer, patched
+  compositor, fake-udev and audio supervision remain from that base. The build
+  verifies that the original handler fails and the backport passes an
+  event-level regression test before publishing to GHCR. Push the
+  `amnesia-wolf-held-modifiers` bookmark with a build-file change, or manually
+  dispatch the workflow; pin the emitted digest as `WOLF_IMAGE` afterward.
+  This backport retains Wolf's original API.
+  Verify an anonymous pull before deploying: this namespace has no registry
+  pull secret. If the package is private, change its visibility in GHCR
+  package settings first. The published backport passed the anonymous check.
+  After changing `WOLF_IMAGE`, end the old Session in Moonlight and launch
+  again: this operator updates only metadata on an existing session Deployment,
+  so a fresh Session is needed to adopt the new image and stream state. The
+  Steam PVC survives this lifecycle (§7).
 - Proxy: [`.github/workflows/amnesia-fenrir-proxy-image.yaml`](../../../.github/workflows/amnesia-fenrir-proxy-image.yaml)
   — plain build of pinned `29eb075`.
 - Operator: [`.github/workflows/amnesia-fenrir-operator-image.yaml`](../../../.github/workflows/amnesia-fenrir-operator-image.yaml)
   — checks out `29eb075`, `git apply`s the repo patch (verified with
   `--check` first), builds, pushes to GHCR with `GITHUB_TOKEN`.
-- Both workflows are triggered by pushes to **specific legacy branch names**
+- The operator/proxy workflows are triggered by pushes to **specific legacy branch names**
   (`amnesia-operator-timeout`, `amnesia-app-selection`,
   `amnesia-wolf-app-registration`, `amnesia-steam-600-video`,
   `amnesia-gaming`). Pushing `main` builds nothing. Those bookmarks still exist
@@ -184,11 +203,21 @@ deployment needs. Our baseline is `29eb075` on `feat/multi-user`:
   required), so newer Wolf images reject every `AddSession` from an older
   operator and the reaper kills the session ~60 s after launch.
 
-**If you ever bump the Wolf image, take these two commits too.** They are not
-in `29eb075`, so our patched operator will fail against Wolf ≥ 0.2.0. Note also
+**If you upgrade to Wolf ≥ 0.2.0, take these two commits too.** They are not
+in `29eb075`, so our patched operator will fail against Wolf ≥ 0.2.0. The
+held-modifier backport keeps the original API and does not need them. Note also
 that the fork's author independently converged on the same diagnosis we made in
 §9 (privileged Wolf for NVENC) and §12 (Steam Input pads can never be scoped
 per session) — read his notes before re-deriving them.
+
+**Our Wolf difference (2026-10-15):** Shrinedogg's pinned `9d062c45…` image
+was created on June 11 and labels its Wolf source as `5ee830a`; it predates
+the September 7 merge of [wolf#459](https://github.com/games-on-whales/wolf/pull/459).
+Factorio Ctrl-click transfers failed from Moonlight on Linux with default
+game bindings. We backport the upstream fix while preserving that image's
+compositor and the older Fenrir API. This finding applies to the inspected
+digest; it does not establish the contents of Shrinedogg's current tags or
+the behavior of his current deployment.
 
 ## 6. Permissions — the part that actually cost time
 
@@ -226,6 +255,34 @@ session.** Per game, set controller options to *Disable Steam Input* so the game
 reads Wolf's pad directly (menus keep working — Big Picture reads the Wolf pad).
 The agent sidecar needs `NET_ADMIN` (netlink broadcast); it does not run a
 udev daemon.
+
+### Ctrl/Shift held input (Wolf #459)
+
+Older Wolf synthesizes modifier presses/releases around keyboard packets but
+only recognizes generic Ctrl/Shift codes when deciding whether the actual key
+is itself a modifier. Moonlight can send left/right-specific codes; Wolf then
+immediately releases the physical modifier. Text shortcuts can still work
+because each letter packet briefly restores its modifier flag, while held-key
+actions and modified mouse clicks fail. Inputtino's key-repeat can mask this
+on `uinput`; the Wayland virtual keyboard has no such recovery.
+
+The backport tracks physically held modifiers per session and synthesizes
+only modifiers that are present in packet flags but not already held. The
+build test calls the actual packet handler and records the compositor-bound
+GStreamer events for ten generic/left/right modifier codes, subsequent letters,
+left/right clicks, release, synthetic fallback, and session isolation. No
+compositor switch or Factorio key remap is required. Factorio defaults are
+**Shift-click** for a stack and **Ctrl-click** for inventory/fast entity
+transfer; test both after connecting to the new session.
+
+Verified live after rollout (2026-10-15): the Steam session was 4/4 Ready with
+zero container restarts and Wolf image ID `sha256:4e5d97f7…`. The same
+modifier-only API packets used before the fix were read through `XQueryKeymap`
+on the session's Xwayland display after 150 ms. Both left/right Ctrl and
+left/right Shift remained held, then released on key-up; left Ctrl and Shift
+had failed this check before the backport. The retained Steam PVC UID stayed
+`83553cba-070a-470a-9255-befb8bacb00f`. The user then confirmed both Ctrl-click
+and Shift-click transfers work in Factorio.
 
 ### Privilege summary
 
@@ -513,6 +570,7 @@ stream instead of falling back to Wolf's virtual sink. Silent Steam.
 
 | Symptom | Status |
 | --- | --- |
+| Ctrl-click transfers or held Ctrl/Shift actions fail, while some text shortcuts work | Upstream [wolf#459](https://github.com/games-on-whales/wolf/pull/459) fixes premature modifier release. Our pinned Wolf backports it onto `5ee830a` and tests the actual output events (§6). Verify Factorio Ctrl/Shift-click after reconnecting. |
 | Apps registered via the Wolf API get **no video until Wolf restarts** — empty `video_producer_buffer_caps`, malformed `waylanddisplaysrc … ! , width=…`, no frames | **Open upstream** [wolf#489](https://github.com/games-on-whales/wolf/issues/489). Masked in practice: the app is registered once and the retained `config.toml` produces valid CUDA caps on the next Wolf pod. A first-ever registration on a fresh PVC needs a Wolf restart. |
 | Controller prompts flip Xbox → keyboard within seconds (Steam Controller only; Xbox pad is stable; reproduces on stable and nightly Moonlight) | **Open, cause unproven.** No USB/IP anywhere in Fenrir or Wolf — input is Moonlight packets → Wolf `uinput`/`uhid`. Narrowed to the Steam Controller/client path. Needs live `/dev/input` inspection plus client mouse-event evidence before touching the host input design. Check the per-game *Disable Steam Input* setting first (§6). |
 | Severe 10–15 s jitter every few minutes during long sessions | **Open.** Host side was clean (no NIC errors/drops, no Xid, BGP up). Client is 6 GHz Wi-Fi at ~−67 dBm with power saving on, pushed ~70 Mbps. Client profiles lowered to 1080p60/20 Mbps. Use the Moonlight overlay during a stall to separate network loss from encode/decode delay before changing Cilium. |
@@ -521,9 +579,10 @@ stream instead of falling back to Wolf's virtual sink. Silent Steam.
 
 Upstream filing status: our local fixes exist only as the repo patch plus
 merged Cogito PRs. **No upstream Fenrir issue or PR has been filed.** Wolf #465/#489
-are upstream reports. Ask the fork maintainer for a coherent versioned
-source/image set, and whether a rebuild with wolf#466 is possible — that would
-remove the entrypoint workaround entirely.
+are upstream reports; #459 is an already-merged upstream fix backported here.
+Ask the fork maintainer for a coherent versioned source/image set including
+#459 and #466. The latter would remove the audio entrypoint workaround; the
+modifier-only rebuild deliberately retains it.
 
 ## 13. Deploying this stack elsewhere
 

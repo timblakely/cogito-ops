@@ -1,0 +1,55 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Amnesia Wolf Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [amnesia-wolf-held-modifiers]
+    paths:
+      - .github/workflows/amnesia-wolf-image.yaml
+      - docker/wolf-held-modifiers.Dockerfile
+      - patches/wolf-held-modifiers.patch
+      - scripts/tests/wolf-held-modifiers.cpp
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out Cogito backport
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          path: cogito
+          persist-credentials: false
+
+      - name: Check out Wolf source matching the retained runtime
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          repository: games-on-whales/wolf
+          ref: 5ee830ae0e03322a6cf044652f5ea271f60161f0
+          path: wolf
+          persist-credentials: false
+
+      - name: Authenticate to GHCR
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+
+      - name: Build, test modifier events, and publish
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/wolf
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          TAG="5ee830a-held-modifiers-$RUN_ID"
+          docker build --pull \
+            --label "io.cogito.build.revision=$GITHUB_SHA" \
+            --tag "$IMAGE:$TAG" \
+            --file cogito/docker/wolf-held-modifiers.Dockerfile .
+          docker push "$IMAGE:$TAG"
+          docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE:$TAG" | tee image-digest.txt
+          cat image-digest.txt >> "$GITHUB_STEP_SUMMARY"
