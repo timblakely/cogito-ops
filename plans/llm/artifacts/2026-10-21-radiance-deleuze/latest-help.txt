@@ -1,0 +1,217 @@
+usage: /opt/radiance/bin/radiance --model FILE [options]
+
+  --model PATH                     the .rad container, a checkpoint served as it stands, or a
+                                   Hugging Face repo id (owner/name), fetched before startup
+  --download-dir DIR               where a repo id is fetched to; default
+                                   $XDG_CACHE_HOME/radiance/hf, else ~/.cache/radiance/hf
+  --radiance-home DIRS             where kernels/, architectures/ and quantizers/ live; several
+                                   homes separated by ':' are searched in order, the first winning
+  --kernels LIST                   the kernel libraries to use, separated by ',' or ':', first wins; unnamed ones are not loaded. Default: every library found
+  --tp N                           tensor-parallel ranks
+  --tp-wire MODE                   cross-rank all-reduce payload: exact (default) or wht6, a
+                                   lossy wire: rotated 6-bit at 2 ranks, tiered int8 at 3
+                                   and 4, none at 8
+  --tp-wire-min-kb N               smallest all-reduce, in KiB, the lossy wire is used for
+  --p2p MODE                       how the collectives reach the other cards: auto (default)
+                                   asks the driver, on requires peer access and stops without
+                                   it, off exchanges through pinned host memory
+  --max-num-batched-tokens N       the largest token count one step may carry
+  --busy-prefill-chunk MODE        a prefill chunk's share of a step that has other work: auto
+                                   (default) leaves decode rows and new requests their room,
+                                   off takes the whole step, N holds the chunk to N tokens
+  --prefill-interleave N           decode-only steps after each prefill chunk while other
+                                   sequences decode, at most 64; 0 (default) lets every step
+                                   carry a chunk
+  --max-num-seqs N                 the largest number of sequences one step may carry
+  --max-model-len N                context bound; 0 takes the model's training context
+  --rope-scaling SPEC              yarn:FACTOR[:ORIG]: static YaRN over the container's own rotary
+                                   keys, no reconvert (docs/YARN.md); none: off
+  --gpu-headroom-mib N             VRAM left unclaimed on every card (default 96)
+  --kv-cache-dtype T               bf16 | fp8 | fp8_v4 | k6_v4 -- fp8 halves what a token of
+                                   context costs; fp8_v4 keeps V in 4 bits (0.78 of fp8), k6_v4
+                                   also K in 6 (0.69); both Qwen3.8-27B and -Flash-Next
+  --host-pool-mib N                pinned host tier
+  --host-headroom-mib N            host RAM to leave free for the system when radiance
+                                   pins its host memory at startup (default 4096)
+  --embedding-placement WHERE      ram (default) | vram: where the token embedding lives. ram
+                                   pins it in host memory beside --host-pool-mib, read over the
+                                   link in place; by default a model whose output head reads the
+                                   table, or a host without the memory, keeps it on the card
+  --vision-tower-placement WHERE   vram (default) | ram: where the encoder towers live (the
+                                   vision tower; the audio encoder too). ram pins them in host
+                                   memory beside --host-pool-mib, read over the link once an
+                                   image, and gives their VRAM to the KV cache
+  --ngram-placement WHERE          auto (default) | vram | ram | disk: where an n-gram
+                                   embedding table lives (Qwen3.8-Flash-Next: 47.7 GiB).
+                                   vram puts all of it on every card; ram copies it into
+                                   host memory at load, pinned for the cards to read
+                                   (locked, where only a host kernel reads it); disk reads
+                                   its rows from the container on the host. auto takes the
+                                   first of the three that holds it
+  --weights-disk-tier              read weights that fit neither VRAM nor the host pool from the
+                                   container on disk (O_DIRECT); a routed expert is read a layer
+                                   at a time, so a step is paced by the drive
+  --prefix-cache-mib N             copy finished conversations' KV to host memory, up to N MiB,
+                                   so their VRAM can go to experts and a return restores
+                                   instead of re-prefilling. A full tier drops its least
+                                   recently used entries. 0 is off
+  --prefix-cache-ttl S             seconds a cached conversation no request uses is kept, in VRAM
+                                   or host memory (default 3600). 0 keeps it until the memory
+                                   is wanted
+  --lora ADAPTER                   NAME=PATH: serve a LoRA adapter beside the base model
+                                   (repeatable). A text model takes a PEFT directory and
+                                   serves it as model NAME; an image or video generator takes
+                                   a .safetensors file (kohya, ComfyUI, PEFT, LyCORIS) that
+                                   a request names in `loras`. The base stays as it is
+  --lora-dir DIR                   image and video generators: a request may name any
+                                   NAME.safetensors under DIR in `loras`, opened when first
+                                   asked for
+  --max-loras N                    adapter slots resident at once (default: the number of
+                                   --lora, 2 with --lora-dir alone). A text model's slot holds
+                                   one adapter, a generator's one request's combination
+  --max-lora-rank R                the rank each slot is sized for (default 16 for a text
+                                   model, 64 for a generator); a text model's larger adapter is
+                                   refused, a generator's larger combination truncated
+  --lora-target-modules LIST       comma-separated HF module leaf names adapters may
+                                   target (q_proj,k_proj,...). Default: what the --lora
+                                   adapters target. Needed with --max-loras and no --lora
+  --placement MODE                 all_vram | layer_offload | expert_tiered | auto
+  --deterministic                  pin placement to the plan the loader made, so the resident
+                                   set cannot change under the heat engine. The sampler is
+                                   already order-independent and needs no pinning; note that
+                                   this does NOT make the engine bit-reproducible across
+                                   batch positions -- see spec §19
+  --checkpoint-interval N          linear-attention state checkpoint interval, in tokens
+  --prefill-span N                 checkpoint intervals one step may carry of a prefill alone
+                                   in its step, from the prompt's second interval on (default
+                                   1); needs --max-num-batched-tokens of N intervals. Every
+                                   other step is planned at the budget less the extra
+                                   intervals, and the checkpoints inside a span are not
+                                   written
+  --checkpoint-slots N             linear-state or sliding-window snapshots the server holds in
+                                   total, in pinned host memory. Default `auto`: what
+                                   --checkpoint-policy keeps for a --max-model-len session, plus
+                                   one, for each of --max-num-seqs, within an eighth of host
+                                   memory. N fixes the total; 0 keeps none
+  --no-prefix-cache                disable prefix caching
+  --checkpoint-policy NAME         which snapshots a session retains: geometric-backoff (default), tip-only, keep-all
+  --num-speculative-tokens N       speculative window; 0 disables. Default `auto`: the drafter's
+                                   own operating point, which the plugin states. A container
+                                   with no draft head is unaffected -- auto resolves to 0.
+  --draft-window MODE              fixed | adaptive: how many drafts each sequence carries. fixed drafts
+                                   --num-speculative-tokens every step; adaptive makes that
+                                   the ceiling and follows each sequence's acceptance and the
+                                   measured step cost (a serial draft head only). Default fixed
+  --draft-model PATH               NOT IMPLEMENTED -- merge the drafter at convert time
+  --host ADDR                      listen address
+  --port N                         listen port
+  --api-key KEY                    require `Authorization: Bearer KEY` or `X-Api-Key: KEY` on every request but /health,
+                                   /v1/health, /ping and the dashboard page
+  --served-model-name NAME         the model id /v1/models lists and responses carry; default the container's name
+  --mm-max-patches N               patches one encoder pass carries, and so the largest image (a patch is 16x16
+                                   pixels). Default `auto`: 16384 when the container carries a vision tower. 0
+                                   serves text only and keeps the tower off the card
+  --generation-config PATH         a generation_config.json whose sampler settings become the default
+                                   for requests that send none. Without it a <model>.generation.json
+                                   beside the container is used, then the container's own
+                                   `generation.*` metadata, then the built-in defaults
+  --override-chat-template PATH    a Jinja chat template file, used in place of the one the container carries
+  --temp F                         default temperature for requests that do not set one
+  --top-k N                        default top_k for requests that do not set one; 0 is the 1024 most
+                                   likely tokens, the sampler's candidate width
+  --top-p F                        default top_p for requests that do not set one
+  --min-p F                        default min_p (0 = off) for requests that do not set one.
+                                   These four override whatever the container or its generation
+                                   config asked for; unset, they are resolved from it
+  --reasoning-effort S             default `reasoning_effort` for chat requests that do not set one.
+                                   The value goes to the model's chat template verbatim, so the legal
+                                   set is the template's: Qwen3.8 takes xhigh|medium|low and defaults
+                                   to xhigh, which on a short task can spend the whole token budget
+                                   inside <think> and answer nothing. "none" turns thinking off
+  --reasoning-effort-map MAP       FROM=TO[,FROM=TO...]: a `reasoning_effort` a request sends, replaced before
+                                   the chat template sees it -- high=xhigh lets a client that always sends
+                                   OpenAI's top level reach Qwen3.8's. TO is checked against the template at
+                                   startup; none and minimal turn thinking off. Repeatable
+  --thinking-token-budget N        default `thinking_token_budget` for chat requests that do not set one: at
+                                   N reasoning tokens the reasoning block is closed and the answer follows,
+                                   so a client's max_tokens is not spent on reasoning alone. Unset is no
+                                   limit. Needs a reasoning block that ends in one token, as </think> is
+  --typical-p F                    default typical_p, (0, 1]. This flag and the eleven below set the default
+                                   for requests that do not name the field; a request that names it wins
+  --presence-penalty F             default presence_penalty, [-2, 2]
+  --frequency-penalty F            default frequency_penalty, [-2, 2]
+  --repetition-penalty F           default repetition_penalty, > 0
+  --repeat-last-n N                default repeat_last_n, the tokens those penalties look back over; -1 is all
+  --dry-multiplier F               default dry_multiplier; 0 is DRY off
+  --dry-base F                     default dry_base, >= 1
+  --dry-allowed-length N           default dry_allowed_length, >= 1
+  --dry-penalty-last-n N           default dry_penalty_last_n; -1 is the whole context
+  --dry-sequence-breakers JSON     default dry_sequence_breakers, a JSON array of at most 16 strings
+  --xtc-probability F              default xtc_probability, [0, 1]
+  --xtc-threshold F                default xtc_threshold, [0, 1]
+  --default-max-tokens N           max_tokens for requests that do not set one: N, or `auto` (default),
+                                   whatever the context leaves after the prompt
+  --max-tokens-cap N               the most any request may generate. A larger max_tokens is cut to it rather
+                                   than refused, and the reply ends with finish_reason "length". 0 is none
+                                   (default)
+  --max-n N                        the largest `n` a request may ask for (default: the larger of 8 and
+                                   --max-num-seqs)
+  --max-queued-requests N          requests admitted and unfinished at once, past which the answer is 429
+                                   (default 8 x --max-num-seqs)
+  --max-stop-strings N             stop strings one request may send (default 64)
+  --max-stop-bytes N               bytes in one stop string (default 4096)
+  --chat-template-kwargs JSON      variables handed to the chat template on every chat request: a JSON object,
+                                   or @FILE to read one. Repeatable, a later key replacing an earlier one.
+                                   A key the request's own chat_template_kwargs names is the request's, and a
+                                   request that says anything about thinking replaces enable_thinking and
+                                   reasoning_effort here
+  --reasoning-format MODE          auto (default): a reasoning block comes back as reasoning_content.
+                                   none: it stays inline in content
+  --http-threads N                 HTTP workers kept while idle (default: one per core, at least 4)
+  --read-timeout S                 seconds a client may go silent while sending a request (default 30)
+  --write-timeout S                seconds one write to a client may block (default 600)
+  --keep-alive-timeout S           seconds an idle connection is held open between requests (default 5)
+  --max-body-mib N                 the largest request body; images and video arrive base64 inside it
+                                   (default 512)
+  --retry-after S                  the Retry-After a 429 carries, in seconds (default 1)
+  --no-cors                        send no CORS headers, so a page on another origin cannot read the API
+  --image-min-pixels N             an image is resized to at least N pixels (default: the container's)
+  --image-max-pixels N             and to at most N; one encoder pass (--mm-max-patches) still bounds it
+  --video-min-pixels N             a video's sampled frames together resize to at least N pixels
+  --video-max-pixels N             and to at most N
+  --video-fps F                    frames sampled per second of video
+  --video-min-frames N             the fewest frames sampled from a video
+  --video-max-frames N             the most frames sampled from a video
+  --video-max-frame-tokens N       the most prompt tokens one video frame may become; 0 is no cap (a token
+                                   budget processor -- Gemma 4's -- takes 70, 140, 280, 560 or 1120)
+  --image-tokens N                 a token-budget processor's image budget (Gemma 4: 70, 140, 280, 560, 1120;
+                                   default the container's); a request's `image_tokens` overrides it
+  --max-source-pixels N            the largest image or video frame the decoder accepts, before any resize
+                                   (default 67108864). The media flags above default to what the container
+                                   states, and do nothing for a model that takes no media
+  --kld-record DIR                 instead of serving, run --kld-corpus through prefill and write this
+                                   model's log-probabilities at every scored position to DIR: the
+                                   reference a quantised model is measured against
+  --kld-ref DIR                    instead of serving, score this model against the reference in DIR:
+                                   mean, median, 99/99.9/99.99th percentile KL divergence and top-1
+                                   agreement, over the positions and tokens DIR was recorded at
+  --kld-corpus FILE                JSONL, one {"prompt", "score_from"?, "source"?} a line; --kld-record only
+  --kld-out FILE                   the --kld-ref report as JSON, and every position's numbers in FILE.rows
+  --kld-lora NAME                  run --kld-record / --kld-ref through the --lora adapter NAME
+  --kld-lora-sources PREFIX        --kld-lora only for documents whose source starts with PREFIX; the
+                                   rest run as the base, in the same steps (a mixed batch)
+  --debug-graph                    print the entire declared graph and exit-quality detail
+  --debug-selection                print the selection table
+  --debug-placement                print the placement plan
+  --debug-accept-reference-kernels serve even when ops resolve only to a reference library. NOT a production configuration: the reference
+                                   implementation is an oracle and a last resort, and falling back
+                                   to it is orders of magnitude of speed with nothing to say so.
+  --profile-ops                    per-op device timing (see the caveat it prints)
+  --live                           the live view: cards, throughput, draft acceptance, the expert plane.
+                                   Redirected it prints one greppable key=value line instead
+  -v                               verbose
+  -vv                              very verbose
+  --help                           this
+
+Every pool is budgeted explicitly: the split between KV blocks and resident weights
+is the operator's to set.

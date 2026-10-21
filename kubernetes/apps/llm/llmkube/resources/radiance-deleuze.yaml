@@ -1,0 +1,120 @@
+# Radiance on Deleuze: exact TP2, disk n-grams, measured prefill span and host tier.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: radiance-deleuze
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: openebs-hostpath-retain
+  resources:
+    requests:
+      storage: 256Gi
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: flashnext-deleuze-radiance
+spec:
+  source: pvc://radiance-deleuze/radiance/qwen3.8-next-flash-fp8-iq4r-moe.rad
+  format: custom
+  quantization: IQ4R-protected-BF16
+  hardware:
+    accelerator: rocm
+    gpu:
+      enabled: true
+      count: 2
+      vendor: amd
+      resourceName: amd.com/gpu
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: InferenceService
+metadata:
+  name: radiance
+spec:
+  modelRef: flashnext-deleuze-radiance
+  runtime: generic
+  image: docker.io/stilldeadcode/radiance:1.10.0@sha256:bb65a0a95534e4d35e21fa7c6ebd674365d271476169a67ffa9954af06a017ba
+  replicas: 1
+  suspend: false
+  skipModelInit: true
+  nodeSelector:
+    kubernetes.io/hostname: deleuze
+    amd.com/gpu.present: 'true'
+  command:
+  - /opt/radiance/bin/radiance
+  args:
+  - --model
+  - /models/radiance/qwen3.8-next-flash-fp8-iq4r-moe.rad
+  - --served-model-name
+  - qwen3.8-flash-next
+  - --tp
+  - '2'
+  - --tp-wire
+  - exact
+  - --max-num-seqs
+  - '2'
+  - --max-model-len
+  - '262144'
+  - --placement
+  - expert_tiered
+  - --host-pool-mib
+  - '8192'
+  - --ngram-placement
+  - disk
+  - --gpu-headroom-mib
+  - '160'
+  - --kv-cache-dtype
+  - fp8
+  - --num-speculative-tokens
+  - '3'
+  - --max-num-batched-tokens
+  - '4096'
+  - --host
+  - 0.0.0.0
+  - --port
+  - '8080'
+  - --mm-max-patches
+  - '0'
+  - --embedding-placement
+  - ram
+  - --draft-window
+  - fixed
+  - --prefill-span
+  - '2'
+  - --prefix-cache-mib
+  - '8192'
+  extraVolumes:
+  - name: weights
+    persistentVolumeClaim:
+      claimName: radiance-deleuze
+  extraVolumeMounts:
+  - name: weights
+    mountPath: /models
+    readOnly: true
+  resources:
+    cpu: '8'
+    memory: 48Gi
+    gpu: 2
+  endpoint:
+    port: 8080
+    path: /v1/chat/completions
+  rolloutPolicy:
+    waitForIdle: false
+  probeOverrides:
+    startup:
+      httpGet:
+        path: /health
+        port: 8080
+      periodSeconds: 10
+      failureThreshold: 180
+    readiness:
+      httpGet:
+        path: /health
+        port: 8080
+      periodSeconds: 10
+  podSecurityContext:
+    seccompProfile:
+      type: Unconfined

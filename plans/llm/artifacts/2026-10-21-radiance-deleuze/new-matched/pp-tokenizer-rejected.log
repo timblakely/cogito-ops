@@ -1,0 +1,31 @@
+Traceback (most recent call last):
+  File "/home/tim/git/cogito/scripts/llm/flashnext_public_bench.py", line 260, in <module>
+    main()
+    ~~~~^^
+  File "/home/tim/git/cogito/scripts/llm/flashnext_public_bench.py", line 210, in main
+    prompt, count = fit(endpoint, args.model, prefix, rotated, size)
+                    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tim/git/cogito/scripts/llm/flashnext_public_bench.py", line 49, in fit
+    count = tokens(endpoint, model, candidate)
+  File "/home/tim/git/cogito/scripts/llm/flashnext_public_bench.py", line 38, in tokens
+    with post(endpoint, "/tokenize", {"model": model, "prompt": prompt, "content": prompt}) as r:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tim/git/cogito/scripts/llm/flashnext_public_bench.py", line 34, in post
+    return urllib.request.urlopen(req, timeout=timeout)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.14/urllib/request.py", line 187, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.14/urllib/request.py", line 493, in open
+    response = meth(req, response)
+  File "/usr/lib64/python3.14/urllib/request.py", line 602, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "/usr/lib64/python3.14/urllib/request.py", line 531, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/usr/lib64/python3.14/urllib/request.py", line 464, in _call_chain
+    result = func(*args)
+  File "/usr/lib64/python3.14/urllib/request.py", line 611, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 400: Bad Request

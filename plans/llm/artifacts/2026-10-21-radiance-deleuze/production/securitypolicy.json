@@ -1,0 +1,28 @@
+{
+  "kind": "SecurityPolicy",
+  "name": "radiance-oidc",
+  "conditions": [],
+  "parents": [],
+  "ancestors": [
+    {
+      "ancestorRef": {
+        "group": "gateway.networking.k8s.io",
+        "kind": "Gateway",
+        "name": "envoy-internal",
+        "namespace": "envoy-system",
+        "sectionName": "https"
+      },
+      "conditions": [
+        {
+          "lastTransitionTime": "2026-10-21T16:34:20Z",
+          "message": "Policy has been accepted.",
+          "observedGeneration": 1,
+          "reason": "Accepted",
+          "status": "True",
+          "type": "Accepted"
+        }
+      ],
+      "controllerName": "gateway.envoyproxy.io/gatewayclass-controller"
+    }
+  ]
+}

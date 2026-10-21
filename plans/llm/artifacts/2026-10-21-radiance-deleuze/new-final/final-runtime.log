@@ -1,0 +1,443 @@
+I device: AQL backend, 2 device(s) [0:gfx1201 1:gfx1201]
+I model: qwen4exp  arch=qwen4exp  quant=bf16  48 layers  262144 ctx
+I vocab: end-of-generation also on <|endoftext|>=248044 (a control token the container declares neither as eos nor eot; without this a turn ending on it runs on)
+I vocab: 248077 tokens, bos=-1 eos=248046
+I gbnf: vocabulary index built in 65 ms, 26.11 MiB
+I device: the 2 cards reach each other's memory directly (peer to peer)
+I[0] sampler: 248320-token vocabulary (124160 this rank), 8 rows, 3880 mask words (15.16 KiB per row)
+I[1] sampler: 248320-token vocabulary (124160 this rank), 8 rows, 3880 mask words (15.16 KiB per row)
+I host-site execution: 9 of 1831 declared ops have no host kernel (ar_hc_write, router_topk_scatter, gated_had_quant_fp8, router_gemm_topk_scatter, ar_gather_hc_write, qk_norm_rope_gate, qk_norm_rope_gate_kv_store, gate_quant_fp8, attn_paged_gate_quant). Their weights may still be tiered to host or SSD -- only the arithmetic is pinned to the device. --debug-graph lists the bands.
+I declare: 1831 ops, 101536 weights, 107 buffers, 8 KV groups
+I speculation: 'mtp' drafts 3 token(s) a step in 3 serial pass(es); prompt lookup fills in for any sequence it declines
+I[1] sampler: 248320-token vocabulary (124160 this rank), 8 rows, 3880 mask words (15.16 KiB per row)
+I[1] sampler: 248320-token vocabulary (124160 this rank), 8 rows, 3880 mask words (15.16 KiB per row)
+I[1] sampler: 248320-token vocabulary (124160 this rank), 8 rows, 3880 mask words (15.16 KiB per row)
+I[0] sampler: 248320-token vocabulary (124160 this rank), 8 rows, 3880 mask words (15.16 KiB per row)
+I[0] sampler: 248320-token vocabulary (124160 this rank), 8 rows, 3880 mask words (15.16 KiB per row)
+I[0] sampler: 248320-token vocabulary (124160 this rank), 8 rows, 3880 mask words (15.16 KiB per row)
+I activation arena: 256 tokens use 185.32 MiB, 1024 tokens use 548.49 MiB, 2048 tokens use 1.01 GiB of 1.27 GiB (the fixed region is 209.25 KiB); the rest is lent to the expert slab while the steps are that small
+I placement: token embedding (606.25 MiB a rank) ram: as asked
+I placement: n-gram table (47.68 GiB) disk: as asked
+I kv: the pool backs 100% of the worst case (2 sequences all at 262144 tokens), 2.0 full-length sessions; a larger --host-pool-mib gives the cache more
+I VRAM budget, per card:
+  card total          31.86 GiB
+  already held       316.61 MiB   measured: driver context, code objects, anything else resident
+  driver drift        16.00 MiB   what that moves by after it is read: kept free
+  activation arena     1.36 GiB   computed from the buffer plan
+  step staging         3.21 MiB   the step batch's block tables and media staging, and the
+                                  KV tiers' copy staging
+  hardware queues    133.47 MiB   4 a card at 33.37 MiB each, measured: the engine's streams
+  expert prefetch     12.00 MiB   the next-layer prefetch's ring of expert units and buffers
+  --gpu-headroom-mib 160.00 MiB   left unclaimed on purpose
+  ------------------------------
+  claimable           29.87 GiB
+  static weights       2.75 GiB   off the top: every rank's own shard, and not a share of anything
+  ------------------------------
+  elastic             27.13 GiB   the experts keep what the host pool cannot hold; the cache takes the rest
+                                  and lends what no live request holds to the expert slab
+    experts           22.99 GiB   85% of it
+    kv cache           3.87 GiB   14% of it -- backs 2 sequences all at 262144 tokens at once, which is the worst case and
+                                  more would be unusable
+    prefill staging  267.60 MiB   out of the experts: two buffers of one layer's non-resident experts,
+                                  at the arena's top and lent back to the slab while steps are small
+  ==============================
+  vram_weights        25.74 GiB   static + experts
+  vram_kv              3.87 GiB   the cache's share
+  unclaimed          159.18 MiB   the headroom, the unusable above, and what MiB rounding
+                                  could not place
+
+I[0] pools:
+vram_weights    25.74 GiB budget,        0 B used,  25.74 GiB free
+vram_kv          3.87 GiB budget,        0 B used,   3.87 GiB free
+host_pool        8.59 GiB budget,        0 B used,   8.59 GiB free
+
+I[0] placement: 'token_embd.weight' (606.25 MiB) in the pinned host pool, read in place (--embedding-placement ram)
+I[1] pools:
+vram_weights    25.74 GiB budget,        0 B used,  25.74 GiB free
+vram_kv          3.87 GiB budget,        0 B used,   3.87 GiB free
+host_pool        8.59 GiB budget,        0 B used,   8.59 GiB free
+
+I[1] placement: 'token_embd.weight' (606.25 MiB) in the pinned host pool, read in place (--embedding-placement ram)
+I[0] mover: 19439 slab slots (64 shadow, 320 more kept free out of a loan), 5704 pinned pool slots, 2.75 GiB static vram
+I[0] load: rank 0, mover took 25.74 GiB, weights pool 908.00 KiB free of 25.74 GiB
+I[0] heat engine: 25078 movable units, 64 moves a step, decay 0.950 hysteresis 1.25 min-gain 1.50 credit cap 512
+I[1] mover: 19488 slab slots (64 shadow, 320 more kept free out of a loan), 5655 pinned pool slots, 2.70 GiB static vram
+I[1] load: rank 1, mover took 25.74 GiB, weights pool 124.00 KiB free of 25.74 GiB
+I[1] heat engine: 25078 movable units, 64 moves a step, decay 0.950 hysteresis 1.25 min-gain 1.50 credit cap 512
+I load: 8.05 GiB of 64.94 GiB read, 4.9 GB/s, at container offset 59943632896
+I load: 16.05 GiB of 64.94 GiB read, 5.0 GB/s, at container offset 68533567488
+I load: 24.05 GiB of 64.94 GiB read, 5.0 GB/s, at container offset 77123502080
+I load: 32.05 GiB of 64.94 GiB read, 5.0 GB/s, at container offset 85713436672
+I load: 40.05 GiB of 64.94 GiB read, 5.0 GB/s, at container offset 94303371264
+I load: 48.05 GiB of 64.94 GiB read, 5.0 GB/s, at container offset 102893305856
+I load: 56.05 GiB of 64.94 GiB read, 4.9 GB/s, at container offset 111483240448
+I load: 64.05 GiB of 64.94 GiB read, 4.9 GB/s, at container offset 120073175040
+I load: one pass over the container, 65.05 GiB read in 14.1 s (4.9 GB/s) for 2 rank(s); 11.1 s of that was the disk (6.3 GB/s)
+I load: 202452 weight(s), 64.07 GiB of planes, rearranged for their kernels by 10 worker(s) behind the read, 4.00 GiB held at most; done 15.1 s after the read began
+I load: 203068 weights, 65.82 GiB placed from 65.05 GiB of container read
+I load: 4 weight(s), 95.37 GiB, read in place from the container's mapping -- not copied and charged to no pool (summed over ranks, which map the same file: the resident bytes are that divided by --tp)
+I chunk geometry: quantum 64 (attn block 4, state chunk 64), checkpoint interval 2048, max_tok 4096 -> prefill chunks of at most 4096
+I chunk geometry: a prefill alone in its step spans up to 2 intervals from its second interval on; every other step is planned at 2048 tokens
+I kv: KV layer bundles 13/36/36/13/1/1/13 (113 real layers)
+    vLLM stock    size  1 -> 113 groups, 113 slots (0 padding)
+    least-waste   size  1 -> 113 groups, 113 slots (0 padding)
+    radiance      per state kind, own pool ->  7 groups, 113 slots (0 padding)
+    (none)         ?        0 layers  state      0 B        0 slots =       0 B
+    kv_attn        full    13 layers  block    4 tok  page 26.00 KiB   131079 blocks =  3.25 GiB  (524316 tokens)
+    kv_gdn_state   linear  36 layers  state 54.00 MiB        4 slots = 216.00 MiB
+    kv_gdn_conv    conv    36 layers  state 2.11 MiB        2 slots =  4.22 MiB
+    kv_qsa_tail    linear  13 layers  state 22.75 KiB        4 slots = 91.00 KiB
+    kv_ple_tok     conv     1 layers  state     20 B        2 slots =      40 B
+    kv_ple_conv    conv     1 layers  state 240.00 KiB        2 slots = 480.00 KiB
+    kv_qsa_bkey    full    13 layers  block    4 tok  page 3.25 KiB   131079 blocks = 416.02 MiB  (524316 tokens)
+    pool at 0x7f38f8600000, 3.87 GiB; groups at +0..+4157586176
+
+I prefix cache: disabled by --no-prefix-cache
+
+I[0] arena: 1.53 GiB device + 2 x 47.08 MiB scratch = 1.62 GiB, charged to the VRAM budget before it was split
+I[0] device: card 0 copy lists go to DMA engine 0 on a queue of this process's own (0.9 ms to open)
+I[0] prefill staging: a 267.60 MiB ring at the top of the arena; a step of more than 1024 tokens copies the pooled experts of 48 routed layers onto the card up to 3 layers ahead of the layers that read them
+I[1] arena: 1.52 GiB device + 2 x 47.08 MiB scratch = 1.62 GiB, charged to the VRAM budget before it was split
+I[1] device: card 1 copy lists go to DMA engine 0 on a queue of this process's own (0.8 ms to open)
+I mover: 3083 slots can be lent out of the KV cache (3.64 GiB), filled as it lends them
+I mover: 3081 slots can be lent out of the KV cache (3.65 GiB), filled as it lends them
+I rank 0: expert prefetch on: 2 copies a routed layer by DMA, ring 8.72 MiB
+I rank 1: expert prefetch on: 2 copies a routed layer by DMA, ring 8.72 MiB
+I kv: the cache can grow to 3.87 GiB a card -- 524316 tokens of context, 2.0 sessions at 262144 -- with every block it lends the experts taken back; 220.78 MiB of that is per-sequence state, and up to 3.64 GiB is lent to the experts while no request holds it
+I mover: 1140 slots can be lent out of the activation arena (1.35 GiB), filled as it lends them
+I mover: 1135 slots can be lent out of the activation arena (1.34 GiB), filled as it lends them
+I activation arena: lends 1.35 GiB while steps are at most 256 tokens, 1015.88 MiB while steps are at most 1024 tokens, 264.25 MiB while steps are at most 2048 tokens
+I device allocations: 818 totalling 54.72 GiB, of which 59.23 GiB is the two pools -- the rest is the activation arena and the step staging. Anything on the card past this is the driver or a kernel plugin's own hipMalloc, which this cannot see.
+I[0] card 0 settled at 207.27 MiB free, against 196.58 MiB (the 160.00 MiB --gpu-headroom-mib and 36.58 MiB kept for the step staging and for what is built on first use)
+I[1] card 1 settled at 219.20 MiB free, against 196.58 MiB (the 160.00 MiB --gpu-headroom-mib and 36.58 MiB kept for the step staging and for what is built on first use)
+I draft floor: 2 paged group(s), 0 prefix-cached -> a hit leaves a hole in a drafter's own KV
+I step batch: 9.65 MiB pinned staging ring + 3.21 MiB device slab a rank (3.00 MiB of it block tables), 8 KV group(s), 0 derived buffer(s)
+I scheduler: --busy-prefill-chunk auto: a prefill chunk sharing a step leaves decode rows and waiting requests their room and keeps at least 1024 tokens (the prefill stager's smallest pass)
+I scheduler: --prefill-span: a prefill spans when it is 16384 tokens or longer -- routed experts are read from host memory, and the arena a spanned step takes is room they lose for it
+I chat: template loaded (8952 bytes); tools=1 tool_calls=1 system=1 thinking=1
+I chat: reply format template: reasoning "<think>\n".."\n</think>\n\n"; calls "<tool_call>\n""<function="NAME">\n" "<parameter="ARG">\n"""VALUE"</parameter>\n" "</function>\n""</tool_call>"; grammar on "<tool_call>\n"
+I sampling defaults for requests that send none: temperature 1.00, top_k 20, top_p 0.95, min_p 0.00 (from the container)
+I chat: the template takes reasoning_effort low, medium, xhigh, and none or minimal turn thinking off
+I chat: a request naming no reasoning_effort renders as 'xhigh', the template's own default (--reasoning-effort sets another)
+I STARTUP REPORT -- radiance 1.10.0
+I CONFIGURATION -- every option, the value in force, and where it came from
+I   --model                            /models/radiance/qwen3.8-next-flash-fp8-iq4r-moe.rad  [command line]
+I   --download-dir                     the XDG cache (~/.cache/radiance/hf)        [default]
+I   --radiance-home                    /opt/radiance/share/radiance                [default]
+I   --kernels                          libavx@0.1.0,libr4d@0.5.0,libref@0.1.0      [auto]
+I                                        every kernel library under --radiance-home, in the loader's order (a reference implementation last); architecture plugin qwen4exp_fp8@0.1.0
+I   --tp                               2                                           [command line]
+I   --tp-wire                          exact                                       [command line]
+I   --tp-wire-min-kb                   128                                         [default]
+I   --p2p                              peer to peer                                [auto]
+I                                        the driver reports every pair of the ranks' cards can reach the other's memory
+I   --max-num-batched-tokens           4096                                        [command line]
+I   --busy-prefill-chunk               auto                                        [default]
+I   --prefill-interleave               off                                         [default]
+I   --max-num-seqs                     2                                           [command line]
+I   --max-model-len                    262144                                      [command line]
+I   --rope-scaling                     the checkpoint's own                        [default]
+I   --gpu-headroom-mib                 160                                         [command line]
+I   --kv-cache-dtype                   fp8                                         [command line]
+I   --host-pool-mib                    8192                                        [command line]
+I   --host-headroom-mib                4096                                        [default]
+I   --embedding-placement              ram                                         [command line]
+I                                        the table is 606.25 MiB a rank: as asked
+I   --vision-tower-placement           n/a                                         [auto]
+I                                        this server declares no encoder tower
+I   --ngram-placement                  disk                                        [command line]
+I                                        the table is 47.68 GiB: as asked
+I   --weights-disk-tier                off                                         [default]
+I   --prefix-cache-mib                 0 (off)                                     [default]
+I   --prefix-cache-ttl                 3600 s                                      [default]
+I   --lora                             none                                        [default]
+I   --lora-dir                         none                                        [default]
+I   --max-loras                        0 (off)                                     [default]
+I   --max-lora-rank                    auto (16 text, 64 generator)                [default]
+I   --lora-target-modules              -                                           [default]
+I   --placement                        expert_tiered                               [command line]
+I                                        as asked
+I   --deterministic                    off                                         [default]
+I   --checkpoint-interval              2048                                        [default]
+I   --prefill-span                     2                                           [command line]
+I   --checkpoint-slots                 0                                           [auto]
+I                                        prefix caching is off (--no-prefix-cache)
+I   --no-prefix-cache                  prefix caching off                          [command line]
+I   --checkpoint-policy                geometric-backoff                           [default]
+I   --num-speculative-tokens           3                                           [command line]
+I   --draft-window                     fixed                                       [command line]
+I   --draft-model                      not implemented (the container's own drafter)  [default]
+I   --host                             0.0.0.0                                     [command line]
+I   --port                             8080                                        [command line]
+I   --api-key                          not set                                     [default]
+I   --served-model-name                qwen3.8-flash-next                          [command line]
+I   --mm-max-patches                   0                                           [command line]
+I   --generation-config                none                                        [default]
+I   --override-chat-template           none (the container's)                      [default]
+I   --temp                             1                                           [auto]
+I                                        from the container
+I   --top-k                            20                                          [auto]
+I                                        from the container
+I   --top-p                            0.95                                        [auto]
+I                                        from the container
+I   --min-p                            0                                           [auto]
+I                                        the container states no min_p, so this is the built-in default
+I   --reasoning-effort                 the template's default                      [default]
+I   --reasoning-effort-map             none                                        [default]
+I   --thinking-token-budget            none                                        [default]
+I   --typical-p                        the request default                         [default]
+I   --presence-penalty                 the request default                         [default]
+I   --frequency-penalty                the request default                         [default]
+I   --repetition-penalty               the request default                         [default]
+I   --repeat-last-n                    the request default                         [default]
+I   --dry-multiplier                   the request default                         [default]
+I   --dry-base                         the request default                         [default]
+I   --dry-allowed-length               the request default                         [default]
+I   --dry-penalty-last-n               the request default                         [default]
+I   --dry-sequence-breakers            the request default                         [default]
+I   --xtc-probability                  the request default                         [default]
+I   --xtc-threshold                    the request default                         [default]
+I   --default-max-tokens               auto (what the context leaves after the prompt)  [default]
+I   --max-tokens-cap                   none                                        [default]
+I   --max-n                            8                                           [auto]
+I                                        the larger of 8 and --max-num-seqs
+I   --max-queued-requests              16                                          [auto]
+I                                        8 x --max-num-seqs
+I   --max-stop-strings                 64                                          [default]
+I   --max-stop-bytes                   4096                                        [default]
+I   --chat-template-kwargs             none                                        [default]
+I   --reasoning-format                 auto                                        [default]
+I   --http-threads                     12                                          [auto]
+I                                        one a hardware thread, at least 4
+I   --read-timeout                     30 s                                        [default]
+I   --write-timeout                    600 s                                       [default]
+I   --keep-alive-timeout               5 s                                         [default]
+I   --max-body-mib                     512                                         [default]
+I   --retry-after                      1 s                                         [default]
+I   --no-cors                          not given: CORS headers sent                [default]
+I   --image-min-pixels                 the container's                             [default]
+I   --image-max-pixels                 the container's                             [default]
+I   --video-min-pixels                 the container's                             [default]
+I   --video-max-pixels                 the container's                             [default]
+I   --video-fps                        the container's                             [default]
+I   --video-min-frames                 the container's                             [default]
+I   --video-max-frames                 the container's                             [default]
+I   --video-max-frame-tokens           the container's                             [default]
+I   --image-tokens                     the container's                             [default]
+I   --max-source-pixels                67108864                                    [default]
+I   --kld-record                       none                                        [default]
+I   --kld-ref                          none                                        [default]
+I   --kld-corpus                       none                                        [default]
+I   --kld-out                          none                                        [default]
+I   --kld-lora                         none (the base)                             [default]
+I   --kld-lora-sources                 every document                              [default]
+I   --debug-graph                      off                                         [default]
+I   --debug-selection                  off                                         [default]
+I   --debug-placement                  off                                         [default]
+I   --debug-accept-reference-kernels   off                                         [default]
+I   --profile-ops                      off                                         [default]
+I   --live                             off                                         [default]
+I   -v                                 off                                         [default]
+I   -vv                                off                                         [default]
+I ENVIRONMENT -- the RADIANCE_* variables set, by name; their values are not shown
+I   none
+I DERIVED -- what startup worked out that no single option states
+I   kernel selection                   libavx (host) 2701, libr4d 3060 op bands
+I                                        attention:
+I                                        attn_paged -> attn_decode_h256_gqa12_fp8kv
+I                                        attn_paged -> attn_prefill_h256_gqa12_fp8kv
+I                                        attn_paged -> avx_attn_paged
+I                                        attn_paged_gate_quant -> attn_decode_gq_h256_gqa12_fp8kv
+I                                        kv_store -> avx_kv_store
+I                                        kv_store -> kv_store_fp8
+I                                        qk_norm_rope_gate -> qk_norm_rope_gate
+I                                        qk_norm_rope_gate_kv_store -> qk_norm_rope_gate_kv_store_fp8
+I                                        qsa_block_key -> avx_qsa_block_key
+I                                        qsa_block_key -> qsa_block_key_bf16
+I                                        qsa_score -> avx_qsa_score
+I                                        qsa_score -> qsa_score_bf16
+I                                        qsa_select -> avx_qsa_select
+I                                        qsa_select -> qsa_select_i32
+I                                        qsa_tail_store -> avx_qsa_tail_store
+I                                        qsa_tail_store -> qsa_tail_store_bf16
+I                                        qsa_work -> avx_qsa_work
+I                                        qsa_work -> qsa_work_bf16
+I                                        rope -> avx_rope
+I                                        rope -> rope_bf16
+I                                        rope_table -> avx_rope_table
+I                                        rope_table -> rope_table_f32
+I   vram split                         weights 25.74 GiB (experts 22.99 GiB of it), KV cache 3.87 GiB, a card
+I                                        VRAM budget, per card:
+I                                          card total          31.86 GiB
+I                                          already held       316.61 MiB   measured: driver context, code objects, anything else resident
+I                                          driver drift        16.00 MiB   what that moves by after it is read: kept free
+I                                          activation arena     1.36 GiB   computed from the buffer plan
+I                                          step staging         3.21 MiB   the step batch's block tables and media staging, and the
+I                                                                          KV tiers' copy staging
+I                                          hardware queues    133.47 MiB   4 a card at 33.37 MiB each, measured: the engine's streams
+I                                          expert prefetch     12.00 MiB   the next-layer prefetch's ring of expert units and buffers
+I                                          --gpu-headroom-mib 160.00 MiB   left unclaimed on purpose
+I                                          ------------------------------
+I                                          claimable           29.87 GiB
+I                                          static weights       2.75 GiB   off the top: every rank's own shard, and not a share of anything
+I                                          ------------------------------
+I                                          elastic             27.13 GiB   the experts keep what the host pool cannot hold; the cache takes the rest
+I                                                                          and lends what no live request holds to the expert slab
+I                                            experts           22.99 GiB   85% of it
+I                                            kv cache           3.87 GiB   14% of it -- backs 2 sequences all at 262144 tokens at once, which is the worst case and
+I                                                                          more would be unusable
+I                                            prefill staging  267.60 MiB   out of the experts: two buffers of one layer's non-resident experts,
+I                                                                          at the arena's top and lent back to the slab while steps are small
+I                                          ==============================
+I                                          vram_weights        25.74 GiB   static + experts
+I                                          vram_kv              3.87 GiB   the cache's share
+I                                          unclaimed          159.18 MiB   the headroom, the unusable above, and what MiB rounding
+I                                                                          could not place
+I   weights by tier                    VRAM 25.62 GiB, host pool 7.32 GiB, container on disk 0 B, mapped 47.68 GiB (rank 0)
+I                                        the host pool holds the 606.25 MiB the placement flags put there (the token embedding, the encoder towers) beside the weights placed in it
+I   kv cache                           3.87 GiB a card: 524316 tokens, 2.0 sessions at 262144
+I                                        220.78 MiB of it is per-sequence state; up to 3.64 GiB is lent to the experts while no request holds it
+I HARDWARE
+I   host      AMD Ryzen 5 5600 6-Core Processor | 6 cores, 12 threads | RAM 125.62 GiB, 97.89 GiB available | swap none
+I   system    kernel 6.18.57-talos | unknown | no container seen | cgroup memory 48.00 GiB | memlock 8.00 MiB
+I   memory    huge pages madvise (defrag madvise, shmem never) | ttm.pages_limit 62.81 GiB | pinned by this process 17.93 GiB
+I   iommu     passthrough (the display devices' IOMMU groups are of type identity)
+I   amdgpu    cwsr_enable 1 | boot parameters: amd_iommu=on iommu=pt
+I   cpu       governor powersave, energy preference balance_performance (amd-pstate-epp) | io_uring available
+I   runtime   HIP 7.16.26385 | backend device
+I   card 0000:0a:00.0  rank 0 (device 0)  gfx1201 "AMD Radeon AI PRO R9700"  31.86 GiB VRAM  NUMA -1  driver amdgpu card1
+I       link   00:03.1 16.0 GT/s x8 (max 16.0 GT/s x8) -> 08:00.0 16.0 GT/s x8 (max 32.0 GT/s x16) -> 09:00.0 32.0 GT/s x16 (max 32.0 GT/s x16) -> 0a:00.0 32.0 GT/s x16 (max 32.0 GT/s x16)  [read at 36% busy]
+I       pcie   0: 2.5GT/s, x8 250Mhz | 1: 16.0GT/s, x8 616Mhz | *2: 16.0GT/s, x8 1143Mhz
+I       dma    copy lists on DMA engine 0, a queue of this process's own; they give way to the collectives
+I       power  cap 300 W (default 300 W, max 300 W) | voltage offset unknown | sclk 500-2350 MHz | mclk 96-1258 MHz | runtime pm active (control auto) | iommu group identity
+I   card 0000:0d:00.0  rank 1 (device 1)  gfx1201 "AMD Radeon AI PRO R9700"  31.86 GiB VRAM  NUMA -1  driver amdgpu card0
+I       link   00:03.2 16.0 GT/s x8 (max 16.0 GT/s x8) -> 0b:00.0 16.0 GT/s x8 (max 32.0 GT/s x16) -> 0c:00.0 32.0 GT/s x16 (max 32.0 GT/s x16) -> 0d:00.0 32.0 GT/s x16 (max 32.0 GT/s x16)  [read at 34% busy]
+I       pcie   0: 2.5GT/s, x8 250Mhz | 1: 16.0GT/s, x8 616Mhz | *2: 16.0GT/s, x8 1143Mhz
+I       dma    copy lists on DMA engine 0, a queue of this process's own; they give way to the collectives
+I       power  cap 300 W (default 300 W, max 300 W) | voltage offset unknown | sclk 500-2350 MHz | mclk 96-1258 MHz | runtime pm active (control auto) | iommu group identity
+I FINDINGS -- 2 warnings, 6 notes
+I   WARN link-below-max: card 0000:0a:00.0 (rank 0): the PCIe link at 0000:08:00.0 runs 16.0 GT/s x8 of its 32.0 GT/s x16 while the card is 36% busy
+I        why: every copy between host memory and the card -- experts streamed from the host pool, the all-reduce through host memory, the embedding read in place -- and every kernel launch's packet fetch cross this link, so the card serves at the slower link's rate and a tensor-parallel step waits for it
+I        fix: a link stuck one level down after long uptime has been cleared by a reboot; check that it recovers under load (GET /diagnostics during a long prefill), and reseat or move the card if it trains narrow
+I   WARN link-below-max: card 0000:0d:00.0 (rank 1): the PCIe link at 0000:0b:00.0 runs 16.0 GT/s x8 of its 32.0 GT/s x16 while the card is 34% busy
+I        why: every copy between host memory and the card -- experts streamed from the host pool, the all-reduce through host memory, the embedding read in place -- and every kernel launch's packet fetch cross this link, so the card serves at the slower link's rate and a tensor-parallel step waits for it
+I        fix: a link stuck one level down after long uptime has been cleared by a reboot; check that it recovers under load (GET /diagnostics during a long prefill), and reseat or move the card if it trains narrow
+I   note prefix-cache-off: prefix caching is off (--no-prefix-cache)
+I        why: every request prefills its whole prompt, including the conversation it shares with the turn before
+I        fix: drop --no-prefix-cache
+I   note experts-from-host: 6.72 GiB of weights a rank live in the pinned host pool and cross PCIe when they are used
+I        why: a prefill step streams every routed layer's pooled experts onto the card, so its speed is bounded by the link; decode reads the ones it routes to
+I        fix: more VRAM for the experts: a shorter --max-model-len or fewer --max-num-seqs, --embedding-placement ram, --kv-cache-dtype fp8, or more cards (--tp)
+I   note link-capped: card 0000:0a:00.0 (rank 0): the card's link is 32.0 GT/s x16 at most, and 0000:00:03.1 above it is 16.0 GT/s x8 at most
+I        why: the host side of the link bounds what the card can move to and from host memory: streamed experts, the host pool and the all-reduce when it goes through host memory
+I        fix: a slot with the card's full width and speed (the board manual says which slots share lanes), or no riser; nothing to do if the board has no faster slot
+I   note link-capped: card 0000:0d:00.0 (rank 1): the card's link is 32.0 GT/s x16 at most, and 0000:00:03.2 above it is 16.0 GT/s x8 at most
+I        why: the host side of the link bounds what the card can move to and from host memory: streamed experts, the host pool and the all-reduce when it goes through host memory
+I        fix: a slot with the card's full width and speed (the board manual says which slots share lanes), or no riser; nothing to do if the board has no faster slot
+I   note memlock-limited: RLIMIT_MEMLOCK is 8.00 MiB and the n-gram table is read from the container on disk
+I        why: a locked copy of the table in RAM is one of the faster tiers, and the memlock limit is one of the things that keeps --ngram-placement auto off it
+I        fix: Docker: ulimits memlock -1 (--ulimit memlock=-1); systemd: LimitMEMLOCK=infinity
+I   note cpu-governor: the CPU governor is powersave with energy preference balance_performance
+I        why: the host side of a step -- scheduling, sampling, the n-gram gather, launch bookkeeping -- is single-threaded per rank, and a core that ramps slowly shows as host gap between steps
+I        fix: cpupower frequency-set -g performance, or echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference
+W startup report: link-below-max: card 0000:0a:00.0 (rank 0): the PCIe link at 0000:08:00.0 runs 16.0 GT/s x8 of its 32.0 GT/s x16 while the card is 36% busy. Fix: a link stuck one level down after long uptime has been cleared by a reboot; check that it recovers under load (GET /diagnostics during a long prefill), and reseat or move the card if it trains narrow
+W startup report: link-below-max: card 0000:0d:00.0 (rank 1): the PCIe link at 0000:0b:00.0 runs 16.0 GT/s x8 of its 32.0 GT/s x16 while the card is 34% busy. Fix: a link stuck one level down after long uptime has been cleared by a reboot; check that it recovers under load (GET /diagnostics during a long prefill), and reseat or move the card if it trains narrow
+I serving on http://0.0.0.0:8080  (/v1/completions; /v1/chat/completions with tools and reasoning)
+I server: listening on http://0.0.0.0:8080 (12 threads, up to 80)
+I req chatcmpl-e966b714971f13604fd66f22 chat stream from 127.0.0.1:36094 model=qwen3.8-flash-next msgs=2 tools=0 prompt=1512 tok n=1 max_tokens=256
+I recorded pass: draft pass -1 at 1512 token(s) -- 56 records, 11 of the 56 dispatches unordered behind the one before; 0 host op(s), 8 table refresh point(s) and 1 routing report(s) between the played stretches
+I recorded pass: draft pass 2 at 1 token(s) -- 41 records, 9 of the 41 dispatches unordered behind the one before; 0 host op(s), 8 table refresh point(s) and 1 routing report(s) between the played stretches
+I recorded pass: draft pass 3 at 1 token(s) -- 40 records, 9 of the 40 dispatches unordered behind the one before; 0 host op(s), 8 table refresh point(s) and 1 routing report(s) between the played stretches
+I recorded pass: draft pass 0 at 4 token(s) -- 973 records, 245 of the 971 dispatches unordered behind the one before; 1 host op(s), 392 table refresh point(s) and 48 routing report(s) between the played stretches
+I req chatcmpl-e966b714971f13604fd66f22 done from 127.0.0.1:36094 finish=length prompt=1512 (cache 0) gen=256 reason=256 ttft=0.49s 135.1 tok/s 2.38s
+I req chatcmpl-b5bdbc9b2527a864c5c9fc3f chat stream from 127.0.0.1:36144 model=qwen3.8-flash-next msgs=2 tools=0 prompt=40712 tok n=1 max_tokens=256
+I rank 1: expert prefetch resting: the steps used 22% of its last 1333 copies, under the 30% that pays for them; it measures again every 8192 passes
+I rank 0: expert prefetch resting: the steps used 23% of its last 1285 copies, under the 30% that pays for them; it measures again every 8192 passes
+I req chatcmpl-b5bdbc9b2527a864c5c9fc3f done from 127.0.0.1:36144 finish=length prompt=40712 (cache 0) gen=256 reason=256 ttft=7.37s 145.7 tok/s 9.12s
+I req chatcmpl-b456eb89903d511e51dd4515 chat stream from 127.0.0.1:47690 model=qwen3.8-flash-next msgs=2 tools=0 prompt=1512 tok n=1 max_tokens=256
+I req chatcmpl-b9f6205bf7ee1987457c9733 chat stream from 127.0.0.1:47698 model=qwen3.8-flash-next msgs=2 tools=0 prompt=1512 tok n=1 max_tokens=256
+I req chatcmpl-b9f6205bf7ee1987457c9733 done from 127.0.0.1:47698 finish=length prompt=1512 (cache 0) gen=256 reason=256 ttft=0.64s 149.6 tok/s 2.35s
+I req chatcmpl-b456eb89903d511e51dd4515 done from 127.0.0.1:47690 finish=length prompt=1512 (cache 0) gen=256 reason=256 ttft=0.40s 128.3 tok/s 2.38s
+I req chatcmpl-d6b0ad65f0e3b4658101397a chat stream from 127.0.0.1:49648 model=qwen3.8-flash-next msgs=2 tools=0 prompt=40712 tok n=1 max_tokens=256
+I req chatcmpl-1874106ed31afd1710c7ed92 chat stream from 127.0.0.1:49650 model=qwen3.8-flash-next msgs=2 tools=0 prompt=40712 tok n=1 max_tokens=256
+I req chatcmpl-1874106ed31afd1710c7ed92 done from 127.0.0.1:49650 finish=length prompt=40712 (cache 0) gen=256 reason=256 ttft=15.46s 112.3 tok/s 17.73s
+I req chatcmpl-d6b0ad65f0e3b4658101397a done from 127.0.0.1:49648 finish=length prompt=40712 (cache 0) gen=256 reason=256 ttft=15.44s 110.1 tok/s 17.75s
+I req chatcmpl-1d3a72a2d5cba2fcc5b95dc0 chat stream from 127.0.0.1:49724 model=qwen3.8-flash-next msgs=2 tools=0 prompt=1512 tok n=1 max_tokens=256
+I req chatcmpl-1d3a72a2d5cba2fcc5b95dc0 done from 127.0.0.1:49724 finish=length prompt=1512 (cache 0) gen=256 reason=256 ttft=0.34s 182.2 tok/s 1.74s
+I req chatcmpl-14740e3a84ab5498e4923f26 chat stream from 127.0.0.1:37580 model=qwen3.8-flash-next msgs=2 tools=0 prompt=1512 tok n=1 max_tokens=256
+I req chatcmpl-14740e3a84ab5498e4923f26 done from 127.0.0.1:37580 finish=length prompt=1512 (cache 0) gen=256 reason=256 ttft=0.34s 184.4 tok/s 1.73s
+I req chatcmpl-241b3315931b7ef6c2622364 chat stream from 127.0.0.1:37618 model=qwen3.8-flash-next msgs=2 tools=0 prompt=1512 tok n=1 max_tokens=256
+I req chatcmpl-241b3315931b7ef6c2622364 done from 127.0.0.1:37618 finish=length prompt=1512 (cache 0) gen=256 reason=256 ttft=0.34s 184.4 tok/s 1.73s
+I req chatcmpl-d323ebf04aa5108819f4ee1d chat stream from 127.0.0.1:37722 model=qwen3.8-flash-next msgs=2 tools=0 prompt=40712 tok n=1 max_tokens=256
+I req chatcmpl-d323ebf04aa5108819f4ee1d done from 127.0.0.1:37722 finish=length prompt=40712 (cache 0) gen=256 reason=256 ttft=7.37s 163.8 tok/s 8.92s
+I req chatcmpl-ce2e1e1b1de57ef9e9c5e696 chat stream from 127.0.0.1:49958 model=qwen3.8-flash-next msgs=2 tools=0 prompt=40712 tok n=1 max_tokens=256
+I req chatcmpl-ce2e1e1b1de57ef9e9c5e696 done from 127.0.0.1:49958 finish=length prompt=40712 (cache 0) gen=256 reason=256 ttft=7.36s 167.2 tok/s 8.89s
+I req chatcmpl-013f4555ecbcfc92600bc224 chat stream from 127.0.0.1:39078 model=qwen3.8-flash-next msgs=2 tools=0 prompt=40712 tok n=1 max_tokens=256
+I req chatcmpl-013f4555ecbcfc92600bc224 done from 127.0.0.1:39078 finish=length prompt=40712 (cache 0) gen=256 reason=256 ttft=7.36s 167.3 tok/s 8.88s
+I req cmpl-12cbd914eacac5cd946f363a completion stream from 127.0.0.1:43550 model=qwen3.8-flash-next prompts=1 prompt=16 tok n=1 max_tokens=256
+I req cmpl-12cbd914eacac5cd946f363a done from 127.0.0.1:43550 finish=length prompt=16 (cache 0) gen=256 ttft=0.04s 155.7 tok/s 1.68s
+I req cmpl-6ec5f5917274de6305fe2674 completion stream from 127.0.0.1:43590 model=qwen3.8-flash-next prompts=1 prompt=16 tok n=1 max_tokens=256
+I req cmpl-6ec5f5917274de6305fe2674 done from 127.0.0.1:43590 finish=length prompt=16 (cache 0) gen=256 ttft=0.02s 170.4 tok/s 1.52s
+I req cmpl-e7c1e32ee352973971044e1e completion stream from 127.0.0.1:43646 model=qwen3.8-flash-next prompts=1 prompt=16 tok n=1 max_tokens=256
+I req cmpl-e7c1e32ee352973971044e1e done from 127.0.0.1:43646 finish=length prompt=16 (cache 0) gen=256 ttft=0.02s 172.7 tok/s 1.50s
+I req cmpl-19c2b753e3b741e3c748e27a completion stream from 127.0.0.1:43696 model=qwen3.8-flash-next prompts=1 prompt=24 tok n=1 max_tokens=800
+I req cmpl-19c2b753e3b741e3c748e27a done from 127.0.0.1:43696 finish=length prompt=24 (cache 0) gen=800 ttft=0.04s 227.6 tok/s 3.55s
+I req cmpl-ce5f2638e6785288b0281165 completion stream from 127.0.0.1:43732 model=qwen3.8-flash-next prompts=1 prompt=24 tok n=1 max_tokens=800
+I req cmpl-ce5f2638e6785288b0281165 done from 127.0.0.1:43732 finish=length prompt=24 (cache 0) gen=800 ttft=0.03s 242.8 tok/s 3.32s
+I req cmpl-ca493ce422b0aa791adf531e completion stream from 127.0.0.1:41458 model=qwen3.8-flash-next prompts=1 prompt=24 tok n=1 max_tokens=800
+I req cmpl-ca493ce422b0aa791adf531e done from 127.0.0.1:41458 finish=length prompt=24 (cache 0) gen=800 ttft=0.03s 243.3 tok/s 3.31s
+I req cmpl-98a79ae1a3512b5c5f6085f0 completion stream from 127.0.0.1:41510 model=qwen3.8-flash-next prompts=1 prompt=20 tok n=1 max_tokens=600
+I req cmpl-98a79ae1a3512b5c5f6085f0 done from 127.0.0.1:41510 finish=length prompt=20 (cache 0) gen=600 ttft=0.03s 194.3 tok/s 3.12s
+I req cmpl-04ed7dcebb406b0f4f5879c2 completion stream from 127.0.0.1:41574 model=qwen3.8-flash-next prompts=1 prompt=20 tok n=1 max_tokens=600
+I req cmpl-04ed7dcebb406b0f4f5879c2 done from 127.0.0.1:41574 finish=length prompt=20 (cache 0) gen=600 ttft=0.03s 215.5 tok/s 2.81s
+I req cmpl-f7389955102db536e4fbcc59 completion stream from 127.0.0.1:41274 model=qwen3.8-flash-next prompts=1 prompt=20 tok n=1 max_tokens=600
+I req cmpl-f7389955102db536e4fbcc59 done from 127.0.0.1:41274 finish=length prompt=20 (cache 0) gen=600 ttft=0.03s 216.3 tok/s 2.80s
+I req cmpl-023f01e74866bd73a23a2beb completion stream from 127.0.0.1:41476 model=qwen3.8-flash-next prompts=1 prompt=1024 tok n=1 max_tokens=1
+I req cmpl-023f01e74866bd73a23a2beb done from 127.0.0.1:41476 finish=length prompt=1024 (cache 0) gen=1 ttft=0.28s 0.28s
+I req cmpl-e07665f4ec38b9a50fbc6f40 completion stream from 127.0.0.1:41664 model=qwen3.8-flash-next prompts=1 prompt=8192 tok n=1 max_tokens=1
+I req cmpl-e07665f4ec38b9a50fbc6f40 done from 127.0.0.1:41664 finish=length prompt=8192 (cache 0) gen=1 ttft=1.67s 1.67s
+I req cmpl-c0ab7bbd109cb7eb218729bb completion stream from 127.0.0.1:41900 model=qwen3.8-flash-next prompts=1 prompt=8192 tok n=1 max_tokens=1
+I req cmpl-c0ab7bbd109cb7eb218729bb done from 127.0.0.1:41900 finish=length prompt=8192 (cache 0) gen=1 ttft=1.61s 1.61s
+I req cmpl-c93c04527ac2cbe02e6e8c65 completion stream from 127.0.0.1:56830 model=qwen3.8-flash-next prompts=1 prompt=8192 tok n=1 max_tokens=1
+I req cmpl-c93c04527ac2cbe02e6e8c65 done from 127.0.0.1:56830 finish=length prompt=8192 (cache 0) gen=1 ttft=1.61s 1.61s
+I req cmpl-727c1afaeff375401a52c649 completion stream from 127.0.0.1:57058 model=qwen3.8-flash-next prompts=1 prompt=8192 tok n=1 max_tokens=1
+I req cmpl-727c1afaeff375401a52c649 done from 127.0.0.1:57058 finish=length prompt=8192 (cache 0) gen=1 ttft=1.60s 1.60s
+I req cmpl-e1313f0a138ad5946faf7140 completion stream from 127.0.0.1:57238 model=qwen3.8-flash-next prompts=1 prompt=8192 tok n=1 max_tokens=1
+I req cmpl-e1313f0a138ad5946faf7140 done from 127.0.0.1:57238 finish=length prompt=8192 (cache 0) gen=1 ttft=1.62s 1.62s
+I req cmpl-1295b20b78cdab7e105ce4ac completion stream from 127.0.0.1:45438 model=qwen3.8-flash-next prompts=1 prompt=8192 tok n=1 max_tokens=1
+I req cmpl-1295b20b78cdab7e105ce4ac done from 127.0.0.1:45438 finish=length prompt=8192 (cache 0) gen=1 ttft=1.66s 1.66s
+I req cmpl-9dd9be697588b7a092bd3b3e completion stream from 127.0.0.1:45668 model=qwen3.8-flash-next prompts=1 prompt=8192 tok n=1 max_tokens=1
+I req cmpl-9dd9be697588b7a092bd3b3e done from 127.0.0.1:45668 finish=length prompt=8192 (cache 0) gen=1 ttft=1.62s 1.62s
+I req cmpl-daff5ad93fd9916f4ce0ed5a completion stream from 127.0.0.1:45932 model=qwen3.8-flash-next prompts=1 prompt=8192 tok n=1 max_tokens=1
+I req cmpl-daff5ad93fd9916f4ce0ed5a done from 127.0.0.1:45932 finish=length prompt=8192 (cache 0) gen=1 ttft=1.66s 1.66s
+I req cmpl-e69ac3a8cfb32e32360d49f0 completion stream from 127.0.0.1:46178 model=qwen3.8-flash-next prompts=1 prompt=8192 tok n=1 max_tokens=1
+I req cmpl-e69ac3a8cfb32e32360d49f0 done from 127.0.0.1:46178 finish=length prompt=8192 (cache 0) gen=1 ttft=1.61s 1.61s
+I req cmpl-0e0fd9fca0132811fd69746a completion stream from 127.0.0.1:39426 model=qwen3.8-flash-next prompts=1 prompt=8192 tok n=1 max_tokens=1
+I req cmpl-0e0fd9fca0132811fd69746a done from 127.0.0.1:39426 finish=length prompt=8192 (cache 0) gen=1 ttft=1.64s 1.64s
+I req cmpl-1e8a0e5c7329c7e886638950 completion stream from 127.0.0.1:39596 model=qwen3.8-flash-next prompts=1 prompt=32768 tok n=1 max_tokens=16
+I req cmpl-1e8a0e5c7329c7e886638950 done from 127.0.0.1:39596 finish=stop prompt=32768 (cache 0) gen=1 ttft=6.10s 6.10s
+I req cmpl-73f73bf96b53a556c3567405 completion stream from 127.0.0.1:37144 model=qwen3.8-flash-next prompts=1 prompt=32768 tok n=1 max_tokens=16
+I req cmpl-73f73bf96b53a556c3567405 done from 127.0.0.1:37144 finish=length prompt=32768 (cache 0) gen=16 ttft=6.16s 62.5 tok/s 6.40s
+I req cmpl-d85c6815e618091fd7176e59 completion stream from 127.0.0.1:37868 model=qwen3.8-flash-next prompts=1 prompt=32768 tok n=1 max_tokens=16
+I req cmpl-d85c6815e618091fd7176e59 done from 127.0.0.1:37868 finish=length prompt=32768 (cache 0) gen=16 ttft=6.52s 57.3 tok/s 6.79s
+I req cmpl-5088a8a6934b2a93a6d83a74 completion stream from 127.0.0.1:51016 model=qwen3.8-flash-next prompts=1 prompt=65536 tok n=1 max_tokens=16
+I req cmpl-5088a8a6934b2a93a6d83a74 done from 127.0.0.1:51016 finish=length prompt=65536 (cache 0) gen=16 ttft=12.29s 112.1 tok/s 12.43s
+I req cmpl-bd0c81ab0540917df17a8f78 completion stream from 127.0.0.1:40978 model=qwen3.8-flash-next prompts=1 prompt=65536 tok n=1 max_tokens=16
+I req cmpl-bd0c81ab0540917df17a8f78 done from 127.0.0.1:40978 finish=length prompt=65536 (cache 0) gen=16 ttft=12.51s 179.6 tok/s 12.59s
+I req chatcmpl-d1c162bb1f9a58baf6513f1f chat stream from 127.0.0.1:46242 model=qwen3.8-flash-next msgs=2 tools=0 prompt=1539 tok n=1 max_tokens=256
+I req chatcmpl-b4855b57c6699f179e24c56d chat stream from 127.0.0.1:46252 model=qwen3.8-flash-next msgs=2 tools=0 prompt=1539 tok n=1 max_tokens=256
+I req chatcmpl-d1c162bb1f9a58baf6513f1f done from 127.0.0.1:46242 finish=length prompt=1539 (cache 0) gen=256 reason=256 ttft=0.44s 83.8 tok/s 3.48s
+I req chatcmpl-b4855b57c6699f179e24c56d done from 127.0.0.1:46252 finish=length prompt=1539 (cache 0) gen=256 reason=256 ttft=0.84s 95.9 tok/s 3.50s
+I req chatcmpl-0cabdefb635747b8211a8718 chat stream from 127.0.0.1:46340 model=qwen3.8-flash-next msgs=2 tools=0 prompt=40739 tok n=1 max_tokens=256
+I req chatcmpl-8e954ee521763e47d8bbc3ad chat stream from 127.0.0.1:46356 model=qwen3.8-flash-next msgs=2 tools=0 prompt=40739 tok n=1 max_tokens=256
+I req chatcmpl-0cabdefb635747b8211a8718 done from 127.0.0.1:46340 finish=length prompt=40739 (cache 0) gen=256 reason=256 ttft=16.70s 125.2 tok/s 18.74s
+I req chatcmpl-8e954ee521763e47d8bbc3ad done from 127.0.0.1:46356 finish=length prompt=40739 (cache 0) gen=256 reason=256 ttft=16.75s 128.2 tok/s 18.74s
+I gbnf: compiled a grammar of 120 rules in 69.3 ms: 514 mask keys (10 dense, 3 deep at most), 42467 remainder nodes, 1.9 MiB
+I req chatcmpl-efebb2368cfa0b31b1b49826 chat from 127.0.0.1:54344 model=qwen3.8-flash-next msgs=1 tools=0 prompt=37 tok n=1 max_tokens=256
+I req chatcmpl-efebb2368cfa0b31b1b49826 done from 127.0.0.1:54344 finish=stop prompt=37 (cache 0) gen=18 reason=0 ttft=0.06s 102.0 tok/s 0.23s
+I gbnf: compiled a grammar of 82 rules in 56.5 ms: 340 mask keys (8 dense, 3 deep at most), 15604 remainder nodes, 0.9 MiB
+I req chatcmpl-a446dcdeda8cd8b584137e40 chat from 127.0.0.1:54360 model=qwen3.8-flash-next msgs=1 tools=0 prompt=37 tok n=1 max_tokens=256
+I req chatcmpl-a446dcdeda8cd8b584137e40 done from 127.0.0.1:54360 finish=stop prompt=37 (cache 0) gen=18 reason=0 ttft=0.04s 169.3 tok/s 0.14s
+I gbnf: compiled a grammar of 43 rules in 79.2 ms: 418 mask keys (12 dense, 3 deep at most), 25827 remainder nodes, 1.3 MiB
+I req chatcmpl-a19fa4cce178f251440e2bdc chat from 127.0.0.1:54370 model=qwen3.8-flash-next msgs=1 tools=1 prompt=282 tok n=1 max_tokens=256
+I req chatcmpl-a19fa4cce178f251440e2bdc done from 127.0.0.1:54370 finish=tool_calls prompt=282 (cache 0) gen=38 reason=0 ttft=0.19s 185.4 tok/s 0.39s

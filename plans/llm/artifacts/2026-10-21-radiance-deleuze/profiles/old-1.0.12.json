@@ -1,0 +1,139 @@
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "namespace": "llm",
+    "name": "radiance-bench-old"
+  },
+  "spec": {
+    "restartPolicy": "Never",
+    "automountServiceAccountToken": false,
+    "nodeSelector": {
+      "kubernetes.io/hostname": "deleuze"
+    },
+    "tolerations": [
+      {
+        "key": "node-role.kubernetes.io/control-plane",
+        "operator": "Exists",
+        "effect": "NoSchedule"
+      },
+      {
+        "key": "amd.com/gpu",
+        "operator": "Exists",
+        "effect": "NoSchedule"
+      }
+    ],
+    "containers": [
+      {
+        "name": "runtime",
+        "command": [
+          "/opt/radiance/bin/radiance"
+        ],
+        "resources": {
+          "requests": {
+            "cpu": "8",
+            "memory": "80Gi",
+            "amd.com/gpu": 2,
+            "ephemeral-storage": "1Gi"
+          },
+          "limits": {
+            "memory": "80Gi",
+            "amd.com/gpu": 2,
+            "ephemeral-storage": "8Gi"
+          }
+        },
+        "volumeMounts": [
+          {
+            "name": "models",
+            "mountPath": "/models",
+            "readOnly": true
+          }
+        ],
+        "image": "docker.io/stilldeadcode/radiance:1.0.12@sha256:9ec9a73048f3c11770c0e70806d88ce88ee4cfaf2a24c8ab84d28df76b0e224e",
+        "args": [
+          "--model",
+          "/models/radiance/qwen3.8-next-flash-fp8-iq4r-moe.rad",
+          "--served-model-name",
+          "qwen3.8-flash-next",
+          "--tp",
+          "2",
+          "--tp-wire",
+          "exact",
+          "--max-num-seqs",
+          "2",
+          "--max-model-len",
+          "262144",
+          "--placement",
+          "expert_tiered",
+          "--host-pool-mib",
+          "12288",
+          "--ngram-placement",
+          "disk",
+          "--gpu-headroom-mib",
+          "512",
+          "--expert-vs-cache-ratio",
+          "0.82",
+          "--kv-cache-dtype",
+          "fp8",
+          "--num-speculative-tokens",
+          "3",
+          "--max-num-batched-tokens",
+          "2048",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8080",
+          "--mm-max-patches",
+          "0",
+          "--no-prefix-cache"
+        ],
+        "ports": [
+          {
+            "name": "http",
+            "containerPort": 8080
+          }
+        ],
+        "readinessProbe": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8080
+          },
+          "periodSeconds": 10
+        },
+        "env": []
+      }
+    ],
+    "volumes": [
+      {
+        "name": "models",
+        "persistentVolumeClaim": {
+          "claimName": "radiance-deleuze"
+        }
+      }
+    ],
+    "securityContext": {
+      "seccompProfile": {
+        "type": "Unconfined"
+      }
+    },
+    "initContainers": [
+      {
+        "name": "wait-for-model",
+        "image": "docker.io/library/python:3.13-slim-bookworm",
+        "command": [
+          "python3",
+          "-u",
+          "-c",
+          "import pathlib,time; p=pathlib.Path('/models/radiance/qwen3.8-next-flash-fp8-iq4r-moe.rad'); exec('while not p.exists(): time.sleep(5)')"
+        ],
+        "volumeMounts": [
+          {
+            "name": "models",
+            "mountPath": "/models",
+            "readOnly": true
+          }
+        ]
+      }
+    ]
+  }
+}

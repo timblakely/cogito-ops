@@ -1,0 +1,3446 @@
+{
+  "profile": "new-adaptive",
+  "protocol": "decode",
+  "timestamp_utc": "2026-10-21T16:07:28.829471+00:00",
+  "thinking": "raw completion; no chat template",
+  "trials": [
+    {
+      "label": "prose-1",
+      "prompt_sha256": "7ac99008a68dbca728efad04cc050e621beca41dfe65756e5d472888c7fc9e18",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 256
+      },
+      "before": {
+        "stats": {
+          "model": "qwen3.8-flash-next",
+          "version": "1.10.0",
+          "uptime_s": 39,
+          "startup_s": 20,
+          "in_flight": 0,
+          "queue_cap": 16,
+          "now_ms": 1792598848000,
+          "running": 0,
+          "waiting": 0,
+          "preempted": 0,
+          "kv_util": 0.0,
+          "kv_tokens_used": 0,
+          "kv_tokens_total": 524420,
+          "kv_tokens_cached": 0,
+          "kv_bytes_used": 0.0,
+          "kv_bytes_total": 571943744.0,
+          "kv_bytes_carved": 4160732480.0,
+          "kv_tokens_max": 524420,
+          "prefix_hit_rate": 0.0,
+          "prefix_evictions": 0.0,
+          "linear_hit_rate": 0.0,
+          "linear_cached_tokens": 0.0,
+          "checkpoints_written": 0.0,
+          "ckpt_evictions": {
+            "retention": 0,
+            "store_full": 0
+          },
+          "ckpt_refused": 0,
+          "hit_cuts": {
+            "no_snapshot": 0,
+            "windowed_group": 0,
+            "adopt_failed": 0
+          },
+          "hit_cut_tokens": 0.0,
+          "prefill_tps": 730.722412109375,
+          "decode_tps": 110.20085144042969,
+          "draft_accept": 0.39955848455429077,
+          "preemptions": 0,
+          "total_requests": 6,
+          "steps": 498,
+          "steps_prefill": 39,
+          "steps_mixed": 0,
+          "prefill_chunks_capped": 0,
+          "steps_decode": 459,
+          "steps_held": 0,
+          "step_ns": 24212925463,
+          "step_ns_decode": 9931692019,
+          "step_ns_decode_best": 19235617,
+          "step_ns_decode_recent": 20470051,
+          "rows_unspec": 0,
+          "draft_positions": [
+            {
+              "reached": 453,
+              "accepted": 351,
+              "rate": 0.7748344370860927
+            },
+            {
+              "reached": 351,
+              "accepted": 237,
+              "rate": 0.6752136752136753
+            },
+            {
+              "reached": 237,
+              "accepted": 192,
+              "rate": 0.810126582278481
+            },
+            {
+              "reached": 192,
+              "accepted": 144,
+              "rate": 0.75
+            },
+            {
+              "reached": 144,
+              "accepted": 102,
+              "rate": 0.7083333333333334
+            },
+            {
+              "reached": 102,
+              "accepted": 60,
+              "rate": 0.5882352941176471
+            }
+          ],
+          "cards": [
+            {
+              "index": 0,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34039115776,
+              "vram_total": 34208743424
+            },
+            {
+              "index": 1,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34026598400,
+              "vram_total": 34208743424
+            }
+          ],
+          "link": {
+            "world": 2,
+            "ar_calls": 3285,
+            "ar_bytes": 1341557760,
+            "h2d_bytes": 272923453440,
+            "d2h_bytes": 6090670080,
+            "ssd_reads": 0,
+            "ssd_bytes": 0,
+            "prefetched": 0,
+            "prefetch_bytes": 0,
+            "staged_bytes": 244207180800,
+            "stream_bytes": 110914974720
+          },
+          "passes": {
+            "played": 6240,
+            "recorded": 166,
+            "audited": 90,
+            "issued_unkeyed": 72,
+            "issued_refused": 0,
+            "issued_first": 2,
+            "dispatched": 1093012,
+            "unordered": 267082
+          }
+        },
+        "metrics": [
+          "vllm:gpu_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "vllm:prompt_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126672",
+          "vllm:generation_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 1536",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 6",
+          "vllm:request_prompt_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126672",
+          "vllm:request_prompt_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 6",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 6",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 6",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 6",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 6",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 6",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 6",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 6",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 6",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 6",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 6",
+          "vllm:request_generation_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 1536",
+          "vllm:request_generation_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 6",
+          "radiance:linear_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"retention\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"store_full\"} 0",
+          "radiance:prefix_cache_ckpt_refused_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 16,
+        "completion_tokens": 256,
+        "total_tokens": 272,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.03924074699989433,
+      "wall_s": 1.9494925440003499,
+      "pp_effective_tok_s": 407.7394347269456,
+      "generation_e2e_tok_s": 131.3162242081158,
+      "decode_tok_s": 133.49789970186123,
+      "legacy_decode_tok_s": 134.01374646105828,
+      "text": " Start by describing the physical storage of a table (specifically mentioning 8KB pages and the concept of a 'heap' where rows are unordered). Then, explain the inefficiency of a full table scan for a query like 'WHERE id = 1000'. Proceed to explain the B-tree structure, explicitly defining 'branch pages' and 'leaf pages' and how they store keys versus row pointers. Finally, illustrate the search process by walking through a specific scenario where the target is 'id = 1000', describing the traversal from the root page down to the specific leaf page.\n\nWhen a table is stored in a database, it is stored in pages. Each page is 8KB in size, and each page contains a number of rows. The rows are not stored in any particular order; they are stored in the order they were inserted. Consequently, the table is often referred to as a heap.\n\nIf you want to find a specific row, such as the row with id = 1000, the database must read every page in the table and check every row on each page. This process is called a full table scan.\n\nTo improve efficiency, a B-tree index is used. The B-tree is a tree structure",
+      "reasoning_text": "",
+      "after": {
+        "stats": {
+          "model": "qwen3.8-flash-next",
+          "version": "1.10.0",
+          "uptime_s": 41,
+          "startup_s": 20,
+          "in_flight": 0,
+          "queue_cap": 16,
+          "now_ms": 1792598850000,
+          "running": 0,
+          "waiting": 0,
+          "preempted": 0,
+          "kv_util": 0.0005415506893768907,
+          "kv_tokens_used": 284,
+          "kv_tokens_total": 524420,
+          "kv_tokens_cached": 0,
+          "kv_bytes_used": 119064352.0,
+          "kv_bytes_total": 267511616.0,
+          "kv_bytes_carved": 4160732480.0,
+          "kv_tokens_max": 524420,
+          "prefix_hit_rate": 0.0,
+          "prefix_evictions": 0.0,
+          "linear_hit_rate": 0.0,
+          "linear_cached_tokens": 0.0,
+          "checkpoints_written": 0.0,
+          "ckpt_evictions": {
+            "retention": 0,
+            "store_full": 0
+          },
+          "ckpt_refused": 0,
+          "hit_cuts": {
+            "no_snapshot": 0,
+            "windowed_group": 0,
+            "adopt_failed": 0
+          },
+          "hit_cut_tokens": 0.0,
+          "prefill_tps": 112.27595520019531,
+          "decode_tps": 139.79910278320312,
+          "draft_accept": 0.38836774230003357,
+          "preemptions": 0,
+          "total_requests": 7,
+          "steps": 599,
+          "steps_prefill": 40,
+          "steps_mixed": 0,
+          "prefill_chunks_capped": 0,
+          "steps_decode": 559,
+          "steps_held": 0,
+          "step_ns": 26158512014,
+          "step_ns_decode": 11841169221,
+          "step_ns_decode_best": 18519405,
+          "step_ns_decode_recent": 18519405,
+          "rows_unspec": 0,
+          "draft_positions": [
+            {
+              "reached": 553,
+              "accepted": 422,
+              "rate": 0.7631103074141049
+            },
+            {
+              "reached": 422,
+              "accepted": 278,
+              "rate": 0.6587677725118484
+            },
+            {
+              "reached": 278,
+              "accepted": 217,
+              "rate": 0.7805755395683454
+            },
+            {
+              "reached": 217,
+              "accepted": 160,
+              "rate": 0.7373271889400922
+            },
+            {
+              "reached": 152,
+              "accepted": 105,
+              "rate": 0.6907894736842105
+            },
+            {
+              "reached": 102,
+              "accepted": 60,
+              "rate": 0.5882352941176471
+            }
+          ],
+          "cards": [
+            {
+              "index": 0,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34041212928,
+              "vram_total": 34208743424
+            },
+            {
+              "index": 1,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34028695552,
+              "vram_total": 34208743424
+            }
+          ],
+          "link": {
+            "world": 2,
+            "ar_calls": 3872,
+            "ar_bytes": 1349657600,
+            "h2d_bytes": 274396446720,
+            "d2h_bytes": 6800808960,
+            "ssd_reads": 0,
+            "ssd_bytes": 0,
+            "prefetched": 0,
+            "prefetch_bytes": 0,
+            "staged_bytes": 244207180800,
+            "stream_bytes": 113790504960
+          },
+          "passes": {
+            "played": 7366,
+            "recorded": 190,
+            "audited": 112,
+            "issued_unkeyed": 72,
+            "issued_refused": 0,
+            "issued_first": 4,
+            "dispatched": 1317298,
+            "unordered": 322244
+          }
+        },
+        "metrics": [
+          "vllm:gpu_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "vllm:prompt_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126688",
+          "vllm:generation_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 1792",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 1",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 1",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 1",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 1",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 1",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 1",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 4",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 4",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 4",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 4",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 7",
+          "vllm:request_prompt_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126688",
+          "vllm:request_prompt_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 7",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 7",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 7",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 7",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 7",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 7",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 7",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 7",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 7",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 7",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 7",
+          "vllm:request_generation_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 1792",
+          "vllm:request_generation_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 7",
+          "radiance:linear_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"retention\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"store_full\"} 0",
+          "radiance:prefix_cache_ckpt_refused_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0"
+        ]
+      },
+      "requested_output_tokens": 256,
+      "output_cap_reached": true
+    },
+    {
+      "label": "prose-2",
+      "prompt_sha256": "7ac99008a68dbca728efad04cc050e621beca41dfe65756e5d472888c7fc9e18",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 256
+      },
+      "before": {
+        "stats": {
+          "model": "qwen3.8-flash-next",
+          "version": "1.10.0",
+          "uptime_s": 41,
+          "startup_s": 20,
+          "in_flight": 0,
+          "queue_cap": 16,
+          "now_ms": 1792598850000,
+          "running": 0,
+          "waiting": 0,
+          "preempted": 0,
+          "kv_util": 0.0,
+          "kv_tokens_used": 0,
+          "kv_tokens_total": 524420,
+          "kv_tokens_cached": 0,
+          "kv_bytes_used": 0.0,
+          "kv_bytes_total": 267511616.0,
+          "kv_bytes_carved": 4160732480.0,
+          "kv_tokens_max": 524420,
+          "prefix_hit_rate": 0.0,
+          "prefix_evictions": 0.0,
+          "linear_hit_rate": 0.0,
+          "linear_cached_tokens": 0.0,
+          "checkpoints_written": 0.0,
+          "ckpt_evictions": {
+            "retention": 0,
+            "store_full": 0
+          },
+          "ckpt_refused": 0,
+          "hit_cuts": {
+            "no_snapshot": 0,
+            "windowed_group": 0,
+            "adopt_failed": 0
+          },
+          "hit_cut_tokens": 0.0,
+          "prefill_tps": 110.7102279663086,
+          "decode_tps": 137.8495635986328,
+          "draft_accept": 0.38836774230003357,
+          "preemptions": 0,
+          "total_requests": 7,
+          "steps": 600,
+          "steps_prefill": 40,
+          "steps_mixed": 0,
+          "prefill_chunks_capped": 0,
+          "steps_decode": 560,
+          "steps_held": 0,
+          "step_ns": 26172609981,
+          "step_ns_decode": 11855267188,
+          "step_ns_decode_best": 18519405,
+          "step_ns_decode_recent": 18519405,
+          "rows_unspec": 0,
+          "draft_positions": [
+            {
+              "reached": 553,
+              "accepted": 422,
+              "rate": 0.7631103074141049
+            },
+            {
+              "reached": 422,
+              "accepted": 278,
+              "rate": 0.6587677725118484
+            },
+            {
+              "reached": 278,
+              "accepted": 217,
+              "rate": 0.7805755395683454
+            },
+            {
+              "reached": 217,
+              "accepted": 160,
+              "rate": 0.7373271889400922
+            },
+            {
+              "reached": 152,
+              "accepted": 105,
+              "rate": 0.6907894736842105
+            },
+            {
+              "reached": 102,
+              "accepted": 60,
+              "rate": 0.5882352941176471
+            }
+          ],
+          "cards": [
+            {
+              "index": 0,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34041212928,
+              "vram_total": 34208743424
+            },
+            {
+              "index": 1,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34028695552,
+              "vram_total": 34208743424
+            }
+          ],
+          "link": {
+            "world": 2,
+            "ar_calls": 3872,
+            "ar_bytes": 1349657600,
+            "h2d_bytes": 274396446720,
+            "d2h_bytes": 6800808960,
+            "ssd_reads": 0,
+            "ssd_bytes": 0,
+            "prefetched": 0,
+            "prefetch_bytes": 0,
+            "staged_bytes": 244207180800,
+            "stream_bytes": 113790504960
+          },
+          "passes": {
+            "played": 7366,
+            "recorded": 190,
+            "audited": 112,
+            "issued_unkeyed": 72,
+            "issued_refused": 0,
+            "issued_first": 4,
+            "dispatched": 1317298,
+            "unordered": 322244
+          }
+        },
+        "metrics": [
+          "vllm:gpu_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "vllm:prompt_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126688",
+          "vllm:generation_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 1792",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 1",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 1",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 1",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 1",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 1",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 1",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 4",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 4",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 4",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 4",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 7",
+          "vllm:request_prompt_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126688",
+          "vllm:request_prompt_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 7",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 7",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 7",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 7",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 7",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 7",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 7",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 7",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 7",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 7",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 7",
+          "vllm:request_generation_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 1792",
+          "vllm:request_generation_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 7",
+          "radiance:linear_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"retention\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"store_full\"} 0",
+          "radiance:prefix_cache_ckpt_refused_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 16,
+        "completion_tokens": 256,
+        "total_tokens": 272,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.02920878500026447,
+      "wall_s": 1.6589270679996844,
+      "pp_effective_tok_s": 547.7804023637111,
+      "generation_e2e_tok_s": 154.3166091735919,
+      "decode_tok_s": 156.5017803903767,
+      "legacy_decode_tok_s": 157.08236366400948,
+      "text": " Start by describing the physical storage of a table (specifically mentioning 8KB pages and the concept of a 'heap' where rows are unordered). Then, explain the inefficiency of a full table scan for a specific query (e.g., finding a specific ID). \n\nProceed to explain the B-tree structure using a specific analogy: compare the root node to a 'phone book' and the leaf nodes to 'sticky notes' that point to the actual data. \n\nCrucially, you must include a specific numerical example to demonstrate the efficiency of the tree structure: assume a scenario where the root node contains 100 keys and each leaf node contains 100 keys. Calculate the total number of rows this structure can support (10,000) and explain how this reduces the number of page reads from 10,000 to just 2. Conclude by briefly mentioning the role of the 'fill factor' in managing page splits.\n\nTo understand how a B-tree index works, we must first look at how data is physically stored. A table is stored in 8KB pages, and the rows are stored in no particular order. This unordered collection of pages is called a heap.\n\nWhen you query a table for a",
+      "reasoning_text": "",
+      "after": {
+        "stats": {
+          "model": "qwen3.8-flash-next",
+          "version": "1.10.0",
+          "uptime_s": 43,
+          "startup_s": 20,
+          "in_flight": 0,
+          "queue_cap": 16,
+          "now_ms": 1792598852000,
+          "running": 0,
+          "waiting": 0,
+          "preempted": 0,
+          "kv_util": 0.0005339232156984508,
+          "kv_tokens_used": 280,
+          "kv_tokens_total": 524420,
+          "kv_tokens_cached": 0,
+          "kv_bytes_used": 119034400.0,
+          "kv_bytes_total": 267511616.0,
+          "kv_bytes_carved": 4160732480.0,
+          "kv_tokens_max": 524420,
+          "prefix_hit_rate": 0.0,
+          "prefix_evictions": 0.0,
+          "linear_hit_rate": 0.0,
+          "linear_cached_tokens": 0.0,
+          "checkpoints_written": 0.0,
+          "ckpt_evictions": {
+            "retention": 0,
+            "store_full": 0
+          },
+          "ckpt_refused": 0,
+          "hit_cuts": {
+            "no_snapshot": 0,
+            "windowed_group": 0,
+            "adopt_failed": 0
+          },
+          "hit_cut_tokens": 0.0,
+          "prefill_tps": 24.09881591796875,
+          "decode_tps": 160.17922973632812,
+          "draft_accept": 0.39375177025794983,
+          "preemptions": 0,
+          "total_requests": 8,
+          "steps": 701,
+          "steps_prefill": 41,
+          "steps_mixed": 0,
+          "prefill_chunks_capped": 0,
+          "steps_decode": 660,
+          "steps_held": 0,
+          "step_ns": 27827675508,
+          "step_ns_decode": 13483814915,
+          "step_ns_decode_best": 16004883,
+          "step_ns_decode_recent": 16004883,
+          "rows_unspec": 0,
+          "draft_positions": [
+            {
+              "reached": 653,
+              "accepted": 498,
+              "rate": 0.7626339969372129
+            },
+            {
+              "reached": 498,
+              "accepted": 329,
+              "rate": 0.6606425702811245
+            },
+            {
+              "reached": 329,
+              "accepted": 245,
+              "rate": 0.7446808510638298
+            },
+            {
+              "reached": 222,
+              "accepted": 162,
+              "rate": 0.7297297297297297
+            },
+            {
+              "reached": 152,
+              "accepted": 105,
+              "rate": 0.6907894736842105
+            },
+            {
+              "reached": 102,
+              "accepted": 60,
+              "rate": 0.5882352941176471
+            }
+          ],
+          "cards": [
+            {
+              "index": 0,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34041212928,
+              "vram_total": 34208743424
+            },
+            {
+              "index": 1,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34028695552,
+              "vram_total": 34208743424
+            }
+          ],
+          "link": {
+            "world": 2,
+            "ar_calls": 4332,
+            "ar_bytes": 1355816960,
+            "h2d_bytes": 274714767360,
+            "d2h_bytes": 7021808640,
+            "ssd_reads": 0,
+            "ssd_bytes": 0,
+            "prefetched": 0,
+            "prefetch_bytes": 0,
+            "staged_bytes": 244207180800,
+            "stream_bytes": 114865090560
+          },
+          "passes": {
+            "played": 8274,
+            "recorded": 196,
+            "audited": 118,
+            "issued_unkeyed": 72,
+            "issued_refused": 0,
+            "issued_first": 4,
+            "dispatched": 1541382,
+            "unordered": 377340
+          }
+        },
+        "metrics": [
+          "vllm:gpu_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "vllm:prompt_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126704",
+          "vllm:generation_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 2048",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 2",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 2",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 2",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 2",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 2",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 2",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 5",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 5",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 5",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 5",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 8",
+          "vllm:request_prompt_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126704",
+          "vllm:request_prompt_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 8",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 8",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 8",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 8",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 8",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 8",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 8",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 8",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 8",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 8",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 8",
+          "vllm:request_generation_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 2048",
+          "vllm:request_generation_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 8",
+          "radiance:linear_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"retention\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"store_full\"} 0",
+          "radiance:prefix_cache_ckpt_refused_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0"
+        ]
+      },
+      "requested_output_tokens": 256,
+      "output_cap_reached": true
+    },
+    {
+      "label": "prose-3",
+      "prompt_sha256": "7ac99008a68dbca728efad04cc050e621beca41dfe65756e5d472888c7fc9e18",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 256
+      },
+      "before": {
+        "stats": {
+          "model": "qwen3.8-flash-next",
+          "version": "1.10.0",
+          "uptime_s": 43,
+          "startup_s": 20,
+          "in_flight": 0,
+          "queue_cap": 16,
+          "now_ms": 1792598852000,
+          "running": 0,
+          "waiting": 0,
+          "preempted": 0,
+          "kv_util": 0.0,
+          "kv_tokens_used": 0,
+          "kv_tokens_total": 524420,
+          "kv_tokens_cached": 0,
+          "kv_bytes_used": 0.0,
+          "kv_bytes_total": 267511616.0,
+          "kv_bytes_carved": 4160732480.0,
+          "kv_tokens_max": 524420,
+          "prefix_hit_rate": 0.0,
+          "prefix_evictions": 0.0,
+          "linear_hit_rate": 0.0,
+          "linear_cached_tokens": 0.0,
+          "checkpoints_written": 0.0,
+          "ckpt_evictions": {
+            "retention": 0,
+            "store_full": 0
+          },
+          "ckpt_refused": 0,
+          "hit_cuts": {
+            "no_snapshot": 0,
+            "windowed_group": 0,
+            "adopt_failed": 0
+          },
+          "hit_cut_tokens": 0.0,
+          "prefill_tps": 23.784971237182617,
+          "decode_tps": 158.0931854248047,
+          "draft_accept": 0.39375177025794983,
+          "preemptions": 0,
+          "total_requests": 8,
+          "steps": 702,
+          "steps_prefill": 41,
+          "steps_mixed": 0,
+          "prefill_chunks_capped": 0,
+          "steps_decode": 661,
+          "steps_held": 0,
+          "step_ns": 27840809831,
+          "step_ns_decode": 13496949238,
+          "step_ns_decode_best": 16004883,
+          "step_ns_decode_recent": 16004883,
+          "rows_unspec": 0,
+          "draft_positions": [
+            {
+              "reached": 653,
+              "accepted": 498,
+              "rate": 0.7626339969372129
+            },
+            {
+              "reached": 498,
+              "accepted": 329,
+              "rate": 0.6606425702811245
+            },
+            {
+              "reached": 329,
+              "accepted": 245,
+              "rate": 0.7446808510638298
+            },
+            {
+              "reached": 222,
+              "accepted": 162,
+              "rate": 0.7297297297297297
+            },
+            {
+              "reached": 152,
+              "accepted": 105,
+              "rate": 0.6907894736842105
+            },
+            {
+              "reached": 102,
+              "accepted": 60,
+              "rate": 0.5882352941176471
+            }
+          ],
+          "cards": [
+            {
+              "index": 0,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34041212928,
+              "vram_total": 34208743424
+            },
+            {
+              "index": 1,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34028695552,
+              "vram_total": 34208743424
+            }
+          ],
+          "link": {
+            "world": 2,
+            "ar_calls": 4332,
+            "ar_bytes": 1355816960,
+            "h2d_bytes": 274714767360,
+            "d2h_bytes": 7021808640,
+            "ssd_reads": 0,
+            "ssd_bytes": 0,
+            "prefetched": 0,
+            "prefetch_bytes": 0,
+            "staged_bytes": 244207180800,
+            "stream_bytes": 114865090560
+          },
+          "passes": {
+            "played": 8274,
+            "recorded": 196,
+            "audited": 118,
+            "issued_unkeyed": 72,
+            "issued_refused": 0,
+            "issued_first": 4,
+            "dispatched": 1541382,
+            "unordered": 377340
+          }
+        },
+        "metrics": [
+          "vllm:gpu_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "vllm:prompt_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126704",
+          "vllm:generation_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 2048",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 2",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 2",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 2",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 2",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 2",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 2",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 5",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 5",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 5",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 5",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 8",
+          "vllm:request_prompt_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126704",
+          "vllm:request_prompt_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 8",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 8",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 8",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 8",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 8",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 8",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 8",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 8",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 8",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 8",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 8",
+          "vllm:request_generation_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 2048",
+          "vllm:request_generation_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 8",
+          "radiance:linear_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"retention\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"store_full\"} 0",
+          "radiance:prefix_cache_ckpt_refused_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 16,
+        "completion_tokens": 256,
+        "total_tokens": 272,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.027144615999532107,
+      "wall_s": 1.6257583819997308,
+      "pp_effective_tok_s": 589.4354888010128,
+      "generation_e2e_tok_s": 157.46497316846828,
+      "decode_tok_s": 159.52618286376733,
+      "legacy_decode_tok_s": 160.13874360692085,
+      "text": " Start by describing the physical storage of data in 8KB blocks and the concept of 'leaf nodes' containing row pointers. Then, explain the search process for a specific value (e.g., 100) by walking through a hypothetical tree structure with exactly three levels: a root node containing values 10, 50, and 90; a second level containing values 100, 150, and 200; and a leaf level containing values 100, 101, and 102. Explicitly mention the number of I/O operations required for this search. Conclude by analyzing the performance impact of inserting a new value (e.g., 103) into a full leaf node, specifically discussing the 'split' operation and the resulting I/O cost.\n\nTo understand how a B-tree index works, we must first look at how data is physically stored. Data is stored in blocks, which are the smallest unit of I/O. In this context, we assume a block size of 8KB. The data is stored in the leaf nodes of the B-tree, where each leaf node contains a row pointer. This row pointer is the address of the row in the table",
+      "reasoning_text": "",
+      "after": {
+        "stats": {
+          "model": "qwen3.8-flash-next",
+          "version": "1.10.0",
+          "uptime_s": 45,
+          "startup_s": 20,
+          "in_flight": 0,
+          "queue_cap": 16,
+          "now_ms": 1792598854000,
+          "running": 0,
+          "waiting": 0,
+          "preempted": 0,
+          "kv_util": 0.0005339232156984508,
+          "kv_tokens_used": 280,
+          "kv_tokens_total": 524420,
+          "kv_tokens_cached": 0,
+          "kv_bytes_used": 119034400.0,
+          "kv_bytes_total": 267511616.0,
+          "kv_bytes_carved": 4160732480.0,
+          "kv_tokens_max": 524420,
+          "prefix_hit_rate": 0.0,
+          "prefix_evictions": 0.0,
+          "linear_hit_rate": 0.0,
+          "linear_cached_tokens": 0.0,
+          "checkpoints_written": 0.0,
+          "ckpt_evictions": {
+            "retention": 0,
+            "store_full": 0
+          },
+          "ckpt_refused": 0,
+          "hit_cuts": {
+            "no_snapshot": 0,
+            "windowed_group": 0,
+            "adopt_failed": 0
+          },
+          "hit_cut_tokens": 0.0,
+          "prefill_tps": 7.857184410095215,
+          "decode_tps": 161.94224548339844,
+          "draft_accept": 0.3993288576602936,
+          "preemptions": 0,
+          "total_requests": 9,
+          "steps": 810,
+          "steps_prefill": 42,
+          "steps_mixed": 0,
+          "prefill_chunks_capped": 0,
+          "steps_decode": 768,
+          "steps_held": 0,
+          "step_ns": 29462439688,
+          "step_ns_decode": 15094319880,
+          "step_ns_decode_best": 14701249,
+          "step_ns_decode_recent": 14864901,
+          "rows_unspec": 0,
+          "draft_positions": [
+            {
+              "reached": 760,
+              "accepted": 576,
+              "rate": 0.7578947368421053
+            },
+            {
+              "reached": 576,
+              "accepted": 372,
+              "rate": 0.6458333333333334
+            },
+            {
+              "reached": 372,
+              "accepted": 272,
+              "rate": 0.7311827956989247
+            },
+            {
+              "reached": 222,
+              "accepted": 162,
+              "rate": 0.7297297297297297
+            },
+            {
+              "reached": 152,
+              "accepted": 105,
+              "rate": 0.6907894736842105
+            },
+            {
+              "reached": 102,
+              "accepted": 60,
+              "rate": 0.5882352941176471
+            }
+          ],
+          "cards": [
+            {
+              "index": 0,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34041212928,
+              "vram_total": 34208743424
+            },
+            {
+              "index": 1,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34028695552,
+              "vram_total": 34208743424
+            }
+          ],
+          "link": {
+            "world": 2,
+            "ar_calls": 4765,
+            "ar_bytes": 1361489920,
+            "h2d_bytes": 274930191360,
+            "d2h_bytes": 7155118080,
+            "ssd_reads": 0,
+            "ssd_bytes": 0,
+            "prefetched": 0,
+            "prefetch_bytes": 0,
+            "staged_bytes": 244207180800,
+            "stream_bytes": 115604121600
+          },
+          "passes": {
+            "played": 9138,
+            "recorded": 196,
+            "audited": 120,
+            "issued_unkeyed": 72,
+            "issued_refused": 0,
+            "issued_first": 4,
+            "dispatched": 1781144,
+            "unordered": 436308
+          }
+        },
+        "metrics": [
+          "vllm:gpu_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "vllm:prompt_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126720",
+          "vllm:generation_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 2304",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 9",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 9",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 9",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 9",
+          "vllm:request_prompt_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126720",
+          "vllm:request_prompt_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 9",
+          "vllm:request_generation_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 2304",
+          "vllm:request_generation_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 9",
+          "radiance:linear_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"retention\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"store_full\"} 0",
+          "radiance:prefix_cache_ckpt_refused_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0"
+        ]
+      },
+      "requested_output_tokens": 256,
+      "output_cap_reached": true
+    },
+    {
+      "label": "JSON-1",
+      "prompt_sha256": "11b16d604e79c2114dc8d6b8ee7cba9ae355a443d81ac3779c4c8318938a6c7a",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 800
+      },
+      "before": {
+        "stats": {
+          "model": "qwen3.8-flash-next",
+          "version": "1.10.0",
+          "uptime_s": 45,
+          "startup_s": 20,
+          "in_flight": 0,
+          "queue_cap": 16,
+          "now_ms": 1792598854000,
+          "running": 0,
+          "waiting": 0,
+          "preempted": 0,
+          "kv_util": 0.0,
+          "kv_tokens_used": 0,
+          "kv_tokens_total": 524420,
+          "kv_tokens_cached": 0,
+          "kv_bytes_used": 0.0,
+          "kv_bytes_total": 267511616.0,
+          "kv_bytes_carved": 4160732480.0,
+          "kv_tokens_max": 524420,
+          "prefix_hit_rate": 0.0,
+          "prefix_evictions": 0.0,
+          "linear_hit_rate": 0.0,
+          "linear_cached_tokens": 0.0,
+          "checkpoints_written": 0.0,
+          "ckpt_evictions": {
+            "retention": 0,
+            "store_full": 0
+          },
+          "ckpt_refused": 0,
+          "hit_cuts": {
+            "no_snapshot": 0,
+            "windowed_group": 0,
+            "adopt_failed": 0
+          },
+          "hit_cut_tokens": 0.0,
+          "prefill_tps": 7.75814962387085,
+          "decode_tps": 159.9010772705078,
+          "draft_accept": 0.3993288576602936,
+          "preemptions": 0,
+          "total_requests": 9,
+          "steps": 811,
+          "steps_prefill": 42,
+          "steps_mixed": 0,
+          "prefill_chunks_capped": 0,
+          "steps_decode": 769,
+          "steps_held": 0,
+          "step_ns": 29475132694,
+          "step_ns_decode": 15107012886,
+          "step_ns_decode_best": 14701249,
+          "step_ns_decode_recent": 14864901,
+          "rows_unspec": 0,
+          "draft_positions": [
+            {
+              "reached": 760,
+              "accepted": 576,
+              "rate": 0.7578947368421053
+            },
+            {
+              "reached": 576,
+              "accepted": 372,
+              "rate": 0.6458333333333334
+            },
+            {
+              "reached": 372,
+              "accepted": 272,
+              "rate": 0.7311827956989247
+            },
+            {
+              "reached": 222,
+              "accepted": 162,
+              "rate": 0.7297297297297297
+            },
+            {
+              "reached": 152,
+              "accepted": 105,
+              "rate": 0.6907894736842105
+            },
+            {
+              "reached": 102,
+              "accepted": 60,
+              "rate": 0.5882352941176471
+            }
+          ],
+          "cards": [
+            {
+              "index": 0,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34041212928,
+              "vram_total": 34208743424
+            },
+            {
+              "index": 1,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34028695552,
+              "vram_total": 34208743424
+            }
+          ],
+          "link": {
+            "world": 2,
+            "ar_calls": 4765,
+            "ar_bytes": 1361489920,
+            "h2d_bytes": 274930191360,
+            "d2h_bytes": 7155118080,
+            "ssd_reads": 0,
+            "ssd_bytes": 0,
+            "prefetched": 0,
+            "prefetch_bytes": 0,
+            "staged_bytes": 244207180800,
+            "stream_bytes": 115604121600
+          },
+          "passes": {
+            "played": 9138,
+            "recorded": 196,
+            "audited": 120,
+            "issued_unkeyed": 72,
+            "issued_refused": 0,
+            "issued_first": 4,
+            "dispatched": 1781144,
+            "unordered": 436308
+          }
+        },
+        "metrics": [
+          "vllm:gpu_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "vllm:prompt_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126720",
+          "vllm:generation_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 2304",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 9",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 9",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 9",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 9",
+          "vllm:request_prompt_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126720",
+          "vllm:request_prompt_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 9",
+          "vllm:request_generation_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 2304",
+          "vllm:request_generation_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 9",
+          "radiance:linear_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"retention\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"store_full\"} 0",
+          "radiance:prefix_cache_ckpt_refused_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 24,
+        "completion_tokens": 800,
+        "total_tokens": 824,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.04045765999944706,
+      "wall_s": 3.503348748999997,
+      "pp_effective_tok_s": 593.2127562574804,
+      "generation_e2e_tok_s": 228.3529438022274,
+      "decode_tok_s": 230.74058126160534,
+      "legacy_decode_tok_s": 231.02083762931562,
+      "text": "\n\n<think>\nThe user wants me to output a JSON array of 200 objects with fields: id, name, category, price, in_stock. Only JSON, no other text.\n\nLet me generate 200 objects with varied data:\n- id: 1-200\n- name: various product names\n- category: various categories like Electronics, Clothing, Food, Books, Home, Sports, Toys, Beauty, Tools, Garden\n- price: various decimal prices\n- in_stock: boolean true/false\n\nLet me create this systematically with diverse names and categories.\n</think>\n\n[{\"id\":1,\"name\":\"Wireless Mouse\",\"category\":\"Electronics\",\"price\":29.99,\"in_stock\":true},{\"id\":2,\"name\":\"Cotton T-Shirt\",\"category\":\"Clothing\",\"price\":14.99,\"in_stock\":true},{\"id\":3,\"name\":\"Organic Honey\",\"category\":\"Food\",\"price\":8.50,\"in_stock\":true},{\"id\":4,\"name\":\"Python Cookbook\",\"category\":\"Books\",\"price\":39.99,\"in_stock\":false},{\"id\":5,\"name\":\"LED Desk Lamp\",\"category\":\"Home\",\"price\":24.95,\"in_stock\":true},{\"id\":6,\"name\":\"Yoga Mat\",\"category\":\"Sports\",\"price\":19.99,\"in_stock\":true},{\"id\":7,\"name\":\"Building Blocks Set\",\"category\":\"Toys\",\"price\":34.99,\"in_stock\":true},{\"id\":8,\"name\":\"Face Moisturizer\",\"category\":\"Beauty\",\"price\":12.99,\"in_stock\":true},{\"id\":9,\"name\":\"Cordless Drill\",\"category\":\"Tools\",\"price\":59.99,\"in_stock\":false},{\"id\":10,\"name\":\"Garden Hose 50ft\",\"category\":\"Garden\",\"price\":27.99,\"in_stock\":true},{\"id\":11,\"name\":\"Bluetooth Speaker\",\"category\":\"Electronics\",\"price\":45.00,\"in_stock\":true},{\"id\":12,\"name\":\"Denim Jacket\",\"category\":\"Clothing\",\"price\":49.99,\"in_stock\":true},{\"id\":13,\"name\":\"Dark Chocolate Bar\",\"category\":\"Food\",\"price\":3.99,\"in_stock\":true},{\"id\":14,\"name\":\"Sci-Fi Novel\",\"category\":\"Books\",\"price\":12.99,\"in_stock\":true},{\"id\":15,\"name\":\"Ceramic Vase\",\"category\":\"Home\",\"price\":18.50,\"in_stock\":false},{\"id\":16,\"name\":\"Tennis Racket\",\"category\":\"Sports\",\"price\":79.99,\"in_stock\":true},{\"id\":17,\"name\":\"RC Car\",\"category\":\"Toys\",\"price\":42.99,\"in_stock\":true},{\"id\":18,\"name\":\"Shampoo Bottle\",\"category\":\"Beauty\",\"price\":6.99,\"in_stock\":true},{\"id\":19,\"name\":\"Hammer Set\",\"category\":\"Tools\",\"price\":22.99,\"in_stock\":true},{\"id\":20,\"name\":\"Rose Seeds Pack\",\"category\":\"Garden\",\"price\":4.99,\"in_stock\":true},{\"id\":21,\"name\":\"USB-C Cable\",\"category\":\"Electronics\",\"price\":9.99,\"in_stock\":true},{\"id\":22,\"name\":\"Wool Sweater\",\"category\":\"Clothing\",\"price\":39.99,\"in_stock\":false},{\"id\":23,\"name\":\"Green Tea Box\",\"category\":\"Food\",\"price\":7.49,\"in_stock\":true},{\"id\":24,\"name\":\"History Atlas\",\"category\":\"Books\",\"price\":24.99,\"in_stock\":true},{\"",
+      "reasoning_text": "",
+      "after": {
+        "stats": {
+          "model": "qwen3.8-flash-next",
+          "version": "1.10.0",
+          "uptime_s": 48,
+          "startup_s": 20,
+          "in_flight": 0,
+          "queue_cap": 16,
+          "now_ms": 1792598857000,
+          "running": 0,
+          "waiting": 0,
+          "preempted": 0,
+          "kv_util": 0.0015865146415308118,
+          "kv_tokens_used": 832,
+          "kv_tokens_total": 524420,
+          "kv_tokens_cached": 0,
+          "kv_bytes_used": 123167776.0,
+          "kv_bytes_total": 271465280.0,
+          "kv_bytes_carved": 4160732480.0,
+          "kv_tokens_max": 524420,
+          "prefix_hit_rate": 0.0,
+          "prefix_evictions": 0.0,
+          "linear_hit_rate": 0.0,
+          "linear_cached_tokens": 0.0,
+          "checkpoints_written": 0.0,
+          "ckpt_evictions": {
+            "retention": 0,
+            "store_full": 0
+          },
+          "ckpt_refused": 0,
+          "hit_cuts": {
+            "no_snapshot": 0,
+            "windowed_group": 0,
+            "adopt_failed": 0
+          },
+          "hit_cut_tokens": 0.0,
+          "prefill_tps": 0.9763790369033813,
+          "decode_tps": 235.5968475341797,
+          "draft_accept": 0.45624735951423645,
+          "preemptions": 0,
+          "total_requests": 10,
+          "steps": 991,
+          "steps_prefill": 43,
+          "steps_mixed": 0,
+          "prefill_chunks_capped": 0,
+          "steps_decode": 948,
+          "steps_held": 0,
+          "step_ns": 32974520913,
+          "step_ns_decode": 18568739433,
+          "step_ns_decode_best": 14701249,
+          "step_ns_decode_recent": 19122577,
+          "rows_unspec": 0,
+          "draft_positions": [
+            {
+              "reached": 939,
+              "accepted": 743,
+              "rate": 0.7912673056443025
+            },
+            {
+              "reached": 743,
+              "accepted": 522,
+              "rate": 0.702557200538358
+            },
+            {
+              "reached": 522,
+              "accepted": 398,
+              "rate": 0.7624521072796935
+            },
+            {
+              "reached": 334,
+              "accepted": 252,
+              "rate": 0.7544910179640718
+            },
+            {
+              "reached": 242,
+              "accepted": 187,
+              "rate": 0.7727272727272727
+            },
+            {
+              "reached": 110,
+              "accepted": 67,
+              "rate": 0.6090909090909091
+            }
+          ],
+          "cards": [
+            {
+              "index": 0,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34041212928,
+              "vram_total": 34208743424
+            },
+            {
+              "index": 1,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34028695552,
+              "vram_total": 34208743424
+            }
+          ],
+          "link": {
+            "world": 2,
+            "ar_calls": 5831,
+            "ar_bytes": 1376220160,
+            "h2d_bytes": 276694133760,
+            "d2h_bytes": 8298132480,
+            "ssd_reads": 0,
+            "ssd_bytes": 0,
+            "prefetched": 0,
+            "prefetch_bytes": 0,
+            "staged_bytes": 244207180800,
+            "stream_bytes": 120369807360
+          },
+          "passes": {
+            "played": 11266,
+            "recorded": 198,
+            "audited": 120,
+            "issued_unkeyed": 72,
+            "issued_refused": 0,
+            "issued_first": 6,
+            "dispatched": 2204648,
+            "unordered": 540778
+          }
+        },
+        "metrics": [
+          "vllm:gpu_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "vllm:prompt_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126744",
+          "vllm:generation_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 3104",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 4",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 4",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 4",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 4",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 4",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 10",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 10",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 10",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 10",
+          "vllm:request_prompt_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126744",
+          "vllm:request_prompt_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 10",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 10",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 10",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 10",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 10",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 10",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 10",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 10",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 10",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 10",
+          "vllm:request_generation_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 3104",
+          "vllm:request_generation_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 10",
+          "radiance:linear_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"retention\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"store_full\"} 0",
+          "radiance:prefix_cache_ckpt_refused_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0"
+        ]
+      },
+      "requested_output_tokens": 800,
+      "output_cap_reached": true
+    },
+    {
+      "label": "JSON-2",
+      "prompt_sha256": "11b16d604e79c2114dc8d6b8ee7cba9ae355a443d81ac3779c4c8318938a6c7a",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 800
+      },
+      "before": {
+        "stats": {
+          "model": "qwen3.8-flash-next",
+          "version": "1.10.0",
+          "uptime_s": 48,
+          "startup_s": 20,
+          "in_flight": 0,
+          "queue_cap": 16,
+          "now_ms": 1792598857000,
+          "running": 0,
+          "waiting": 0,
+          "preempted": 0,
+          "kv_util": 0.0,
+          "kv_tokens_used": 0,
+          "kv_tokens_total": 524420,
+          "kv_tokens_cached": 0,
+          "kv_bytes_used": 0.0,
+          "kv_bytes_total": 271465280.0,
+          "kv_bytes_carved": 4160732480.0,
+          "kv_tokens_max": 524420,
+          "prefix_hit_rate": 0.0,
+          "prefix_evictions": 0.0,
+          "linear_hit_rate": 0.0,
+          "linear_cached_tokens": 0.0,
+          "checkpoints_written": 0.0,
+          "ckpt_evictions": {
+            "retention": 0,
+            "store_full": 0
+          },
+          "ckpt_refused": 0,
+          "hit_cuts": {
+            "no_snapshot": 0,
+            "windowed_group": 0,
+            "adopt_failed": 0
+          },
+          "hit_cut_tokens": 0.0,
+          "prefill_tps": 0.9619231224060059,
+          "decode_tps": 232.10867309570312,
+          "draft_accept": 0.45624735951423645,
+          "preemptions": 0,
+          "total_requests": 10,
+          "steps": 992,
+          "steps_prefill": 43,
+          "steps_mixed": 0,
+          "prefill_chunks_capped": 0,
+          "steps_decode": 949,
+          "steps_held": 0,
+          "step_ns": 32989465033,
+          "step_ns_decode": 18583683553,
+          "step_ns_decode_best": 14701249,
+          "step_ns_decode_recent": 19122577,
+          "rows_unspec": 0,
+          "draft_positions": [
+            {
+              "reached": 939,
+              "accepted": 743,
+              "rate": 0.7912673056443025
+            },
+            {
+              "reached": 743,
+              "accepted": 522,
+              "rate": 0.702557200538358
+            },
+            {
+              "reached": 522,
+              "accepted": 398,
+              "rate": 0.7624521072796935
+            },
+            {
+              "reached": 334,
+              "accepted": 252,
+              "rate": 0.7544910179640718
+            },
+            {
+              "reached": 242,
+              "accepted": 187,
+              "rate": 0.7727272727272727
+            },
+            {
+              "reached": 110,
+              "accepted": 67,
+              "rate": 0.6090909090909091
+            }
+          ],
+          "cards": [
+            {
+              "index": 0,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34041212928,
+              "vram_total": 34208743424
+            },
+            {
+              "index": 1,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34028695552,
+              "vram_total": 34208743424
+            }
+          ],
+          "link": {
+            "world": 2,
+            "ar_calls": 5831,
+            "ar_bytes": 1376220160,
+            "h2d_bytes": 276694133760,
+            "d2h_bytes": 8298132480,
+            "ssd_reads": 0,
+            "ssd_bytes": 0,
+            "prefetched": 0,
+            "prefetch_bytes": 0,
+            "staged_bytes": 244207180800,
+            "stream_bytes": 120369807360
+          },
+          "passes": {
+            "played": 11266,
+            "recorded": 198,
+            "audited": 120,
+            "issued_unkeyed": 72,
+            "issued_refused": 0,
+            "issued_first": 6,
+            "dispatched": 2204648,
+            "unordered": 540778
+          }
+        },
+        "metrics": [
+          "vllm:gpu_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "vllm:prompt_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126744",
+          "vllm:generation_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 3104",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 4",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 4",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 4",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 4",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 4",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 10",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 10",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 10",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 10",
+          "vllm:request_prompt_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126744",
+          "vllm:request_prompt_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 10",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 10",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 10",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 10",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 10",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 10",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 10",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 10",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 10",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 10",
+          "vllm:request_generation_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 3104",
+          "vllm:request_generation_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 10",
+          "radiance:linear_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"retention\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"store_full\"} 0",
+          "radiance:prefix_cache_ckpt_refused_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 24,
+        "completion_tokens": 800,
+        "total_tokens": 824,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.031729242999972485,
+      "wall_s": 3.174089297000137,
+      "pp_effective_tok_s": 756.4000187467698,
+      "generation_e2e_tok_s": 252.04079820819405,
+      "decode_tok_s": 254.2789484625235,
+      "legacy_decode_tok_s": 254.58572100342712,
+      "text": "\n\n<think>\nThe user wants me to output a JSON array of 200 objects with fields: id, name, category, price, in_stock. Only JSON, no other text.\n\nLet me generate 200 objects with varied data:\n- id: 1-200\n- name: various product names\n- category: various categories like Electronics, Clothing, Food, Home, Sports, Books, Toys, Beauty, Garden, Automotive\n- price: various decimal prices\n- in_stock: boolean true/false\n\nLet me create this systematically with diverse names and categories.\n</think>\n\n[{\"id\":1,\"name\":\"Wireless Mouse\",\"category\":\"Electronics\",\"price\":29.99,\"in_stock\":true},{\"id\":2,\"name\":\"Cotton T-Shirt\",\"category\":\"Clothing\",\"price\":14.99,\"in_stock\":true},{\"id\":3,\"name\":\"Organic Honey\",\"category\":\"Food\",\"price\":8.50,\"in_stock\":true},{\"id\":4,\"name\":\"Ceramic Vase\",\"category\":\"Home\",\"price\":34.99,\"in_stock\":false},{\"id\":5,\"name\":\"Yoga Mat\",\"category\":\"Sports\",\"price\":24.99,\"in_stock\":true},{\"id\":6,\"name\":\"Mystery Novel\",\"category\":\"Books\",\"price\":12.99,\"in_stock\":true},{\"id\":7,\"name\":\"Building Blocks Set\",\"category\":\"Toys\",\"price\":39.99,\"in_stock\":true},{\"id\":8,\"name\":\"Face Moisturizer\",\"category\":\"Beauty\",\"price\":18.99,\"in_stock\":true},{\"id\":9,\"name\":\"Garden Hose\",\"category\":\"Garden\",\"price\":22.50,\"in_stock\":false},{\"id\":10,\"name\":\"Car Phone Mount\",\"category\":\"Automotive\",\"price\":15.99,\"in_stock\":true},{\"id\":11,\"name\":\"Bluetooth Speaker\",\"category\":\"Electronics\",\"price\":49.99,\"in_stock\":true},{\"id\":12,\"name\":\"Denim Jacket\",\"category\":\"Clothing\",\"price\":59.99,\"in_stock\":true},{\"id\":13,\"name\":\"Dark Chocolate Bar\",\"category\":\"Food\",\"price\":4.99,\"in_stock\":true},{\"id\":14,\"name\":\"LED Desk Lamp\",\"category\":\"Home\",\"price\":27.99,\"in_stock\":true},{\"id\":15,\"name\":\"Tennis Racket\",\"category\":\"Sports\",\"price\":89.99,\"in_stock\":false},{\"id\":16,\"name\":\"Cookbook Collection\",\"category\":\"Books\",\"price\":24.99,\"in_stock\":true},{\"id\":17,\"name\":\"RC Race Car\",\"category\":\"Toys\",\"price\":45.99,\"in_stock\":true},{\"id\":18,\"name\":\"Lipstick Set\",\"category\":\"Beauty\",\"price\":22.99,\"in_stock\":true},{\"id\":19,\"name\":\"Pruning Shears\",\"category\":\"Garden\",\"price\":16.99,\"in_stock\":true},{\"id\":20,\"name\":\"Dash Cam\",\"category\":\"Automotive\",\"price\":79.99,\"in_stock\":true},{\"id\":21,\"name\":\"USB-C Hub\",\"category\":\"Electronics\",\"price\":35.99,\"in_stock\":true},{\"id\":22,\"name\":\"Wool Sweater\",\"category\":\"Clothing\",\"price\":44.99,\"in_stock\":false},{\"id\":23,\"name\":\"Green Tea Pack\",\"category\":\"Food\",\"price\":6.99,\"in_stock\":true},{\"id\":24,\"name\":\"Throw Pillow\",\"category\":\"Home\",\"price\":19.99,\"in_stock",
+      "reasoning_text": "",
+      "after": {
+        "stats": {
+          "model": "qwen3.8-flash-next",
+          "version": "1.10.0",
+          "uptime_s": 51,
+          "startup_s": 20,
+          "in_flight": 0,
+          "queue_cap": 16,
+          "now_ms": 1792598860000,
+          "running": 0,
+          "waiting": 0,
+          "preempted": 0,
+          "kv_util": 0.0015941420570015907,
+          "kv_tokens_used": 836,
+          "kv_tokens_total": 524420,
+          "kv_tokens_cached": 0,
+          "kv_bytes_used": 123197728.0,
+          "kv_bytes_total": 271465280.0,
+          "kv_bytes_carved": 4160732480.0,
+          "kv_tokens_max": 524420,
+          "prefix_hit_rate": 0.0,
+          "prefix_evictions": 0.0,
+          "linear_hit_rate": 0.0,
+          "linear_cached_tokens": 0.0,
+          "checkpoints_written": 0.0,
+          "ckpt_evictions": {
+            "retention": 0,
+            "store_full": 0
+          },
+          "ckpt_refused": 0,
+          "hit_cuts": {
+            "no_snapshot": 0,
+            "windowed_group": 0,
+            "adopt_failed": 0
+          },
+          "hit_cut_tokens": 0.0,
+          "prefill_tps": 1.067111611366272,
+          "decode_tps": 263.6607971191406,
+          "draft_accept": 0.5002684593200684,
+          "preemptions": 0,
+          "total_requests": 11,
+          "steps": 1170,
+          "steps_prefill": 44,
+          "steps_mixed": 0,
+          "prefill_chunks_capped": 0,
+          "steps_decode": 1126,
+          "steps_held": 0,
+          "step_ns": 36159446382,
+          "step_ns_decode": 21724938159,
+          "step_ns_decode_best": 14701249,
+          "step_ns_decode_recent": 18623947,
+          "rows_unspec": 0,
+          "draft_positions": [
+            {
+              "reached": 1116,
+              "accepted": 908,
+              "rate": 0.8136200716845878
+            },
+            {
+              "reached": 908,
+              "accepted": 670,
+              "rate": 0.737885462555066
+            },
+            {
+              "reached": 670,
+              "accepted": 534,
+              "rate": 0.7970149253731343
+            },
+            {
+              "reached": 448,
+              "accepted": 349,
+              "rate": 0.7790178571428571
+            },
+            {
+              "reached": 339,
+              "accepted": 267,
+              "rate": 0.7876106194690266
+            },
+            {
+              "reached": 110,
+              "accepted": 67,
+              "rate": 0.6090909090909091
+            }
+          ],
+          "cards": [
+            {
+              "index": 0,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34041212928,
+              "vram_total": 34208743424
+            },
+            {
+              "index": 1,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34028695552,
+              "vram_total": 34208743424
+            }
+          ],
+          "link": {
+            "world": 2,
+            "ar_calls": 6848,
+            "ar_bytes": 1390218240,
+            "h2d_bytes": 276869007360,
+            "d2h_bytes": 8417249280,
+            "ssd_reads": 0,
+            "ssd_bytes": 0,
+            "prefetched": 0,
+            "prefetch_bytes": 0,
+            "staged_bytes": 244207180800,
+            "stream_bytes": 121484943360
+          },
+          "passes": {
+            "played": 13296,
+            "recorded": 200,
+            "audited": 122,
+            "issued_unkeyed": 72,
+            "issued_refused": 0,
+            "issued_first": 6,
+            "dispatched": 2620696,
+            "unordered": 643418
+          }
+        },
+        "metrics": [
+          "vllm:gpu_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "vllm:prompt_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126768",
+          "vllm:generation_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 3904",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 5",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 5",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 5",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 5",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 5",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 11",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 11",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 11",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 11",
+          "vllm:request_prompt_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126768",
+          "vllm:request_prompt_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 11",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 11",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 11",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 11",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 11",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 11",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 11",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 11",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 11",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 11",
+          "vllm:request_generation_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 3904",
+          "vllm:request_generation_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 11",
+          "radiance:linear_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"retention\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"store_full\"} 0",
+          "radiance:prefix_cache_ckpt_refused_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0"
+        ]
+      },
+      "requested_output_tokens": 800,
+      "output_cap_reached": true
+    },
+    {
+      "label": "JSON-3",
+      "prompt_sha256": "11b16d604e79c2114dc8d6b8ee7cba9ae355a443d81ac3779c4c8318938a6c7a",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 800
+      },
+      "before": {
+        "stats": {
+          "model": "qwen3.8-flash-next",
+          "version": "1.10.0",
+          "uptime_s": 51,
+          "startup_s": 20,
+          "in_flight": 0,
+          "queue_cap": 16,
+          "now_ms": 1792598860000,
+          "running": 0,
+          "waiting": 0,
+          "preempted": 0,
+          "kv_util": 0.0015941420570015907,
+          "kv_tokens_used": 836,
+          "kv_tokens_total": 524420,
+          "kv_tokens_cached": 0,
+          "kv_bytes_used": 123197728.0,
+          "kv_bytes_total": 271465280.0,
+          "kv_bytes_carved": 4160732480.0,
+          "kv_tokens_max": 524420,
+          "prefix_hit_rate": 0.0,
+          "prefix_evictions": 0.0,
+          "linear_hit_rate": 0.0,
+          "linear_cached_tokens": 0.0,
+          "checkpoints_written": 0.0,
+          "ckpt_evictions": {
+            "retention": 0,
+            "store_full": 0
+          },
+          "ckpt_refused": 0,
+          "hit_cuts": {
+            "no_snapshot": 0,
+            "windowed_group": 0,
+            "adopt_failed": 0
+          },
+          "hit_cut_tokens": 0.0,
+          "prefill_tps": 1.067111611366272,
+          "decode_tps": 263.6607971191406,
+          "draft_accept": 0.5002684593200684,
+          "preemptions": 0,
+          "total_requests": 11,
+          "steps": 1170,
+          "steps_prefill": 44,
+          "steps_mixed": 0,
+          "prefill_chunks_capped": 0,
+          "steps_decode": 1126,
+          "steps_held": 0,
+          "step_ns": 36159446382,
+          "step_ns_decode": 21724938159,
+          "step_ns_decode_best": 14701249,
+          "step_ns_decode_recent": 18623947,
+          "rows_unspec": 0,
+          "draft_positions": [
+            {
+              "reached": 1116,
+              "accepted": 908,
+              "rate": 0.8136200716845878
+            },
+            {
+              "reached": 908,
+              "accepted": 670,
+              "rate": 0.737885462555066
+            },
+            {
+              "reached": 670,
+              "accepted": 534,
+              "rate": 0.7970149253731343
+            },
+            {
+              "reached": 448,
+              "accepted": 349,
+              "rate": 0.7790178571428571
+            },
+            {
+              "reached": 339,
+              "accepted": 267,
+              "rate": 0.7876106194690266
+            },
+            {
+              "reached": 110,
+              "accepted": 67,
+              "rate": 0.6090909090909091
+            }
+          ],
+          "cards": [
+            {
+              "index": 0,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34041212928,
+              "vram_total": 34208743424
+            },
+            {
+              "index": 1,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34028695552,
+              "vram_total": 34208743424
+            }
+          ],
+          "link": {
+            "world": 2,
+            "ar_calls": 6848,
+            "ar_bytes": 1390218240,
+            "h2d_bytes": 276869007360,
+            "d2h_bytes": 8417249280,
+            "ssd_reads": 0,
+            "ssd_bytes": 0,
+            "prefetched": 0,
+            "prefetch_bytes": 0,
+            "staged_bytes": 244207180800,
+            "stream_bytes": 121484943360
+          },
+          "passes": {
+            "played": 13296,
+            "recorded": 200,
+            "audited": 122,
+            "issued_unkeyed": 72,
+            "issued_refused": 0,
+            "issued_first": 6,
+            "dispatched": 2620696,
+            "unordered": 643418
+          }
+        },
+        "metrics": [
+          "vllm:gpu_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "vllm:prompt_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126768",
+          "vllm:generation_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 3904",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 5",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 5",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 5",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 5",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 5",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 11",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 11",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 11",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 11",
+          "vllm:request_prompt_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126768",
+          "vllm:request_prompt_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 11",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 11",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 11",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 11",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 11",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 11",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 11",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 11",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 11",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 11",
+          "vllm:request_generation_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 3904",
+          "vllm:request_generation_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 11",
+          "radiance:linear_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"retention\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"store_full\"} 0",
+          "radiance:prefix_cache_ckpt_refused_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 24,
+        "completion_tokens": 800,
+        "total_tokens": 824,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.031063600000379665,
+      "wall_s": 3.116455656000653,
+      "pp_effective_tok_s": 772.6084549024152,
+      "generation_e2e_tok_s": 256.70187171109626,
+      "decode_tok_s": 258.9730530283355,
+      "legacy_decode_tok_s": 259.2863355709402,
+      "text": "\n\n<think>\nThe user wants me to output a JSON array of 200 objects with fields: id, name, category, price, in_stock. Only JSON, no other text.\n\nLet me generate 200 objects with varied data:\n- id: 1-200\n- name: various product names\n- category: various categories like Electronics, Clothing, Food, Books, Home, Sports, Toys, Beauty, Automotive, Garden\n- price: random prices\n- in_stock: boolean true/false\n\nLet me create this systematically with varied and realistic data.\n</think>\n\n[{\"id\":1,\"name\":\"Wireless Mouse\",\"category\":\"Electronics\",\"price\":29.99,\"in_stock\":true},{\"id\":2,\"name\":\"Cotton T-Shirt\",\"category\":\"Clothing\",\"price\":19.99,\"in_stock\":true},{\"id\":3,\"name\":\"Organic Honey\",\"category\":\"Food\",\"price\":12.50,\"in_stock\":true},{\"id\":4,\"name\":\"Python Cookbook\",\"category\":\"Books\",\"price\":45.00,\"in_stock\":false},{\"id\":5,\"name\":\"LED Desk Lamp\",\"category\":\"Home\",\"price\":34.99,\"in_stock\":true},{\"id\":6,\"name\":\"Yoga Mat\",\"category\":\"Sports\",\"price\":24.99,\"in_stock\":true},{\"id\":7,\"name\":\"Building Blocks Set\",\"category\":\"Toys\",\"price\":39.99,\"in_stock\":true},{\"id\":8,\"name\":\"Face Moisturizer\",\"category\":\"Beauty\",\"price\":18.75,\"in_stock\":true},{\"id\":9,\"name\":\"Car Phone Mount\",\"category\":\"Automotive\",\"price\":14.99,\"in_stock\":true},{\"id\":10,\"name\":\"Garden Hose 50ft\",\"category\":\"Garden\",\"price\":28.50,\"in_stock\":false},{\"id\":11,\"name\":\"Bluetooth Headphones\",\"category\":\"Electronics\",\"price\":59.99,\"in_stock\":true},{\"id\":12,\"name\":\"Denim Jacket\",\"category\":\"Clothing\",\"price\":64.99,\"in_stock\":true},{\"id\":13,\"name\":\"Dark Chocolate Bar\",\"category\":\"Food\",\"price\":4.99,\"in_stock\":true},{\"id\":14,\"name\":\"Sci-Fi Novel\",\"category\":\"Books\",\"price\":14.99,\"in_stock\":true},{\"id\":15,\"name\":\"Ceramic Vase\",\"category\":\"Home\",\"price\":22.00,\"in_stock\":true},{\"id\":16,\"name\":\"Tennis Racket\",\"category\":\"Sports\",\"price\":89.99,\"in_stock\":false},{\"id\":17,\"name\":\"RC Race Car\",\"category\":\"Toys\",\"price\":49.99,\"in_stock\":true},{\"id\":18,\"name\":\"Lipstick Set\",\"category\":\"Beauty\",\"price\":25.00,\"in_stock\":true},{\"id\":19,\"name\":\"Oil Filter\",\"category\":\"Automotive\",\"price\":8.99,\"in_stock\":true},{\"id\":20,\"name\":\"Tomato Seeds Pack\",\"category\":\"Garden\",\"price\":3.99,\"in_stock\":true},{\"id\":21,\"name\":\"USB-C Cable 6ft\",\"category\":\"Electronics\",\"price\":11.99,\"in_stock\":true},{\"id\":22,\"name\":\"Wool Sweater\",\"category\":\"Clothing\",\"price\":54.99,\"in_stock\":true},{\"id\":23,\"name\":\"Green Tea Box\",\"category\":\"Food\",\"price\":9.99,\"in_stock\":true},{\"id\":24,\"name\":\"History Atlas\",\"category\":\"Books\",\"price\":32.",
+      "reasoning_text": "",
+      "after": {
+        "stats": {
+          "model": "qwen3.8-flash-next",
+          "version": "1.10.0",
+          "uptime_s": 54,
+          "startup_s": 20,
+          "in_flight": 0,
+          "queue_cap": 16,
+          "now_ms": 1792598863000,
+          "running": 0,
+          "waiting": 0,
+          "preempted": 0,
+          "kv_util": 0.0015941420570015907,
+          "kv_tokens_used": 836,
+          "kv_tokens_total": 524420,
+          "kv_tokens_cached": 0,
+          "kv_bytes_used": 123197728.0,
+          "kv_bytes_total": 271465280.0,
+          "kv_bytes_carved": 4160732480.0,
+          "kv_tokens_max": 524420,
+          "prefix_hit_rate": 0.0,
+          "prefix_evictions": 0.0,
+          "linear_hit_rate": 0.0,
+          "linear_cached_tokens": 0.0,
+          "checkpoints_written": 0.0,
+          "ckpt_evictions": {
+            "retention": 0,
+            "store_full": 0
+          },
+          "ckpt_refused": 0,
+          "hit_cuts": {
+            "no_snapshot": 0,
+            "windowed_group": 0,
+            "adopt_failed": 0
+          },
+          "hit_cut_tokens": 0.0,
+          "prefill_tps": 1.1336743831634521,
+          "decode_tps": 264.9837341308594,
+          "draft_accept": 0.5333021879196167,
+          "preemptions": 0,
+          "total_requests": 12,
+          "steps": 1343,
+          "steps_prefill": 45,
+          "steps_mixed": 0,
+          "prefill_chunks_capped": 0,
+          "steps_decode": 1298,
+          "steps_held": 0,
+          "step_ns": 39287535428,
+          "step_ns_decode": 24824932881,
+          "step_ns_decode_best": 14701249,
+          "step_ns_decode_recent": 18439100,
+          "rows_unspec": 0,
+          "draft_positions": [
+            {
+              "reached": 1287,
+              "accepted": 1067,
+              "rate": 0.8290598290598291
+            },
+            {
+              "reached": 1067,
+              "accepted": 816,
+              "rate": 0.7647610121836926
+            },
+            {
+              "reached": 816,
+              "accepted": 663,
+              "rate": 0.8125
+            },
+            {
+              "reached": 571,
+              "accepted": 458,
+              "rate": 0.8021015761821366
+            },
+            {
+              "reached": 448,
+              "accepted": 356,
+              "rate": 0.7946428571428571
+            },
+            {
+              "reached": 110,
+              "accepted": 67,
+              "rate": 0.6090909090909091
+            }
+          ],
+          "cards": [
+            {
+              "index": 0,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34041212928,
+              "vram_total": 34208743424
+            },
+            {
+              "index": 1,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34028695552,
+              "vram_total": 34208743424
+            }
+          ],
+          "link": {
+            "world": 2,
+            "ar_calls": 7865,
+            "ar_bytes": 1404277760,
+            "h2d_bytes": 276936422400,
+            "d2h_bytes": 8455772160,
+            "ssd_reads": 0,
+            "ssd_bytes": 0,
+            "prefetched": 0,
+            "prefetch_bytes": 0,
+            "staged_bytes": 244207180800,
+            "stream_bytes": 122190520320
+          },
+          "passes": {
+            "played": 15328,
+            "recorded": 200,
+            "audited": 124,
+            "issued_unkeyed": 72,
+            "issued_refused": 0,
+            "issued_first": 6,
+            "dispatched": 3025172,
+            "unordered": 743234
+          }
+        },
+        "metrics": [
+          "vllm:gpu_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "vllm:prompt_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126792",
+          "vllm:generation_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 4704",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 9",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 9",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 9",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 9",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 12",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 12",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 12",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 12",
+          "vllm:request_prompt_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126792",
+          "vllm:request_prompt_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 12",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 12",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 12",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 12",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 12",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 12",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 12",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 12",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 12",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 12",
+          "vllm:request_generation_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 4704",
+          "vllm:request_generation_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 12",
+          "radiance:linear_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"retention\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"store_full\"} 0",
+          "radiance:prefix_cache_ckpt_refused_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0"
+        ]
+      },
+      "requested_output_tokens": 800,
+      "output_cap_reached": true
+    },
+    {
+      "label": "code-1",
+      "prompt_sha256": "8e6134d79e69df6b7a98b98f19f353712544b2abb5b9e729f895da2bc954d7e0",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 600
+      },
+      "before": {
+        "stats": {
+          "model": "qwen3.8-flash-next",
+          "version": "1.10.0",
+          "uptime_s": 54,
+          "startup_s": 20,
+          "in_flight": 0,
+          "queue_cap": 16,
+          "now_ms": 1792598863000,
+          "running": 0,
+          "waiting": 0,
+          "preempted": 0,
+          "kv_util": 0.0015941420570015907,
+          "kv_tokens_used": 836,
+          "kv_tokens_total": 524420,
+          "kv_tokens_cached": 0,
+          "kv_bytes_used": 123197728.0,
+          "kv_bytes_total": 271465280.0,
+          "kv_bytes_carved": 4160732480.0,
+          "kv_tokens_max": 524420,
+          "prefix_hit_rate": 0.0,
+          "prefix_evictions": 0.0,
+          "linear_hit_rate": 0.0,
+          "linear_cached_tokens": 0.0,
+          "checkpoints_written": 0.0,
+          "ckpt_evictions": {
+            "retention": 0,
+            "store_full": 0
+          },
+          "ckpt_refused": 0,
+          "hit_cuts": {
+            "no_snapshot": 0,
+            "windowed_group": 0,
+            "adopt_failed": 0
+          },
+          "hit_cut_tokens": 0.0,
+          "prefill_tps": 1.1336743831634521,
+          "decode_tps": 264.9837341308594,
+          "draft_accept": 0.5333021879196167,
+          "preemptions": 0,
+          "total_requests": 12,
+          "steps": 1343,
+          "steps_prefill": 45,
+          "steps_mixed": 0,
+          "prefill_chunks_capped": 0,
+          "steps_decode": 1298,
+          "steps_held": 0,
+          "step_ns": 39287535428,
+          "step_ns_decode": 24824932881,
+          "step_ns_decode_best": 14701249,
+          "step_ns_decode_recent": 18439100,
+          "rows_unspec": 0,
+          "draft_positions": [
+            {
+              "reached": 1287,
+              "accepted": 1067,
+              "rate": 0.8290598290598291
+            },
+            {
+              "reached": 1067,
+              "accepted": 816,
+              "rate": 0.7647610121836926
+            },
+            {
+              "reached": 816,
+              "accepted": 663,
+              "rate": 0.8125
+            },
+            {
+              "reached": 571,
+              "accepted": 458,
+              "rate": 0.8021015761821366
+            },
+            {
+              "reached": 448,
+              "accepted": 356,
+              "rate": 0.7946428571428571
+            },
+            {
+              "reached": 110,
+              "accepted": 67,
+              "rate": 0.6090909090909091
+            }
+          ],
+          "cards": [
+            {
+              "index": 0,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34041212928,
+              "vram_total": 34208743424
+            },
+            {
+              "index": 1,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34028695552,
+              "vram_total": 34208743424
+            }
+          ],
+          "link": {
+            "world": 2,
+            "ar_calls": 7865,
+            "ar_bytes": 1404277760,
+            "h2d_bytes": 276936422400,
+            "d2h_bytes": 8455772160,
+            "ssd_reads": 0,
+            "ssd_bytes": 0,
+            "prefetched": 0,
+            "prefetch_bytes": 0,
+            "staged_bytes": 244207180800,
+            "stream_bytes": 122190520320
+          },
+          "passes": {
+            "played": 15328,
+            "recorded": 200,
+            "audited": 124,
+            "issued_unkeyed": 72,
+            "issued_refused": 0,
+            "issued_first": 6,
+            "dispatched": 3025172,
+            "unordered": 743234
+          }
+        },
+        "metrics": [
+          "vllm:gpu_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "vllm:prompt_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126792",
+          "vllm:generation_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 4704",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 3",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 9",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 9",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 9",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 9",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 12",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 12",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 12",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 12",
+          "vllm:request_prompt_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126792",
+          "vllm:request_prompt_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 12",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 12",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 12",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 12",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 12",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 12",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 12",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 12",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 12",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 12",
+          "vllm:request_generation_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 4704",
+          "vllm:request_generation_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 12",
+          "radiance:linear_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"retention\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"store_full\"} 0",
+          "radiance:prefix_cache_ckpt_refused_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 20,
+        "completion_tokens": 600,
+        "total_tokens": 620,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.0448995400001877,
+      "wall_s": 2.6413486410001497,
+      "pp_effective_tok_s": 445.43886195529825,
+      "generation_e2e_tok_s": 227.15668453855048,
+      "decode_tok_s": 230.708447078001,
+      "legacy_decode_tok_s": 231.0848303434579,
+      "text": "\n\n<think>\n\n</think>\n\n```python\n\"\"\"\nA thread-safe LRU (Least Recently Used) cache with TTL (Time-To-Live) expiry.\n\nThis module provides a generic LRU cache that automatically evicts the least\nrecently used items when the cache reaches its maximum capacity, and also\nsupports per-item TTL expiry where items are automatically removed after a\nspecified time-to-live period.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport threading\nimport time\nfrom collections import OrderedDict\nfrom typing import Any, Generic, Hashable, Optional, TypeVar\n\nK = TypeVar(\"K\", bound=Hashable)\nV = TypeVar(\"V\")\n\n\nclass LRUCache(Generic[K, V]):\n    \"\"\"\n    A thread-safe LRU cache with optional TTL (Time-To-Live) expiry.\n\n    This cache stores key-value pairs and automatically evicts the least\n    recently used items when the cache exceeds its maximum size. Additionally,\n    each item can have an optional TTL after which it is considered expired\n    and will be removed on access or during cleanup.\n\n    Attributes:\n        maxsize: The maximum number of items the cache can hold.\n        default_ttl: The default time-to-live in seconds for items without\n                     an explicit TTL. If None, items do not expire by default.\n    \"\"\"\n\n    def __init__(\n        self,\n        maxsize: int = 128,\n        default_ttl: Optional[float] = None,\n    ) -> None:\n        \"\"\"\n        Initialize the LRU cache.\n\n        Args:\n            maxsize: The maximum number of items the cache can hold.\n                     Must be a positive integer.\n            default_ttl: The default time-to-live in seconds for items.\n                         If None, items do not expire by default.\n\n        Raises:\n            ValueError: If maxsize is not a positive integer.\n        \"\"\"\n        if not isinstance(maxsize, int) or maxsize <= 0:\n            raise ValueError(\"maxsize must be a positive integer\")\n        if default_ttl is not None and (not isinstance(default_ttl, (int, float)) or default_ttl <= 0):\n            raise ValueError(\"default_ttl must be a positive number or None\")\n\n        self._maxsize = maxsize\n        self._default_ttl = default_ttl\n        self._cache: OrderedDict[K, tuple[V, Optional[float]]] = OrderedDict()\n        self._lock = threading.RLock()\n\n    @property\n    def maxsize(self) -> int:\n        \"\"\"Return the maximum size of the cache.\"\"\"\n        return self._maxsize\n\n    @property\n    def default_ttl(self) -> Optional[float]:\n        \"\"\"Return the default TTL in seconds.\"\"\"\n        return self._default_ttl\n\n    def _is_expired(self, expiry_time: Optional[float])",
+      "reasoning_text": "",
+      "after": {
+        "stats": {
+          "model": "qwen3.8-flash-next",
+          "version": "1.10.0",
+          "uptime_s": 57,
+          "startup_s": 20,
+          "in_flight": 0,
+          "queue_cap": 16,
+          "now_ms": 1792598866000,
+          "running": 0,
+          "waiting": 0,
+          "preempted": 0,
+          "kv_util": 0.0011975134257227182,
+          "kv_tokens_used": 628,
+          "kv_tokens_total": 524420,
+          "kv_tokens_cached": 0,
+          "kv_bytes_used": 121640224.0,
+          "kv_bytes_total": 271465280.0,
+          "kv_bytes_carved": 4160732480.0,
+          "kv_tokens_max": 524420,
+          "prefix_hit_rate": 0.0,
+          "prefix_evictions": 0.0,
+          "linear_hit_rate": 0.0,
+          "linear_cached_tokens": 0.0,
+          "checkpoints_written": 0.0,
+          "ckpt_evictions": {
+            "retention": 0,
+            "store_full": 0
+          },
+          "ckpt_refused": 0,
+          "hit_cuts": {
+            "no_snapshot": 0,
+            "windowed_group": 0,
+            "adopt_failed": 0
+          },
+          "hit_cut_tokens": 0.0,
+          "prefill_tps": 1.5559262037277222,
+          "decode_tps": 255.27577209472656,
+          "draft_accept": 0.5487925410270691,
+          "preemptions": 0,
+          "total_requests": 13,
+          "steps": 1486,
+          "steps_prefill": 46,
+          "steps_mixed": 0,
+          "prefill_chunks_capped": 0,
+          "steps_decode": 1440,
+          "steps_held": 0,
+          "step_ns": 41941156179,
+          "step_ns_decode": 27436890138,
+          "step_ns_decode_best": 14701249,
+          "step_ns_decode_recent": 19012970,
+          "rows_unspec": 0,
+          "draft_positions": [
+            {
+              "reached": 1428,
+              "accepted": 1193,
+              "rate": 0.8354341736694678
+            },
+            {
+              "reached": 1193,
+              "accepted": 927,
+              "rate": 0.7770326906957251
+            },
+            {
+              "reached": 927,
+              "accepted": 760,
+              "rate": 0.819848975188781
+            },
+            {
+              "reached": 650,
+              "accepted": 524,
+              "rate": 0.8061538461538461
+            },
+            {
+              "reached": 514,
+              "accepted": 415,
+              "rate": 0.8073929961089494
+            },
+            {
+              "reached": 110,
+              "accepted": 67,
+              "rate": 0.6090909090909091
+            }
+          ],
+          "cards": [
+            {
+              "index": 0,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34041212928,
+              "vram_total": 34208743424
+            },
+            {
+              "index": 1,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34028695552,
+              "vram_total": 34208743424
+            }
+          ],
+          "link": {
+            "world": 2,
+            "ar_calls": 8668,
+            "ar_bytes": 1415316480,
+            "h2d_bytes": 278367344640,
+            "d2h_bytes": 9504506880,
+            "ssd_reads": 0,
+            "ssd_bytes": 0,
+            "prefetched": 0,
+            "prefetch_bytes": 0,
+            "staged_bytes": 244207180800,
+            "stream_bytes": 125926732800
+          },
+          "passes": {
+            "played": 16930,
+            "recorded": 202,
+            "audited": 124,
+            "issued_unkeyed": 72,
+            "issued_refused": 0,
+            "issued_first": 8,
+            "dispatched": 3356470,
+            "unordered": 824958
+          }
+        },
+        "metrics": [
+          "vllm:gpu_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "vllm:prompt_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126812",
+          "vllm:generation_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 5304",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 4",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 10",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 10",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 10",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 10",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 13",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 13",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 13",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 13",
+          "vllm:request_prompt_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126812",
+          "vllm:request_prompt_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 13",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 13",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 13",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 13",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 13",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 13",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 13",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 13",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 13",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 13",
+          "vllm:request_generation_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 5304",
+          "vllm:request_generation_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 13",
+          "radiance:linear_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"retention\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"store_full\"} 0",
+          "radiance:prefix_cache_ckpt_refused_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0"
+        ]
+      },
+      "requested_output_tokens": 600,
+      "output_cap_reached": true
+    },
+    {
+      "label": "code-2",
+      "prompt_sha256": "8e6134d79e69df6b7a98b98f19f353712544b2abb5b9e729f895da2bc954d7e0",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 600
+      },
+      "before": {
+        "stats": {
+          "model": "qwen3.8-flash-next",
+          "version": "1.10.0",
+          "uptime_s": 57,
+          "startup_s": 20,
+          "in_flight": 0,
+          "queue_cap": 16,
+          "now_ms": 1792598866000,
+          "running": 0,
+          "waiting": 0,
+          "preempted": 0,
+          "kv_util": 0.0011975134257227182,
+          "kv_tokens_used": 628,
+          "kv_tokens_total": 524420,
+          "kv_tokens_cached": 0,
+          "kv_bytes_used": 121640224.0,
+          "kv_bytes_total": 271465280.0,
+          "kv_bytes_carved": 4160732480.0,
+          "kv_tokens_max": 524420,
+          "prefix_hit_rate": 0.0,
+          "prefix_evictions": 0.0,
+          "linear_hit_rate": 0.0,
+          "linear_cached_tokens": 0.0,
+          "checkpoints_written": 0.0,
+          "ckpt_evictions": {
+            "retention": 0,
+            "store_full": 0
+          },
+          "ckpt_refused": 0,
+          "hit_cuts": {
+            "no_snapshot": 0,
+            "windowed_group": 0,
+            "adopt_failed": 0
+          },
+          "hit_cut_tokens": 0.0,
+          "prefill_tps": 1.5559262037277222,
+          "decode_tps": 255.27577209472656,
+          "draft_accept": 0.5487925410270691,
+          "preemptions": 0,
+          "total_requests": 13,
+          "steps": 1486,
+          "steps_prefill": 46,
+          "steps_mixed": 0,
+          "prefill_chunks_capped": 0,
+          "steps_decode": 1440,
+          "steps_held": 0,
+          "step_ns": 41941156179,
+          "step_ns_decode": 27436890138,
+          "step_ns_decode_best": 14701249,
+          "step_ns_decode_recent": 19012970,
+          "rows_unspec": 0,
+          "draft_positions": [
+            {
+              "reached": 1428,
+              "accepted": 1193,
+              "rate": 0.8354341736694678
+            },
+            {
+              "reached": 1193,
+              "accepted": 927,
+              "rate": 0.7770326906957251
+            },
+            {
+              "reached": 927,
+              "accepted": 760,
+              "rate": 0.819848975188781
+            },
+            {
+              "reached": 650,
+              "accepted": 524,
+              "rate": 0.8061538461538461
+            },
+            {
+              "reached": 514,
+              "accepted": 415,
+              "rate": 0.8073929961089494
+            },
+            {
+              "reached": 110,
+              "accepted": 67,
+              "rate": 0.6090909090909091
+            }
+          ],
+          "cards": [
+            {
+              "index": 0,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34041212928,
+              "vram_total": 34208743424
+            },
+            {
+              "index": 1,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34028695552,
+              "vram_total": 34208743424
+            }
+          ],
+          "link": {
+            "world": 2,
+            "ar_calls": 8668,
+            "ar_bytes": 1415316480,
+            "h2d_bytes": 278367344640,
+            "d2h_bytes": 9504506880,
+            "ssd_reads": 0,
+            "ssd_bytes": 0,
+            "prefetched": 0,
+            "prefetch_bytes": 0,
+            "staged_bytes": 244207180800,
+            "stream_bytes": 125926732800
+          },
+          "passes": {
+            "played": 16930,
+            "recorded": 202,
+            "audited": 124,
+            "issued_unkeyed": 72,
+            "issued_refused": 0,
+            "issued_first": 8,
+            "dispatched": 3356470,
+            "unordered": 824958
+          }
+        },
+        "metrics": [
+          "vllm:gpu_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "vllm:prompt_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126812",
+          "vllm:generation_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 5304",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 4",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 7",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 10",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 10",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 10",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 10",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 13",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 13",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 13",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 13",
+          "vllm:request_prompt_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126812",
+          "vllm:request_prompt_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 13",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 13",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 13",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 13",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 13",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 13",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 13",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 13",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 13",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 13",
+          "vllm:request_generation_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 5304",
+          "vllm:request_generation_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 13",
+          "radiance:linear_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"retention\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"store_full\"} 0",
+          "radiance:prefix_cache_ckpt_refused_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 20,
+        "completion_tokens": 600,
+        "total_tokens": 620,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.029715208999732567,
+      "wall_s": 2.5785804560000543,
+      "pp_effective_tok_s": 673.0560098089836,
+      "generation_e2e_tok_s": 232.68616598868203,
+      "decode_tok_s": 235.0207174901515,
+      "legacy_decode_tok_s": 235.39887042130647,
+      "text": "\n\n<think>\n\n</think>\n\n```python\n\"\"\"\nA thread-safe LRU (Least Recently Used) cache with TTL (Time-To-Live) expiry.\n\nThis module provides a generic LRU cache that automatically evicts the least\nrecently used items when the cache reaches its maximum capacity, and also\nsupports per-item TTL-based expiration.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport threading\nimport time\nfrom collections import OrderedDict\nfrom typing import Any, Generic, Hashable, Optional, TypeVar\n\nK = TypeVar(\"K\", bound=Hashable)\nV = TypeVar(\"V\")\n\n\nclass LRUCache(Generic[K, V]):\n    \"\"\"\n    A thread-safe LRU cache with optional TTL (Time-To-Live) expiry.\n\n    The cache stores key-value pairs and automatically evicts the least\n    recently used item when the cache exceeds its maximum size. Each item\n    can optionally have a TTL; expired items are treated as missing and\n    removed lazily on access.\n\n    Attributes:\n        maxsize: The maximum number of items the cache can hold.\n        default_ttl: The default TTL in seconds for items without an explicit TTL.\n                     If None, items do not expire by default.\n    \"\"\"\n\n    def __init__(self, maxsize: int = 128, default_ttl: Optional[float] = None) -> None:\n        \"\"\"\n        Initialize the LRU cache.\n\n        Args:\n            maxsize: Maximum number of items to store. Must be a positive integer.\n            default_ttl: Default time-to-live in seconds for cached items.\n                         If None, items do not expire unless a TTL is specified\n                         on individual set operations.\n\n        Raises:\n            ValueError: If maxsize is not a positive integer.\n        \"\"\"\n        if not isinstance(maxsize, int) or maxsize <= 0:\n            raise ValueError(\"maxsize must be a positive integer\")\n        if default_ttl is not None and (not isinstance(default_ttl, (int, float)) or default_ttl <= 0):\n            raise ValueError(\"default_ttl must be a positive number or None\")\n\n        self._maxsize: int = maxsize\n        self._default_ttl: Optional[float] = default_ttl\n        self._cache: OrderedDict[K, tuple[V, Optional[float]]] = OrderedDict()\n        self._lock: threading.RLock = threading.RLock()\n\n    def get(self, key: K, default: Optional[V] = None) -> Optional[V]:\n        \"\"\"\n        Retrieve a value from the cache.\n\n        If the key exists and has not expired, the value is returned and the\n        item is marked as recently used. If the key does not exist or has\n        expired, the default value is returned.\n\n        Args:\n            key: The key to look up",
+      "reasoning_text": "",
+      "after": {
+        "stats": {
+          "model": "qwen3.8-flash-next",
+          "version": "1.10.0",
+          "uptime_s": 60,
+          "startup_s": 20,
+          "in_flight": 0,
+          "queue_cap": 16,
+          "now_ms": 1792598869000,
+          "running": 0,
+          "waiting": 0,
+          "preempted": 0,
+          "kv_util": 0.0011975134257227182,
+          "kv_tokens_used": 628,
+          "kv_tokens_total": 524420,
+          "kv_tokens_cached": 0,
+          "kv_bytes_used": 121640224.0,
+          "kv_bytes_total": 271465280.0,
+          "kv_bytes_carved": 4160732480.0,
+          "kv_tokens_max": 524420,
+          "prefix_hit_rate": 0.0,
+          "prefix_evictions": 0.0,
+          "linear_hit_rate": 0.0,
+          "linear_cached_tokens": 0.0,
+          "checkpoints_written": 0.0,
+          "ckpt_evictions": {
+            "retention": 0,
+            "store_full": 0
+          },
+          "ckpt_refused": 0,
+          "hit_cuts": {
+            "no_snapshot": 0,
+            "windowed_group": 0,
+            "adopt_failed": 0
+          },
+          "hit_cut_tokens": 0.0,
+          "prefill_tps": 1.6658265590667725,
+          "decode_tps": 247.1419677734375,
+          "draft_accept": 0.5611808896064758,
+          "preemptions": 0,
+          "total_requests": 14,
+          "steps": 1640,
+          "steps_prefill": 47,
+          "steps_mixed": 0,
+          "prefill_chunks_capped": 0,
+          "steps_decode": 1593,
+          "steps_held": 0,
+          "step_ns": 44531291033,
+          "step_ns_decode": 30000177027,
+          "step_ns_decode_best": 14701249,
+          "step_ns_decode_recent": 18296904,
+          "rows_unspec": 0,
+          "draft_positions": [
+            {
+              "reached": 1580,
+              "accepted": 1327,
+              "rate": 0.839873417721519
+            },
+            {
+              "reached": 1327,
+              "accepted": 1045,
+              "rate": 0.787490580256217
+            },
+            {
+              "reached": 1045,
+              "accepted": 859,
+              "rate": 0.8220095693779904
+            },
+            {
+              "reached": 711,
+              "accepted": 577,
+              "rate": 0.8115330520393812
+            },
+            {
+              "reached": 567,
+              "accepted": 459,
+              "rate": 0.8095238095238095
+            },
+            {
+              "reached": 110,
+              "accepted": 67,
+              "rate": 0.6090909090909091
+            }
+          ],
+          "cards": [
+            {
+              "index": 0,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34041212928,
+              "vram_total": 34208743424
+            },
+            {
+              "index": 1,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34028695552,
+              "vram_total": 34208743424
+            }
+          ],
+          "link": {
+            "world": 2,
+            "ar_calls": 9469,
+            "ar_bytes": 1426211840,
+            "h2d_bytes": 278511805440,
+            "d2h_bytes": 9621089280,
+            "ssd_reads": 0,
+            "ssd_bytes": 0,
+            "prefetched": 0,
+            "prefetch_bytes": 0,
+            "staged_bytes": 244207180800,
+            "stream_bytes": 126891832320
+          },
+          "passes": {
+            "played": 18524,
+            "recorded": 204,
+            "audited": 130,
+            "issued_unkeyed": 72,
+            "issued_refused": 0,
+            "issued_first": 8,
+            "dispatched": 3708850,
+            "unordered": 911824
+          }
+        },
+        "metrics": [
+          "vllm:gpu_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "vllm:prompt_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126832",
+          "vllm:generation_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 5904",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 5",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 11",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 11",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 11",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 11",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 14",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 14",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 14",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 14",
+          "vllm:request_prompt_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126832",
+          "vllm:request_prompt_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 14",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 14",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 14",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 14",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 14",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 14",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 14",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 14",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 14",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 14",
+          "vllm:request_generation_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 5904",
+          "vllm:request_generation_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 14",
+          "radiance:linear_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"retention\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"store_full\"} 0",
+          "radiance:prefix_cache_ckpt_refused_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0"
+        ]
+      },
+      "requested_output_tokens": 600,
+      "output_cap_reached": true
+    },
+    {
+      "label": "code-3",
+      "prompt_sha256": "8e6134d79e69df6b7a98b98f19f353712544b2abb5b9e729f895da2bc954d7e0",
+      "payload_settings": {
+        "model": "qwen3.8-flash-next",
+        "temperature": 0,
+        "seed": 7,
+        "max_tokens": 600
+      },
+      "before": {
+        "stats": {
+          "model": "qwen3.8-flash-next",
+          "version": "1.10.0",
+          "uptime_s": 60,
+          "startup_s": 20,
+          "in_flight": 0,
+          "queue_cap": 16,
+          "now_ms": 1792598869000,
+          "running": 0,
+          "waiting": 0,
+          "preempted": 0,
+          "kv_util": 0.0,
+          "kv_tokens_used": 0,
+          "kv_tokens_total": 524420,
+          "kv_tokens_cached": 0,
+          "kv_bytes_used": 0.0,
+          "kv_bytes_total": 271465280.0,
+          "kv_bytes_carved": 4160732480.0,
+          "kv_tokens_max": 524420,
+          "prefix_hit_rate": 0.0,
+          "prefix_evictions": 0.0,
+          "linear_hit_rate": 0.0,
+          "linear_cached_tokens": 0.0,
+          "checkpoints_written": 0.0,
+          "ckpt_evictions": {
+            "retention": 0,
+            "store_full": 0
+          },
+          "ckpt_refused": 0,
+          "hit_cuts": {
+            "no_snapshot": 0,
+            "windowed_group": 0,
+            "adopt_failed": 0
+          },
+          "hit_cut_tokens": 0.0,
+          "prefill_tps": 1.6396996974945068,
+          "decode_tps": 243.2657928466797,
+          "draft_accept": 0.5611808896064758,
+          "preemptions": 0,
+          "total_requests": 14,
+          "steps": 1641,
+          "steps_prefill": 47,
+          "steps_mixed": 0,
+          "prefill_chunks_capped": 0,
+          "steps_decode": 1594,
+          "steps_held": 0,
+          "step_ns": 44547113098,
+          "step_ns_decode": 30015999092,
+          "step_ns_decode_best": 14701249,
+          "step_ns_decode_recent": 18296904,
+          "rows_unspec": 0,
+          "draft_positions": [
+            {
+              "reached": 1580,
+              "accepted": 1327,
+              "rate": 0.839873417721519
+            },
+            {
+              "reached": 1327,
+              "accepted": 1045,
+              "rate": 0.787490580256217
+            },
+            {
+              "reached": 1045,
+              "accepted": 859,
+              "rate": 0.8220095693779904
+            },
+            {
+              "reached": 711,
+              "accepted": 577,
+              "rate": 0.8115330520393812
+            },
+            {
+              "reached": 567,
+              "accepted": 459,
+              "rate": 0.8095238095238095
+            },
+            {
+              "reached": 110,
+              "accepted": 67,
+              "rate": 0.6090909090909091
+            }
+          ],
+          "cards": [
+            {
+              "index": 0,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34041212928,
+              "vram_total": 34208743424
+            },
+            {
+              "index": 1,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34028695552,
+              "vram_total": 34208743424
+            }
+          ],
+          "link": {
+            "world": 2,
+            "ar_calls": 9469,
+            "ar_bytes": 1426211840,
+            "h2d_bytes": 278511805440,
+            "d2h_bytes": 9621089280,
+            "ssd_reads": 0,
+            "ssd_bytes": 0,
+            "prefetched": 0,
+            "prefetch_bytes": 0,
+            "staged_bytes": 244207180800,
+            "stream_bytes": 126891832320
+          },
+          "passes": {
+            "played": 18524,
+            "recorded": 204,
+            "audited": 130,
+            "issued_unkeyed": 72,
+            "issued_refused": 0,
+            "issued_first": 8,
+            "dispatched": 3708850,
+            "unordered": 911824
+          }
+        },
+        "metrics": [
+          "vllm:gpu_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "vllm:prompt_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126832",
+          "vllm:generation_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 5904",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 5",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 8",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 11",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 11",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 11",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 11",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 14",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 14",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 14",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 14",
+          "vllm:request_prompt_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126832",
+          "vllm:request_prompt_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 14",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 14",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 14",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 14",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 14",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 14",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 14",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 14",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 14",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 14",
+          "vllm:request_generation_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 5904",
+          "vllm:request_generation_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 14",
+          "radiance:linear_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"retention\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"store_full\"} 0",
+          "radiance:prefix_cache_ckpt_refused_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0"
+        ]
+      },
+      "ok": true,
+      "usage": {
+        "prompt_tokens": 20,
+        "completion_tokens": 600,
+        "total_tokens": 620,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "finish_reason": "length",
+      "ttft_s": 0.02966521400048805,
+      "wall_s": 2.5601584440000806,
+      "pp_effective_tok_s": 674.1903159596611,
+      "generation_e2e_tok_s": 234.36049491629868,
+      "decode_tok_s": 236.73424325737224,
+      "legacy_decode_tok_s": 237.10792539843965,
+      "text": "\n\n<think>\n\n</think>\n\n```python\n\"\"\"\nA thread-safe LRU (Least Recently Used) cache with TTL (Time-To-Live) expiry.\n\nThis module provides a generic LRU cache that automatically evicts the least\nrecently used items when the cache reaches its maximum capacity, and also\nsupports per-item TTL expiry where items are automatically removed after a\nspecified time-to-live period.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport threading\nimport time\nfrom collections import OrderedDict\nfrom typing import Any, Generic, Hashable, Optional, TypeVar\n\nK = TypeVar(\"K\", bound=Hashable)\nV = TypeVar(\"V\")\n\n\nclass LRUCache(Generic[K, V]):\n    \"\"\"\n    A thread-safe LRU cache with optional TTL (Time-To-Live) expiry.\n\n    This cache stores key-value pairs and automatically evicts the least\n    recently used items when the cache exceeds its maximum size. Additionally,\n    each item can have an optional TTL after which it is considered expired\n    and will be removed on access or during cleanup.\n\n    Attributes:\n        maxsize: The maximum number of items the cache can hold.\n        default_ttl: The default time-to-live in seconds for items without\n                     an explicit TTL. If None, items do not expire by default.\n    \"\"\"\n\n    def __init__(self, maxsize: int = 128, default_ttl: Optional[float] = None) -> None:\n        \"\"\"\n        Initialize the LRU cache.\n\n        Args:\n            maxsize: The maximum number of items the cache can hold. Must be\n                     a positive integer.\n            default_ttl: The default time-to-live in seconds for items. If None,\n                         items do not expire by default. Can be overridden per\n                         item when setting values.\n\n        Raises:\n            ValueError: If maxsize is not a positive integer.\n        \"\"\"\n        if not isinstance(maxsize, int) or maxsize <= 0:\n            raise ValueError(\"maxsize must be a positive integer\")\n        if default_ttl is not None and (not isinstance(default_ttl, (int, float)) or default_ttl <= 0):\n            raise ValueError(\"default_ttl must be a positive number or None\")\n\n        self._maxsize: int = maxsize\n        self._default_ttl: Optional[float] = default_ttl\n        self._cache: OrderedDict[K, tuple[V, Optional[float]]] = OrderedDict()\n        self._lock: threading.RLock = threading.RLock()\n\n    @property\n    def maxsize(self) -> int:\n        \"\"\"Return the maximum size of the cache.\"\"\"\n        return self._maxsize\n\n    @property\n    def default_ttl(self) -> Optional[float]:\n        \"\"\"Return the default TTL for cache items.\"\"\"\n        return self._default_ttl\n\n",
+      "reasoning_text": "",
+      "after": {
+        "stats": {
+          "model": "qwen3.8-flash-next",
+          "version": "1.10.0",
+          "uptime_s": 62,
+          "startup_s": 20,
+          "in_flight": 0,
+          "queue_cap": 16,
+          "now_ms": 1792598871000,
+          "running": 0,
+          "waiting": 0,
+          "preempted": 0,
+          "kv_util": 0.0011975134257227182,
+          "kv_tokens_used": 628,
+          "kv_tokens_total": 524420,
+          "kv_tokens_cached": 0,
+          "kv_bytes_used": 121640224.0,
+          "kv_bytes_total": 271465280.0,
+          "kv_bytes_carved": 4160732480.0,
+          "kv_tokens_max": 524420,
+          "prefix_hit_rate": 0.0,
+          "prefix_evictions": 0.0,
+          "linear_hit_rate": 0.0,
+          "linear_cached_tokens": 0.0,
+          "checkpoints_written": 0.0,
+          "ckpt_evictions": {
+            "retention": 0,
+            "store_full": 0
+          },
+          "ckpt_refused": 0,
+          "hit_cuts": {
+            "no_snapshot": 0,
+            "windowed_group": 0,
+            "adopt_failed": 0
+          },
+          "hit_cut_tokens": 0.0,
+          "prefill_tps": 1.7047690153121948,
+          "decode_tps": 251.90264892578125,
+          "draft_accept": 0.5730040669441223,
+          "preemptions": 0,
+          "total_requests": 15,
+          "steps": 1797,
+          "steps_prefill": 48,
+          "steps_mixed": 0,
+          "prefill_chunks_capped": 0,
+          "steps_decode": 1749,
+          "steps_held": 0,
+          "step_ns": 47103460355,
+          "step_ns_decode": 32545492854,
+          "step_ns_decode_best": 14405669,
+          "step_ns_decode_recent": 18737944,
+          "rows_unspec": 0,
+          "draft_positions": [
+            {
+              "reached": 1735,
+              "accepted": 1464,
+              "rate": 0.8438040345821326
+            },
+            {
+              "reached": 1464,
+              "accepted": 1165,
+              "rate": 0.7957650273224044
+            },
+            {
+              "reached": 1165,
+              "accepted": 958,
+              "rate": 0.8223175965665236
+            },
+            {
+              "reached": 763,
+              "accepted": 624,
+              "rate": 0.817824377457405
+            },
+            {
+              "reached": 614,
+              "accepted": 502,
+              "rate": 0.8175895765472313
+            },
+            {
+              "reached": 110,
+              "accepted": 67,
+              "rate": 0.6090909090909091
+            }
+          ],
+          "cards": [
+            {
+              "index": 0,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34041212928,
+              "vram_total": 34208743424
+            },
+            {
+              "index": 1,
+              "name": "AMD Radeon AI PRO R9700",
+              "vram_used": 34028695552,
+              "vram_total": 34208743424
+            }
+          ],
+          "link": {
+            "world": 2,
+            "ar_calls": 10250,
+            "ar_bytes": 1436769280,
+            "h2d_bytes": 278605071360,
+            "d2h_bytes": 9701176320,
+            "ssd_reads": 0,
+            "ssd_bytes": 0,
+            "prefetched": 0,
+            "prefetch_bytes": 0,
+            "staged_bytes": 244207180800,
+            "stream_bytes": 127735787520
+          },
+          "passes": {
+            "played": 20084,
+            "recorded": 204,
+            "audited": 132,
+            "issued_unkeyed": 72,
+            "issued_refused": 0,
+            "issued_first": 8,
+            "dispatched": 4065938,
+            "unordered": 999808
+          }
+        },
+        "metrics": [
+          "vllm:gpu_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "vllm:prompt_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126852",
+          "vllm:generation_tokens_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 6504",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 6",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 9",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 9",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 9",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 9",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 9",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 12",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 12",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 12",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 12",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 15",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 15",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 15",
+          "vllm:request_prompt_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 15",
+          "vllm:request_prompt_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 126852",
+          "vllm:request_prompt_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 15",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200\"} 0",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"500\"} 9",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"1000\"} 15",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"2000\"} 15",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"5000\"} 15",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"10000\"} 15",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"20000\"} 15",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"50000\"} 15",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"100000\"} 15",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"200000\"} 15",
+          "vllm:request_generation_tokens_bucket{model_name=\"qwen3.8-flash-next\",engine=\"0\",le=\"+Inf\"} 15",
+          "vllm:request_generation_tokens_sum{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 6504",
+          "vllm:request_generation_tokens_count{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 15",
+          "radiance:linear_prefix_cache_hit_rate{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_expired_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"retention\"} 0",
+          "radiance:prefix_cache_ckpt_evictions_by_reason_total{model_name=\"qwen3.8-flash-next\",engine=\"0\",reason=\"store_full\"} 0",
+          "radiance:prefix_cache_ckpt_refused_total{model_name=\"qwen3.8-flash-next\",engine=\"0\"} 0"
+        ]
+      },
+      "requested_output_tokens": 600,
+      "output_cap_reached": true
+    }
+  ]
+}

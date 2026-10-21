@@ -35,8 +35,18 @@ def post(endpoint, path, payload, timeout=1800):
 
 
 def tokens(endpoint, model, prompt):
-    with post(endpoint, "/tokenize", {"model": model, "prompt": prompt, "content": prompt}) as r:
-        d = json.load(r)
+    # Radiance requires one input field; llama.cpp uses content.
+    try:
+        with post(endpoint, "/tokenize", {"model": model, "prompt": prompt}) as r:
+            d = json.load(r)
+    except urllib.error.HTTPError as error:
+        if error.code != 400:
+            raise
+        with post(endpoint, "/tokenize", {"content": prompt}) as r:
+            d = json.load(r)
+    if prompt and "count" not in d and not d.get("tokens"):
+        with post(endpoint, "/tokenize", {"content": prompt}) as r:
+            d = json.load(r)
     return int(d["count"]) if "count" in d else len(d["tokens"])
 
 

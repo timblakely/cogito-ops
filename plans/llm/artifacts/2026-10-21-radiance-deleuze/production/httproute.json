@@ -1,0 +1,36 @@
+{
+  "kind": "HTTPRoute",
+  "name": "radiance",
+  "conditions": [],
+  "parents": [
+    {
+      "conditions": [
+        {
+          "lastTransitionTime": "2026-10-21T16:34:17Z",
+          "message": "Route is accepted",
+          "observedGeneration": 1,
+          "reason": "Accepted",
+          "status": "True",
+          "type": "Accepted"
+        },
+        {
+          "lastTransitionTime": "2026-10-21T16:34:17Z",
+          "message": "Resolved all the Object references for the Route",
+          "observedGeneration": 1,
+          "reason": "ResolvedRefs",
+          "status": "True",
+          "type": "ResolvedRefs"
+        }
+      ],
+      "controllerName": "gateway.envoyproxy.io/gatewayclass-controller",
+      "parentRef": {
+        "group": "gateway.networking.k8s.io",
+        "kind": "Gateway",
+        "name": "envoy-internal",
+        "namespace": "envoy-system",
+        "sectionName": "https"
+      }
+    }
+  ],
+  "ancestors": []
+}
