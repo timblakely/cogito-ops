@@ -1,20 +1,16 @@
-# HELD BACK ON PURPOSE: this file is deliberately NOT listed in
-# kustomization.yaml, so Flux does not apply it.
+# History: this Job was held out of the kustomization for one release, because
+# Iggy's local-volume filesystem (/dev/nvme1n1p1 at /var/mnt/local-hostpath)
+# had reached 100% - 1.4M free - and an 18.6 GiB staging run had nowhere to
+# land. Registered, it meant every 30m sync recreated a Job that died on ENOSPC
+# partway through the first file and left the shared llmkube-resources
+# Kustomization degraded on its health check, which made every unrelated
+# llmkube change look stuck too.
 #
-# Why (2026-10-21): Iggy's local-volume filesystem is full - /dev/nvme1n1p1
-# reports 931.1G used and 1.4M free at /var/mnt/local-hostpath - so an 18.6 GiB
-# staging run has nowhere to land on that node. While this Job was registered,
-# every 30m sync recreated it, every run died on ENOSPC (Errno 28 partway
-# through the first file), and the shared llmkube-resources Kustomization sat
-# degraded on its Job health check, which made every *other* llmkube change
-# look stuck as well.
-#
-# To bring it back once the disk is resolved, add exactly one line to
-# kustomization.yaml:
-#     - ./muse-iggy-staging-job.yaml
-# Nothing else needs to change: the muse-iggy claim this Job fills already
-# exists, the stager resumes from its own .partial, and the lane stays
-# suspended until the digests verify.
+# It is registered again now that Iggy has ~100 GiB free: /var/mnt/local-hostpath/d4-work
+# held a stale Flash-Next D4 workspace (Aug 29, no PV, no pod, no open handles)
+# whose unique 100 GiB Q4KD quant and build tree were purged. The D4X-IQ4 file
+# survived - it is hardlinked into flashnext/, so unlinking d4-work freed the
+# Q4KD and left the IQ4 intact.
 # Stage the UNCENSORED (abliterated) Muse trio: text Q4_K_M, its matched
 # mmproj projector, and its matched DFlash drafter.
 #
