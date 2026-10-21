@@ -8,7 +8,7 @@ spec:
   proxyRef: litellm
   params:
     model: openai/qwen3.8-27b
-    apiBase: http://qwen3-8-awq-kristeva.llm.svc.cluster.local:8000/v1
+    apiBase: http://qwen3-8-awq-iggy.llm.svc.cluster.local:8000/v1
     apiKey: not-needed
     additional:
       timeout: 3600
@@ -17,10 +17,10 @@ spec:
   info:
     supportsFunctionCalling: true
     # Mirrors the backend's --max-model-len (65536) exactly. The AWQ INT4
-    # lane on Kristeva's 3090 runs its KV cache in fp8_e4m3 - the only way
+    # lane on Iggy's 3090 runs its KV cache in fp8_e4m3 - the only way
     # the window gets past ~34.8K on a card whose weights eat 19.58 GiB of
     # the 24 GiB - so the ceiling here tracks the fp8 KV math in
-    # llmkube/resources/qwen38-awq-kristeva.yaml, not the model's native
+    # llmkube/resources/qwen38-awq-iggy.yaml, not the model's native
     # 262144. Raise only together with --max-model-len there, in the same
     # commit; if fp8 KV is ever reverted to bf16, this drops back to 32768
     # in that same commit.

@@ -1,22 +1,24 @@
 ---
-# Qwen 3.8 27B, AWQ INT4, on Kristeva's single RTX 3090. The coding lane:
+# Qwen 3.8 27B, AWQ INT4, on one of Iggy's RTX 3090s. The coding lane:
 # repository changes, tests, debugging, PR preparation, for delegated work
 # handed down from the planner.
 #
 # GPU IDENTITY
 #
-# Kristeva carries exactly one NVIDIA GPU: PCI 0000:02:00.0, UUID
-# GPU-a5982685-6ed7-6fce-8096-52d29e241396, RTX 3090 24576 MiB, sm_86,
-# driver 595.71.05. The device plugin advertises it exclusively
-# (nvidia.com/gpu.count=1, replicas=1, sharing-strategy none), so one
-# nvidia.com/gpu request is the whole physical card and no other workload
-# can share it. Following muse-glimmer-30b, the physical GPU is requested
+# This lane was born on Kristeva's single 3090; that card now lives IN Iggy
+# (UUID GPU-a5982685-6ed7-6fce-8096-52d29e241396 kept its identity through
+# the move). Iggy carries two RTX 3090 24576 MiB (sm_86): UUID
+# GPU-787b1f07-4246-5ccd-5074-4bb2120f2c14 and the relocated GPU-a5982685...,
+# and the device plugin's default config advertises each physical card as one
+# exclusive nvidia.com/gpu unit (no time-slicing on this DaemonSet's default),
+# so one nvidia.com/gpu request is a whole card and no other workload can
+# share it. Following muse-glimmer-30b, the physical GPU is requested
 # THROUGH THE DEVICE PLUGIN with no UUID override: NVIDIA_VISIBLE_DEVICES is
 # what the plugin injects for the allocated device, and setting it by hand
-# here would fight the allocation rather than pin it. The stable identity is
-# therefore asserted, not assumed - check the pod's own nvidia-smi against
-# the UUID above after any BIOS/board change, because GPU index 0 is only
-# unambiguous while it is the sole NVIDIA function on this host.
+# here would fight the allocation rather than pin it. Which of the two cards
+# is ours is therefore asserted, not assumed - `nvidia-smi -L` in the pod
+# names it. Both cards are held at a 280 W cap by the nvidia-power-limit
+# DaemonSet (iggy branch of the wattage).
 #
 # WHY IT FITS, AND WHAT IS DELIBERATELY NOT LOADED
 #
@@ -71,7 +73,7 @@ spec:
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: InferenceService
 metadata:
-  name: qwen3-8-awq-kristeva
+  name: qwen3-8-awq-iggy
   annotations:
     inference.llmkube.dev/idle-endpoint: /health
 spec:
@@ -86,28 +88,35 @@ spec:
   image: docker.io/vllm/vllm-openai@sha256:c1c9f6fd5c109ba7f0546a59f5b2f15fb87f64c77782e90a27b648b42a8e67c3
   runtimeClassName: nvidia
   nodeSelector:
-    kubernetes.io/hostname: kristeva
+    kubernetes.io/hostname: iggy
   # Default (normal), stated rather than inherited. Nothing interactive runs
-  # on Kristeva's NVIDIA GPU, and this lane holds long delegated coding tasks
-  # that must not be preempted mid-task by lower-priority batch work. Muse
-  # wants the same card and is deliberately suspended; if it is ever resumed,
-  # the two lanes are mutually exclusive on this GPU and one must be scaled
-  # down first - the scheduler will not share the card.
+  # on Iggy's NVIDIA GPUs, and this lane holds long delegated coding tasks
+  # that must not be preempted mid-task by lower-priority batch work. The
+  # pair of Iggy cards also backs the suspended muse-glimmer-30b and
+  # flashnext-iggy lanes; if either is resumed onto this card, the two lanes
+  # are mutually exclusive on it and one must be scaled down first - the
+  # scheduler will not share the card.
   priority: normal
   resources:
     gpu: 1
-    # Requests exist to buy a QoS class, and this one is load-bearing in a
-    # second way: the weights are read over NFS, so the page cache they fill
-    # is charged to THIS cgroup, not to the node. At 16 Gi the container hit
-    # its own limit part-way through the 19.57 GiB load and vLLM skipped its
-    # NFS read-ahead ("exceeds 90% of available RAM (13.52 GiB)"), which is why
-    # the cold load took 448 s. 32 Gi holds the whole checkpoint in cache and
-    # leaves headroom; the node has ~107 Gi free, so this is not a contention
-    # risk. Talos's userspace OOM controller kills BestEffort cgroups first - a
-    # prior Qwen lane was SIGKILLed four times under page-cache pressure while
-    # it was BestEffort - so staying Guaranteed here matters twice.
+    # 16Gi request = 16Gi limit, resized when this lane moved to iggy: iggy
+    # is a 32 GiB RAM box (2x16 GiB DIMMs; 28.6 GiB allocatable), so the
+    # 32 Gi request this lane carried on Kristeva's 128 GiB board could never
+    # schedule here. The honest cost of the smaller cgroup: the 19.57 GiB
+    # checkpoint read over NFS fills the page cache past vLLM's 90%-of-limit
+    # gate, so its auto-prefetch is skipped and the cold load is the slow
+    # ~450 s path measured at 16 Gi (confirmed on first iggy boot) - inside
+    # the 1 h startup-probe budget, and accepted deliberately for a lane
+    # that will rarely restart. Request EQUALS limit on purpose: Talos's
+    # userspace OOM controller kills BestEffort cgroups first and a prior
+    # Qwen lane was SIGKILLed four times under page-cache pressure while it
+    # had no requests at all; the matched memory pair keeps this cgroup out
+    # of that tier (QoS reports Burstable, not Guaranteed, because llmkube
+    # sets no CPU limit - the memory tier is what the OOM order keys on).
+    # Page cache is reclaimable, so a full cache throttles prefetch rather
+    # than OOM-killing the container.
     cpu: "4"
-    memory: 32Gi
+    memory: 16Gi
   # Declared, not inherited. llmkube derives the container port and the
   # Service target from this field and defaults it to 8080; the first render of
   # this lane advertised 8080 while vLLM was told to listen on 8000, which is
