@@ -250,15 +250,13 @@ def check(state):
             if m not in names:
                 errors.append(f"consumer env {env_key} names unknown model '{m}'")
 
-    # 9. Workflow services must not regain broad or cross-role credentials.
+    # 9. Consumer services must not regain broad or cross-role credentials.
+    # The coordinator/planner/scout/reviewer/escalation workflow tiers were
+    # retired (October 2026 teardown); their replacement redesign must re-add
+    # its role keys here when the new topology lands.
     expected_role_scopes = {
-        "planner": {"planner", "planner-gpt", "planner-gpt-pro", "planner-local"},
-        "coordinator": {"coordinator"},
         "coder": {"coder"},
-        "scout": {"scout", "scout-qwen"},
         "worker": {"worker"},
-        "reviewer": {"reviewer", "reviewer-qwen"},
-        "escalation": {"worker-escalated", "reviewer-escalated"},
     }
     for role, expected in expected_role_scopes.items():
         key = state["key_roles"].get(role)
