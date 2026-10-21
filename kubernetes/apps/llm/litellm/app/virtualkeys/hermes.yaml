@@ -11,8 +11,9 @@ spec:
   keyAlias: Hermes
   secretName: litellm-key-hermes
   secretKey: api-key
-  # Direct sessions default to Luna and may explicitly switch to either local
-  # scout model. Planning and metered escape-hatch aliases stay unreachable.
+  # Workstation Paseo and cluster Hermes share this key. Allow every current
+  # catalogue alias, including paid routes, within the existing budget.
+  # Keep the list explicit so newly added models require a scope update.
   maxBudget: "50"
   budgetDuration: 30d
   models:
@@ -21,6 +22,23 @@ spec:
     - flashnext-deleuze
     - google/gemma-4-12b-it
     - Muse-Glimmer-30B
+    - coder
+    - coordinator-heavy
+    - embedder
+    - image
+    - planner
+    - planner-gpt
+    - planner-gpt-pro
+    - planner-local
+    - reranker
+    - reviewer
+    - reviewer-escalated
+    - reviewer-qwen
+    - scout
+    - scout-qwen
+    - vision
+    - worker
+    - worker-escalated
 ---
 apiVersion: external-secrets.io/v1alpha1
 kind: PushSecret
