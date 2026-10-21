@@ -49,7 +49,9 @@ metadata:
   annotations:
     kustomize.toolkit.fluxcd.io/force: Enabled
 spec:
-  activeDeadlineSeconds: 7200
+  # Long enough to ride out Hugging Face throttling: the stager resumes from its
+  # .partial, so a patient deadline beats a fast failure that restarts the pod.
+  activeDeadlineSeconds: 21600
   backoffLimit: 3
   template:
     spec:
@@ -63,7 +65,7 @@ spec:
           command: ["python3", "-u", "-c"]
           args:
             - |
-              import hashlib, os, urllib.request
+              import hashlib, os, time, urllib.error, urllib.request
 
               SRC = "https://huggingface.co/Blackfrost-AI/Muse-Glimmer-30B-Abliterated-GGUF/resolve/main"
               COLD = "/archive/llmkube/muse-glimmer-30b-abliterated"
@@ -80,6 +82,21 @@ spec:
                   "dflash-Muse-Glimmer-30B-Abliterated-Q4_K_M.gguf":
                       ("1b58b92b670d20b49d06a9a1210e4bf5350696bb8f7b4931769b7000d0456eda", 1631210720),
               }
+
+              # A Job that gets evicted takes its stdout with it, and both earlier
+              # failures were undebuggable for exactly that reason. Mirror the
+              # transcript onto the retained claim so the next attempt - and whoever
+              # reads this after the pod is gone - can see what actually happened.
+              LOG = os.path.join(HOT, ".stager.log")
+              _out = print
+
+              def log(msg, flush=True):
+                  _out(msg, flush=flush)
+                  try:
+                      with open(LOG, "a") as f:
+                          f.write(time.strftime("%Y-%m-%dT%H:%M:%S ") + msg + "\n")
+                  except OSError:
+                      pass
 
               def hash_file(path):
                   h = hashlib.sha256()
@@ -108,7 +125,7 @@ spec:
               def write_hot(url, hot, want, size):
                   """Stream to node NVMe, resuming a .partial with Range requests."""
                   tmp = hot + ".partial"
-                  for attempt in range(1, 13):
+                  for attempt in range(1, 41):
                       off = os.path.getsize(tmp) if os.path.exists(tmp) else 0
                       if off > size:
                           os.remove(tmp)
@@ -122,7 +139,7 @@ spec:
                                   off = 0          # server ignored Range: restart
                               total = off
                               with open(tmp, "ab" if off else "wb") as out:
-                                  since = 0
+                                  since = last = 0
                                   while total < size:
                                       chunk = r.read(CHUNK)
                                       if not chunk:
@@ -133,28 +150,45 @@ spec:
                                       if since >= DROP_EVERY:
                                           out.flush()
                                           drop_cache(tmp)
-                                          since = 0
+                                          gib = total / 2**30
+                                          rate = since / max(time.time() - last, 1e-6)
+                                          log(f"  {gib:.1f}/{size/2**30:.1f} GiB "
+                                              f"({rate/1e6:.1f} MB/s)")
+                                          since, last = 0, time.time()
                           now = os.path.getsize(tmp)
                           if now == size and hash_file(tmp) == want:
                               with open(tmp, "rb") as f:
                                   os.fsync(f.fileno())
                               os.replace(tmp, hot)
-                              print(f"  verified on node NVMe (attempt {attempt})", flush=True)
+                              log(f"  verified on node NVMe (attempt {attempt})")
                               return
                           if now < size:
-                              # Connection ended early; keep the partial and resume.
-                              print(f"  attempt {attempt}: {now}/{size} bytes, resuming", flush=True)
+                              # Connection ended early. Keep the partial and come
+                              # back slowly: hammering is what invites throttling.
+                              log(f"  attempt {attempt}: {now}/{size} bytes, stream ended")
+                              time.sleep(min(60, 5 * attempt))
                               continue
-                          print(f"  attempt {attempt}: full size but digest mismatch", flush=True)
+                          log(f"  attempt {attempt}: full size but digest mismatch")
                           os.remove(tmp)
+                      except urllib.error.HTTPError as e:
+                          retry = e.headers.get("Retry-After") if e.headers else None
+                          log(f"  attempt {attempt}: HTTP {e.code} {e.reason} at {off/2**30:.2f} GiB")
+                          if e.code in (401, 403):
+                              # Anonymous access revoked: retrying cannot help.
+                              raise SystemExit(f"Hugging Face refused the download "
+                                               f"(HTTP {e.code}); this stager needs a token")
+                          wait = int(retry) if (retry or "").isdigit() else min(120, 5 * attempt)
+                          log(f"  backing off {wait}s")
+                          time.sleep(wait)
                       except Exception as e:
-                          print(f"  attempt {attempt} failed: {e}", flush=True)
-                  raise SystemExit(f"could not stage {hot} after 12 attempts")
+                          log(f"  attempt {attempt}: {type(e).__name__}: {e} at {off/2**30:.2f} GiB")
+                          time.sleep(min(60, 3 * attempt))
+                  raise SystemExit(f"could not stage {hot} after 40 attempts")
 
               def copy_cold(hot, cold, want, size):
                   """Best-effort durable copy; a failure here must not block the lane."""
                   if verified(cold, want, size):
-                      print("  cold tier already verified", flush=True)
+                      log("  cold tier already verified", flush=True)
                       return
                   tmp = cold + ".partial"
                   try:
@@ -175,12 +209,12 @@ spec:
                           os.fsync(out.fileno())
                       if os.path.getsize(tmp) == size and hash_file(tmp) == want:
                           os.replace(tmp, cold)
-                          print("  copied to NFS cold tier", flush=True)
+                          log("  copied to NFS cold tier", flush=True)
                       else:
                           os.remove(tmp)
-                          print("  WARN cold copy failed verification; hot tier still valid", flush=True)
+                          log("  WARN cold copy failed verification; hot tier still valid", flush=True)
                   except Exception as e:
-                      print(f"  WARN cold copy failed ({e}); hot tier still valid", flush=True)
+                      log(f"  WARN cold copy failed ({e}); hot tier still valid", flush=True)
                       try:
                           os.remove(tmp)
                       except OSError:
@@ -196,15 +230,15 @@ spec:
                       if stale.endswith(".partial"):
                           os.remove(os.path.join(COLD, stale))
               except OSError as e:
-                  print(f"  WARN cold tier unavailable ({e}); continuing hot tier only", flush=True)
+                  log(f"  WARN cold tier unavailable ({e}); continuing hot tier only", flush=True)
 
               for name, (want, size) in FILES.items():
                   hot, cold = os.path.join(HOT, name), os.path.join(COLD, name)
-                  print(f"== {name} ({size} bytes)", flush=True)
+                  log(f"== {name} ({size} bytes)", flush=True)
                   if not verified(hot, want, size):
                       write_hot(name, hot, want, size)
                   else:
-                      print("  hot tier already verified", flush=True)
+                      log("  hot tier already verified", flush=True)
                   copy_cold(hot, cold, want, size)
 
               os.sync()
@@ -212,7 +246,7 @@ spec:
               missing = [n for n, (w, s) in FILES.items() if not verified(os.path.join(HOT, n), w, s)]
               if missing:
                   raise SystemExit(f"missing after staging: {missing}")
-              print("All three Muse abliterated files verified on the hot tier.", flush=True)
+              log("All three Muse abliterated files verified on the hot tier.", flush=True)
           resources:
             requests:
               cpu: 500m
