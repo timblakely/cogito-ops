@@ -17,14 +17,18 @@ spec:
       resourceName: amd.com/gpu
       count: 2
 ---
-# Muse files are staged together on Kristeva's retained NVMe claim.
+# Muse files are staged together on Iggy's retained NVMe claim (see
+# muse-iggy-storage.yaml: cold NFS tier -> node NVMe, sha256-gated).
 # Request the physical GPU through the device plugin, without a UUID override.
+# The artifact is the abliterated family: refusal behavior removed upstream of
+# quantization, so this is a different model than the one that used to occupy
+# this name on Kristeva.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: Model
 metadata:
   name: muse-glimmer-30b
 spec:
-  source: pvc://muse-kristeva/muse-glimmer-30b/Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf
+  source: pvc://muse-iggy/muse-glimmer-30b/Muse-Glimmer-30B-Abliterated-Q4_K_M.gguf
   format: gguf
   quantization: Q4_K_M
   hardware:

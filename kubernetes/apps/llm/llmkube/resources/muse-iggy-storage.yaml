@@ -1,0 +1,160 @@
+---
+# Node-local hot claim for the Muse Glimmer lane ON IGGY.
+#
+# The lane used to live on Kristeva's 3090 and its weights on the
+# muse-kristeva claim. That card now lives inside Iggy and Kristeva advertises
+# nvidia.com/gpu=0, so the old claim can no longer serve the lane: its PV is
+# hostpath, therefore pinned to a node with no NVIDIA GPU to run on.
+#
+# openebs-hostpath-retain + the selected-node annotation keep the staged GGUFs
+# on Iggy's NVMe across pod restarts, exactly like muse-kristeva did on
+# Kristeva. Retain matters: re-pulling ~20 GiB from Hugging Face is the
+# expensive path, and the NFS cold tier is the fallback, not the fast one.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: muse-iggy
+  annotations:
+    volume.kubernetes.io/selected-node: iggy
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: openebs-hostpath-retain
+  resources:
+    requests:
+      storage: 40Gi
+---
+# Stage the UNCENSORED (abliterated) Muse trio: text Q4_K_M, its matched
+# mmproj projector, and its matched DFlash drafter.
+#
+# Two tiers, in this order, so a restart never re-downloads:
+#   cold  /archive/llmkube/muse-glimmer-30b-abliterated   (NFS, RWX, reusable)
+#   hot   /models/muse-glimmer-30b                        (this node's NVMe)
+#
+# Why the drafter and projector come from the SAME abliterated family as the
+# text file: the Blackfrost build re-quantized both against its own modified
+# weights, and the card reports text + image + DFlash validated together on
+# current llama.cpp. Meta's own mmproj/dflash also work (the vision tower is
+# frozen and bit-identical across derivatives), but Meta's drafter was trained
+# on the censored model's hidden states, so its accept_len is lower here.
+#
+# Every file is sha256-gated, copied through .partial, and verified on both
+# tiers before it is made visible to the lane. The expected digests are the
+# LFS OIDs published by Hugging Face, and both mirrors
+# (Blackfrost-AI/... and The-freezer/...) carry byte-identical objects, so the
+# digest is the contract, not the repo name.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cache-prime-muse-iggy-abliterated-v1
+  annotations:
+    kustomize.toolkit.fluxcd.io/force: Enabled
+spec:
+  activeDeadlineSeconds: 7200
+  backoffLimit: 3
+  template:
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: iggy
+      containers:
+        - name: stage
+          image: docker.io/library/python:3.12-slim
+          command: ["python3", "-u", "-c"]
+          args:
+            - |
+              import hashlib, os, shutil, sys, urllib.request
+
+              SRC = "https://huggingface.co/Blackfrost-AI/Muse-Glimmer-30B-Abliterated-GGUF/resolve/main"
+              COLD = "/archive/llmkube/muse-glimmer-30b-abliterated"
+              HOT = "/models/muse-glimmer-30b"
+
+              # name -> (sha256 LFS OID, bytes)
+              FILES = {
+                  "Muse-Glimmer-30B-Abliterated-Q4_K_M.gguf":
+                      ("1316a7e2b90c362a820a906867bb60941511906361827314817a8e83c33d179e", 16935296896),
+                  "mmproj-Muse-Glimmer-30B-Abliterated-Q4_K_M.gguf":
+                      ("acd4058ce27e4b263a99841a70c63385620ca2351aa8cc3ae4d8f8cef2a0b973", 1400329152),
+                  "dflash-Muse-Glimmer-30B-Abliterated-Q4_K_M.gguf":
+                      ("1b58b92b670d20b49d06a9a1210e4bf5350696bb8f7b4931769b7000d0456eda", 1631210720),
+              }
+
+              def sha256(path):
+                  h = hashlib.sha256()
+                  with open(path, "rb") as f:
+                      for chunk in iter(lambda: f.read(1 << 22), b""):
+                          h.update(chunk)
+                  return h.hexdigest()
+
+              def good(path, want, size):
+                  return (os.path.isfile(path) and os.path.getsize(path) == size
+                          and sha256(path) == want)
+
+              def fetch(url, dest):
+                  tmp = dest + ".partial"
+                  for attempt in (1, 2, 3):
+                      try:
+                          with urllib.request.urlopen(url, timeout=120) as r, open(tmp, "wb") as out:
+                              shutil.copyfileobj(r, out, 1 << 22)
+                          return tmp
+                      except Exception as e:
+                          print(f"  attempt {attempt} failed: {e}", flush=True)
+                          try:
+                              os.remove(tmp)
+                          except OSError:
+                              pass
+                  raise SystemExit(f"download failed after 3 attempts: {url}")
+
+              os.makedirs(COLD, exist_ok=True)
+              os.makedirs(HOT, exist_ok=True)
+
+              for name, (want, size) in FILES.items():
+                  cold, hot = os.path.join(COLD, name), os.path.join(HOT, name)
+                  print(f"== {name} ({size} bytes)", flush=True)
+
+                  if good(cold, want, size):
+                      print("  cold tier already verified", flush=True)
+                  else:
+                      tmp = fetch(f"{SRC}/{name}", cold)
+                      if not (os.path.getsize(tmp) == size and sha256(tmp) == want):
+                          os.remove(tmp)
+                          raise SystemExit(f"digest mismatch on download: {name}")
+                      os.replace(tmp, cold)
+                      print("  downloaded and verified into cold tier", flush=True)
+
+                  if good(hot, want, size):
+                      print("  hot tier already verified", flush=True)
+                      continue
+                  tmp = hot + ".partial"
+                  shutil.copyfile(cold, tmp)
+                  if not (os.path.getsize(tmp) == size and sha256(tmp) == want):
+                      os.remove(tmp)
+                      raise SystemExit(f"digest mismatch after staging: {name}")
+                  os.replace(tmp, hot)
+                  print("  staged and verified on node NVMe", flush=True)
+
+              os.sync()
+              # Fail loudly rather than letting a lane boot against a short file.
+              missing = [n for n, (w, s) in FILES.items() if not good(os.path.join(HOT, n), w, s)]
+              if missing:
+                  raise SystemExit(f"missing after staging: {missing}")
+              print("All three Muse abliterated files verified on both tiers.", flush=True)
+          resources:
+            requests:
+              cpu: 500m
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              memory: 1Gi
+          volumeMounts:
+            - name: archive
+              mountPath: /archive
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: archive
+          persistentVolumeClaim:
+            claimName: llm-model-archive
+        - name: models
+          persistentVolumeClaim:
+            claimName: muse-iggy
