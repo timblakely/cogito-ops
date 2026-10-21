@@ -138,19 +138,19 @@ if not isinstance(providers, dict):
 LITELLM_API = "http://litellm.llm.svc.cluster.local:4000/v1"
 CAPS_API = "http://model-caps.llm.svc.cluster.local:8090"
 
-# Luna's coordinator alias uses LiteLLM's Responses endpoint. The local
-# Qwen and Muse aliases stay on chat completions, as required by the v4
-# direct-session contract.
+# The coordinator Responses seat was retired with the agent tiers; the
+# Responses transport now defaults to FlashNext. The local Qwen and Muse
+# aliases stay on chat completions, as required by the v4 direct-session contract.
 providers["litellm-responses"] = {
-    "name": "LiteLLM (coordinator)",
+    "name": "LiteLLM (responses)",
     "api": LITELLM_API,
     "key_env": "LITELLM_API_KEY",
     "transport": "codex_responses",
-    "default_model": "coordinator",
+    "default_model": "flashnext-deleuze",
     "discover_models": False,
     "caps_url": f"{CAPS_API}/v1/models",
     "extra_body": {"allowed_openai_params": ["reasoning_effort"]},
-    "models": {"coordinator": {"context_length": 272000}},
+    "models": {"flashnext-deleuze": {"context_length": 262144}},
 }
 providers["litellm-chat"] = {
     "name": "LiteLLM (local)",

@@ -63,7 +63,6 @@ spec:
         - worker
         - coder
         - verifier
-        - reviewer
       taskNamespace: llm
       foremanNamespace: llm
       # Multi-fleet entries below own the four-slot capacity budget.
@@ -100,27 +99,15 @@ spec:
     # preemptions, Waiting: 0. The serving lane was never the constraint.
     agents:
       execution:
-        roles: [worker, coder, verifier, reviewer]
+        roles: [worker, coder, verifier]
         maxSupervisedTasks: 2
         # Verifier clones are anonymous for this public repository. Keep the
-        # long-lived supervisor credential-free; coder/reviewer Jobs receive
-        # the current rotating App token when they are created.
+        # long-lived supervisor credential-free; coder Jobs receive the
+        # current rotating App token when they are created.
         githubToken:
           secretName: ""
         coderGitSecret: foreman-github-token
         coderGitSecretKey: token
-      scouts:
-        roles: [planner]
-        # Astra dispatches at most four scouts per round; eight leaves room for
-        # a second round to overlap the first without queueing.
-        maxSupervisedTasks: 8
-        # The chart requires a Secret projection for every Job pool. This
-        # names an intentionally empty credential, so public read-only clones
-        # work while GitHub-authenticated fetches and pushes cannot.
-        coderGitSecret: foreman-scout-github-token
-        coderGitSecretKey: token
-        gateCache:
-          enabled: false
 
     coder:
       # Credentials are pool-specific above. Leaving the chart-wide fallback
