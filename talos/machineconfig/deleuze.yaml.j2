@@ -1,0 +1,48 @@
+---
+machine:
+  type: controlplane
+  network:
+    hostname: deleuze
+    nameservers:
+      - 192.168.42.1
+    interfaces:
+      - deviceSelector:
+          hardwareAddr: 1c:86:0b:3a:1e:08
+        dhcp: false
+        addresses:
+          - 192.168.42.16/24
+        routes:
+          - network: 0.0.0.0/0
+            gateway: 192.168.42.1
+        mtu: 9000
+  install:
+    diskSelector:
+      model: Samsung SSD 990 EVO Plus 2TB
+      serial: S7U6NJ0Y436315F
+    # Talos v1.14.4 with AMDGPU/KFD, AMD microcode, Realtek firmware and NUT.
+    image: factory.talos.dev/metal-installer/1c874228c6feaf00a38344dd5ec4786a57aeea1bb875dd805db625e84e6ab79c@sha256:97fd3a9507bc699603ad605e82fbee7a05a0d982246467cd56497d37de8969fa
+    # Initial installation may erase this exact NVMe; keep subsequent applies safe.
+    wipe: false
+  kernel:
+    modules:
+      - name: amdgpu
+  nodeLabels:
+    node-role.kubernetes.io/machine-learning: "true"
+    node-role.kubernetes.io/high-mem: "true"
+    amd.com/gpu.present: "true"
+---
+apiVersion: v1alpha1
+kind: VolumeConfig
+name: EPHEMERAL
+provisioning:
+  minSize: 256GiB
+  maxSize: 256GiB
+---
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: local-hostpath
+provisioning:
+  diskSelector:
+    match: system_disk
+  minSize: 1TB
+  grow: true

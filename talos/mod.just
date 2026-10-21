@@ -42,12 +42,6 @@ reboot-node node *args:
 
 [doc('Render Talos config for a node')]
 render-config node:
-    # Frogtop's vault-limited token stays in Secret Service; other hosts use their existing op auth.
-    if [ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ] && command -v secret-tool >/dev/null 2>&1; then \
-        token="$(secret-tool lookup account codex host frogtop service 1password-service-account 2>/dev/null || true)"; \
-        if [[ "$token" == ops_* ]]; then export OP_SERVICE_ACCOUNT_TOKEN="$token"; fi; \
-        unset token; \
-    fi; \
     export IS_CONTROLLER="$(just talos machine-controller {{ node }})"; \
     export IS_NUT_CLIENT="$(if [ "{{ node }}" != amnesia ]; then printf 'true'; fi)"; \
     talosctl machineconfig patch <(just template "{{ talos_dir }}/machineconfig/base.yaml.j2") \
@@ -102,8 +96,8 @@ private_talos_dir := justfile_dir() + '/.private/talos'
 [doc('Generate talos config from control plane')]
 gen-config ttl_hours="8760":
     mkdir -p "{{ private_talos_dir }}"
-    echo "$(op item get --vault kubernetes talos --field MACHINE_CA_CRT | base64 -d)" > "{{ private_talos_dir }}/ca.crt"
-    echo "$(op item get --vault kubernetes talos --field MACHINE_CA_KEY | base64 -d)" > "{{ private_talos_dir }}/ca.key"
+    echo "$(~/.local/bin/op-headless item get --vault kubernetes talos --field MACHINE_CA_CRT | base64 -d)" > "{{ private_talos_dir }}/ca.crt"
+    echo "$(~/.local/bin/op-headless item get --vault kubernetes talos --field MACHINE_CA_KEY | base64 -d)" > "{{ private_talos_dir }}/ca.key"
     cd "{{ private_talos_dir }}" && \
         talosctl gen key --name admin --force
     cd "{{ private_talos_dir }}" && \

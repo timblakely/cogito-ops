@@ -38,6 +38,7 @@ The cluster consists of a heterogeneous mix of hardware, strategically utilized 
 | :--- | :--- | :--- | :--- | :--- |
 | `iggy` | Control Plane | ML, High-CPU, High-Mem | 970 PRO (512GB) / 970 EVO (1TB) | **2× RTX 3090**, PCIe P2P, 250 W cap each |
 | `kristeva` | Control Plane | High-CPU, High-Mem | SSD 850 (Boot) / 990 EVO Plus (2TB) | **Intel A380** |
+| `deleuze` | Control Plane | ML, High-Mem | 990 EVO Plus (2TB): 256 GiB system / remaining OpenEBS | **2× Radeon AI PRO R9700**, Ryzen 5 5600, 128 GiB RAM, 10 GbE |
 | `nuc-1` | Control Plane | Rook-Ceph, Core | PNY (1TB) / Crucial T500 (400GB) | **Thunderbolt Ring** |
 | `nuc-2` | Control Plane | Core | PNY (1TB) / Crucial T500 (400GB) | **Thunderbolt Ring** |
 | `nuc-3` | Control Plane | Core | PNY (1TB) / Crucial T500 (400GB) | **Thunderbolt Ring** |
@@ -46,6 +47,9 @@ The cluster consists of a heterogeneous mix of hardware, strategically utilized 
 > The NUC nodes are interconnected via **Thunderbolt Networking**, creating a high-speed, low-latency 40Gbps+ backplane for cluster communication and Rook-Ceph replication.
 
 Iggy's GPU P2P uses a [custom Talos image and patched NVIDIA driver](plans/talos/2026-09-iggy-gpu-p2p.md). Its factory install image is a rollback, and the generic Talos upgrade recipe refuses Iggy. Only restart Iggy; never shut it down or use Talos `powercycle` mode.
+
+Deleuze uses Talos v1.14.4 with AMDGPU/KFD at `192.168.42.16`.
+See its [installation and hardware verification](plans/talos/2026-10-deleuze.md).
 
 ## 🛠️ Software Stack
 

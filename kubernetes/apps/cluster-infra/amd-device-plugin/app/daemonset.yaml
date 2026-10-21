@@ -1,5 +1,5 @@
 ---
-# ROCm/k8s-device-plugin v1.31.0.10, scoped to Iggy's post-swap Talos label.
+# ROCm/k8s-device-plugin v1.31.0.10, scoped to AMD GPU nodes' Talos label.
 # Advertises physical amd.com/gpu devices; no time slicing or GPU operator.
 apiVersion: apps/v1
 kind: DaemonSet
@@ -16,7 +16,6 @@ spec:
     spec:
       priorityClassName: system-node-critical
       nodeSelector:
-        kubernetes.io/hostname: iggy
         amd.com/gpu.present: "true"
       tolerations:
         - key: node-role.kubernetes.io/control-plane

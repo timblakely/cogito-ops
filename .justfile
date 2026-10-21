@@ -22,11 +22,11 @@ log lvl msg *args:
 
 [private]
 template file *args:
-    minijinja-cli "{{ file }}" {{ args }} | op inject
+    minijinja-cli "{{ file }}" {{ args }} | ~/.local/bin/op-headless inject
 
 [private]
 inject file:
-    cat "{{ file }}" | op inject
+    cat "{{ file }}" | ~/.local/bin/op-headless inject
 
 # TODO(blakely): Move to k8s folder?
 [doc('Install kubectl plugins')]
