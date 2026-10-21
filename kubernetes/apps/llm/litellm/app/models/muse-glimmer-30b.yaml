@@ -1,4 +1,13 @@
 ---
+# Backend: muse-glimmer-30b InferenceService on Iggy's RTX 3090.
+#
+# HEADS UP on what this alias points at now: the lane was revived on Iggy with
+# the ABLITERATED Muse Glimmer artifact set (refusal behavior removed before
+# quantization), not Meta's censored KQuant build it served while it ran on
+# Kristeva. The object name is deliberately unchanged so the existing hermes
+# and open-webui key scopes keep resolving; the artifact behind it is not the
+# same model. Context stays 131072 per slot (3 slots x 131072 = the lane's
+# 393216 --ctx-size), which is why the mirror below is annotated deliberate.
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:

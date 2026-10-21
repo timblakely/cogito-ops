@@ -106,8 +106,22 @@ spec:
       periodSeconds: 10
       failureThreshold: 180
 ---
-# Muse on Kristeva's RTX 3090. Explicit generic-runtime arguments retain the
-# three 131k slots, Q8 KV, and CPU projector, and name the DFlash file.
+# Muse Glimmer 30B on Iggy's RTX 3090 — the UNCENSORED lane.
+#
+# Two changes ride together here, and the second is why the first was
+# necessary:
+#
+#   1. Weights are the abliterated (refusal-removed) family, not Meta's
+#      censored KQuant build. Text, projector and drafter all come from the
+#      same modified lineage so the drafter is scored against the hidden
+#      states it will actually see.
+#   2. The lane moved Kristeva -> Iggy. Kristeva's 3090 was physically
+#      relocated into Iggy and Kristeva now advertises nvidia.com/gpu=0, so
+#      this object could never schedule again: clearing `suspend` alone would
+#      have left it Pending on a node with no NVIDIA device plugin.
+#
+# Explicit generic-runtime arguments retain the three 131k slots, Q8 KV, and
+# the CPU projector, and name the DFlash file.
 apiVersion: inference.llmkube.dev/v1alpha1
 kind: InferenceService
 metadata:
@@ -115,16 +129,18 @@ metadata:
 spec:
   modelRef: muse-glimmer-30b
   replicas: 1
-  # Held in reserve on the kristeva 3090: suspend releases the GPU and
-  # deletes the pod, the operator keeps co-owning .spec.replicas, and the
-  # staged weights stay on the retained muse-kristeva claim. Clearing this
-  # field alone brings the lane back.
-  suspend: true
   runtime: generic
-  image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:6ac921528d613deb0fd142c654735e594a446a1c37a069eeab08d8fd974d4bec
+  # Repinned: the digest this lane carried (sha256:6ac92152...) 404s at GHCR -
+  # llama.cpp garbage-collects untagged builds, so a pin that booted last month
+  # can become ErrImagePull with no warning. This one is tagged
+  # server-cuda-b11783 and was probed on Iggy's own 3090 before pinning:
+  # libllama registers the muse-glimmer architecture, libmtmd carries the
+  # vision projector keys, --spec-type accepts draft-dflash, and
+  # --list-devices reports CUDA0 (24123 MiB) under runtimeClassName: nvidia.
+  image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:d8ef18937b6dd74fdfd6b11fb753c0564e5d27723c94f48cf6d04e4a4d9b62e8
   runtimeClassName: nvidia
   nodeSelector:
-    kubernetes.io/hostname: kristeva
+    kubernetes.io/hostname: iggy
   env:
     - name: NVIDIA_DRIVER_CAPABILITIES
       value: compute,utility
@@ -134,7 +150,36 @@ spec:
   resources:
     gpu: 1
     cpu: '2'
-    memory: 16Gi
+    # Split request from ceiling ON PURPOSE, and the split is the whole reason
+    # this lane can share Iggy with the Qwen AWQ coding lane.
+    #
+    # Iggy allocatable is 28.6 GiB and the Qwen lane already reserves 16 GiB,
+    # leaving 9.2 GiB. A 16 Gi request here (the value this lane carried on
+    # Kristeva's 128 GiB board) would sit Pending forever with the scheduler
+    # saying "Insufficient memory" while a whole 3090 looks free.
+    #
+    # 6 Gi is the scheduling reservation. llama.cpp maps the GGUF with mmap, so
+    # the ~17.3 GiB of weights is FILE-BACKED page cache, not anonymous memory:
+    # it counts against the cgroup but is clean and reclaimable, so the kernel
+    # evicts it under pressure instead of invoking the OOM killer. The real
+    # steady-state anonymous need is compute buffers, the sampler and the CPU
+    # projector - low single-digit GiB.
+    #
+    # 22 Gi is the ceiling, above the 18.6 GiB the weights plus KV plus buffers
+    # want, so llama.cpp's mapped pages are never competing with a tight limit.
+    # That matters more than it looks: if the ceiling sat below the mapped
+    # working set, the kernel would evict tensor pages between decode steps and
+    # re-read them off NVMe every token - a slowdown, not a crash, and easy to
+    # mistake for a slow model.
+    #
+    # The Qwen lane was NOT touched: its 16 Gi is untouched, so its page-cache
+    # prefetch gate and its ~450 s cold-load path are unchanged, and it was
+    # never restarted. If this lane ever needs more reservation, drop Qwen to
+    # `memory: 6Gi` + `memoryLimit: 16Gi` - that frees 10 GiB of scheduling
+    # budget without moving its ceiling - but that rolls its pod and costs a
+    # cold reload, so it is the fallback, not the default.
+    memory: 6Gi
+    memoryLimit: 22Gi
   endpoint:
     port: 8080
     type: ClusterIP
@@ -164,15 +209,22 @@ spec:
     - /app/llama-server
   args:
     - --model
-    - /models/muse-glimmer-30b/Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf
+    - /models/muse-glimmer-30b/Muse-Glimmer-30B-Abliterated-Q4_K_M.gguf
     - --port
     - '8080'
     - --host
     - '::'
+    # Sized for ONE 24 GiB card, not Kristeva's 128 GiB board. The weights
+    # (15.8 GiB) + projector (1.3 GiB) + drafter (1.5 GiB) take ~18.6 GiB of
+    # the 24 GiB, so what is left is the KV budget: 393216 tokens spread over
+    # 3 slots was a number inherited from the old host and simply does not fit
+    # here - it would OOM at cache allocation, after the slow model load, which
+    # is the worst possible time to discover it. Start one 65536-token slot,
+    # read the "KV buffer size" line llama.cpp logs at boot, then raise it.
     - --ctx-size
-    - '393216'
+    - '65536'
     - --parallel
-    - '3'
+    - '1'
     - --jinja
     - --cache-type-k
     - q8_0
@@ -184,8 +236,12 @@ spec:
     - '1024'
     - --spec-type
     - draft-dflash
+    # Blackfrost advertises 15 draft tokens; 8 is the safer opening value -
+    # each extra draft token costs CUDA-graph memory on a card that has ~4 GiB
+    # spare, and acceptance length is domain-dependent, so 15 buys little and
+    # can regress. Raise after reading accept_len in the metrics.
     - --spec-draft-n-max
-    - '15'
+    - '8'
     - --spec-draft-p-min
     - '0.75'
     - --reasoning-budget
@@ -197,7 +253,7 @@ spec:
     - --alias
     - muse-glimmer-30b
     - --mmproj
-    - /models/muse-glimmer-30b/mmproj-Muse-Glimmer-30B-Q4_K_M.gguf
+    - /models/muse-glimmer-30b/mmproj-Muse-Glimmer-30B-Abliterated-Q4_K_M.gguf
     - --no-mmproj-offload
     - --image-min-tokens
     - '1024'
@@ -224,11 +280,11 @@ spec:
     - --flash-attn
     - 'on'
     - --model-draft
-    - /models/muse-glimmer-30b/dflash-Muse-Glimmer-30B-Q4_K_M.gguf
+    - /models/muse-glimmer-30b/dflash-Muse-Glimmer-30B-Abliterated-Q4_K_M.gguf
   extraVolumes:
     - name: muse-weights
       persistentVolumeClaim:
-        claimName: muse-kristeva
+        claimName: muse-iggy
   extraVolumeMounts:
     - name: muse-weights
       mountPath: /models
