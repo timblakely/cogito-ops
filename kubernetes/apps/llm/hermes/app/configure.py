@@ -157,7 +157,7 @@ providers["litellm-chat"] = {
     "api": LITELLM_API,
     "key_env": "LITELLM_API_KEY",
     "transport": "chat_completions",
-    "default_model": "flashnext-iggy",
+    "default_model": "flashnext-deleuze",
     "discover_models": False,
     "caps_url": f"{CAPS_API}/v1/models",
     "extra_body": {"allowed_openai_params": ["reasoning_effort"]},
@@ -167,7 +167,7 @@ providers["litellm-chat"] = {
         # 262144 contract from the FP8 era for when it is re-raised.
         "Qwen/Qwen3.8-27B-INT8-W8A16": {"context_length": 262144},
         "Muse-Glimmer-30B": {"context_length": 131072},
-        "flashnext-iggy": {"context_length": 262144},
+        "flashnext-deleuze": {"context_length": 262144},
         "google/gemma-4-12b-it": {"context_length": 65536},
     },
 }
@@ -178,7 +178,7 @@ if not isinstance(model, dict):
     config["model"] = model
 model.update(
     {
-        "default": "flashnext-iggy",
+        "default": "flashnext-deleuze",
         "provider": "custom:litellm-chat",
         "api_mode": "chat_completions",
         "context_length": 262144,
@@ -221,7 +221,7 @@ agent.update(
         "fast_auto_seconds": 60,
         "reasoning_effort": "xhigh",
         "reasoning_overrides": {
-            "flashnext-iggy": {"enabled": True, "effort": "xhigh"},
+            "flashnext-deleuze": {"enabled": True, "effort": "xhigh"},
             "google/gemma-4-12b-it": "medium",
         },
         "service_tier": "",
@@ -243,7 +243,7 @@ for slot in (
     "tts_audio_tags",
     "web_extract",
 ):
-    aux[slot] = {"model": "flashnext-iggy", "provider": CHAT}
+    aux[slot] = {"model": "flashnext-deleuze", "provider": CHAT}
 aux["vision"] = {
     "model": "Qwen/Qwen3.8-27B-INT8-W8A16",
     "provider": CHAT,

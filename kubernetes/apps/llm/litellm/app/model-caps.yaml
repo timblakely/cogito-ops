@@ -30,7 +30,7 @@ data:
         "supported_efforts": [],
         "mandatory": true
       },
-      "flashnext-iggy": {
+      "flashnext-deleuze": {
         "supported_efforts": ["none"],
         "mandatory": false
       },
@@ -51,10 +51,10 @@ data:
   # real throttle is the server-start --reasoning-budget flag on the
   # InferenceService.
   #
-  # flashnext-iggy (vLLM on iggy): reasoning_effort="none" disables thinking
-  # (reasoning_content 5138 -> 0 chars); low/medium/xhigh were indistinguishable
-  # from omitted (4142-5138, within sampling noise). Binary with a working off
-  # switch -> ["none"].
+  # flashnext-deleuze (Radiance 1.10.0 on Deleuze, Oct 21 2026): a direct
+  # temperature=0 arithmetic probe produced 117 reasoning chars by default and
+  # zero with reasoning_effort="none"; both answered 4. Advertise the verified
+  # off switch only; other named efforts have not been behaviorally probed.
   #
   # google/gemma-4-12b-it: same shape - none -> 0 chars, xhigh ~ omitted. -> ["none"].
   #

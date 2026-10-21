@@ -1,13 +1,13 @@
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:
-  name: flashnext-iggy
+  name: flashnext-deleuze
 spec:
-  modelName: flashnext-iggy
+  modelName: flashnext-deleuze
   proxyRef: litellm
   params:
     model: openai/qwen3.8-flash-next
-    apiBase: http://flashnext-iggy.llm.svc.cluster.local:8080/v1
+    apiBase: http://radiance.llm.svc.cluster.local:8080/v1
     apiKey: not-needed
     additional:
       timeout: 1800
@@ -19,4 +19,4 @@ spec:
       input_cost_per_token: 0
       output_cost_per_token: 0
       supports_reasoning: true
-      iggy_profile: radiance
+      deleuze_profile: radiance
