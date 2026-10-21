@@ -1,10 +1,10 @@
-# Iggy surgery: dual RTX 3090 to dual Radeon AI PRO R9700
+# Iggy GPU surgery history
 
-Status: hardware, Talos, and Radiance TP=2 serving cutover completed on
-2026-09-29. Both R9700s are visible to Talos and Kubernetes. The AMD device
-plugin advertises two GPUs, and the case fan controller reads both cards when
-awake. Qwen now serves from one managed Radiance Pod across both R9700s. The
-earlier GGUF profile and preparation steps below remain as rollback context.
+Current hardware (2026-10-20): Iggy has two RTX 3090s again, used independently
+on the x16/x4 motherboard, and 32 GiB RAM after removal of a faulty DIMM and
+its partner. See the [stock proprietary NVIDIA rollout](talos/2026-10-iggy-stock-nvidia.md)
+for the current image and verification. The Radeon AI PRO R9700s are now on
+Deleuze. The AMD cutover and investigation below are historical.
 
 ## Cutover result (2026-09-29)
 

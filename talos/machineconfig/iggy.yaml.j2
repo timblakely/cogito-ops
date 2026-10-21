@@ -24,16 +24,22 @@ machine:
   install:
     diskSelector:
       model: "Samsung SSD 970 PRO 512GB"
-    # R9700 Image Factory schematic; do not apply until the physical GPU swap.
-    image: factory.talos.dev/metal-installer/8f5597684d02cedd54a852b60a13f03bd1d65aa6c48e455e54268163e877ac15@sha256:e69839bf73217ac00445d7593e7e9e4d0a26c81c4c29e403816067878780b57c
+    # Talos v1.14.4 with stock proprietary NVIDIA 595.91.07 and matched toolkit.
+    image: factory.talos.dev/metal-installer/410b6066fd82217b90a0e9623e98378865544b78030cd6a4acfdafefccd59cf4@sha256:93e6f630be612888b72b7a936cd2d9a9581fa2b7d6bb5c2106131aa09bf6e3be
     wipe: false
   sysctls:
     net.core.bpf_jit_harden: 1
+  kernel:
+    modules:
+      - name: nvidia
+      - name: nvidia_uvm
+      - name: nvidia_modeset
+      - name: nvidia_drm
+      - name: nct6775 # NCT6797 case-fan sensor/control; modular in Talos 1.14.
   nodeLabels:
     node-role.kubernetes.io/machine-learning: 'true'
     node-role.kubernetes.io/high-cpu: 'true'
-    node-role.kubernetes.io/high-mem: 'true'
-    amd.com/gpu.present: 'true'
+    nvidia.com/device-plugin.config: config.yaml
 ---
 apiVersion: v1alpha1
 kind: UserVolumeConfig

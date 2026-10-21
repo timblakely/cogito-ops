@@ -4,16 +4,9 @@ metadata:
   name: nvidia-plugin-configs
   namespace: cluster-infra
 data:
-  # No sharing block = advertised units equal physical cards. The plugin
-  # rejects timeSlicing replicas < 2 ("number of replicas must be >= 2"), so
-  # unsharing IS the way to advertise physical counts. The TP=2 worker needs
-  # two DISTINCT devices (no NVLink; workers exchange tensors over shared
-  # memory), and time-sliced replicas of one card are interchangeable to the
-  # scheduler. Verified 2026-08-21 before this change that the ×4 allocation
-  # happened to span both cards (two UUIDs, plans/llm/bench-notes.md); this
-  # makes it true by construction. Any future co-tenancy node (5070 Ti + Wolf)
-  # reintroduces timeSlicing on ITS config only, sized so a game session's
-  # claim equals that node's whole budget.
+  # No sharing block: one resource unit is one physical card. Iggy selects
+  # this profile for two independent one-GPU workloads. Amnesia's gaming
+  # profile keeps its existing time slicing.
   config.yaml: |
     version: v1
   gaming.yaml: |
