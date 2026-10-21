@@ -63,11 +63,13 @@ spec:
           command: ["python3", "-u", "-c"]
           args:
             - |
-              import hashlib, os, shutil, sys, urllib.request
+              import hashlib, os, urllib.request
 
               SRC = "https://huggingface.co/Blackfrost-AI/Muse-Glimmer-30B-Abliterated-GGUF/resolve/main"
               COLD = "/archive/llmkube/muse-glimmer-30b-abliterated"
               HOT = "/models/muse-glimmer-30b"
+              CHUNK = 1 << 22
+              DROP_EVERY = 1 << 30
 
               # name -> (sha256 LFS OID, bytes)
               FILES = {
@@ -79,73 +81,149 @@ spec:
                       ("1b58b92b670d20b49d06a9a1210e4bf5350696bb8f7b4931769b7000d0456eda", 1631210720),
               }
 
-              def sha256(path):
+              def hash_file(path):
                   h = hashlib.sha256()
                   with open(path, "rb") as f:
-                      for chunk in iter(lambda: f.read(1 << 22), b""):
+                      for chunk in iter(lambda: f.read(CHUNK), b""):
                           h.update(chunk)
                   return h.hexdigest()
 
-              def good(path, want, size):
+              def verified(path, want, size):
                   return (os.path.isfile(path) and os.path.getsize(path) == size
-                          and sha256(path) == want)
+                          and hash_file(path) == want)
 
-              def fetch(url, dest):
-                  tmp = dest + ".partial"
-                  for attempt in (1, 2, 3):
+              def drop_cache(path):
+                  # Bulk copies charge their page cache to this pod's memory
+                  # cgroup. On NFS the writeback is slower than the producer, so
+                  # dirty pages pile up until the cgroup OOM-kills the writer
+                  # (observed: killed at 20 MB anon RSS under a 1 GiB limit).
+                  # Dropping the cache after each GiB keeps the working set flat.
+                  try:
+                      fd = os.open(path, os.O_RDONLY)
+                      os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
+                      os.close(fd)
+                  except OSError:
+                      pass
+
+              def write_hot(url, hot, want, size):
+                  """Stream to node NVMe, resuming a .partial with Range requests."""
+                  tmp = hot + ".partial"
+                  for attempt in range(1, 13):
+                      off = os.path.getsize(tmp) if os.path.exists(tmp) else 0
+                      if off > size:
+                          os.remove(tmp)
+                          off = 0
+                      req = urllib.request.Request(f"{SRC}/{url}")
+                      if off:
+                          req.add_header("Range", f"bytes={off}-")
                       try:
-                          with urllib.request.urlopen(url, timeout=120) as r, open(tmp, "wb") as out:
-                              shutil.copyfileobj(r, out, 1 << 22)
-                          return tmp
+                          with urllib.request.urlopen(req, timeout=180) as r:
+                              if off and r.status != 206:
+                                  off = 0          # server ignored Range: restart
+                              total = off
+                              with open(tmp, "ab" if off else "wb") as out:
+                                  since = 0
+                                  while total < size:
+                                      chunk = r.read(CHUNK)
+                                      if not chunk:
+                                          break
+                                      out.write(chunk)
+                                      total += len(chunk)
+                                      since += len(chunk)
+                                      if since >= DROP_EVERY:
+                                          out.flush()
+                                          drop_cache(tmp)
+                                          since = 0
+                          now = os.path.getsize(tmp)
+                          if now == size and hash_file(tmp) == want:
+                              with open(tmp, "rb") as f:
+                                  os.fsync(f.fileno())
+                              os.replace(tmp, hot)
+                              print(f"  verified on node NVMe (attempt {attempt})", flush=True)
+                              return
+                          if now < size:
+                              # Connection ended early; keep the partial and resume.
+                              print(f"  attempt {attempt}: {now}/{size} bytes, resuming", flush=True)
+                              continue
+                          print(f"  attempt {attempt}: full size but digest mismatch", flush=True)
+                          os.remove(tmp)
                       except Exception as e:
                           print(f"  attempt {attempt} failed: {e}", flush=True)
-                          try:
-                              os.remove(tmp)
-                          except OSError:
-                              pass
-                  raise SystemExit(f"download failed after 3 attempts: {url}")
+                  raise SystemExit(f"could not stage {hot} after 12 attempts")
 
-              os.makedirs(COLD, exist_ok=True)
+              def copy_cold(hot, cold, want, size):
+                  """Best-effort durable copy; a failure here must not block the lane."""
+                  if verified(cold, want, size):
+                      print("  cold tier already verified", flush=True)
+                      return
+                  tmp = cold + ".partial"
+                  try:
+                      with open(hot, "rb") as src, open(tmp, "wb") as out:
+                          since = 0
+                          while True:
+                              chunk = src.read(CHUNK)
+                              if not chunk:
+                                  break
+                              out.write(chunk)
+                              since += len(chunk)
+                              if since >= DROP_EVERY:
+                                  out.flush()
+                                  os.fsync(out.fileno())
+                                  drop_cache(tmp)
+                                  since = 0
+                          out.flush()
+                          os.fsync(out.fileno())
+                      if os.path.getsize(tmp) == size and hash_file(tmp) == want:
+                          os.replace(tmp, cold)
+                          print("  copied to NFS cold tier", flush=True)
+                      else:
+                          os.remove(tmp)
+                          print("  WARN cold copy failed verification; hot tier still valid", flush=True)
+                  except Exception as e:
+                      print(f"  WARN cold copy failed ({e}); hot tier still valid", flush=True)
+                      try:
+                          os.remove(tmp)
+                      except OSError:
+                          pass
+
               os.makedirs(HOT, exist_ok=True)
+              # The cold tier is never a download target, so a stale partial there
+              # is garbage from an earlier design and only wastes NAS space. Tolerate
+              # a read-only/unavailable mount: the hot tier is the lane's contract.
+              try:
+                  os.makedirs(COLD, exist_ok=True)
+                  for stale in os.listdir(COLD):
+                      if stale.endswith(".partial"):
+                          os.remove(os.path.join(COLD, stale))
+              except OSError as e:
+                  print(f"  WARN cold tier unavailable ({e}); continuing hot tier only", flush=True)
 
               for name, (want, size) in FILES.items():
-                  cold, hot = os.path.join(COLD, name), os.path.join(HOT, name)
+                  hot, cold = os.path.join(HOT, name), os.path.join(COLD, name)
                   print(f"== {name} ({size} bytes)", flush=True)
-
-                  if good(cold, want, size):
-                      print("  cold tier already verified", flush=True)
+                  if not verified(hot, want, size):
+                      write_hot(name, hot, want, size)
                   else:
-                      tmp = fetch(f"{SRC}/{name}", cold)
-                      if not (os.path.getsize(tmp) == size and sha256(tmp) == want):
-                          os.remove(tmp)
-                          raise SystemExit(f"digest mismatch on download: {name}")
-                      os.replace(tmp, cold)
-                      print("  downloaded and verified into cold tier", flush=True)
-
-                  if good(hot, want, size):
                       print("  hot tier already verified", flush=True)
-                      continue
-                  tmp = hot + ".partial"
-                  shutil.copyfile(cold, tmp)
-                  if not (os.path.getsize(tmp) == size and sha256(tmp) == want):
-                      os.remove(tmp)
-                      raise SystemExit(f"digest mismatch after staging: {name}")
-                  os.replace(tmp, hot)
-                  print("  staged and verified on node NVMe", flush=True)
+                  copy_cold(hot, cold, want, size)
 
               os.sync()
               # Fail loudly rather than letting a lane boot against a short file.
-              missing = [n for n, (w, s) in FILES.items() if not good(os.path.join(HOT, n), w, s)]
+              missing = [n for n, (w, s) in FILES.items() if not verified(os.path.join(HOT, n), w, s)]
               if missing:
                   raise SystemExit(f"missing after staging: {missing}")
-              print("All three Muse abliterated files verified on both tiers.", flush=True)
+              print("All three Muse abliterated files verified on the hot tier.", flush=True)
           resources:
             requests:
               cpu: 500m
               memory: 256Mi
             limits:
               cpu: "2"
-              memory: 1Gi
+              # Headroom for in-flight write pages: this pod streams ~19 GB, and
+              # a 1 GiB ceiling got the writer OOM-killed on the NFS copy before
+              # the posix_fadvise drops existed. The request stays small because
+              # Iggy only has ~9 GiB unreserved alongside the Qwen lane.
+              memory: 3Gi
           volumeMounts:
             - name: archive
               mountPath: /archive
