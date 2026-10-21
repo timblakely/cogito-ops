@@ -37,11 +37,20 @@ spec:
             capabilities:
               add:
                 - SYS_ADMIN
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
           command:
             - /bin/sh
             - -ec
             - |
+              power_limit_watts=250
+              if [ "$NODE_NAME" = iggy ]; then
+                power_limit_watts=280
+              fi
               while true; do
-                nvidia-smi -pl 250 || true
+                nvidia-smi -pl "$power_limit_watts" || true
                 sleep 300
               done

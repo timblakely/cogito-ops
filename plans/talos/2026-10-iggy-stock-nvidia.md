@@ -41,7 +41,8 @@ cards. Amnesia keeps its existing gaming profile and custom image.
 The stale `amd.com/gpu.present` label is removed so the AMD device plugin and
 AMD fan controller stop targeting Iggy. NVIDIA fan control and DCGM telemetry
 select the explicit inference-host list `[iggy, kristeva]`, preserving
-Amnesia's existing gaming setup. The existing 250 W per-card power cap remains.
+Amnesia's existing gaming setup. Iggy uses a 280 W per-card power cap;
+Kristeva retains its 250 W setting.
 
 The old `flashnext-iggy` AMD/ROCm TP=2 service is suspended. Its model data,
 PVCs, routes, and the other already-suspended inference profiles remain
@@ -92,6 +93,15 @@ their script ConfigMap were removed after verification.
 
 The restored fan controller reports both GPU fans at the configured 50%
 floor and board PWM outputs 3–7 at the corresponding duty. DCGM exports both
-GPUs' temperatures. The 250 W caps are active, the NVIDIA device plugin and
+GPUs' temperatures. The original 250 W caps were active, the NVIDIA device plugin and
 fan/telemetry Pods are healthy, and BGP is established with UniFi. Iggy was
 uncordoned after these checks and is Ready for normal scheduling.
+
+## Power-cap update (2026-10-21)
+
+The user requested 280 W on both of Iggy's RTX 3090s. The existing
+`nvidia-power-limit` DaemonSet selects its setting using the node name from
+the Downward API: 280 W for Iggy and the existing 250 W for Kristeva.
+It applies the cap when the Pod starts and every 300 seconds afterward,
+restoring it after node reboots or driver resets without modifying Talos.
+Both cards support 280 W (their reported ranges are 100–450 W and 100–366 W).
