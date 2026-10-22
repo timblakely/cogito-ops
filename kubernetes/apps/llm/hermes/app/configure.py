@@ -165,9 +165,13 @@ providers["litellm-chat"] = {
         # Pins mirror the workstation profile. The live catalogue publishes
         # Qwen at 32768 today (post INT8 W8A16 rebuild); the pin keeps the
         # 262144 contract from the FP8 era for when it is re-raised.
-        "Qwen/Qwen3.8-27B-INT8-W8A16": {"context_length": 262144},
-        "Muse-Glimmer-30B": {"context_length": 131072},
-        "flashnext-deleuze": {"context_length": 262144},
+        # supports_vision is declared per model because models.dev has never
+        # heard of these local aliases, and it is what image routing decides
+        # on once the auxiliary.vision pin above is ever removed. Values match
+        # the LiteLLMModel supportsVision declarations in litellm/app/models/.
+        "Qwen/Qwen3.8-27B-INT8-W8A16": {"context_length": 262144, "supports_vision": False},
+        "Muse-Glimmer-30B": {"context_length": 131072, "supports_vision": True},
+        "flashnext-deleuze": {"context_length": 262144, "supports_vision": False},
         "google/gemma-4-12b-it": {"context_length": 65536},
     },
 }
@@ -244,10 +248,23 @@ for slot in (
     "web_extract",
 ):
     aux[slot] = {"model": "flashnext-deleuze", "provider": CHAT}
+# The vision slot has to be a model whose serving lane accepts image parts.
+# Qwen/Qwen3.8-27B-INT8-W8A16 does not: that lane is text-only (its LiteLLM
+# model declares supportsVision: false) and vLLM answers an image with
+# "At most 0 image(s) may be provided in one prompt", so every vision_analyze
+# call failed with HTTP 400 no matter which model the turn was using.
+# Measured on the same 640x480 probe (Oct 2026): Muse-Glimmer-30B names the
+# colour in seconds and counts the image in prompt_tokens; the CPU `vision`
+# alias also answers correctly but needs minutes per call, which is unusable
+# inside a tool call. Muse keeps --parallel 1, so vision traffic serialises on
+# the slot of whoever is already talking to it - never on a gaming GPU.
+# Note the wider effect of naming a vision backend at all: with an explicit
+# auxiliary.vision entry, Hermes' image_input_mode=auto always takes the text
+# path (describe-then-attach), even when the main model can see natively.
 aux["vision"] = {
-    "model": "Qwen/Qwen3.8-27B-INT8-W8A16",
+    "model": "Muse-Glimmer-30B",
     "provider": CHAT,
-    "timeout": 120,
+    "timeout": 300,
 }
 
 compression = config.setdefault("compression", {})
