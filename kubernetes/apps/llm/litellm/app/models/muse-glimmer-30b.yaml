@@ -8,14 +8,14 @@
 # and open-webui key scopes keep resolving; the artifact behind it is not the
 # same model.
 #
-# maxInputTokens below mirrors the lane's real budget, not what the architecture
-# can address. The lane runs one slot at --ctx-size 65536 on a single 24 GiB
-# card: weights + projector + drafter already occupy ~18.6 GiB (measured 20046
-# MiB in use after boot), so the KV cache gets what is left. Advertising the
-# old 131072 here would let LiteLLM assemble prompts the server then rejects,
-# which surfaces to the caller as a truncated or failed request rather than a
-# clean budget error. Raise this only together with --ctx-size, after the KV
-# numbers in the lane's boot log show room.
+# maxInputTokens must mirror the lane's --ctx-size exactly: it is the budget
+# LiteLLM uses to decide how much context to assemble, and a number above the
+# server's real window reaches the caller as a truncated or failed completion
+# instead of a clean budget error. Both now sit at this artifact's trained
+# 131072. That is affordable on one 24 GiB card because 39 of the 52 layers are
+# sliding-window (2048), so only 13 layers grow KV - about 6.9 KiB/token at
+# q8_0 - and measured usage left roughly 4 GiB of margin. Change the two
+# numbers together, never this one alone.
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:
@@ -34,7 +34,7 @@ spec:
   info:
     supportsFunctionCalling: true
     supportsVision: true
-    maxInputTokens: 65536
+    maxInputTokens: 131072
     maxOutputTokens: 16384
     extra:
       input_cost_per_token: 0

@@ -214,15 +214,22 @@ spec:
     - '8080'
     - --host
     - '::'
-    # Sized for ONE 24 GiB card, not Kristeva's 128 GiB board. The weights
-    # (15.8 GiB) + projector (1.3 GiB) + drafter (1.5 GiB) take ~18.6 GiB of
-    # the 24 GiB, so what is left is the KV budget: 393216 tokens spread over
-    # 3 slots was a number inherited from the old host and simply does not fit
-    # here - it would OOM at cache allocation, after the slow model load, which
-    # is the worst possible time to discover it. Start one 65536-token slot,
-    # read the "KV buffer size" line llama.cpp logs at boot, then raise it.
+    # One 24 GiB card, not Kristeva's 128 GiB board: 393216 tokens across 3
+    # slots was a number for the old host and would have died at cache
+    # allocation, after the slow 16 GiB load. Single slot, and the window is
+    # this artifact's trained context_length (131072).
+    #
+    # KV is cheaper than the parameter count suggests. The GGUF header carries
+    # attention.sliding_window 2048 with a per-layer pattern of 39 sliding and
+    # 13 full-attention layers (head_count_kv 2, head_dim 128), so at q8_0 only
+    # those 13 layers scale with context - about 6.9 KiB/token, i.e. ~927 MiB of
+    # KV at 131072 plus ~43 MiB for the sliding layers. Measured steady-state
+    # usage at 65536 was 20072 MiB of 24576 MiB, so the extra ~460 MiB this
+    # change costs leaves roughly 4 GiB of margin. Raise further only with a
+    # fresh measurement, and move maxInputTokens in the LiteLLM model together
+    # with this number.
     - --ctx-size
-    - '65536'
+    - '131072'
     - --parallel
     - '1'
     - --jinja
@@ -236,10 +243,11 @@ spec:
     - '1024'
     - --spec-type
     - draft-dflash
-    # Blackfrost advertises 15 draft tokens; 8 is the safer opening value -
-    # each extra draft token costs CUDA-graph memory on a card that has ~4 GiB
-    # spare, and acceptance length is domain-dependent, so 15 buys little and
-    # can regress. Raise after reading accept_len in the metrics.
+    # Blackfrost advertises 15 draft tokens; 8 stands. Measured on this card
+    # over 143 drafts, per-position acceptance was 133/65/33/23/18/14/6/4 for
+    # positions 0-7 - acceptance is spent by position 5 - so the last seven
+    # draft slots would buy nothing and still cost CUDA-graph memory. Raise only
+    # if llamacpp:spec_decode_num_accepted_tokens_per_pos_total stays high.
     - --spec-draft-n-max
     - '8'
     - --spec-draft-p-min
