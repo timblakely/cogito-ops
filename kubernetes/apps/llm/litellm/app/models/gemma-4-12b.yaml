@@ -26,6 +26,17 @@ spec:
       timeout: 1800
   info:
     supportsFunctionCalling: true
+    # Vision gate closed 2026-10-22. The lane mounts its matched projector
+    # (llmkube/resources/gemma-4-12b-amnesia.yaml: --mmproj mmproj-F16.gguf
+    # --no-mmproj-offload) and llama-server logs "loaded multimodal model".
+    # Round-trip through this alias with a generated PNG carrying a random
+    # colour from an 8-colour palette: 320x240 green -> "Green", purple ->
+    # "Purple" (1.6-3.3s each, prompt_tokens 113 with image vs 31 text-only,
+    # +82). The text-only control on the same prompt answered "please provide
+    # the image", so the correct colours are not guesses. The plan's
+    # supportsVision-absent gate (plans/llm/gemma-4-12b-amnesia-2026-10-07.md)
+    # required exactly this proof.
+    supportsVision: true
     maxInputTokens: 65536
     maxOutputTokens: 8192
     extra:

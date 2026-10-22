@@ -179,7 +179,9 @@ data:
             "Qwen/Qwen3.8-27B-INT8-W8A16": {"context_length": 262144, "supports_vision": False},
             "Muse-Glimmer-30B": {"context_length": 131072, "supports_vision": True},
             "flashnext-deleuze": {"context_length": 262144, "supports_vision": False},
-            "google/gemma-4-12b-it": {"context_length": 65536},
+            # Vision proven by image round-trip through the alias (see the
+            # supportsVision note in litellm/app/models/gemma-4-12b.yaml).
+            "google/gemma-4-12b-it": {"context_length": 65536, "supports_vision": True},
         },
     }
     

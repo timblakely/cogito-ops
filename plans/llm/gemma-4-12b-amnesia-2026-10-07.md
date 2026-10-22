@@ -97,6 +97,12 @@ top-k 64).
   on reasoning content; clients need max_tokens headroom or reasoning-off.
 - Model loaded multimodal (mmproj OK, CPU-side) and served
   `google/gemma-4-12b-it` cleanly; E2E through the proxy returned READY.
+- 2026-10-22 — the item-5 vision gate is CLOSED: two image round-trips through
+  the alias (random palette colours green -> "Green", purple -> "Purple",
+  1.6-3.3 s, `prompt_tokens` 113 with image vs 31 text-only) and the text-only
+  control asked for the image it did not have. `supportsVision: true` now ships
+  in `litellm/app/models/gemma-4-12b.yaml`, and Hermes declares the alias
+  multimodal (cluster `configure.py` + workstation profile).
 - 65536 ctx: SHIPPED (fd504d7b). Post-roll VRAM 13478-13496/16303 MiB
   steady, incl. under a ~36k-token prompt (TTFT 18.7s ~= 1900 prompt
   tok/s). Decode unchanged (~40 tok/s, single slot). 131k stays out of
