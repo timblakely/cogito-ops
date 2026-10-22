@@ -31,7 +31,7 @@ data:
         "mandatory": true
       },
       "flashnext-deleuze": {
-        "supported_efforts": ["none"],
+        "supported_efforts": ["none", "minimal", "low", "medium", "xhigh"],
         "mandatory": false
       },
       "google/gemma-4-12b-it": {
@@ -51,10 +51,12 @@ data:
   # real throttle is the server-start --reasoning-budget flag on the
   # InferenceService.
   #
-  # flashnext-deleuze (Radiance 1.10.0 on Deleuze, Oct 21 2026): a direct
-  # temperature=0 arithmetic probe produced 117 reasoning chars by default and
-  # zero with reasoning_effort="none"; both answered 4. Advertise the verified
-  # off switch only; other named efforts have not been behaviorally probed.
+  # flashnext-deleuze (Radiance 1.10.0 on Deleuze, Oct 21 2026): /server_info
+  # advertises none/minimal/low/medium/xhigh. Live /apply-template probes verify
+  # none and minimal close the thinking block; low adds the brief-thinking
+  # instruction, medium leaves it open without an effort instruction, and xhigh
+  # adds the careful-thinking instruction. Omitting effort renders exactly the
+  # xhigh prompt. These are template controls, not measured token-budget tiers.
   #
   # google/gemma-4-12b-it: same shape - none -> 0 chars, xhigh ~ omitted. -> ["none"].
   #
