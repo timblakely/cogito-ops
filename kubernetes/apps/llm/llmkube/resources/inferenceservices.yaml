@@ -220,14 +220,15 @@ spec:
     # this artifact's trained context_length (131072).
     #
     # KV is cheaper than the parameter count suggests. The GGUF header carries
-    # attention.sliding_window 2048 with a per-layer pattern of 39 sliding and
-    # 13 full-attention layers (head_count_kv 2, head_dim 128), so at q8_0 only
-    # those 13 layers scale with context - about 6.9 KiB/token, i.e. ~927 MiB of
-    # KV at 131072 plus ~43 MiB for the sliding layers. Measured steady-state
-    # usage at 65536 was 20072 MiB of 24576 MiB, so the extra ~460 MiB this
-    # change costs leaves roughly 4 GiB of margin. Raise further only with a
-    # fresh measurement, and move maxInputTokens in the LiteLLM model together
-    # with this number.
+    # attention.sliding_window 2048 with a pattern of 39 sliding and 13
+    # full-attention layers (head_count_kv 2, head_dim 128), so at q8_0 only
+    # those 13 layers scale with context: 6.91 KiB/token, i.e. 884 MiB at
+    # 131072, plus 41 MiB for the sliding layers capped at the 2048 window -
+    # ~925 MiB of KV total, against 3.45 GiB if all 52 layers were full. The
+    # dflash drafter adds ~22 MiB (all 5 of its layers are sliding). This
+    # doubling was predicted to cost 442 MiB and measured 402 MiB, 20072 ->
+    # 20474 of 24576 MiB. Raise further only with a fresh measurement, and move
+    # maxInputTokens in the LiteLLM model together with this number.
     - --ctx-size
     - '131072'
     - --parallel
