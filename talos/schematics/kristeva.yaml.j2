@@ -5,7 +5,7 @@ customization:
     - -init_on_free # Less security, faster puter
     - -selinux # Less security, faster puter
     - apparmor=0 # Less security, faster puter
-    - i915.enable_guc=3 # Meteor Lake CPU & Intel iGPU
+    - i915.enable_guc=3 # Intel Arc A380
     - i915.force_probe=56a5 # Intel Arc A380
     - init_on_alloc=0 # Less security, faster puter
     - init_on_free=0 # Less security, faster puter
@@ -17,9 +17,8 @@ customization:
     - talos.auditd.disabled=1 # Less security, faster puter
   systemExtensions:
     officialExtensions:
-      - siderolabs/i915 # Intel Arc A380 
+      # NVIDIA extension services block boot on this Intel-only GPU host.
+      - siderolabs/i915 # Intel Arc A380
       - siderolabs/intel-ucode # Intel CPU
       - siderolabs/realtek-firmware # For networking
       - siderolabs/nut-client # Network UPS Tools Client
-      - siderolabs/nvidia-open-gpu-kernel-modules-production
-      - siderolabs/nvidia-container-toolkit-production
