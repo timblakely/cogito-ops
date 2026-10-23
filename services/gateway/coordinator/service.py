@@ -12,7 +12,6 @@ import time
 from .core import Coordinator
 from .foreman import ForemanClient
 from .github import GitHubIssues
-from .image import ImageClient
 from .models import Approval, PlanVersion, ValidationError
 from .matrix import MatrixCoordinator
 from .luna import LunaClient, LunaCoordinator
@@ -52,11 +51,6 @@ class App:
             set(filter(None, os.environ.get("MATRIX_APPROVERS", "").split(","))),
             os.environ.get("MATRIX_ACTIVITY_ROOM_ID", ""),
             int(os.environ.get("ASTRA_TURN_CAP", "20")),
-            ImageClient(
-                os.environ["LITELLM_IMAGE_API_KEY"],
-                os.environ.get("LITELLM_BASE_URL", "https://litellm.timblakely.com/v1"),
-                os.environ.get("IMAGE_MODEL", "image"),
-            ),
             ({os.environ["MATRIX_PROJECT_ROOM_ID"]:
               os.environ.get("MATRIX_PROJECT_REPOSITORY",
                              "https://github.com/timblakely/cogito-ops.git")}

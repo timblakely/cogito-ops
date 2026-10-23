@@ -9,7 +9,6 @@ while the persona roles drain their own slice of the shared outbox.
 
 from datetime import datetime, timezone
 import asyncio
-import base64
 import hashlib
 import hmac
 import json
@@ -20,7 +19,6 @@ from typing import Any
 from maubot import MessageEvent, Plugin
 from maubot.handlers import event
 from mautrix.errors import MLimitExceeded, MNotFound, MUnknown
-from mautrix.crypto.attachments import decrypt_attachment
 from mautrix.types import (Event, EventID, EventType, MessageType, RelationType, RoomID,
                            TextMessageEventContent)
 from mautrix.util.config import BaseProxyConfig, ConfigUpdateHelper
@@ -34,8 +32,6 @@ class Config(BaseProxyConfig):
 
 
 class CogitoBot(Plugin):
-    MAX_IMAGE_BYTES = 8 * 1024 * 1024
-    IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
     PINNED = EventType.find("m.room.pinned_events", EventType.Class.STATE)
     # Synapse rate-limits bursts. Pace ordinary sends and wait out the limiter
     # rather than letting one throttled write wedge the strictly ordered queue.
@@ -296,29 +292,18 @@ class CogitoBot(Plugin):
             if reply_to:
                 value["reply_to"] = reply_to
             if msgtype == MessageType.IMAGE:
-                info = getattr(evt.content, "info", None)
-                mime_type = str(getattr(info, "mimetype", ""))
-                if mime_type not in self.IMAGE_TYPES:
-                    raise ValueError(f"unsupported image type: {mime_type or 'unknown'}")
-                size = int(getattr(info, "size", 0) or 0)
-                if size > self.MAX_IMAGE_BYTES:
-                    raise ValueError("image exceeds the 8 MiB limit")
-                encrypted = getattr(evt.content, "file", None)
-                if encrypted:
-                    ciphertext = await self.client.download_media(encrypted.url)
-                    data = decrypt_attachment(
-                        ciphertext, encrypted.key.key,
-                        encrypted.hashes["sha256"], encrypted.iv,
-                    )
-                else:
-                    data = await self.client.download_media(evt.content.url)
-                if not data or len(data) > self.MAX_IMAGE_BYTES:
-                    raise ValueError("image exceeds the 8 MiB limit")
-                value["image"] = {
-                    "mime_type": mime_type,
-                    "name": str(getattr(evt.content, "filename", None) or body)[:512],
-                    "data": base64.b64encode(data).decode("ascii"),
-                }
+                # The coordinator no longer describes attachments - the LiteLLM
+                # `image` route is retired - so the caption still travels as text
+                # and the dropped media is named instead of silently lost. A bare
+                # photo has no body to forward, so it is answered in the room
+                # rather than sent as an event the gateway would reject.
+                name = str(getattr(evt.content, "filename", None) or "image")
+                if not body:
+                    await evt.respond(f"🖼️ Image attachments are no longer described "
+                                      f"({name}). Send the text you want acted on.")
+                    return
+                value["body"] = (body + "\n\n[Image attachment " + name + " was not "
+                                 "described: coordinator image support was removed.]")
             await self._request("/v1/matrix/events", value)
             self.log.info("Completed Matrix command event %s", evt.event_id)
         except Exception as exc:
