@@ -70,14 +70,37 @@ spec:
   cacheTypeK: q8_0
   cacheTypeV: q8_0
   batchSize: 1024
-  uBatchSize: 768
+  # Was 768. Gemma needs non-causal attention over its vision prefix, and
+  # llama.cpp cannot split a non-causal batch: llama-context.cpp asserts
+  # (causal_attn || n_ubatch >= n_tokens_all). So n_ubatch is a hard ceiling on the
+  # image tokens of a single request, and an image over it aborts the server
+  # (exit 139) instead of answering. Measured 2026-10-23: 1280x960 = 539 image
+  # tokens was fine, 1920x1080 (~910 by the linear-in-area scaling this projector
+  # shows) killed the container. ubatch costs no KV - KV is sized by contextSize -
+  # and cannot exceed batchSize, so 1024 is the ceiling that costs nothing here.
+  uBatchSize: 1024
   extraArgs:
-    # Unified multimodality: the 35M embedder projector, kept off the GPU
-    # (the Muse precedent). Advertised in the catalogue as text-only until
-    # the vision path is verified on this build; see the plan note.
+    # Unified multimodality: the 35M embedder projector. It stays on the CPU on
+    # purpose, unlike the Muse lane: this projector is 175 MiB F16 and encode-only
+    # (max_tokens: 1) costs 0.20 s at 320x240, 0.24 s at 640x480, 0.43 s at
+    # 1280x960 - there is nothing to win by offloading it, and amnesia's 5070 Ti is
+    # the gaming GPU (2458 MiB free with this lane loaded), so keeping ~150 MiB of
+    # projector off it is the better trade. The catalogue now declares
+    # supportsVision: true (verified by colour round-trip 2026-10-22), so the old
+    # "text-only until verified" gate below no longer applies.
     - --mmproj
     - /model-source/llmkube/gemma-4-12b-it/mmproj-F16.gguf
     - --no-mmproj-offload
+    # Ceiling, not a tuning knob. --image-max-tokens only applies to projectors
+    # with dynamic resolution, and this one qualifies (image tokens scale linearly
+    # with pixel area), so this bounds the non-causal batch that uBatchSize above
+    # asserts on: 768 image tokens, 256 below uBatchSize, because the assert is on
+    # the whole batch rather than the image alone. Without a bound, any large
+    # enough screenshot (4K measures ~3600 tokens) re-triggers the exit-139 abort
+    # at any uBatchSize worth running. Raising this needs uBatchSize raised with it,
+    # and batchSize is the hard limit at 1024.
+    - --image-max-tokens
+    - "768"
     # Served name LiteLLM routes on: openai/google/gemma-4-12b-it.
     - --alias
     - google/gemma-4-12b-it
