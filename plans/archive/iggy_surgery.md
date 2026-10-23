@@ -1,8 +1,18 @@
 # Iggy GPU surgery history
 
+> **Archived 2026-10-23 — executed, then reversed.** The AMD cutover described
+> here was undone on 2026-10-20: `iggy` runs two RTX 3090s on stock NVIDIA
+> drivers with `amd.com/gpu=0` and 32 GiB RAM, and the Radeon AI PRO R9700 pair
+> is now `deleuze`'s (`amd.com/gpu=2`). Statements below like "Kubernetes
+> advertises amd.com/gpu: 2" and "AMD device plugin scoped to Iggy" are deleuze
+> facts today. Kept for the 2026-09-29 hostcall/RCCL diagnosis that fed the
+> Deleuze bring-up. Current claims:
+> [`../talos/2026-10-iggy-stock-nvidia.md`](../talos/2026-10-iggy-stock-nvidia.md).
+
+
 Current hardware (2026-10-20): Iggy has two RTX 3090s again, used independently
 on the x16/x4 motherboard, and 32 GiB RAM after removal of a faulty DIMM and
-its partner. See the [stock proprietary NVIDIA rollout](talos/2026-10-iggy-stock-nvidia.md)
+its partner. See the [stock proprietary NVIDIA rollout](../talos/2026-10-iggy-stock-nvidia.md)
 for the current image and verification. The Radeon AI PRO R9700s are now on
 Deleuze. The AMD cutover and investigation below are historical.
 
@@ -230,7 +240,7 @@ is an NVIDIA rollback image, not the running private image. The primary Qwen
 service uses CUDA vLLM, a 3090-specific FlashAttention artifact, four source
 patches, and NVIDIA P2P detection. The NVIDIA device plugin also serves
 Amnesia, which must remain untouched by Iggy's removal from NVIDIA scheduling.
-See [Iggy's P2P record](talos/2026-09-iggy-gpu-p2p.md) and
+See [Iggy's P2P record](2026-09-iggy-gpu-p2p.md) and
 [the workstation Talos record](workstation_talos.md).
 
 ## Decisions to resolve before cutover

@@ -1,5 +1,18 @@
 # Async Agentic Homelab: Matrix-driven planning and execution on a Talos Kubernetes cluster
 
+> **Archived 2026-10-23 — implemented, and partly superseded.** The platform it
+> specifies is deployed, so this is design history rather than a plan. Read it
+> with three corrections: the §3.3 alias table (`coordinator`/`planner`/
+> `reviewer`/`scout`/`escalation`) was deleted on 2026-10-21 (`ab8324d`) and
+> Foreman now runs one execution pool with a coder → deterministic-gate pipeline;
+> §9's three-alias LiteLLM key is now an eight-model key; and §1.2-1.3's
+> inventory ("5 nodes", "iggy 128 GB", "no 5070 Ti node", "Muse suspended") is
+> inverted by today's cluster (6 nodes, iggy 32 GiB, `amnesia` *is* the 5070 Ti
+> node, Muse live). Acceptance evidence:
+> [`../../kubernetes/acceptance/async-agentic-v4.md`](../../kubernetes/acceptance/async-agentic-v4.md).
+> Deployed reality: `services/gateway/RUNBOOK.md`.
+
+
 **Status:** core implementation deployed; a two-deliverable acceptance run completed on 2026-09-14. Hermes direct sessions (§9) are implemented pending the owner-device DM check. Phone image ingestion is deployed and passed an in-cluster Muse vision probe; the owner-device encrypted-media check remains. Prefix-free project-room intake is deployed and accepted. No required implementation work remains; optional appservice personas and owner-device checks are deferred. Supersedes v3 (2026-09-13), v2 (same day), and v1 (2026-09-12).
 **Audience:** a reviewer with no prior context. Markers: `[VERIFY]` unverified, `[DECISION]` contestable choice, `[OBSERVED]` seen on the live cluster on 2026-09-13, `[INHERITED]` an upstream or colleague's default rather than a choice made here.
 
@@ -15,8 +28,8 @@ windows. CUDA and NCCL P2P tests passed. The current GitOps serving config
 assigns both GPUs to Qwen with TP=2 and suspends Muse. The x16-Qwen/x4-Muse
 layout in the original proposal below is historical. Its benchmark results
 also predate P2P; see the separate
-[post-P2P Qwen run](qwen-p2p-benchmark-2026-09-23.md) and
-[Iggy P2P record](../talos/2026-09-iggy-gpu-p2p.md).
+[post-P2P Qwen run](../llm/qwen-p2p-benchmark-2026-09-23.md) and
+[Iggy P2P record](2026-09-iggy-gpu-p2p.md).
 
 ---
 

@@ -5,7 +5,7 @@
 > Iggy moved from driver 595.71.05 / Talos v1.13.5 to 595.91.07 / v1.14.4; and
 > the 250 W cap this report warns about was later restored to 280 W. The two
 > 3090s themselves are still in Iggy (GPU-787b / GPU-a598), so the P2P result
-> stands as the record behind `plans/talos/2026-09-iggy-gpu-p2p.md`.
+> stands as the record behind `plans/archive/2026-09-iggy-gpu-p2p.md`.
 
 ## Power limit: 250 W on both cards
 

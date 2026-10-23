@@ -19,7 +19,7 @@ below predate this change. A [post-P2P Qwen run](qwen-p2p-benchmark-2026-09-23.m
 passed 5 single-session and 32 eight-session requests at the same configured
 250 W per-card cap, but used a new synthetic prompt because the original
 corpus was not retained. Do not infer a speedup or regression from the rates.
-See the [Iggy P2P record](../talos/2026-09-iggy-gpu-p2p.md).
+See the [Iggy P2P record](../archive/2026-09-iggy-gpu-p2p.md).
 
 ## 2026-09-13 implementation baseline
 

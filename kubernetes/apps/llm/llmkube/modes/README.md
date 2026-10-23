@@ -4,6 +4,13 @@
 > through the NVIDIA runtime. The mutating `llm-split`, `llm-dark`, and
 > `llm-normal` recipes were removed; `just kube llm-mode` is read-only. These
 > files remain as experiment records and are excluded from every Kustomization.
+>
+> **Two facts in that banner have since aged out (checked 2026-10-23):**
+> the qwen-3-8-fp8 lane these recipes describe is gone (`resources/disabled/`,
+> no deployment in `llm`), and lanes no longer pin fixed GPU UUIDs —
+> `qwen38-awq-iggy.yaml` schedules through the NVIDIA device plugin with no UUID
+> override. The 262144/131072 context numbers and the reviewer-role wording
+> below are era-specific and are not what the live catalogue advertises.
 
 These are archived alternate specs for the former shared Qwen service and CUDA
 development pod. They are retained as experiment records only.

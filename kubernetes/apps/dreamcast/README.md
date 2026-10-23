@@ -16,7 +16,7 @@ public endpoint is `ophelia.internal` (Felicia, the Dreamcast's mascot).
 - Input device plugin: `kubernetes/apps/cluster-infra/uinput-device-plugin/`
 - GPU sharing profile: `kubernetes/apps/cluster-infra/nvidia-device-plugin/app/gpu-sharing-config.yaml`
 - Running differential log vs upstream/fork: [`plans/fenrir-upstream-findings.md`](../../../plans/fenrir-upstream-findings.md)
-- Original plan + dated execution record: [`plans/workstation_talos.md`](../../../plans/workstation_talos.md)
+- Original plan + dated execution record: [`plans/archive/workstation_talos.md`](../../../plans/archive/workstation_talos.md)
 
 > **This README is the operational reference.** The two `plans/` documents are
 > historical: they carry the dated evidence trail and the open investigations.

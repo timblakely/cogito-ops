@@ -1,5 +1,13 @@
 # Foreman migration pathway
 
+> **Archived 2026-10-23 — migration history, not a runbook.** Foreman is live
+> (Helm `foreman-0.9.27`, one execution pool) and the Argo/coordinator platform
+> this document migrated away from no longer exists in the cluster. The
+> "LLMKube core 0.9.18" pin is stale. For what runs today read
+> [`async-agentic-homelab-v4.md`](async-agentic-homelab-v4.md) for intent
+> and `services/gateway/RUNBOOK.md` for the deployed reality.
+
+
 Status: Foreman migration implemented; coordination model superseded by v4
 
 Owner: Tim
@@ -7,11 +15,11 @@ Owner: Tim
 Target: LLMKube Foreman owns the coding pipeline after plan approval
 
 Historical Android client for this pathway: Commet. Current setup: Sable; see
-[Android push setup](kubernetes/apps/home-infra/matrix/README.md#android-push-setup-and-acceptance).
+[Android push setup](../../kubernetes/apps/home-infra/matrix/README.md#android-push-setup-and-acceptance).
 
 Infrastructure source of truth: this repository
 
-> **v4 update (2026-09-13):** [Async Agentic Homelab v4](plans/llm/async-agentic-homelab-v4.md)
+> **v4 update (2026-09-13):** [Async Agentic Homelab v4](async-agentic-homelab-v4.md)
 > keeps Foreman's per-deliverable pipeline but changes the surrounding model:
 > the GitHub issue is the plan from first draft, approval is its
 > `workflow/approved` label, Luna coordinates Workloads, and the deterministic

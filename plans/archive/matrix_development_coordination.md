@@ -1,15 +1,24 @@
 # Matrix development coordination
 
+> **Archived 2026-10-23 — record of a finished project.** Decision 5 ("Argo
+> Workflows owns run execution") describes nothing that exists: no Argo release
+> or manifest is in the cluster. The coordinator/scout/reviewer tiers were
+> deleted on 2026-10-21 (`ab8324d`, `52d949f`) and `services/matrix-coordinator/`
+> was renamed to `services/gateway/`, so its old RUNBOOK path is dead — use
+> `services/gateway/RUNBOOK.md`. Kept because it is the only narrative of how the
+> Matrix → plan → Foreman design was decided.
+
+
 Status: historical implementation record; interaction model superseded by v4
 
 Owner: Tim
 
 Historical Android client for this plan: Commet. Current setup: Sable; see
-[Android push setup](kubernetes/apps/home-infra/matrix/README.md#android-push-setup-and-acceptance).
+[Android push setup](../../kubernetes/apps/home-infra/matrix/README.md#android-push-setup-and-acceptance).
 
 Infrastructure source of truth: this repository
 
-> **v4 update (2026-09-13):** [Async Agentic Homelab v4](plans/llm/async-agentic-homelab-v4.md)
+> **v4 update (2026-09-13):** [Async Agentic Homelab v4](async-agentic-homelab-v4.md)
 > replaces decisions 1, 2, and 4 below. The GitHub issue is now the editable
 > plan-review object from first draft; `workflow/approved` freezes its body;
 > Astra owns plan content; Luna is the LLM coordinator; and the deterministic

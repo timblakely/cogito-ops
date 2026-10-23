@@ -1,5 +1,14 @@
 # Iggy GPU peer access and Talos image — 2026-09-22
 
+> **Archived 2026-10-23 — the P2P-era record.** Executed 2026-09-22/23 and
+> reversed 2026-10-20: `iggy` now boots the official catalog
+> `nonfree-kmod-nvidia-production:595.91.07-v1.14.4` with no patched P2P
+> extension (`talos/schematics/iggy.yaml.j2` says so directly), and the cards run
+> as independent replicas rather than a P2P TP=2 pair. The measurement method and
+> the numbers stay valid evidence for a 3090 pair on this board; the "never
+> powercycle" rule belongs to the patched-image era and does not carry over.
+
+
 ## Current result (2026-09-23)
 
 **GPU P2P is working on Iggy.** The user recovered the first failed boot via

@@ -1,7 +1,7 @@
 # Async Agentic Homelab v4 — Acceptance Evidence
 
 **Status:** accepted on 2026-09-14. This document does **not** change runtime behavior.
-**Plan:** `plans/llm/async-agentic-homelab-v4.md` (v4, 2026-09-13).
+**Plan:** `plans/archive/async-agentic-homelab-v4.md` (v4, 2026-09-13).
 **Acceptance run:** `plan-e30c8265b297db54`, GitHub plan issue
 [#72](https://github.com/timblakely/cogito-ops/issues/72).
 

@@ -13,7 +13,7 @@ but is not tagged yet). Nothing was changed.
 > the operation to prevent a driver rollback. The `reboot-node` and other-node
 > `upgrade-node` recipes now use normal reboot mode. **Never powercycle or
 > shut down Iggy; only restart it.** See the [Iggy P2P record and operating
-> procedure](2026-09-iggy-gpu-p2p.md).
+> procedure](../archive/2026-09-iggy-gpu-p2p.md).
 
 > **Update, 2026-10-23:** the fleet is six nodes, not five. `amnesia` (Talos
 > v1.14.2, gaming box, custom NVIDIA build) and `deleuze` (v1.14.4, the 2x R9700
@@ -76,7 +76,7 @@ factory alias that resolves to the LTS line.
 The schematic and install-image ID have since been corrected to the
 `cfd03958…` factory image. Iggy now runs a separate private P2P installer, so
 that factory image is a rollback target. The generic upgrade recipe refuses
-Iggy; use the [P2P procedure](2026-09-iggy-gpu-p2p.md) for future upgrades.
+Iggy; use the [P2P procedure](../archive/2026-09-iggy-gpu-p2p.md) for future upgrades.
 
 ### 2.3 Renovate is not watching `talos/`
 
@@ -255,7 +255,7 @@ the version numbers below were the 2026-08-28 recommendations.
 2. **Completed for the factory rollback:** `talos/schematics/iggy.yaml.j2` now
    names the `-production` extensions and `.machine.install.image` uses
    `cfd03958b772d5edc19…`. Iggy's running P2P image is separate; see the
-   [Iggy procedure](2026-09-iggy-gpu-p2p.md).
+   [Iggy procedure](../archive/2026-09-iggy-gpu-p2p.md).
 3. Normalize `nuc-1/2/3` from `factory.talos.dev/installer/…` to
    `factory.talos.dev/metal-installer/…`.
 4. Roll the 1.12.5 nodes. Sidero's supported path is "latest patch of every

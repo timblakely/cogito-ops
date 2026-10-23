@@ -13,7 +13,7 @@ evidence log of *why* each workaround exists.
 | --- | --- |
 | Native Fenrir | [`games-on-whales/fenrir` at `ec6c640`](https://github.com/games-on-whales/fenrir/tree/ec6c640596aca12a1942dacb034790bcc96eb863), inspected 2026-09-28. This is a source snapshot, not a release claim. |
 | Shrinedogg | [Fenrir multi-user branch at `29eb075`](https://github.com/shrinedogg/fenrir/tree/29eb075afe1ab61490196a7272fd21b5b6313cfc); [biggs.dog deployment at `9ff1da9`](https://github.com/shrinedogg/biggs.dog/tree/9ff1da94b86aa6680c68e9733164c16220e09b63), especially [Dreamcast engineering notes](https://github.com/shrinedogg/biggs.dog/blob/9ff1da94b86aa6680c68e9733164c16220e09b63/docs/NOTES.md#dreamcast-engineering-notes). The notes and manifests cite different image tags; image contents must be checked separately. |
-| Cogito / Amnesia | [Workstation plan](workstation_talos.md), [Fenrir image build workflow](../.github/workflows/amnesia-fenrir-operator-image.yaml), [source patch](../patches/fenrir-operator-fixes.patch), and `dreamcast` GitOps manifests. Operator image is pinned by digest in the [HelmRelease](../kubernetes/apps/dreamcast/fenrir/app/helmrelease.yaml). This document distinguishes deployed results from code inspection. |
+| Cogito / Amnesia | [Workstation plan](archive/workstation_talos.md), [Fenrir image build workflow](../.github/workflows/amnesia-fenrir-operator-image.yaml), [source patch](../patches/fenrir-operator-fixes.patch), and `dreamcast` GitOps manifests. Operator image is pinned by digest in the [HelmRelease](../kubernetes/apps/dreamcast/fenrir/app/helmrelease.yaml). This document distinguishes deployed results from code inspection. |
 
 ## Differences and upstream candidates
 

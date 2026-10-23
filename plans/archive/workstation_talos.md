@@ -1,14 +1,24 @@
 # Workstation → Talos gaming control plane
 
+> **Archived 2026-10-23 — executed; do not re-run this as a live plan.** The box
+> described here is the `amnesia` node: a live control plane **and** gaming host
+> on Talos v1.14.2 with a custom `nvidia-open` 615.78.08 build, which disproves
+> the §2 pin to Talos 1.13.5 + official 595.71.05. "Gaming setup remains" is
+> also finished — Fenrir/Dreamcast shipped, and its operating facts live in
+> [`../../kubernetes/apps/dreamcast/README.md`](../../kubernetes/apps/dreamcast/README.md),
+> which supersedes this document for anything about gameplay. Kept as the amnesia
+> build record.
+
+
 Status: Fedora laptop preparation complete; `amnesia` has joined as a control plane and booted from its replacement SSD with the installer USB removed. Gaming setup remains.
 Research date: 2026-09-26. Owner/operator: Tim, using the Fedora laptop.
 
-Track each native Fenrir / Shrinedogg / Amnesia difference and upstream candidate in the [running upstream findings](fenrir-upstream-findings.md); update it as new differences appear.
+Track each native Fenrir / Shrinedogg / Amnesia difference and upstream candidate in the [running upstream findings](../fenrir-upstream-findings.md); update it as new differences appear.
 
 This document is the dated plan and execution record. For how the deployment
 works today — topology, image provenance, permissions, Talos prerequisites,
 driver/DLSS details, failure modes and redeploy guidance — read the
-[Dreamcast app README](../kubernetes/apps/dreamcast/README.md). Where the two
+[Dreamcast app README](../../kubernetes/apps/dreamcast/README.md). Where the two
 disagree about current pins or configuration, the README and the manifests win.
 
 ## Decision
@@ -38,10 +48,10 @@ Reviewed Cogito tree corresponding to GitHub `main` commit `5fb7dc3026bf1404f6c3
 
 Source files:
 
-- [Cilium values](../kubernetes/apps/cilium/cilium/app/helm/values.yaml) and [BGP/IPAM resources](../kubernetes/apps/cilium/cilium/networking/networking.yaml).
-- [Cluster settings](../kubernetes/flux/meta/cluster-settings.yaml).
-- [Talos base](../talos/machineconfig/base.yaml.j2), [Iggy config](../talos/machineconfig/iggy.yaml.j2), [Talos recipes](../talos/mod.just).
-- [NVIDIA deployment](../kubernetes/apps/cluster-infra/nvidia-device-plugin/app/helmrelease.yaml), its adjacent configuration, and [OpenEBS](../kubernetes/apps/storage/openebs/app/helmrelease.yaml).
+- [Cilium values](../../kubernetes/apps/cilium/cilium/app/helm/values.yaml) and [BGP/IPAM resources](../../kubernetes/apps/cilium/cilium/networking/networking.yaml).
+- [Cluster settings](../../kubernetes/flux/meta/cluster-settings.yaml).
+- [Talos base](../../talos/machineconfig/base.yaml.j2), [Iggy config](../../talos/machineconfig/iggy.yaml.j2), [Talos recipes](../../talos/mod.just).
+- [NVIDIA deployment](../../kubernetes/apps/cluster-infra/nvidia-device-plugin/app/helmrelease.yaml), its adjacent configuration, and [OpenEBS](../../kubernetes/apps/storage/openebs/app/helmrelease.yaml).
 
 ### What actually needs smoothing out in Cilium
 
@@ -392,6 +402,11 @@ For upgrades, retain the last known-good schematic/installer and all application
 
 ## 10. Implementation checklist and remaining decisions
 
+> Every item below was carried out by later changes. Treat this checklist as a
+> completion record; the live state to check against is `kubectl get nodes` plus
+> `talos/schematics/amnesia.yaml.j2`, not this list.
+
+
 - [x] Laptop independently manages Cogito and can push Git changes with workstation off.
 - [ ] Live Cilium/Talos/Kubernetes versions and health match the assumptions or this plan is updated.
 - [ ] `amnesia` management FQDN, MAC, node IP, gaming VIP, disk serial/capacity and display target recorded.
@@ -410,4 +425,4 @@ For upgrades, retain the last known-good schematic/installer and all application
 
 The principal uncertainties are runtime image provenance, actual 5070 Ti graphics/encoding behavior under the selected container stack, and the live routed UDP path. Availability of official Blackwell-compatible Talos modules is established, so the initial deployment uses them. The subsequent newer-driver experiment assesses whether maintaining a custom image is practical after Steam and a game are proven on the official baseline.
 
-This plan lives at the explicitly requested `plans/workstation_talos.md`. It is outside the automated `plans/review/*.md` implementation queue contract; publishing its draft PR does not enqueue deployment or authorize the hardware transition.
+This plan was written at `plans/workstation_talos.md` and now lives in `plans/archive/`. The `plans/review/*.md` label queue it describes was never wired up and has been removed; approval is the issue-based `workflow/approved` scheme implemented in `services/gateway/coordinator`.
