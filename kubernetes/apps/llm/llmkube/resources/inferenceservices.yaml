@@ -261,9 +261,18 @@ spec:
     - '99'
     - --alias
     - muse-glimmer-30b
+    # The projector runs on the GPU - llama.cpp's default; the lane used to pass
+    # --no-mmproj-offload (carried over unexplained from the Kristeva-era Muse
+    # manifest, and later copied by the gemma lane as "the Muse precedent"). On
+    # CPU the encoder owned the image path: measured with max_tokens=1 so these
+    # are encode-only, 640x480 = 14.3 s, 1280x960 = 65.2 s, 1920x1080 = 130.7 s,
+    # at 0% GPU utilisation with ~6 cores (the --threads value) burned, against
+    # 0.2 s for a 544-token text prefill. ~35-48 ms per image token, and the cost
+    # is superlinear in patch count, so a full-HD screenshot cost more than two
+    # minutes before the first token. --cache-prompt does not amortise it: three
+    # byte-identical requests each paid 14.3-14.6 s.
     - --mmproj
     - /models/muse-glimmer-30b/mmproj-Muse-Glimmer-30B-Abliterated-Q4_K_M.gguf
-    - --no-mmproj-offload
     - --image-min-tokens
     - '1024'
     - --cont-batching
