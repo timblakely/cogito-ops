@@ -66,7 +66,9 @@ Gates for changes under `kubernetes/apps/llm/**` or `dreamcast/session-config`:
   Authoritative source: kernel TTM debugfs via a node debug pod (busybox, /host mount):
   `cat /host/sys/kernel/debug/dri/0000:07:00.0/gem_info` -> `total: 6088MiB, free: NNNN MiB`
   and `local0 usage:` bytes; `clients` file there lists per-process llama-server handles.
-- Kristeva GPUs: A380 = PCI 0000:07:00.0 (8086:56a5, card0 in pods); RTX 3090 = 02:00.0 (nvidia).
+- Kristeva GPUs: Arc A380 ONLY, PCI 0000:07:00.0 (8086:56a5, card0 in pods). The RTX 3090 that
+  used to sit at 02:00.0 moved to iggy in October 2026; `kubectl get node kristeva -o
+  jsonpath='{.status.capacity.nvidia\.com/gpu}'` returns 0, so never schedule an nvidia lane there.
   NFD label intel.gpu-type=A380 maps device id 56a5. llama.cpp server-intel pods see the GPU in
   Level Zero only with ZE_ENABLE_PCI_ID_DEVICE_ID=1; plain loader init enumerates CPU-only.
 

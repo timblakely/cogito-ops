@@ -53,15 +53,26 @@ access should be narrower than the user allowlist.
 
 Hermes' provider is reconciled automatically before every pod start. The init
 container preserves user-owned settings on the backed-up PVC while replacing
-the retired `llm-switch` provider with two named LiteLLM transports. Direct
-sessions use the `coordinator` alias over the Responses API by default; `/model
-qwen` and `/model muse` select the local Qwen and Muse models over chat
-completions. The key comes from `litellm-key-hermes` and is limited to exactly
-those three model aliases, so Hermes cannot invoke planning or metered
-escape-hatch models.
+the retired `llm-switch` provider with two named LiteLLM transports —
+`litellm-responses` (Responses API) and `litellm-chat` (chat completions) —
+and **both default to `flashnext-deleuze`**. `/model qwen` and `/model muse`
+select the local Qwen and Muse models over chat completions. The `coordinator`
+Responses seat that used to be the default was retired with the agent tiers;
+`configure.py` says so at the provider block. The key comes from
+`litellm-key-hermes` and is scoped to the eight local aliases in the LiteLLM
+catalogue — check with
+`kubectl -n llm get litellmvirtualkey hermes -o jsonpath='{.spec.models}'` —
+so Hermes cannot reach a metered frontier model (there are none left) or an
+unrestricted one.
+
+Neither transport discovers models from the proxy. Each declares its model map
+in `configure.py`, with per-alias `context_length` and `supports_vision`
+pins that must keep matching the `LiteLLMModel` declarations in
+`kubernetes/apps/llm/litellm/app/models/` — image routing decides on
+`supports_vision`, and models.dev has never heard of these aliases.
 
 The provider catalogue is deliberately static. This keeps a newly restored PVC
-and an old mutable one on the same v4 contract and prevents unrelated LiteLLM
+and an old mutable one on the same contract and prevents unrelated LiteLLM
 catalogue additions from becoming reachable through the direct-session key.
 
 The LiteLLM operator currently reconciles an edited `LiteLLMVirtualKey` object
@@ -69,4 +80,9 @@ without updating the model list of an already-issued key in LiteLLM's database.
 The v4 rollout therefore applied `/key/update` once with the existing Hermes
 and master keys held only in a short-lived, no-service-account pod, then deleted
 that pod. Fresh key issuance uses the scoped CR directly; future scope edits
-must repeat the database update until the operator closes this gap.
+must repeat the database update until the operator closes this gap. When
+repeating it, POST `/key/update` with the key **handle** from `/key/info` — the
+raw token 404s with "Key not found" on that endpoint even though `/key/info`
+accepts it — and assert the new model list is non-empty before posting, because
+a wrongly-nested extraction posts `models: []` and silently blanks the scope of
+the key the cluster agent runs on.

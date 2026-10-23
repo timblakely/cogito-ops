@@ -15,14 +15,36 @@ with its own pinned effort, timeout and context budget. `modelName` here is an
 arbitrary string, which is what lets the catalogue keep advertising the Hugging
 Face-style identifier clients are already configured against.
 
-## The two tiers
+## The catalogue today
 
-**Local** — every entry points directly at its InferenceService's Service
+Eight aliases, verified against `kubectl -n llm get litellmmodels` and
+`kubectl -n llm get litellmvirtualkeys` on 2026-10-23. `kustomization.yaml` in
+this directory is the only thing that registers them — note that
+`qwen-3-8-fp8.yaml` still sits here unreferenced, so it is an orphan file, not
+a served alias.
+
+| `metadata.name` | `modelName` clients send | backend Service | `maxInputTokens` | notes |
+| --- | --- | --- | --- | --- |
+| `coder` | `coder` | `qwen3-8-awq-iggy:8000` | 65536 | |
+| `qwen3-8-27b` | `Qwen/Qwen3.8-27B-INT8-W8A16` | `qwen3-8-awq-iggy:8000` | 65536 | `supportsVision: false` |
+| `worker` | `worker` | `qwen3-8-awq-iggy:8000` | 65536 | pins `reasoning_effort: low` |
+| `flashnext-deleuze` | `flashnext-deleuze` | `radiance:8080` | 262144 | served name `openai/qwen3.8-flash-next` |
+| `muse-glimmer-30b` | `Muse-Glimmer-30B` | `muse-glimmer-30b:8080` | 131072 | `supportsVision: true` |
+| `gemma-4-12b` | `google/gemma-4-12b-it` | `gemma-4-12b:8080` | 65536 | `supportsVision: true`; preemptible Amnesia lane |
+| `embedder` | `embedder` | `bge-m3:8080` | — | |
+| `reranker` | `reranker` | `bge-reranker-v2-m3:8080` | — | `infinity/` prefix, not `openai/` |
+
+Key scopes as issued: `hermes` carries all eight; `open-webui` carries
+`Qwen/Qwen3.8-27B-INT8-W8A16`, `flashnext-deleuze`, `Muse-Glimmer-30B`,
+`google/gemma-4-12b-it`, `embedder`; `coder` and `worker` carry their own alias
+only; `pi` is unrestricted (`spec.models` empty).
+
+**Local only.** Every entry points directly at its InferenceService's Service
 (there is no router in between; with one always-on backend there is nothing to
 dispatch across), and the string after `openai/` is the served model name. On
 the vLLM-served Qwen aliases that string must stay byte-identical to the
 backend's `--served-model-name` or the request 404s at the backend. The
-llama.cpp lanes (embedder, reranker, vision) launch without a served-model
+llama.cpp lanes (embedder, reranker) launch without a served-model
 name at all and ignore the model field, so theirs is a label rather than a key.
 
 Local models declare `input_cost_per_token: 0` / `output_cost_per_token: 0`.
@@ -30,21 +52,17 @@ Not cosmetic: LiteLLM raises "This model isn't mapped yet" inside spend
 calculation for any `openai/<slug>` missing from its cost map, so the choice is
 between an asserted zero and a per-request error with no ledger entry.
 
-**Role seats** — `coordinator` is the routine Luna workflow manager and
-`planner` is the Astra planning seat at medium reasoning. Astra receives only
-the conversation and compact summaries from read-only local Foreman planning
-scouts; it does not perform repository exploration or command execution.
-`coordinator-heavy` is a temporary compatibility alias for `planner`; new
-consumers must not use it. `planner-local` remains an explicit, operator-chosen
-continuity seat rather than an automatic fallback. Each workflow component uses
-its own scoped virtual key.
-
-**Metered frontier** — `planner-gpt` and `planner-gpt-pro`, deliberately under
-names no local model shares. A shared `modelName` would make LiteLLM's router
-load-balance between free local compute and paid API calls. They declare no
-cost or capability metadata because LiteLLM already ships accurate values for
-both `gpt-5.5` models. Only the planner key can reach these escape hatches; its
-budget limits their combined spend.
+**There are no role seats and no metered frontier.** The October 2026 agent-tier
+cleanup (`ab8324d`, `ced129f`, `49624bf`, `e54742a`) deleted `coordinator`,
+`coordinator-heavy`, `planner`, `planner-local`, `planner-gpt`,
+`planner-gpt-pro`, `reviewer`, `reviewer-qwen`, `scout`, `scout-qwen`,
+`worker-escalated` and the CPU `vision` lane. The paid escape hatches went with
+them: no live key reaches a paid API model. `services/gateway/coordinator/service.py:46,65`
+still defaults to `planner` and `coordinator`, which is why the gateway
+runbook opens with a retirement note — set `PLANNER_MODEL`/`COORDINATOR_MODEL`
+before relying on gateway planning rather than re-adding an alias. Per-component
+scoped keys went with the tiers too; a component that needs a narrower scope
+gets its own `LiteLLMVirtualKey`.
 
 ## Where the escape hatches are
 
@@ -75,11 +93,15 @@ pin does not set it), so a client can still turn thinking off on a pinned alias.
 
 So the rule is:
 
-- **Pins no effort** (the passthrough alias) → publish every level the template
-  accepts: `[low, medium, xhigh]`.
-- **Pins an effort** (`worker` low, `reviewer` medium) → publish that one level
-  only. Anything else would advertise a control that silently does nothing,
+- **Pins no effort** → publish the levels the template accepts. Only
+  `Qwen/Qwen3.8-27B-INT8-W8A16` does this today, with
+  `thinking_levels: [low, medium, xhigh]`.
+- **Pins an effort** → publish that one level only, as `worker` does
+  (`reasoning_effort: low` pinned in `params.additional`, `thinking_levels:
+  [low]`). Anything else would advertise a control that silently does nothing,
   which is the exact failure this key exists to prevent.
+- `coder`, `flashnext-deleuze`, `muse-glimmer-30b` and `gemma-4-12b` declare no
+  `thinking_levels` at all, so no picker offers an effort choice on them.
 
 ## Adding or changing a model
 
@@ -91,11 +113,17 @@ thing that would collapse that duplication, and it is unusable here, so the
 mirroring is a standing maintenance cost rather than a bug to fix.
 
 The mirror is not strict equality in one direction. An alias may advertise
-**less** than its backend serves, which is how several aliases can share one
-backend at different context budgets: `Qwen/Qwen3.8-27B-INT8-W8A16` publishes the full
-262144 ceiling for interactive use, while `worker` and `reviewer` publish 131072
-so coordinated fan-out plans against a window the ~275k-token KV pool can
-actually hold several of. That gap has to be declared with
+**less** than its backend serves, and `scripts/validate-llm-catalogue.py`
+treats an unexplained difference as the accident it usually is. It only
+compares when it can read the backend value, so a lane that carries its
+context in a raw engine argument — `--max-model-len` on `qwen3-8-awq-iggy`,
+`--ctx-size` on `muse-glimmer-30b` — is invisible to it. That is exactly where
+three of the eight aliases live: `coder`, `worker` and
+`Qwen/Qwen3.8-27B-INT8-W8A16` are all held at 65536 by hand against
+`qwen3-8-awq-iggy`, and `qwen38-awq-iggy.yaml` says so explicitly — move
+`--max-model-len` and every alias's `maxInputTokens` together.
+`muse-glimmer-30b` carries the annotation for the same unreadable-context
+reason:
 
 ```yaml
 metadata:
@@ -103,6 +131,6 @@ metadata:
     cogito.dev/context-budget: deliberate
 ```
 
-or the validator treats it as the accident it usually is. Advertising **more**
-than the backend serves is always an error and has no annotation: the client is
-told it may send a prompt vLLM will refuse.
+Advertising **more** than a backend whose context the validator can read is
+always an error and has no annotation: the client is told it may send a prompt
+vLLM will refuse.
