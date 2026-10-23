@@ -1,6 +1,19 @@
 ---
-# Temporary image route while the R9700 Qwen GGUF fallback is text-only.
-# Keep the image alias available through the established CPU vision lane.
+# The `image` alias: what the Matrix coordinator's ImageClient calls when an
+# owner attaches a screenshot to a room (services/gateway/coordinator/image.py;
+# IMAGE_MODEL defaults to "image", max_tokens 4096, 900 s client timeout).
+#
+# This used to be a stopgap onto the CPU `vision-cpu` lane while the R9700 Qwen
+# GGUF fallback was text-only. The stopgap outlived its purpose: that lane
+# encoded a 1920x1080 attachment in 136 s on kristeva's CPUs and served 12 calls
+# in two months, so the route now sits on the Iggy 3090 Muse lane - the same
+# backend Hermes' auxiliary.vision pins. Measured there: ~5 s for a 1080p
+# encode, and its reasoning budget fits inside the client's 4096 tokens.
+#
+# Keep `modelName: image` and the `role-image` key unless the coordinator is
+# edited in the same change: services/gateway/coordinator/service.py reads
+# LITELLM_IMAGE_API_KEY with os.environ[...], so a secret that loses that field
+# crash-loops the gateway deployment rather than degrading quietly.
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:
@@ -11,15 +24,16 @@ spec:
   modelName: image
   proxyRef: litellm
   params:
-    model: openai/vision-cpu
-    apiBase: http://vision-cpu.llm.svc.cluster.local:8080/v1
+    model: openai/muse-glimmer-30b
+    apiBase: http://muse-glimmer-30b.llm.svc.cluster.local:8080/v1
     apiKey: not-needed
     additional:
-      timeout: 1800
+      timeout: 600
   info:
     supportsVision: true
-    maxInputTokens: 16384
-    maxOutputTokens: 4096
+    maxInputTokens: 131072
+    maxOutputTokens: 16384
     extra:
       input_cost_per_token: 0
       output_cost_per_token: 0
+      supports_reasoning: true
