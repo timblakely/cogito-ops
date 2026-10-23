@@ -57,7 +57,7 @@ spec:
           main:
             image:
               repository: ghcr.io/timblakely/cogito-gateway
-              tag: 3becf5b25ab3702769186aea0a05cc6a116cd5e9@sha256:c33d19e20ba1a3d1157fd04d552176031fa2d416ee66aaddce18abc783af00b6
+              tag: e117d3536daf2a660faf715f1170691218a2c2b4@sha256:29857cbcc82663bc8a65858e320437b7dbc880674242a7c4234c280d4f4aa850
             env:
               # Start the accepted v4 workflow with an empty durable store.
               # The pre-acceptance coordinator.sqlite3 remains on the PVC as
@@ -84,7 +84,6 @@ spec:
               MATRIX_PROJECT_REPOSITORY: https://github.com/timblakely/cogito-ops.git
               LUNA_TURN_CAP: "200"
               ASTRA_TURN_CAP: "20"
-              IMAGE_MODEL: image
               GATEWAY_MAX_BODY_BYTES: "12000000"
               GITHUB_TOKEN_FILE: /run/secrets/github-app/token
               GITHUB_TOKEN:

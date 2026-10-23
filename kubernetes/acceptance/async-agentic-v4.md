@@ -5,6 +5,12 @@
 **Acceptance run:** `plan-e30c8265b297db54`, GitHub plan issue
 [#72](https://github.com/timblakely/cogito-ops/issues/72).
 
+**Superseded on 2026-10-23:** the Matrix image-description path recorded below —
+`LiteLLMModel/image`, `LiteLLMVirtualKey/image`, the gateway `ImageClient`, and the
+maubot `m.image` attachment handler — was retired as vestigial (12 recorded calls to
+its CPU backend in two months; both GPU vision lanes are ~100x faster). The bullets
+below stay as the evidence of what was accepted at the time.
+
 ## Purpose
 
 This document records **acceptance evidence** for the v4 async agentic homelab plan.
