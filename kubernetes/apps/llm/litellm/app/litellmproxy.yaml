@@ -32,9 +32,17 @@ spec:
   resources:
     requests:
       cpu: 100m
-      memory: 512Mi
+      memory: 1Gi
     limits:
-      memory: 2Gi
+      # 2Gi was OOMKilling the proxy: container litellm-867c96cc7b-qmxlb was
+      # OOMKilled at 2026-10-23T06:05:05Z (exit 137) while steady-state usage is
+      # ~813Mi. An OOMKill here is not a harmless restart - it drops every
+      # in-flight request, and a vision call that is retried pays its image encode
+      # twice. Base64 image bodies plus the in-memory spend-update queue are what
+      # push it past 2Gi. nuc-1 has ~94Gi of RAM with ~22Gi in use, so 4Gi costs
+      # nothing; the request is raised to 1Gi to match observed reality so the
+      # scheduler sees it.
+      memory: 4Gi
 
   apiAccess:
     # Needed even under applyMode: file. The virtual-key controller authenticates
