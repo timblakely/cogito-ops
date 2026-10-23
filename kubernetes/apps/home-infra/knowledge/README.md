@@ -1,10 +1,13 @@
 # Knowledge corpus
 
-`knowledge` is the shared RAG service for Hermes and Open WebUI. It keeps the
-GPU LLM deployment untouched. The standalone CPU `knowledge-embeddings` vLLM
-lane was retired in October 2026 pending a RAG redesign; `EMBEDDING_URL` must
-be repointed (for example at the `llm` namespace BGE-M3 lane) before embedding
-operations work again.
+`knowledge` is the shared RAG service for Hermes and Open WebUI. It no longer
+keeps the GPU LLM deployment untouched: the standalone CPU
+`knowledge-embeddings` vLLM lane was retired in October 2026 pending a RAG
+redesign, so `EMBEDDING_URL` must be repointed (for example at the `llm`
+namespace BGE-M3 lane) before embedding operations work again - until then
+ingestion succeeds and embedding-dependent queries fail. Text extraction runs on
+its own CPU sidecar, `knowledge-tika` (`http://knowledge-tika:9998/tika`,
+apache/tika 3.2.2), which is unaffected by the embedding retirement.
 
 ## Sources
 

@@ -1,5 +1,13 @@
 # Agentic homelab benchmark notes
 
+> **Frozen ledger, not a live scratch pad (last written 2026-09-25).** The
+> `qwen3-8-27b` row marked **current** here is scaled to zero; the Muse "G6
+> restored 2x131k" baseline is gone (the lane now runs the abliterated Q4_K_M
+> artifact at `--ctx-size 131072 --parallel 1`); and the 250 W card cap was later
+> raised to 280 W. The 2026-09-16 Qwen capacity/KV-dtype tables are the only
+> record of that study and `qwen-p2p-benchmark-2026-09-23.md` depends on them,
+> which is why this file stays. The empty A/B cells will not be filled.
+
 This file records the measurements required by
 `async-agentic-homelab-v4.md`. Do not promote inherited serving knobs from
 "profile" to "validated" without filling in the raw artifact links below.

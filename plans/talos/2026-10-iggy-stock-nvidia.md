@@ -44,10 +44,15 @@ select the explicit inference-host list `[iggy, kristeva]`, preserving
 Amnesia's existing gaming setup. Iggy uses a 280 W per-card power cap;
 Kristeva retains its 250 W setting.
 
-The old `flashnext-iggy` AMD/ROCm TP=2 service is suspended. Its model data,
-PVCs, routes, and the other already-suspended inference profiles remain
-available for deliberate migration or replacement. No new model is selected
-as part of the OS/driver change.
+The old `flashnext-iggy` AMD/ROCm TP=2 service was suspended here, and that is
+where the story ends: the lane was later retired outright. Its host model data
+was freed on 2026-10-23 (`815e76c`) and the `flashnext-iggy` presets under
+`llmkube/resources/manual/` are gone. The sibling `flashnext-amnesia` profile was
+deleted on 2026-10-09 (`ced129f`) and its Retain PV cleared on 2026-10-23
+(`aff6269`). The `flashnext` alias is served by Radiance on Deleuze's R9700 pair
+now, so this paragraph describes the host as it stood when this was written
+(`fc80459`, 2026-10-20), not the cluster as it stands today. No new model was selected as part of this OS/driver
+change.
 
 Iggy was already cordoned before this work. The user requested return to
 normal scheduling after driver verification.

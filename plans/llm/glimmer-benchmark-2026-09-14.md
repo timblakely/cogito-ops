@@ -1,5 +1,13 @@
 # Glimmer RTX 3090 capacity benchmark — 2026-09-14
 
+> **Same card, different lane.** Every number below is from Iggy's PCIe x4 RTX
+> 3090 (UUID `GPU-787b...`), which is still this lane's card, so the capacity
+> frontier means something. What changed since: the "production baseline remains
+> 2x131k" line no longer runs — Muse-Glimmer-30B is now the Abliterated Q4_K_M
+> artifact at `--ctx-size 131072 --parallel 1` — the image digest pinned here
+> 404s at GHCR and was re-pinned, and the card cap went from 250 W to 280 W.
+> Check the live `muse-glimmer-30b` deployment before reusing a config from here.
+
 ## Outcome
 
 The PCIe x4 RTX 3090 on `iggy` sustained all tested Glimmer configurations:

@@ -1,5 +1,13 @@
 # Flash Next on Iggy benchmark October 5 2026
 
+> **Superseded — read this before quoting anything below.** This report speaks in
+> the present tense about a lane that no longer exists. Iggy has **zero** AMD
+> GPUs (`amd.com/gpu=0`, ~31 GiB RAM, two RTX 3090s at 280 W), the R9700 pair it
+> measured moved to Deleuze, and the `flashnext-iggy` service was retired. The
+> same Radiance-on-2x-R9700 configuration runs today on Deleuze and is recorded
+> in [`radiance-deleuze-benchmark-2026-10-21.md`](radiance-deleuze-benchmark-2026-10-21.md),
+> which re-ran this test against these numbers. Kept as the origin record.
+
 Flash Next now serves through `flashnext-iggy` across Iggy's two Radeon AI PRO R9700s, using standalone Radiance with exact TP2 and NVMe-backed n-grams. It is the fastest tested option. The exact Amnesia Atomic quant remains available for a matching comparison, and the higher-precision Unsloth Q6 profile completes one and two active requests. Q6 fills both cards but needs CPU expert processing, which makes long-prefill latency substantially higher.
 
 ## Hardware and matching baseline

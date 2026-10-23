@@ -11,6 +11,15 @@ maubot `m.image` attachment handler — was retired as vestigial (12 recorded ca
 its CPU backend in two months; both GPU vision lanes are ~100x faster). The bullets
 below stay as the evidence of what was accepted at the time.
 
+**Also superseded by the 2026-10-21/23 retired-agent-tier work:** the
+`coordinator` / `planner` / `reviewer` / `scout` / `escalation` LiteLLM alias
+seats and the scout fleet described below were deleted (`ab8324d`, then
+`52d949f` to drop the seats from the Hermes provider maps and Foreman pools).
+Foreman runs a single execution pool and the pipeline is coder → deterministic
+gate; `foreman-agent` no longer exists as a Deployment. `@luna` and `@astra` are
+Matrix display names on one gateway identity — there is no separate Luna model.
+See `services/gateway/RUNBOOK.md` for what runs now.
+
 ## Purpose
 
 This document records **acceptance evidence** for the v4 async agentic homelab plan.

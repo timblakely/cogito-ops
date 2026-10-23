@@ -1,5 +1,12 @@
 # Flash Next on Amnesia — 2026-09-28
 
+> **Lane retired.** `flashnext-amnesia` was dropped from both Kustomizations on
+> 2026-10-07 and its 76 GiB PersistentVolume was deleted on 2026-10-23. The live
+> `flashnext` alias is `flashnext-deleuze` (Radiance on Deleuze's 2x R9700) —
+> see `radiance-deleuze-benchmark-2026-10-21.md`. What still holds: every number
+> below was taken on Amnesia's RTX 5070 Ti, which is still in the cluster and
+> still serving `gemma-4-12b`.
+
 ## Deployment
 
 - Node: `amnesia`, Ryzen 9 9900X, 64 GB installed RAM, RTX 5070 Ti (16,303 MiB visible VRAM), local NVMe.

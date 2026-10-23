@@ -81,12 +81,13 @@ top-k 64).
    `llm-model-archive/llmkube/flashnext-amnesia-q4-m64/`. Byte sizes
    match 1:1; md5 verification of the full 94.5 GB runs in-cluster before
    the source is released.
-3. IN PROGRESS — Flux prune GCs the `flashnext-amnesia` PVC (the running
-   verifier pod keeps it pvc-protection-pinned until md5s pass); then
-   `kubectl delete pv pvc-97284458-…` (Retain PV) and wipe the hostpath
-   dir on Amnesia.
-4. IN PROGRESS — bench ladder; md5 job `flashnext-amnesia-verify-v3`
-   (94.5 GB x2 reads) pins the Terminating PVC until it completes.
+3. DONE (verified 2026-10-23) — Flux prune GC'd the `flashnext-amnesia` PVC and
+   the Retain PV `pvc-97284458-…` was deleted; it is gone from `kubectl get pv`
+   (`aff6269` cleared it). Do not confuse it with `flashnext-weights`
+   (120 GiB, still `Bound`) — that volume belongs to a different lane.
+4. DONE — the archive job `flashnext-amnesia-archive-v2` is `Complete` in `llm`
+   and the bench numbers are the section below; the transient md5 verifier jobs
+   are gone with the namespace garbage collection.
 
 ## Bench results (2026-10-07, RTX 5070 Ti, b10991, Q8_0, --parallel 1)
 

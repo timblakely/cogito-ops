@@ -29,8 +29,8 @@ public endpoint is `ophelia.internal` (Felicia, the Dreamcast's mascot).
 
 | Piece | Runs on | Notes |
 | --- | --- | --- |
-| `direwolf-operator` | any node (`nuc-2` today) | Reconciles `User`/`App`/`Session`/`Pairing`; creates session Deployments + Services |
-| `moonlight-proxy` | any node (`nuc-3` today) | Client-facing PIN/pairing/launch API, one replica |
+| `direwolf-operator` | any node (`nuc-1` today) | Reconciles `User`/`App`/`Session`/`Pairing`; creates session Deployments + Services |
+| `moonlight-proxy` | any node (`nuc-2` today) | Client-facing PIN/pairing/launch API, one replica |
 | session pods (Wolf + wolf-agent + app) | `amnesia` only | Created transiently by the operator per launch; `nodeSelector: kubernetes.io/hostname: amnesia` |
 | `uinput-device-plugin` | `amnesia` only | `squat.ai/uinput` ×2 |
 | NVIDIA device plugin | `pci-0300_10de` nodes | `amnesia` selects the `gaming.yaml` time-slicing profile |

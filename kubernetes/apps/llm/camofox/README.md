@@ -307,12 +307,14 @@ kubectl -n llm get secret camofox-secrets -o jsonpath='{.data.CAMOFOX_ACCESS_KEY
 Writing back to 1Password is the case that used to stall. `op` was configured
 against the desktop app, so every invocation needed a human to approve a dialog
 on that specific machine - unattended runs just hung until they timed out. It
-now runs headless through the `cogito-agent` service account, exported from
-`~/.bashrc` above the `[ -z "$PS1" ] && return` guard so non-interactive shells
-get it too:
+now runs headless through the service account: `~/.bashrc` loads
+`OP_SERVICE_ACCOUNT_TOKEN` from the Secret Service keyring (`service=1password-service-account`,
+`account=codex`) above the `[ -z "$PS1" ] && return` guard so non-interactive
+shells get it, and `~/.local/bin/op-headless` wraps that for automation - AGENTS.md
+requires the wrapper over bare `op` in any unattended path:
 
 ```sh
-op item edit cluster-secrets --vault kubernetes "SOME_FIELD[text]=value"
+~/.local/bin/op-headless item edit cluster-secrets --vault kubernetes "SOME_FIELD[text]=value"
 ```
 
 The service account can only see the `kubernetes` vault - 1Password refuses to
@@ -354,7 +356,8 @@ Two things about this are deliberate and worth not "fixing" later:
   confidential client (EG performs the code exchange), unlike hermes which is
   public + PKCE.
 
-This is the first `SecurityPolicy` in the cluster - every other OIDC app here
+This was the first `SecurityPolicy` in the cluster (`llm/radiance-oidc` became
+the second on 2026-10-21) - every other OIDC app here
 authenticates natively - so there was no in-repo precedent to copy.
 
 Verified: unauthenticated `GET /` returns 302 to

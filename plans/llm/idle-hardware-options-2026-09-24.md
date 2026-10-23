@@ -1,5 +1,15 @@
 # Idle hardware for more local models — options and throughput estimates (2026-09-24)
 
+> **Inventory is 2026-09-24 vintage and much of it is gone.** Iggy is a 32 GiB
+> box, not 128 GB with ~111 GB free; the 27B lane it treats as immovable is
+> scaled to zero; the "workstation (not in cluster)" 5070 Ti is the in-cluster
+> `amnesia` node; and the 2x R9700 Deleuze node that actually answered this
+> document's question landed on 2026-10-20. Both headline recommendations were
+> acted on (small models on the 5070 Ti became `gemma-4-12b`; the FlashNext
+> hybrid became the now-retired `flashnext-amnesia`). Still true: `kristeva` is
+> batch-only (Arc A380, `nvidia.com/gpu=0`) and the NUCs are not worth a GPU
+> lane. Read the derating method, not the inventory.
+
 Brainstorm only; nothing here is deployed. Constraint: both RTX 3090s stay on
 the Qwen 3.8 27B lane. The question is what the rest of the hardware can serve,
 and how fast.

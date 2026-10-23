@@ -1,5 +1,12 @@
 # Qwen TP=2 post-P2P benchmark — 2026-09-23 UTC
 
+> **Lane retired, premises updated.** The target `InferenceService/qwen3-8-27b`
+> is scaled to zero and no longer runs `vllm/vllm-openai@sha256:c2914767...`;
+> Iggy moved from driver 595.71.05 / Talos v1.13.5 to 595.91.07 / v1.14.4; and
+> the 250 W cap this report warns about was later restored to 280 W. The two
+> 3090s themselves are still in Iggy (GPU-787b / GPU-a598), so the P2P result
+> stands as the record behind `plans/talos/2026-09-iggy-gpu-p2p.md`.
+
 ## Power limit: 250 W on both cards
 
 The cap was **250 W per RTX 3090**, not 280 W, for this run. Live
