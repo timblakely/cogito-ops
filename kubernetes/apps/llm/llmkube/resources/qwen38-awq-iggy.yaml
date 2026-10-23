@@ -92,10 +92,9 @@ spec:
   # Default (normal), stated rather than inherited. Nothing interactive runs
   # on Iggy's NVIDIA GPUs, and this lane holds long delegated coding tasks
   # that must not be preempted mid-task by lower-priority batch work. The
-  # pair of Iggy cards also backs the suspended muse-glimmer-30b and
-  # flashnext-iggy lanes; if either is resumed onto this card, the two lanes
-  # are mutually exclusive on it and one must be scaled down first - the
-  # scheduler will not share the card.
+  # pair of Iggy cards also backs the suspended muse-glimmer-30b lane; if it
+  # is resumed onto this card, the two lanes are mutually exclusive on it and
+  # one must be scaled down first - the scheduler will not share the card.
   priority: normal
   resources:
     gpu: 1
@@ -253,7 +252,7 @@ spec:
   # Model source as `model-source` at /model-source for the llamacpp runtime
   # only - vision-cpu declares no volumes and gets the mount - but the generic
   # runtime does not: the rendered pod for this lane came up with just shm and
-  # tmp until this block was added. flashnext-iggy, the other generic lane,
+  # tmp until this block was added. muse-glimmer, the other generic lane,
   # declares its own the same way.
   extraVolumes:
     - name: weights

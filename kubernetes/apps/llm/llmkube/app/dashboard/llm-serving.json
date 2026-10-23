@@ -254,7 +254,7 @@
       "id": 6,
       "type": "table",
       "title": "Serving lanes: engine, node, model",
-      "description": "One row per inference service. Engine is derived from which metric family the pod emits, NOT from the runtime label: the PodMonitor's `runtime` is 'generic' for any InferenceService that overrides container args, which covers both the llama.cpp muse-glimmer-30b lane and the Radiance flashnext-iggy lane.",
+      "description": "One row per inference service. Engine is derived from which metric family the pod emits, NOT from the runtime label: the PodMonitor's `runtime` is 'generic' for any InferenceService that overrides container args, which covers both the llama.cpp muse-glimmer-30b lane and the Radiance lane on deleuze.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -989,7 +989,7 @@
       "id": 24,
       "type": "timeseries",
       "title": "KV tokens in use (Radiance)",
-      "description": "kv_cache_usage_perc x kv_cache_max_tokens gives absolute context tokens resident in the KV cache. Radiance publishes the capacity gauge directly (486788 on flashnext-iggy at 262k context); vLLM carries capacity in the vllm:cache_config_info info-metric labels, which are gone when the lane is suspended, so this panel is Radiance-shaped on purpose.",
+      "description": "kv_cache_usage_perc x kv_cache_max_tokens gives absolute context tokens resident in the KV cache. Radiance publishes the capacity gauge directly (524316 on the deleuze Radiance lane at 262k context); vLLM carries capacity in the vllm:cache_config_info info-metric labels, which are gone when the lane is suspended, so this panel is Radiance-shaped on purpose.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -1192,7 +1192,7 @@
       "id": 29,
       "type": "timeseries",
       "title": "Speculative-decoding acceptance",
-      "description": "Fraction of draft tokens accepted. Radiance: draft_acceptance_ratio gauge; llama.cpp and vLLM: accepted/draft counter pairs. Below ~0.5 the drafter is costing more than it saves; muse-glimmer runs a dflash drafter, flashnext-iggy runs --num-speculative-tokens 3.",
+      "description": "Fraction of draft tokens accepted. Radiance: draft_acceptance_ratio gauge; llama.cpp and vLLM: accepted/draft counter pairs. Below ~0.5 the drafter is costing more than it saves; muse-glimmer runs a dflash drafter, the deleuze Radiance lane runs --num-speculative-tokens 3.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
