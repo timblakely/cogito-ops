@@ -74,3 +74,23 @@ The final InferenceService is `radiance` in namespace `llm`, pinned to Deleuze a
 The initial full pinned flux-local 8.4.0 check passes 175 tests with the two repository-configured deselections. Kubernetes server dry-run accepts the new PVC, Model, InferenceService, HTTPRoute, Pocket ID group/client and SecurityPolicy. The final namespace-scoped pinned check passes 20/20 tests, and server dry-run accepts the selected 48 GiB configuration. Production restores prefix reuse and adds an 8 GiB host prefix tier (`--prefix-cache-mib 8192`). The published configuration revision is fetched by `flux-system` and applied by `llmkube-resources`; both report Ready. The managed pod is Ready on Deleuze with the pinned 1.10.0 digest, both AMD GPUs and no restarts or OOMs. Its model mount resolves to local NVMe, and its CPU governor/EPP remain powersave/balance_performance.
 
 The HTTPS dashboard route is accepted and resolves its backend; the OIDC policy is accepted and unauthenticated HTTPS requests redirect to `pid.timblakely.com`. The direct dashboard and health endpoint return HTTP 200, the API identifies `radiance-1.10.0`, and arithmetic JSON, strict schema and automatic tools pass. A repeated 7,692-token prompt reuses 7,680 tokens (the first request reports zero cached tokens), confirming that production prefix reuse is active. [Deployment verification](artifacts/2026-10-21-radiance-deleuze/production/verification.json) records the configuration revision and each check. The final report/evidence update is reconciled afterward with the same running pod.
+
+## Radiance 1.11.0 re-run, October 23 2026
+
+The runtime moved to 1.11.0, which adds `--control-vector` (default `disabled`) and `--attn-prefill-fp8` (default `off`), removes no flag, and moves the plugin ABI from 25 to 26 for kernel chaining. There is no container format change, so the retained `qwen3.8-next-flash-fp8-iq4r-moe.rad` loads unchanged; chaining cannot engage here because only the Gemma 4 DFlash drafter reports `chain_pays`, and this lane drafts with MTP.
+
+The selected exact profile was re-measured on the same pinned bench pod with the same twenty flags and `--no-prefix-cache`, against the same corpus digest `a9a89dfd830af253103f86ff25dcba55364b22db779664d2fb36a3c2fd058710`. All chat trials report zero cached tokens, tokenizer and usage agree at every prefill size, all caps are reached, arithmetic JSON, strict schema and automatic tools pass, and the runtime reports 0 warnings. Rates are tokens/s, latency columns are seconds.
+
+| Metric | 1.10.0 (`new-final`) | 1.11.0 (`new-final-r111`) |
+|---|---:|---:|
+| Short warm TG | 185.09 | 181.86 |
+| Short warm TTFT | 0.35 | 0.38 |
+| 40K TTFT | 7.37 | 7.37 |
+| 40K TG | 167.80 | 165.03 |
+| 40K wall | 8.90 | 8.92 |
+| 8K PP | 5018.96 | 4873.21 |
+| 32K PP | 5235.30 | 5108.80 |
+| 64K PP | 5281.88 | 5304.28 |
+| C2 40K wall | 18.75 | 19.02 |
+
+These two runs are not perfectly paired: the October baseline replayed the four original single-sample cells (`--original`) before its scored suite and this re-run did not, and that startup history matters most to the short trials. The drift is −1.7% on decode, −2.4% to −2.9% on 8K/32K prefill, +0.4% at 64K and +1.4% on the concurrent pair — a little more than the ~0.6% spread among the same-flag October repeats (184.86–185.95 short warm TG), and not enough to attribute to the runtime on a single sample. [Comparison](artifacts/2026-10-23-radiance-1.11-deleuze/comparison.json) and [full trials](artifacts/2026-10-23-radiance-1.11-deleuze/new-final-r111) retain every trial; a paired 1.10.0 control (`profiles/new-final-r110.json`) is prepared but was deliberately not run. **Recorded as performance-neutral.**
