@@ -45,6 +45,10 @@ Use this skill when a model's thinking/reasoning levels need to be added, correc
   last-writer-wins register_provider. Reads providers.<name>.caps_url config
   key (defaults to <base_url>/models). Caps cache: memory + 24h disk mirror at
   ~/.hermes/cache/litellm_caps.json, background warm, never HTTP on hot path.
+  **In the cluster agent these paths are under HERMES_HOME=/opt/data, not
+  ~/.hermes** (plugins/model-providers/litellm-caps, cache/litellm_caps.json);
+  the pod has no ~/.hermes at all, and `grep ~/.hermes/...` there returns
+  nothing, which reads like a missing plugin.
 - Effort-set semantics that matter: supported_efforts=[] + mandatory=true =
   "always thinking, omit reasoning fields" (Muse/llama.cpp); ["none"] = binary
   with working off switch (vLLM models); None = unknown -> bundled behavior.
@@ -54,11 +58,37 @@ Use this skill when a model's thinking/reasoning levels need to be added, correc
   the loader imports the bundled custom profile — `from
   plugins.model_providers.custom import ...` fails at that moment. Fallback:
   load the file by path via providers.__file__'s parent. Discovered live.
+- Pitfall (fixed in cogito 7e06e070, 2026-10-12): the plugin's provider reader
+  originally accepted only `base_url:`; shipped config.yaml spells litellm
+  endpoints `api:` → reader saw 0 providers and every caps lookup silently fell
+  back to the bundled widest ladder ("gemma has 7 thinking levels"). Hermes core
+  readers accept api/url/base_url aliases — any provider-config reader must too,
+  and a caps plugin must assert candidates>0 at startup or its failure is silent.
+- Cogito agent-bundle edits (kubernetes/apps/llm/hermes/app/agent-bundle/**) are
+  NOT live: bundle.yaml is generated. After editing, run
+  `python3 gen-bundle.py` from kubernetes/apps/llm/hermes/app (regenerates
+  bundle.yaml + provider-bootstrap.yaml and stamps the bundle-sha256 pod
+  annotation in helmrelease.yaml so Flux rolls the deployment), verify with
+  `gen-bundle.py --check`, push main via jj, then
+  `flux reconcile source git flux-system -n flux-system && flux reconcile
+  kustomization llm -n flux-system --with-source`. Verify in-pod with the clean-
+  interpreter snippet: load /opt/data/plugins/model-providers/litellm-caps/
+  __init__.py via importlib and check _openai_compat_providers() is non-empty and
+  _caps_for_model('google/gemma-4-12b-it') → supported_efforts ['none'].
+- Upstream picker-display gap tracked in NousResearch/hermes-agent #66543
+  (umbrella; PRs #114033/#125810/#95402, issue #129002, all open as of
+  2026-10-12). clamp_effort passthrough on ('none',)-only and empty sets means
+  naive profile-hook wiring makes the status echo lie — tri-state contract
+  needed. Evidence comment drafted at /home/tim/reasoning-caps-issue-66543-
+  comment.md (not yet posted as of 2026-10-12; gh auth works as timblakely).
 - Pitfall: kustomize-then-apply from /tmp must substitute ALL flux vars
   (${APP}, ${DOMAIN_NAME}, ${NS}) or resources land in `default`.
 - Live verdicts (probes in scratch/muse_probe*.py, flashnext_probe.py,
-  fleet_probe.py): Muse efforts=() mandatory; flashnext-iggy and
-  google/gemma-4-12b-it ["none"]; Qwen/Qwen3.8-27B-INT8-W8A16 unknown (pod was
+  fleet_probe.py): Muse efforts=() mandatory; flashnext and
+  google/gemma-4-12b-it ["none"] (the flashnext verdict was measured on the
+  `flashnext-iggy` lane before that node's R9700s moved to Deleuze — the alias
+  is now `flashnext-deleuze` on the same runtime family, so re-probe before
+  quoting it); Qwen/Qwen3.8-27B-INT8-W8A16 unknown (pod was
   down when probed — correct to leave absent, re-probe then add).
 
 ## Verified capability facts (llama.cpp / LiteLLM / Hermes, Oct 2026)

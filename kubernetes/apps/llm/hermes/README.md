@@ -25,6 +25,17 @@ same script reconciles the provider/model/behavior keys of `config.yaml`
 (those stay GitOps-owned; see `configure.py`, embedded via the
 `hermes-provider-bootstrap` ConfigMap — `gen-bundle.py` re-embeds it).
 
+**Mirror policy.** `agent-bundle/skills/` is a straight copy of the workstation
+profile: edit `/home/tim/.hermes/skills/<name>/SKILL.md` and re-copy it
+(`rsync -a --delete ~/.hermes/skills/<name>/ agent-bundle/skills/<name>/`), never
+edit the bundle copy — a hand-edit there is silently reverted by the next
+re-sync. Two consequences worth knowing before trusting a bundled skill: it keeps
+workstation-only paths and commands (the pod has no `kubectl`, `mise`, `jj`,
+`tmux`, `chezmoi` or `talosctl`, and `HERMES_HOME` is `/opt/data`, not
+`~/.hermes`), and a re-sync or prune **does not change the running pod** —
+seeding is one-time, so the pod keeps whatever it already has until that path is
+deleted on the PVC and the pod restarts.
+
 To reach the cluster agent from a workstation terminal:
 `kubectl -n llm exec -it deploy/hermes -- hermes` (interactive CLI on the
 cluster profile), or open the dashboard URL. The CLI's own agent runtime is

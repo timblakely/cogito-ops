@@ -69,6 +69,10 @@ against live Prometheus by `scripts/validate-grafana-dashboard.py`.
 - LiteLLM's `requested_model` is NOT the lane name — catalogue aliases
   (`google/gemma-4-12b-it`, `Muse-Glimmer-30B`) differ from llmkube service
   names. Bridge via the deployment `api_base` hostname instead.
+- Grafana keys each panel's query results by refId: two targets in one panel
+  sharing refId "A" collide and the WHOLE panel renders "No data" even though
+  every expr returns data when run alone — invisible to Prometheus-side
+  validation. Multi-target panels need unique refIds (A, B, C...).
 - Grafana `$var` cannot match a label that a query CREATES (`$lane` against a
   `label_replace`d `lane` silently returns empty); interpolate it INSIDE the
   selector regex. It works fine against scraped labels (`service`).

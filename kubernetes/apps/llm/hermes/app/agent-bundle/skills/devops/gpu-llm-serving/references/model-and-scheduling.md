@@ -56,3 +56,17 @@ For a large model PVC that must be released, run the archive transfer as a bound
 4. Remove only known temporary files after verification, then release the PVC/PV and source host path in a separate, authorized step.
 
 Do not treat matching directory totals or a successful Job exit as sufficient: directory accounting and interrupted transfers can conceal incomplete model shards.
+
+## Bulk model staging Jobs
+
+A Job that pulls tens of GiB into a node-local claim is the failure-prone half of a lane rollout. Build it to this shape:
+
+- **Hot tier first.** Write the node-local NVMe tier before the NFS cold tier; demote the cold copy to a best-effort follow-up. Reversing the order puts the tier the lane actually reads behind the slow write path.
+- **Drain the page cache as you write.** Flush every few MiB, then `os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)` (plus `os.sync_file_range` on Linux). A pod with a ~1 GiB memory limit writing >10 GB to NFS is OOM-killed on dirty page cache with ~20 MB anon RSS.
+- **Persist the transcript.** Mirror progress onto a log file on the retained PVC from the first byte; pod stdout is gone by the time you want the post-mortem.
+- **Resume, don't restart.** `.partial` files plus `Range: bytes=<off>-`, keeping the partial on a short read instead of deleting it. Take the resume offset from `os.path.getsize()`, never from `tell()` on an append-mode handle — that reports EOF and double-counts the resumed prefix.
+- **Backoff with a cap and a reason.** Log the HTTP status of every attempt, exponential backoff with jitter, honour `Retry-After`. Immediate-retry loops burn the attempt budget on one transient error and exit naming no cause; before inventing a throttle explanation, reproduce the download from a second client.
+- **Verify by digest, not repo name.** Mirrors carry byte-identical objects, so the sha256 (the LFS OID) is the contract; verify on both tiers before the file is visible to the lane.
+- **Prove the disk and the image first.** `df` the hostpath directory on the target node, and `HEAD` the pinned image digest at the registry — old untagged builds get garbage-collected.
+
+Then test the loop OFFLINE before spending a deploy window: a stdlib `http.server` subclass that answers `Range` for a fake multi-file release, exercised for resume, corrupt-partial recovery, a read-only cold tier, and a wrong digest. Each of those bugs costs a full download attempt to find in-cluster. Beware the harness itself: a YAML block scalar is dedented on parse, so regexes that assume the manifest's indentation never match — assert against the dedented script text.

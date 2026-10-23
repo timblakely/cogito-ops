@@ -22,10 +22,19 @@ python3 scripts/validate-grafana-dashboard.py http://127.0.0.1:9091 \
 
 It caught real bugs a JSON lint cannot see: PromQL string-literal escape
 rules, `rate(label_replace(...))` being illegal, fully-anchored regexes, and
-Grafana variables matched against query-created labels. Run it on any
-dashboard you edit, not just this one. A green run that finishes
-suspiciously fast is suspect — spot-check the gate can fail (add one bogus
-expr to a copy of the JSON).
+Grafana variables matched against query-created labels. It also runs a
+STRUCTURAL gate (duplicate refIds across one panel's targets make the whole
+panel render "No data" in Grafana 12 even when every expr is valid — a bug
+class Prometheus-side checks cannot see). Run it on any dashboard you edit,
+not just this one. Prove the gate can fail with `--self-test`:
+
+```bash
+python3 scripts/validate-grafana-dashboard.py http://127.0.0.1:9091 \
+    kubernetes/apps/llm/llmkube/app/dashboard/llm-serving.json --self-test
+```
+
+It asserts a broken expr FAILS and a known-real expr returns series (so an
+all-green run implies a live endpoint, not a dead gate).
 
 ## Flux: one KS object per app
 
@@ -36,6 +45,30 @@ does NOT apply litellm-app files. When a change spans two apps (e.g. the
 llm-serving dashboard plus its cross-link on litellm.json), reconcile BOTH,
 each with `--with-source`, or half the change sits unreconciled and looks
 broken. Check `kubectl get kustomization -n <ns>` before assuming coverage.
+Every app KS (`llmkube`, `llmkube-resources`, `litellm`, ...) lives in the `llm`
+namespace, so bare `flux reconcile kustomization llmkube-resources` dies with
+"not found" and bare `flux get kustomizations` lists only the root `llm` KS.
+That "not found" is not a stuck deploy: reconciling the root KS, or even just
+`flux reconcile source git flux-system`, triggers the children, so read each
+KS's `Ready`/applied revision instead of trusting the chain. Never judge a
+reconcile from an `&&` chain piped through `tail` — the pipe reports tail's exit
+0, so a failed `flux reconcile` still falls through into any wait loop behind it.
+
+## Two ways to shoot yourself in the foot while verifying
+
+- Never kill a port-forward by pattern from the same shell that started it: `pkill -f`
+  and `ps -eo pid,args | awk '/[p]ort-forward .../'` both match the *current command's
+  own command line* (it contains the literal string you are searching for), so the
+  kill terminates your own shell and the result comes back as `signal 15` with the
+  tail of your output missing. Launch with `nohup ... & echo $! > pf.pid` and kill the
+  recorded pid.
+- During a LiteLLM proxy roll the OLD pod stays Ready and keeps serving with the
+  STALE model catalogue. A request fired at that moment fails with
+  `InternalServerError ... OpenAIException - Connection error` for a model whose
+  backend you just deleted — that reads like your repoint is broken when it is only
+  the retiring pod. Wait for the new replicaset Ready AND the old pod absent
+  (`kubectl get endpointslices -l kubernetes.io/service-name=litellm`) before judging
+  a model-catalogue change.
 
 ## Dashboard ownership
 
