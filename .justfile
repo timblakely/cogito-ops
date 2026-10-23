@@ -3,6 +3,9 @@
 set quiet := true
 set shell := ['bash', '-euo', 'pipefail', '-c']
 
+# `bootstrap/` is legacy: only `bootstrap/mod.just` matters, and only for as far
+# as it keeps this `.justfile` working. Nothing else in that directory is
+# authoritative.
 mod bootstrap "bootstrap"
 mod bs "kubernetes/bootstrap"
 mod kick "kubernetes/flux"

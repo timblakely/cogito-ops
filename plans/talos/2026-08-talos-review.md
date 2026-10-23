@@ -17,9 +17,11 @@ but is not tagged yet). Nothing was changed.
 
 > **Update, 2026-10-23:** the fleet is six nodes, not five. `amnesia` (Talos
 > v1.14.2, gaming box, custom NVIDIA build) and `deleuze` (v1.14.4, the 2x R9700
-> ML node) joined; `iggy` and `kristeva` are on v1.14.4 and Iggy is back on a
-> stock NVIDIA driver line — see [2026-10-iggy-stock-nvidia.md](2026-10-iggy-stock-nvidia.md)
-> before repeating the "never powercycle" rule from the banner above. Kubernetes
+> ML node) joined; `iggy` and `kristeva` are on v1.14.4 and Iggy is back on the
+> stock catalog NVIDIA driver line — see
+> [2026-10-iggy-stock-nvidia.md](2026-10-iggy-stock-nvidia.md), which restates the
+> never-`powercycle`/never-shutdown rule for the stock image (it still stands, for
+> different reasons than the patched-image era). Kubernetes
 > is v1.34.2 everywhere. The three NUCs are **still on v1.12.5**, which makes
 > them the only nodes left on the out-of-support branch §2.1 flagged. The node
 > table below is the 2026-08-28 snapshot and is deliberately left as it was; the

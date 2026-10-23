@@ -7,7 +7,7 @@
 *Modern Home Operations with Kubernetes, Talos Linux, and Flux CD. Cogito, ergo facio.*
 
 [![Status](https://img.shields.io/badge/status-active-success.svg?style=for-the-badge)]()
-[![Talos](https://img.shields.io/badge/Talos_Linux-1.12%20%7C%201.13-blue.svg?style=for-the-badge&logo=linux)](https://talos.dev)
+[![Talos](https://img.shields.io/badge/Talos_Linux-1.14%20%7C%201.12-blue.svg?style=for-the-badge&logo=linux)](https://talos.dev)
 [![Flux](https://img.shields.io/badge/Flux_CD-2.7-blue.svg?style=for-the-badge&logo=flux)](https://fluxcd.io)
 [![K8s](https://img.shields.io/badge/Kubernetes-1.34-blue.svg?style=for-the-badge&logo=kubernetes)](https://kubernetes.io)
 
@@ -39,9 +39,10 @@ The cluster consists of a heterogeneous mix of hardware, strategically utilized 
 | `iggy` | Control Plane | ML, High-CPU | 970 PRO (512GB) / 970 EVO (1TB) | **2× RTX 3090**, independent GPUs, 32 GiB RAM, 280 W cap each |
 | `kristeva` | Control Plane | High-CPU, High-Mem | SSD 850 (Boot) / 990 EVO Plus (2TB) | **Intel A380** |
 | `deleuze` | Control Plane | ML, High-Mem | 990 EVO Plus (2TB): 256 GiB system / remaining OpenEBS | **2× Radeon AI PRO R9700**, Ryzen 5 5600, 128 GiB RAM, 10 GbE |
-| `nuc-1` | Control Plane | Rook-Ceph, Core | PNY (1TB) / Crucial T500 (400GB) | **Thunderbolt Ring** |
-| `nuc-2` | Control Plane | Core | PNY (1TB) / Crucial T500 (400GB) | **Thunderbolt Ring** |
-| `nuc-3` | Control Plane | Core | PNY (1TB) / Crucial T500 (400GB) | **Thunderbolt Ring** |
+| `amnesia` | Control Plane | Gaming / Dreamcast host, Core | 2 TB NVMe (boot + EPHEMERAL + local-hostpath) | **RTX 5070 Ti** (16 GiB, time-sliced ×2), Ryzen 9900X, 64 GiB RAM |
+| `nuc-1` | Control Plane | Rook-Ceph OSD, Core | PNY (1TB) / Crucial T500 (400GB) | **Thunderbolt Ring** |
+| `nuc-2` | Control Plane | Rook-Ceph OSD, Core | PNY (1TB) / Crucial T500 (400GB) | **Thunderbolt Ring** |
+| `nuc-3` | Control Plane | Rook-Ceph OSD, Core | PNY (1TB) / Crucial T500 (400GB) | **Thunderbolt Ring** |
 
 > [!TIP]
 > The NUC nodes are interconnected via **Thunderbolt Networking**, creating a high-speed, low-latency 40Gbps+ backplane for cluster communication and Rook-Ceph replication.
@@ -50,6 +51,17 @@ Iggy uses the [stock proprietary NVIDIA Talos image](plans/talos/2026-10-iggy-st
 
 Deleuze uses Talos v1.14.4 with AMDGPU/KFD at `192.168.42.16`.
 See its [installation and hardware verification](plans/talos/2026-10-deleuze.md).
+
+Amnesia is the exception in the fleet: Talos v1.14.2 with a **custom**
+`nvidia-open` 615.78.08 extension build — that driver is newer than what Talos
+Factory ships for this Talos line, which forces a custom signed kernel module
+(see the [Dreamcast README section on it](kubernetes/apps/dreamcast/README.md)) —
+plus the `uinput` extension for game input. It is a control plane and the gaming
+box at once; see that README for what runs there and why its GPU must not be
+preempted.
+
+Rook-Ceph OSDs run on the three NUCs only; `amnesia` deliberately carries no Rook
+raw volume.
 
 ## 🛠️ Software Stack
 
