@@ -117,6 +117,30 @@ All four runs qualify: 6 common and 16 prefill trials each, zero failures, `cach
 
 The restore path is proven on both branches: after the fourth run the lane came back on 1.12.0 in 39 s with the Kustomization `Ready`/`Healthy` and the bench pod deleted, and the driver's first attempt, which died on its own bug (parsing `kubectl -o jsonpath` output as JSON) 22 s in, still unsuspended and re-verified the lane in 61 s.
 
+## --draft-coupling A/B, October 24 2026
+
+The one 1.12 feature aimed at this model is `--draft-coupling`: the linear MTP head samples each round's proposal from its own reranked top-8 law and the sampler couples the target's draw to it. Tested against the **same image digest on both arms** — the only difference between the two bench pods is the flag — ABBA order (off, on, on, off), same 20 flags, corpus digest and three repetitions as the version A/B above. Driver and evidence: [run-coupling.py](artifacts/2026-10-24-radiance-draft-coupling-deleuze/run-coupling.py), [comparison.json](artifacts/2026-10-24-radiance-draft-coupling-deleuze/comparison.json).
+
+It is refused, not degraded, so a probe runs first: the arch declares the coupled planes only when the checkpoint carries the 2-bit candidate head, and `core/engine_draft.cpp` stops rather than serve uncoupled. **This checkpoint couples** — `MTP coupled LIVE: 3 linear round(s), x~Q from the final reranked top8, maximal coupling at the verify; fixed-seed tokens are NOT preserved` — at a cost of 4 ops (1832 → 1836), 4 buffers and 2.5 KiB of fixed region.
+
+| Metric | off (a1 / a2) | on (b1 / b2) | Δ mean | spread off / on |
+|---|---:|---:|---:|---:|
+| Short warm decode (tok/s) | 181.66 / 180.79 | 181.23 / 180.25 | −0.27 % | 0.48 % / 0.54 % |
+| 40K TTFT (s) | 7.445 / 7.442 | 7.435 / 7.429 | −0.17 % | 0.06 % / 0.13 % |
+| 40K decode (tok/s) | 165.1 / 165.1 | 164.9 / 164.7 | −0.17 % | 0.14 % / 0.09 % |
+| 40K wall (s) | 8.993 / 8.991 | 8.989 / 8.981 | −0.08 % | 0.03 % / 0.12 % |
+| Draft acceptance | 0.6591 / 0.6646 | 0.6644 / 0.6626 | +0.25 % | 0.83 % / 0.27 % |
+| Tokens per decode step | 3.170 / 3.178 | 3.183 / 3.177 | +0.18 % | 0.23 % / 0.20 % |
+| 64K prefill (tok/s) | 5178 / 5184 | 5066 / 5123 | −1.67 % | 0.11 % / 1.11 % |
+
+**Recorded as neutral, and left off.** Acceptance — the mechanism under test — does not move: 0.6618 → 0.6635, with the arms' per-run values interleaved, and tokens per decode step is identical. That is expected rather than disappointing: the suite requests at `temperature: 0`, where the target's law is a point mass and a coupled draw degenerates to the greedy one. The gain coupling buys lives in *sampled* decoding, so this test can only rule out a regression and did. A sampled A/B (temperature ~0.7, no seed) is the test that would measure the mechanism.
+
+The one metric where the arms separate, 64K prefill at −1.67 %, is aliased with run position and is not credited: in time order the cell reads 5178 → 5066 → 5123 → 5184, a U whose two extremes are exactly the two control runs because ABBA puts them first and last. The 8K cell shows the same position effect running the other way (4825 → 4861 → 4913 → 4925, monotone with time). Against 4 extra draft-round ops and 2.5 KiB there is no mechanism, and an ABAB run of the 64K cell alone would decorrelate position from arm in about six minutes if it ever matters.
+
+Output identity was checked directly rather than assumed, because the flag carries the warning that fixed-seed tokens are not preserved. **15 of the 19 trials produced byte-identical text, reasoning text and completion length across all four runs** — every single-stream `common` and `decode` trial. The four that differ are all the concurrent `c2` trials, and they differ between two runs of the *same* arm as well (a1 vs a2, b1 vs b2), so the cause is batch composition under concurrency, not the flag. Worth keeping as a fact on its own: this lane is not output-reproducible at `temperature: 0` when two sequences share a step, with or without coupling.
+
+All four runs qualify (6 common and 16 prefill trials, no failures, zero cached tokens, caps reached, JSON / strict-schema / tools pass) and both arms report the same 2 warnings, 6 notes. Lane down 16:40:18 → 16:58:37 UTC; back on 1.12.0 in 40 s with the Kustomization `Ready`/`Healthy`.
+
 ## Housekeeping after the Iggy retirement
 
 Removing the retired lane's objects did not free its storage: the n-gram lookup table was a static local `PersistentVolume` with `Retain`, so the bytes stayed on Iggy after the `PV` and `PVC` were gone. Two orphan directories remained — `/var/lib/kubelet/flashnext-iggy-ngram`, 164.0 GiB, of which `q6` alone was 157.5 GiB (the table grew far past the 50 GiB the retired manifest claimed), plus an empty earlier-generation stub at `/var/lib/flashnext-iggy-ngram`. Both were verified unreferenced before removal — no `PV`, `PVC` or `Pod` named them, nothing was mounted at those paths in the host mount namespace, and kubelet's allocated/actuated pod state named no flashnext volume — and were deleted on October 23. Iggy's root filesystem `/dev/nvme0n1p4` went from 343.5 GiB used and 131.1 GiB free to 179.5 GiB used and 295.1 GiB free.

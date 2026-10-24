@@ -1,0 +1,270 @@
+{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "annotations": {
+            "k8s.v1.cni.cncf.io/network-status": "[{\n    \"name\": \"cilium\",\n    \"interface\": \"eth0\",\n    \"ips\": [\n        \"10.42.3.6\"\n    ],\n    \"default\": true,\n    \"dns\": {},\n    \"gateway\": [\n        \"10.42.3.83\"\n    ]\n}]",
+            "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"annotations\":{},\"name\":\"radiance-bench-current\",\"namespace\":\"llm\"},\"spec\":{\"automountServiceAccountToken\":false,\"containers\":[{\"args\":[\"--model\",\"/models/radiance/qwen3.8-next-flash-fp8-iq4r-moe.rad\",\"--served-model-name\",\"qwen3.8-flash-next\",\"--tp\",\"2\",\"--tp-wire\",\"exact\",\"--max-num-seqs\",\"2\",\"--max-model-len\",\"262144\",\"--placement\",\"expert_tiered\",\"--host-pool-mib\",\"8192\",\"--ngram-placement\",\"disk\",\"--gpu-headroom-mib\",\"160\",\"--kv-cache-dtype\",\"fp8\",\"--num-speculative-tokens\",\"3\",\"--draft-coupling\",\"on\",\"--max-num-batched-tokens\",\"4096\",\"--host\",\"0.0.0.0\",\"--port\",\"8080\",\"--mm-max-patches\",\"0\",\"--no-prefix-cache\",\"--embedding-placement\",\"ram\",\"--draft-window\",\"fixed\",\"--prefill-span\",\"2\"],\"command\":[\"/opt/radiance/bin/radiance\"],\"env\":[],\"image\":\"docker.io/stilldeadcode/radiance:1.12.0@sha256:9a90121be351ea1da9b99a944b7e92c43132a3513d1dff3a60c67f41fcfdb65f\",\"name\":\"runtime\",\"ports\":[{\"containerPort\":8080,\"name\":\"http\"}],\"readinessProbe\":{\"httpGet\":{\"path\":\"/health\",\"port\":8080},\"periodSeconds\":10},\"resources\":{\"limits\":{\"amd.com/gpu\":2,\"ephemeral-storage\":\"8Gi\",\"memory\":\"48Gi\"},\"requests\":{\"amd.com/gpu\":2,\"cpu\":\"8\",\"ephemeral-storage\":\"1Gi\",\"memory\":\"48Gi\"}},\"volumeMounts\":[{\"mountPath\":\"/models\",\"name\":\"models\",\"readOnly\":true}]}],\"nodeSelector\":{\"kubernetes.io/hostname\":\"deleuze\"},\"restartPolicy\":\"Never\",\"securityContext\":{\"seccompProfile\":{\"type\":\"Unconfined\"}},\"tolerations\":[{\"effect\":\"NoSchedule\",\"key\":\"node-role.kubernetes.io/control-plane\",\"operator\":\"Exists\"},{\"effect\":\"NoSchedule\",\"key\":\"amd.com/gpu\",\"operator\":\"Exists\"}],\"volumes\":[{\"name\":\"models\",\"persistentVolumeClaim\":{\"claimName\":\"radiance-deleuze\"}}]}}\n"
+        },
+        "creationTimestamp": "2026-10-24T16:49:26Z",
+        "generation": 1,
+        "name": "radiance-bench-current",
+        "namespace": "llm",
+        "resourceVersion": "304210773",
+        "uid": "32f4a5bd-c06f-4f82-b1d4-4ede114fd890"
+    },
+    "spec": {
+        "automountServiceAccountToken": false,
+        "containers": [
+            {
+                "args": [
+                    "--model",
+                    "/models/radiance/qwen3.8-next-flash-fp8-iq4r-moe.rad",
+                    "--served-model-name",
+                    "qwen3.8-flash-next",
+                    "--tp",
+                    "2",
+                    "--tp-wire",
+                    "exact",
+                    "--max-num-seqs",
+                    "2",
+                    "--max-model-len",
+                    "262144",
+                    "--placement",
+                    "expert_tiered",
+                    "--host-pool-mib",
+                    "8192",
+                    "--ngram-placement",
+                    "disk",
+                    "--gpu-headroom-mib",
+                    "160",
+                    "--kv-cache-dtype",
+                    "fp8",
+                    "--num-speculative-tokens",
+                    "3",
+                    "--draft-coupling",
+                    "on",
+                    "--max-num-batched-tokens",
+                    "4096",
+                    "--host",
+                    "0.0.0.0",
+                    "--port",
+                    "8080",
+                    "--mm-max-patches",
+                    "0",
+                    "--no-prefix-cache",
+                    "--embedding-placement",
+                    "ram",
+                    "--draft-window",
+                    "fixed",
+                    "--prefill-span",
+                    "2"
+                ],
+                "command": [
+                    "/opt/radiance/bin/radiance"
+                ],
+                "image": "docker.io/stilldeadcode/radiance:1.12.0@sha256:9a90121be351ea1da9b99a944b7e92c43132a3513d1dff3a60c67f41fcfdb65f",
+                "imagePullPolicy": "IfNotPresent",
+                "name": "runtime",
+                "ports": [
+                    {
+                        "containerPort": 8080,
+                        "name": "http",
+                        "protocol": "TCP"
+                    }
+                ],
+                "readinessProbe": {
+                    "failureThreshold": 3,
+                    "httpGet": {
+                        "path": "/health",
+                        "port": 8080,
+                        "scheme": "HTTP"
+                    },
+                    "periodSeconds": 10,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 1
+                },
+                "resources": {
+                    "limits": {
+                        "amd.com/gpu": "2",
+                        "ephemeral-storage": "8Gi",
+                        "memory": "48Gi"
+                    },
+                    "requests": {
+                        "amd.com/gpu": "2",
+                        "cpu": "8",
+                        "ephemeral-storage": "1Gi",
+                        "memory": "48Gi"
+                    }
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/models",
+                        "name": "models",
+                        "readOnly": true
+                    }
+                ]
+            }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "nodeName": "deleuze",
+        "nodeSelector": {
+            "kubernetes.io/hostname": "deleuze"
+        },
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Never",
+        "schedulerName": "default-scheduler",
+        "securityContext": {
+            "seccompProfile": {
+                "type": "Unconfined"
+            }
+        },
+        "serviceAccount": "default",
+        "serviceAccountName": "default",
+        "terminationGracePeriodSeconds": 30,
+        "tolerations": [
+            {
+                "effect": "NoSchedule",
+                "key": "node-role.kubernetes.io/control-plane",
+                "operator": "Exists"
+            },
+            {
+                "effect": "NoSchedule",
+                "key": "amd.com/gpu",
+                "operator": "Exists"
+            },
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/not-ready",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            },
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/unreachable",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            }
+        ],
+        "volumes": [
+            {
+                "name": "models",
+                "persistentVolumeClaim": {
+                    "claimName": "radiance-deleuze"
+                }
+            }
+        ]
+    },
+    "status": {
+        "conditions": [
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-10-24T16:49:28Z",
+                "observedGeneration": 1,
+                "status": "True",
+                "type": "PodReadyToStartContainers"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-10-24T16:49:27Z",
+                "observedGeneration": 1,
+                "status": "True",
+                "type": "Initialized"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-10-24T16:49:49Z",
+                "observedGeneration": 1,
+                "status": "True",
+                "type": "Ready"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-10-24T16:49:49Z",
+                "observedGeneration": 1,
+                "status": "True",
+                "type": "ContainersReady"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-10-24T16:49:27Z",
+                "observedGeneration": 1,
+                "status": "True",
+                "type": "PodScheduled"
+            }
+        ],
+        "containerStatuses": [
+            {
+                "allocatedResources": {
+                    "amd.com/gpu": "2",
+                    "cpu": "8",
+                    "ephemeral-storage": "1Gi",
+                    "memory": "48Gi"
+                },
+                "containerID": "containerd://c822a9631d39666fc53277eb224c8e0dd0eb0714c11605573888b83a6226e77c",
+                "image": "sha256:3a1d5f9f76e810d1e080e41d65b28cda87f5fdeecdb9e8685c2612f52102abdf",
+                "imageID": "docker.io/stilldeadcode/radiance@sha256:9a90121be351ea1da9b99a944b7e92c43132a3513d1dff3a60c67f41fcfdb65f",
+                "lastState": {},
+                "name": "runtime",
+                "ready": true,
+                "resources": {
+                    "limits": {
+                        "amd.com/gpu": "2",
+                        "ephemeral-storage": "8Gi",
+                        "memory": "48Gi"
+                    },
+                    "requests": {
+                        "amd.com/gpu": "2",
+                        "cpu": "8",
+                        "ephemeral-storage": "1Gi",
+                        "memory": "48Gi"
+                    }
+                },
+                "restartCount": 0,
+                "started": true,
+                "state": {
+                    "running": {
+                        "startedAt": "2026-10-24T16:49:27Z"
+                    }
+                },
+                "user": {
+                    "linux": {
+                        "gid": 0,
+                        "supplementalGroups": [
+                            0
+                        ],
+                        "uid": 0
+                    }
+                },
+                "volumeMounts": [
+                    {
+                        "mountPath": "/models",
+                        "name": "models",
+                        "readOnly": true,
+                        "recursiveReadOnly": "Disabled"
+                    }
+                ]
+            }
+        ],
+        "hostIP": "192.168.42.16",
+        "hostIPs": [
+            {
+                "ip": "192.168.42.16"
+            }
+        ],
+        "observedGeneration": 1,
+        "phase": "Running",
+        "podIP": "10.42.3.6",
+        "podIPs": [
+            {
+                "ip": "10.42.3.6"
+            }
+        ],
+        "qosClass": "Burstable",
+        "startTime": "2026-10-24T16:49:27Z"
+    }
+}

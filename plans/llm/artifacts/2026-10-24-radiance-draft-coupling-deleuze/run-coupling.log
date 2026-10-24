@@ -1,1 +1,23 @@
 [16:40:00] preflight ok: corpus digest matches, specs differ only by --draft-coupling, single image, lane pods [('radiance-66b77b8b4f-8wd7v', True, 'docker.io/stilldeadcode/radiance:1.12.0@sha256:9a90121be351ea1da9b99a944b7e92c43132a3513d1dff3a60c67f41fcfdb65f')]
+[16:40:18] preflight ok: corpus digest matches, specs differ only by --draft-coupling, single image, lane pods [('radiance-66b77b8b4f-8wd7v', True, 'docker.io/stilldeadcode/radiance:1.12.0@sha256:9a90121be351ea1da9b99a944b7e92c43132a3513d1dff3a60c67f41fcfdb65f')]
+[16:40:18] suspending KS llmkube-resources and the radiance lane (the bench pod needs both R9700s)
+[16:40:24] lane down; GPUs free
+[16:40:24] === probe: does this checkpoint couple at all? ===
+[16:40:56] probe: engaged=True refusal=None notes=['I MTP coupled LIVE: 3 linear round(s), x~Q from the final reranked top8, maximal coupling at the verify; fixed-seed tokens are NOT preserved']
+[16:40:56] === a1-off (coupling off) : bringing up the bench pod ===
+[16:41:18] bench pod Ready; coupled lines: []
+[16:45:07] a1-off done in 251.1s; draft 5066.0/7686.0 accepted (ratio 0.659120500087738)
+[16:45:07] === b1-on (coupling on) : bringing up the bench pod ===
+[16:45:32] bench pod Ready; coupled lines: ['I MTP coupled LIVE: 3 linear round(s), x~Q from the final reranked top8, maximal coupling ']
+[16:49:24] b1-on done in 256.9s; draft 5081.0/7647.0 accepted (ratio 0.6644435524940491)
+[16:49:24] === b2-on (coupling on) : bringing up the bench pod ===
+[16:49:50] bench pod Ready; coupled lines: ['I MTP coupled LIVE: 3 linear round(s), x~Q from the final reranked top8, maximal coupling ']
+[16:53:41] b2-on done in 256.8s; draft 5087.0/7677.0 accepted (ratio 0.6626286506652832)
+[16:53:41] === a2-off (coupling off) : bringing up the bench pod ===
+[16:54:06] bench pod Ready; coupled lines: []
+[16:57:57] a2-off done in 255.7s; draft 5094.0/7665.0 accepted (ratio 0.6645792722702026)
+[16:57:57] === restoring the serving lane ===
+[16:58:37] lane back: radiance-66b77b8b4f-2rvpg version 1.12.0
+[16:58:37] KS llmkube-resources: Ready=True ReconciliationSucceeded;Healthy=True Succeeded;
+[16:58:37] === summarising ===
+[16:58:37] DONE
