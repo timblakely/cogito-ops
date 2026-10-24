@@ -1,0 +1,124 @@
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "namespace": "llm",
+    "name": "radiance-bench-current"
+  },
+  "spec": {
+    "restartPolicy": "Never",
+    "automountServiceAccountToken": false,
+    "nodeSelector": {
+      "kubernetes.io/hostname": "deleuze"
+    },
+    "tolerations": [
+      {
+        "key": "node-role.kubernetes.io/control-plane",
+        "operator": "Exists",
+        "effect": "NoSchedule"
+      },
+      {
+        "key": "amd.com/gpu",
+        "operator": "Exists",
+        "effect": "NoSchedule"
+      }
+    ],
+    "containers": [
+      {
+        "name": "runtime",
+        "command": [
+          "/opt/radiance/bin/radiance"
+        ],
+        "resources": {
+          "requests": {
+            "cpu": "8",
+            "memory": "48Gi",
+            "amd.com/gpu": 2,
+            "ephemeral-storage": "1Gi"
+          },
+          "limits": {
+            "memory": "48Gi",
+            "amd.com/gpu": 2,
+            "ephemeral-storage": "8Gi"
+          }
+        },
+        "volumeMounts": [
+          {
+            "name": "models",
+            "mountPath": "/models",
+            "readOnly": true
+          }
+        ],
+        "image": "docker.io/stilldeadcode/radiance:1.11.0@sha256:7595a64234e84a59fa2141acc35456d53370430980880b5cb3df83370b2d903a",
+        "args": [
+          "--model",
+          "/models/radiance/qwen3.8-next-flash-fp8-iq4r-moe.rad",
+          "--served-model-name",
+          "qwen3.8-flash-next",
+          "--tp",
+          "2",
+          "--tp-wire",
+          "exact",
+          "--max-num-seqs",
+          "2",
+          "--max-model-len",
+          "262144",
+          "--placement",
+          "expert_tiered",
+          "--host-pool-mib",
+          "8192",
+          "--ngram-placement",
+          "disk",
+          "--gpu-headroom-mib",
+          "160",
+          "--kv-cache-dtype",
+          "fp8",
+          "--num-speculative-tokens",
+          "3",
+          "--max-num-batched-tokens",
+          "4096",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8080",
+          "--mm-max-patches",
+          "0",
+          "--no-prefix-cache",
+          "--embedding-placement",
+          "ram",
+          "--draft-window",
+          "fixed",
+          "--prefill-span",
+          "2"
+        ],
+        "ports": [
+          {
+            "name": "http",
+            "containerPort": 8080
+          }
+        ],
+        "readinessProbe": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8080
+          },
+          "periodSeconds": 10
+        },
+        "env": []
+      }
+    ],
+    "volumes": [
+      {
+        "name": "models",
+        "persistentVolumeClaim": {
+          "claimName": "radiance-deleuze"
+        }
+      }
+    ],
+    "securityContext": {
+      "seccompProfile": {
+        "type": "Unconfined"
+      }
+    }
+  }
+}
