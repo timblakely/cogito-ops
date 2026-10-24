@@ -161,9 +161,9 @@ def main():
             sh(K + ["delete", "pod", "radiance-bench-current", "--ignore-not-found=true", "--wait=true"])
             sh(K + ["apply", "-f", str(HERE / "profiles" / f"{name}.json")])
             sh(K + ["wait", "--for=condition=Ready", "pod/radiance-bench-current", "--timeout", "10m"])
-            image = json.loads(subprocess.check_output(
+            image = subprocess.check_output(
                 K + ["get", "pod", "radiance-bench-current", "-o",
-                     "jsonpath={.status.containerStatuses[0].imageID}"], text=True))
+                     "jsonpath={.status.containerStatuses[0].imageID}"], text=True).strip()
             log(f"bench pod Ready on {image[-24:]}")
             sh([sys.executable, str(HERE / "run-profile.py"), "--pod", "radiance-bench-current",
                 "--profile", name, "--protocols", "common,decode,pp,c2", "--repetitions", "3",

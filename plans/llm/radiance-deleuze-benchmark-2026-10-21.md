@@ -95,6 +95,28 @@ The selected exact profile was re-measured on the same pinned bench pod with the
 
 These two runs are not perfectly paired: the October baseline replayed the four original single-sample cells (`--original`) before its scored suite and this re-run did not, and that startup history matters most to the short trials. The drift is −1.7% on decode, −2.4% to −2.9% on 8K/32K prefill, +0.4% at 64K and +1.4% on the concurrent pair — a little more than the ~0.6% spread among the same-flag October repeats (184.86–185.95 short warm TG), and not enough to attribute to the runtime on a single sample. [Comparison](artifacts/2026-10-23-radiance-1.11-deleuze/comparison.json) and [full trials](artifacts/2026-10-23-radiance-1.11-deleuze/new-final-r111) retain every trial; a paired 1.10.0 control (`profiles/new-final-r110.json`) is prepared but was deliberately not run. **Recorded as performance-neutral.**
 
+## Radiance 1.12.0 paired A/B, October 24 2026
+
+The 1.11 numbers above were never paired with a control, so they could not settle a small effect. The 1.12 bump was measured properly instead: four bench pods that differ **only** in image digest — 1.11.0 `7595a642` (control) and 1.12.0 `9a90121b` (candidate) — run in ABBA order (1.11, 1.12, 1.12, 1.11) inside one window, so drift shows up as within-variant spread rather than as a version effect. Same twenty engine flags as `new-final-r111` (`--max-num-seqs 2`, `--no-prefix-cache`), same corpus digest `a9a89dfd…`, three repetitions, protocols `common,decode,pp,c2`, and the API qualification suite on every run. The suite needs both R9700s, so KS `llmkube-resources` and the serving lane were suspended for the 17.5-minute window; each run took 251–257 s. Driver and evidence: [run-abba.py](artifacts/2026-10-24-radiance-1.12-deleuze/run-abba.py), [comparison.json](artifacts/2026-10-24-radiance-1.12-deleuze/comparison.json), [per-run trials](artifacts/2026-10-24-radiance-1.12-deleuze).
+
+| Metric | 1.11.0 (a1 / a2) | 1.12.0 (b1 / b2) | Δ mean | within-run spread (1.11 / 1.12) |
+|---|---:|---:|---:|---:|
+| Short warm decode (tok/s) | 181.48 / 181.83 | 181.86 / 180.82 | −0.18 % | 0.19 % / 0.57 % |
+| Short warm TTFT (s) | 0.380 / 0.381 | 0.382 / 0.376 | −0.41 % | 0.13 % / 1.40 % |
+| 40K TTFT (s) | 7.44 / 7.43 | 7.41 / 7.43 | −0.24 % | 0.14 % / 0.21 % |
+| 40K decode (tok/s) | 165.1 / 164.5 | 164.7 / 164.9 | −0.02 % | 0.38 % / 0.10 % |
+| 40K wall (s) | 8.99 / 8.98 | 8.95 / 8.98 | −0.21 % | 0.13 % / 0.36 % |
+| 8K prefill (tok/s) | 4837 / 4850 | 4872 / 4914 | +1.02 % | 0.26 % / 0.85 % |
+| 32K prefill (tok/s) | 5223 / 5162 | 5207 / 5210 | +0.30 % | 1.19 % / 0.06 % |
+| 64K prefill (tok/s) | 5244 / 5162 | 5203 / 5225 | +0.21 % | 1.57 % / 0.42 % |
+| C2 40K wall (s) | 19.54 / 19.81 | 19.51 / 19.10 | −1.89 % | 1.35 % / 2.16 % |
+
+**Recorded as performance-neutral.** Every delta sits inside the metric's own within-variant spread except the 8K prefill cell, +1.02 % against spreads of 0.26 % and 0.85 % — the smallest prefill size is where 1.12's launch-side work would show up first, so it is a hint worth re-checking on a future release, not a result on four runs. The concurrent-pair −1.89 % is smaller than its own 2.16 % spread and is noise. What 1.12 buys this lane is the `mem` prefix-KV fix (upstream #206) and `DELETE /sessions`, not throughput.
+
+All four runs qualify: 6 common and 16 prefill trials each, zero failures, `cached_tokens` 0 everywhere (`--no-prefix-cache` honoured), tokenizer and usage agree at every size, every cap reached, and arithmetic JSON, strict schema and automatic tools pass. Each bench pod's startup report names its own version. One run of *each* version (1.12 `ab-b1`, 1.11 `ab-a2`) printed two `link-below-max` warnings — the PCIe probe sampling a link while the previous variant's traffic still drained — and the other run of the same version printed none, so they are startup timing rather than a version difference; the production lane's own 1.12.0 report reads 0 warnings, 5 notes.
+
+The restore path is proven on both branches: after the fourth run the lane came back on 1.12.0 in 39 s with the Kustomization `Ready`/`Healthy` and the bench pod deleted, and the driver's first attempt, which died on its own bug (parsing `kubectl -o jsonpath` output as JSON) 22 s in, still unsuspended and re-verified the lane in 61 s.
+
 ## Housekeeping after the Iggy retirement
 
 Removing the retired lane's objects did not free its storage: the n-gram lookup table was a static local `PersistentVolume` with `Retain`, so the bytes stayed on Iggy after the `PV` and `PVC` were gone. Two orphan directories remained — `/var/lib/kubelet/flashnext-iggy-ngram`, 164.0 GiB, of which `q6` alone was 157.5 GiB (the table grew far past the 50 GiB the retired manifest claimed), plus an empty earlier-generation stub at `/var/lib/flashnext-iggy-ngram`. Both were verified unreferenced before removal — no `PV`, `PVC` or `Pod` named them, nothing was mounted at those paths in the host mount namespace, and kubelet's allocated/actuated pod state named no flashnext volume — and were deleted on October 23. Iggy's root filesystem `/dev/nvme0n1p4` went from 343.5 GiB used and 131.1 GiB free to 179.5 GiB used and 295.1 GiB free.
