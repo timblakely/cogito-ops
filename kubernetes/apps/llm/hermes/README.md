@@ -62,29 +62,23 @@ Only `@tim:matrix.${DOMAIN_NAME}` may invoke the bot. Hermes automatically accep
 room invitations; set `MATRIX_ALLOWED_ROOMS` after choosing permanent rooms if
 access should be narrower than the user allowlist.
 
-Hermes' provider is reconciled automatically before every pod start. The init
-container preserves user-owned settings on the backed-up PVC while replacing
-the retired `llm-switch` provider with two named LiteLLM transports —
-`litellm-responses` (Responses API) and `litellm-chat` (chat completions) —
-and **both default to `flashnext-deleuze`**. `/model qwen` and `/model muse`
-select the local Qwen and Muse models over chat completions. The `coordinator`
-Responses seat that used to be the default was retired with the agent tiers;
-`configure.py` says so at the provider block. The key comes from
-`litellm-key-hermes` and is scoped to the eight local aliases in the LiteLLM
-catalogue — check with
-`kubectl -n llm get litellmvirtualkey hermes -o jsonpath='{.spec.models}'` —
-so Hermes cannot reach a metered frontier model (there are none left) or an
-unrestricted one.
+Hermes' provider is reconciled automatically before every pod start. One
+provider, `litellm-chat` (displayed as **LiteLLM**), uses chat completions against
+LiteLLM. The provider ID is retained for existing sessions. The retired
+`litellm-responses` provider is removed on reconciliation: backend transport
+selection belongs in LiteLLM, not in duplicate client provider entries.
 
-Neither transport discovers models from the proxy. Each declares its model map
-in `configure.py`, with per-alias `context_length` and `supports_vision`
-pins that must keep matching the `LiteLLMModel` declarations in
-`kubernetes/apps/llm/litellm/app/models/` — image routing decides on
-`supports_vision`, and models.dev has never heard of these aliases.
+The model catalogue is discovered dynamically from the authenticated
+`/v1/models` endpoint. Do not add client-side model lists or disable discovery.
+Model access is enforced by the LiteLLM virtual key, not by a picker list.
+The startup default (`flashnext-deleuze`) and auxiliary task selections are
+preferences, not an inventory. Context windows come from endpoint metadata;
+reasoning capabilities come from the central model-caps service. `/model
+--refresh` refreshes the client cache after catalogue changes. `/model qwen`
+and `/model muse` remain convenience shortcuts.
 
-The provider catalogue is deliberately static. This keeps a newly restored PVC
-and an old mutable one on the same contract and prevents unrelated LiteLLM
-catalogue additions from becoming reachable through the direct-session key.
+The key comes from `litellm-key-hermes`. Inspect its server-side scope with
+`kubectl -n llm get litellmvirtualkey hermes -o jsonpath='{.spec.models}'`.
 
 The LiteLLM operator currently reconciles an edited `LiteLLMVirtualKey` object
 without updating the model list of an already-issued key in LiteLLM's database.

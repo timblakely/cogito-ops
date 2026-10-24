@@ -138,44 +138,19 @@ if not isinstance(providers, dict):
 LITELLM_API = "http://litellm.llm.svc.cluster.local:4000/v1"
 CAPS_API = "http://model-caps.llm.svc.cluster.local:8090"
 
-# The coordinator Responses seat was retired with the agent tiers; the
-# Responses transport now defaults to FlashNext. The local Qwen and Muse
-# aliases stay on chat completions, as required by the v4 direct-session contract.
-providers["litellm-responses"] = {
-    "name": "LiteLLM (responses)",
-    "api": LITELLM_API,
-    "key_env": "LITELLM_API_KEY",
-    "transport": "codex_responses",
-    "default_model": "flashnext-deleuze",
-    "discover_models": False,
-    "caps_url": f"{CAPS_API}/v1/models",
-    "extra_body": {"allowed_openai_params": ["reasoning_effort"]},
-    "models": {"flashnext-deleuze": {"context_length": 262144}},
-}
+# One client protocol and one live catalogue. LiteLLM owns backend routing;
+# adding a backend must never require a second Hermes provider or a model list.
+# Keep the chat provider's stable ID so existing sessions continue to resolve.
+providers.pop("litellm-responses", None)
 providers["litellm-chat"] = {
-    "name": "LiteLLM (local)",
+    "name": "LiteLLM",
     "api": LITELLM_API,
     "key_env": "LITELLM_API_KEY",
     "transport": "chat_completions",
     "default_model": "flashnext-deleuze",
-    "discover_models": False,
+    "discover_models": True,
     "caps_url": f"{CAPS_API}/v1/models",
     "extra_body": {"allowed_openai_params": ["reasoning_effort"]},
-    "models": {
-        # Pins mirror the workstation profile. The live catalogue publishes
-        # Qwen at 32768 today (post INT8 W8A16 rebuild); the pin keeps the
-        # 262144 contract from the FP8 era for when it is re-raised.
-        # supports_vision is declared per model because models.dev has never
-        # heard of these local aliases, and it is what image routing decides
-        # on once the auxiliary.vision pin above is ever removed. Values match
-        # the LiteLLMModel supportsVision declarations in litellm/app/models/.
-        "Qwen/Qwen3.8-27B-INT8-W8A16": {"context_length": 262144, "supports_vision": False},
-        "Muse-Glimmer-30B": {"context_length": 131072, "supports_vision": True},
-        "flashnext-deleuze": {"context_length": 262144, "supports_vision": False},
-        # Vision proven by image round-trip through the alias (see the
-        # supportsVision note in litellm/app/models/gemma-4-12b.yaml).
-        "google/gemma-4-12b-it": {"context_length": 65536, "supports_vision": True},
-    },
 }
 
 model = config.setdefault("model", {})
@@ -187,10 +162,12 @@ model.update(
         "default": "flashnext-deleuze",
         "provider": "custom:litellm-chat",
         "api_mode": "chat_completions",
-        "context_length": 262144,
     }
 )
 model.pop("base_url", None)
+# Resolve context windows from the endpoint rather than applying one model's
+# window to every dynamically discovered model.
+model.pop("context_length", None)
 
 aliases = config.setdefault("model_aliases", {})
 if not isinstance(aliases, dict):
