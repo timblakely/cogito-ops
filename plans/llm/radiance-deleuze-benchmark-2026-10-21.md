@@ -1,5 +1,10 @@
 # Radiance on Deleuze, October 21 2026
 
+> **Dated benchmark record, updated October 24.** Results below describe the
+> tested versions and configurations, including later A/B runs. For the
+> current serving configuration, read the
+> [Radiance InferenceService](../../kubernetes/apps/llm/llmkube/resources/radiance-deleuze.yaml).
+
 This campaign repeats the original Iggy Radiance test on Deleuze's two R9700s, then measures and tunes the latest published runtime. The original runtime improves substantially on the new host; the tuned 1.10.0 profile reduces 40K request latency further while retaining exact TP communication. Full results, rejected candidates and source/runtime provenance are retained.
 
 ## Hardware and reproducibility

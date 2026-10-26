@@ -1,5 +1,10 @@
 # Cogito documentation inventory — 2026-10-23
 
+> **Dated audit, not a current-state guide.** The six cleanup changes below
+> landed on `main` at `7c0f3845`. The verdicts and open-item list record what
+> was observed on 2026-10-23; later work may have changed them. Check current
+> manifests and live state before acting on a finding.
+
 Sixty-eight tracked Markdown files (~8.4k lines), each classified against live cluster
 state. Every verdict below is a doc claim checked against `kubectl`/`helm`/`flux` output or the
 manifest sitting next to the doc — never against the doc's own age.
@@ -209,7 +214,7 @@ bundle *source*, so CI is blind to every one of these:
 
 ## Executed 2026-10-23
 
-Six changes, one per step, all local (`jj`, not pushed):
+Six changes, one per step, published on `main` in the cleanup stack:
 
 | Step | Change | What landed |
 | --- | --- | --- |
@@ -227,7 +232,7 @@ Deviations from the plan above, both deliberate:
   correction instead of a move. `plans/review/` held exactly one file — a
   convention nobody wired up or used — so it was deleted rather than archived;
   archiving it would have preserved the fiction that a queue contract exists.
-- **7 re-synced, not 7.** One of the eight originally-flagged bundle skills
+- **6 re-synced, not 7.** One of the seven originally-flagged bundle skills
   (`cogito-llm-benchmark-recall`) is not in the bundle at all, so the drift count
   was 6.
 
@@ -251,3 +256,14 @@ Still open, deliberately untouched (cluster changes, not doc changes):
   `hybrid-gpu-state-verification`, `qwen38-megakernel-3090`,
   `muse-glimmer-abliterated-3090`) are not in `bundle.yaml`; adding them is a
   scope decision for the next bundle sync.
+
+## Follow-up 2026-10-25
+
+The model catalogue README now points at the included manifests and key
+resources instead of repeating an eight-alias snapshot. The inactive FP8 proxy
+manifest and the unreferenced Foreman planning-scout image source/workflow were
+removed; repository history retains them. The Flash Next Iggy build files remain
+because the dated benchmark links to them for reproduction. The Iggy RCCL
+compatibility source remains because a current llmkube manifest still stages
+its image. Recent Radiance results remain dated benchmark evidence, with a
+pointer to the current serving manifest at the top of the report.
