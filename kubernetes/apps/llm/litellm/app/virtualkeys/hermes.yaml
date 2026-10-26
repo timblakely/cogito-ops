@@ -11,8 +11,11 @@ spec:
   keyAlias: Hermes
   secretName: litellm-key-hermes
   secretKey: api-key
-  # Workstation Paseo and cluster Hermes share this key. Allow every current
-  # catalogue alias, including paid routes, within the existing budget.
+  # Workstation Paseo and cluster Hermes share this key, and both consume it over
+  # a chat-completions provider that lists models from this key's scope. It
+  # therefore carries the LOCAL aliases only: the ChatGPT subscription aliases
+  # live on `hermes-subscription` so the Responses provider owns them and they do
+  # not show up twice in the picker (see hermes-subscription.yaml).
   # Keep the list explicit so newly added models require a scope update.
   maxBudget: "50"
   budgetDuration: 30d
@@ -25,9 +28,6 @@ spec:
     - embedder
     - reranker
     - worker
-    - gpt-6-astra
-    - gpt-6.1-sol
-    - gpt-6-luna
 ---
 apiVersion: external-secrets.io/v1alpha1
 kind: PushSecret

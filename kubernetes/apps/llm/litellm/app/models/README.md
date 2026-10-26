@@ -35,14 +35,19 @@ and ignore the model field, so theirs is a label rather than a key.
 
 **ChatGPT subscription routes.** `gpt-6-astra`, `gpt-6.1-sol`, and `gpt-6-luna`
 use LiteLLM's `chatgpt/` provider and the writable OAuth token at
-`CHATGPT_TOKEN_DIR`. They do not use OpenAI API credits. Their model IDs and
-supported efforts follow the [OpenAI model catalog](https://developers.openai.com/api/docs/models)
+`CHATGPT_TOKEN_DIR`. They do not use OpenAI API credits; `litellm-secrets` carries
+no `OPENAI_API_KEY` at all. Their model IDs and supported efforts follow the
+[OpenAI model catalog](https://developers.openai.com/api/docs/models)
 and [ChatGPT model catalog](https://learn.chatgpt.com/docs/models).
+They ride the dedicated `hermes-subscription` virtual key, scoped to exactly these
+three aliases, and are deliberately absent from the shared `hermes` key: LiteLLM
+filters `/v1/models` by key scope, so leaving them on `hermes` made a
+chat-completions client discover them *and* its Responses provider list them again.
 Paseo's Hermes agent uses a separate Responses provider for these models because
 Astra and Sol require the Responses API for tool calls. The per-model effort
 lists are published by `model-caps.yaml`; do not create one LiteLLM alias per
-effort. Subscription usage is reported as zero-dollar spend by LiteLLM, so the
-Hermes virtual key's dollar budget does not limit subscription requests.
+effort. Subscription usage is reported as zero-dollar spend by LiteLLM, so a
+virtual key's dollar budget does not limit subscription requests.
 
 Local models declare `input_cost_per_token: 0` / `output_cost_per_token: 0`.
 Not cosmetic: LiteLLM raises "This model isn't mapped yet" inside spend

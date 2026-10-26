@@ -1,0 +1,55 @@
+---
+# The ChatGPT-subscription aliases on their own credential.
+#
+# Why this exists separately: LiteLLM filters /v1/models by the key's scope, and
+# Hermes lists each provider's models from that endpoint. When the shared `hermes`
+# key carried gpt-6-astra / gpt-6.1-sol / gpt-6-luna, the workstation's
+# chat-completions provider discovered those three alongside the local lanes while
+# its Responses provider listed the same three again — one alias, two picker rows.
+# Narrowing `hermes` to local aliases and giving the subscription its own key makes
+# each alias appear exactly once, over the transport that is meant to serve it, and
+# a chat-completions caller asking for a subscription model now gets "model not
+# allowed" instead of a silently downgraded route over a transport that cannot carry
+# Responses reasoning items.
+#
+# Subscription requests are reported by LiteLLM as zero-dollar spend, so the budget
+# below cannot throttle them (see models/README.md); it is declared for parity with
+# the other keys, not as a control on this route.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: hermes-subscription
+spec:
+  proxyRef: litellm
+  keyAlias: Hermes subscription
+  secretName: litellm-key-hermes-subscription
+  secretKey: api-key
+  # Exactly the three chatgpt/ aliases. Anything added to the subscription
+  # catalogue needs to be added here as well as under models/.
+  maxBudget: "50"
+  budgetDuration: 30d
+  models:
+    - gpt-6-astra
+    - gpt-6.1-sol
+    - gpt-6-luna
+---
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: litellm-key-hermes-subscription
+spec:
+  refreshInterval: 1h
+  secretStoreRefs:
+    - kind: ClusterSecretStore
+      name: onepassword
+  selector:
+    secret:
+      name: litellm-key-hermes-subscription
+  updatePolicy: Replace
+  deletionPolicy: None
+  data:
+    - match:
+        secretKey: api-key
+        remoteRef:
+          remoteKey: litellm
+          property: LITELLM_HERMES_SUBSCRIPTION_API_KEY
