@@ -1,7 +1,7 @@
 ---
 name: cogito-litellm-key-scope-edit
 description: "Use when editing LiteLLM virtual key scopes in cogito."
-version: 1.1.0
+version: 1.2.0
 author: Hermes Agent
 license: MIT
 metadata:
@@ -58,6 +58,31 @@ silently served on the wrong transport, which is how reasoning items get dropped
    fetch — never copied from terminal output, which masks secrets) and distinct
    `display_name`s so the transports are distinguishable. The picker renders one
    row per provider block, so a model visible to both blocks always duplicates.
+
+## Adding an alias to the subscription catalogue
+
+One new alias is four edits plus one manual step: `models/<alias>.yaml`, that
+directory's `kustomization.yaml` resource list, the `models:` list of the key that
+serves it (`virtualkeys/hermes-subscription.yaml`), and `model-caps.yaml` — then the
+manual `/key/update` above, because the key is already issued. Prove it with
+`scripts/validate-llm-catalogue.py` (the modelNames count must rise), `kustomize
+build` of `.../litellm/app` (the app dir, not its parent), and
+`kubectl apply --dry-run=server` on a filtered set.
+
+Two caches lie to you while this lands, in this order:
+
+- `/v1/models` is filtered by the KEY SCOPE, not by the router, so a brand-new
+  alias appears there the moment the key scope changes even when the proxy cannot
+  serve it. The real test is a `/v1/responses` call: `400 Invalid model name passed
+  in` means the router has no deployment for it yet. That usually means the proxy
+  Pod has not finished rolling — during a rollout the OLD ReplicaSet pod keeps
+  serving, so `kubectl -n llm rollout status deploy/litellm` before believing the
+  400 is a config bug.
+- the `model-caps` Deployment merges `caps.json` into a snapshot of upstream
+  `/v1/models` and holds that snapshot; if its pod restarts while the proxy still
+  advertises the old list it stays short one model. `kubectl -n llm rollout restart
+  deploy/model-caps` after the proxy is serving the alias, then re-read
+  `/caps/v1/models` and count.
 
 ## Notes
 - Hermes key secret: litellm-key-hermes; provider bootstrap also strips/registers model_aliases.

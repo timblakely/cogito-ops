@@ -174,6 +174,12 @@ Use this skill when a model's thinking/reasoning levels need to be added, correc
 - Do not hand-edit `config.yaml`; use `hermes config set` so YAML structure and profile-specific paths remain safe.
 - Do not report a reasoning correction as complete from resolver output alone; verify the provider's request passthrough and live response behavior as well.
 
+## Client-side (Hermes) pitfalls
+
+- A dedicated virtual key whose scope IS the catalogue should set `discover_models: true` on its provider block, so the picker follows the key scope and a newly published alias needs no client edit. Hand-listing models is only justified when the key over-shares — that over-share was the duplicate-row cause on the shared `hermes` key.
+- `hermes config set` splits the dotted path naively, so a model id containing dots (`gpt-6.1-terra`) cannot be set as a key: it would create a bogus nested `gpt-6` entry. Prefer discovery, or have the human edit the file (the agent is guard-blocked from editing `~/.hermes/config.yaml`).
+- `hermes config get <provider>.key_env` prints the resolved key VALUE rather than the variable name, putting a live credential into the transcript. Read the YAML text instead.
+
 ## Verification Checklist
 
 - Exact provider/model route is identified.
