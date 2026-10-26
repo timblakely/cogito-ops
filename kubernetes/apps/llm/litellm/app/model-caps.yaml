@@ -39,6 +39,10 @@ data:
         "supported_efforts": ["none", "low", "medium", "high", "xhigh", "max"],
         "mandatory": false
       },
+      "gpt-6.1-terra": {
+        "supported_efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+        "mandatory": false
+      },
       "Muse-Glimmer-30B": {
         "supported_efforts": [],
         "mandatory": true
@@ -72,6 +76,19 @@ data:
   # xhigh prompt. These are template controls, not measured token-budget tiers.
   #
   # google/gemma-4-12b-it: same shape - none -> 0 chars, xhigh ~ omitted. -> ["none"].
+  #
+  # ChatGPT subscription aliases (Oct 26 2026, POST to the Codex /responses
+  # backend with the subscription token, which is authoritative because LiteLLM
+  # gates reasoning_effort against its own built-in map): a bogus effort returns
+  # the generic list `none, minimal, low, medium, high, xhigh, max`, and the
+  # per-model rejections below are what actually holds. `ultra` appears in
+  # /models metadata as a multi-agent mode and is never a wire effort.
+  #   gpt-6-astra, gpt-6.1-sol -> `none` 400s ("not supported with the ... model.
+  #     Supported values are: low, medium, high, xhigh, max") and `minimal` 400s,
+  #     so thinking is mandatory and the ladder starts at low.
+  #   gpt-6-luna, gpt-6.1-terra -> `none` 200s with 0 reasoning tokens and
+  #     `minimal` 400s, so the off switch is real and the ladder starts at none.
+  #     `max` measured 24 reasoning tokens on a one-word prompt vs 0 at low.
   #
   # Qwen/Qwen3.8-27B-INT8-W8A16: deliberately absent (pod was not running when
   # probed; unknown must stay unknown).

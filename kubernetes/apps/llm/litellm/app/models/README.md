@@ -33,14 +33,18 @@ the backend's `--served-model-name` or the request 404s at the backend. The
 llama.cpp lanes (embedder, reranker) launch without a served-model name at all
 and ignore the model field, so theirs is a label rather than a key.
 
-**ChatGPT subscription routes.** `gpt-6-astra`, `gpt-6.1-sol`, and `gpt-6-luna`
-use LiteLLM's `chatgpt/` provider and the writable OAuth token at
+**ChatGPT subscription routes.** `gpt-6-astra`, `gpt-6.1-sol`, `gpt-6.1-terra`,
+and `gpt-6-luna` use LiteLLM's `chatgpt/` provider and the writable OAuth token at
 `CHATGPT_TOKEN_DIR`. They do not use OpenAI API credits; `litellm-secrets` carries
-no `OPENAI_API_KEY` at all. Their model IDs and supported efforts follow the
-[OpenAI model catalog](https://developers.openai.com/api/docs/models)
-and [ChatGPT model catalog](https://learn.chatgpt.com/docs/models).
+no `OPENAI_API_KEY` at all. Their model IDs come from the
+[OpenAI model catalog](https://developers.openai.com/api/docs/models) and
+[ChatGPT model catalog](https://learn.chatgpt.com/docs/models), but the effort
+ladders do not: the catalogs advertise `minimal` and `ultra` for all of them, while
+the backend rejects `minimal` for every alias, rejects `none` on Astra and Sol, and
+never accepts `ultra` as a wire effort. Each ladder in `model-caps.yaml` is
+therefore probe evidence from the backend itself (see the notes beside it).
 They ride the dedicated `hermes-subscription` virtual key, scoped to exactly these
-three aliases, and are deliberately absent from the shared `hermes` key: LiteLLM
+four aliases, and are deliberately absent from the shared `hermes` key: LiteLLM
 filters `/v1/models` by key scope, so leaving them on `hermes` made a
 chat-completions client discover them *and* its Responses provider list them again.
 Paseo's Hermes agent uses a separate Responses provider for these models because
