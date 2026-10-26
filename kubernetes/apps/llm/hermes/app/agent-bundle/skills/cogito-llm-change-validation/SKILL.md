@@ -37,7 +37,13 @@ Gates for changes under `kubernetes/apps/llm/**` or `dreamcast/session-config`:
    set for shim"); call binaries directly under
    ~/.local/share/mise/installs/... instead of `mise use` (there is no
    `installs/kustomize/latest/` binary — the `~/.local/share/mise/shims/kustomize`
-   shim itself works, so try the shim before hunting paths).
+   shim itself works, so try the shim before hunting paths). A
+   `terminal(background=true)` job does NOT inherit the interactive shell's mise
+   selection, so a backgrounded watcher/probe calling bare `kubectl` dies at once
+   with that shim error — use `~/.local/share/mise/shims/kubectl` in background
+   jobs. Its shell redirect also truncates the output artifact with the error
+   text, so a foreground re-run must overwrite (never append) and the file must
+   be re-checked for real rows before it is quoted.
 - **Rolling an LLM lane can kill your own session**: this agent's model is often
    a LiteLLM alias pointing at the very InferenceService being upgraded (model
    `flashnext-deleuze` == the `radiance` lane on deleuze). Finish every edit,
@@ -50,6 +56,13 @@ Gates for changes under `kubernetes/apps/llm/**` or `dreamcast/session-config`:
 3. Fastest real gate: `kubectl apply --dry-run=server` on the rendered docs of
    just the touched objects (export KUBECONFIG=/home/tim/git/cogito/kubeconfig).
    Exercises CRD schema + llmkube webhook admission; persists nothing.
+   Build that filtered set with `yaml.safe_dump_all(keep, explicit_start=True)`:
+   concatenating per-doc `safe_dump()` output under a single leading `---` yields
+   a file whose earlier documents get swallowed, and kubectl then admits ONLY the
+   last object while still exiting 0 — the gate passes having validated 1 of 4.
+   Never truncate that apply's output through a filter; capture it to a file,
+   count the admitted lines against the objects you intended, and read `rc` from
+   the apply itself.
 4. CI parity flux-local (`.github/workflows/flux-local.yaml`, image
    ghcr.io/allenporter/flux-local v8.4.0) via podman requires ALL of:
    - workspace copy under /var/tmp (SELinux: `:z` on $HOME fails; scratch dirs
@@ -115,7 +128,7 @@ Gates for changes under `kubernetes/apps/llm/**` or `dreamcast/session-config`:
   `kubectl describe pod` Events (Pulling/Pulled durations) before touching
   the spec or suspecting the resize.
 
-# Flux Job health checks and staging loops
+# Flux health-check stalls and staging loops
 
 - A registered batch Job is applied AND health-checked by its Kustomization: as
   long as it never reaches Complete the shared KS sits `Ready=False` with
@@ -123,6 +136,18 @@ Gates for changes under `kubernetes/apps/llm/**` or `dreamcast/session-config`:
   which makes every *unrelated* change inside that KS look stuck as well.
   Deleting the doomed Job out-of-band does not stop this — the next sync
   recreates it from git.
+- Any health-check dependency stalls the whole KS the same way, not just Jobs. A
+  node going `Ready=Unknown` ("Kubelet stopped posting node status") leaves its
+  pods orphaned and wedged in `Terminating`, so e.g. CNPG reports
+  `Cluster Ready=False / ClusterIsNotReady` and the KS sits on
+  "timeout waiting for: Cluster/<ns>/<name> status: 'InProgress'" indefinitely,
+  with every dependent KS blocked behind it. Snapshot `kubectl get kustomizations
+  -A` BEFORE editing so a red KS is attributed to its real cause instead of
+  absorbed into your change. Flux applies manifests before health-checking, so
+  your objects DID land even while the KS is False — prove it by reading the
+  objects (`kubectl get <kind> <name>`, PushSecret/CR conditions), never by KS
+  status, and report the underlying outage rather than force-deleting someone
+  else's wedged database replica mid-incident.
 - Only two correct endings: fix the cause, or hold the file back. The resources
   kustomization lists files EXPLICITLY, so moving the Job into its own file and
   dropping that one line prunes it; keep the claim/PVC registered (it costs

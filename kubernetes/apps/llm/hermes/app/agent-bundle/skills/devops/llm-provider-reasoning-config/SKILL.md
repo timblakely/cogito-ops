@@ -122,6 +122,49 @@ Use this skill when a model's thinking/reasoning levels need to be added, correc
   backend doesn't implement — for Muse the honest caps are
   supports_reasoning: true, supported_efforts: null, no disable.
 
+## ChatGPT/Codex subscription route (`chatgpt/*` in LiteLLM), verified Oct 2026
+
+- Authoritative per-model ladder: the backend's own 400 body. POST
+  `chatgpt.com/backend-api/codex/responses` with a bogus effort and it enumerates
+  the accepted set per slug; `reasoning.effort=<off>` on a model without an off
+  switch answers "Unsupported value: 'none' is not supported with the 'X' model.
+  Supported values are: ...". A 400 from the LiteLLM proxy is NOT this evidence —
+  LiteLLM gates effort against its built-in `chatgpt/<model>` map
+  (`supports_none/minimal/xhigh/max_reasoning_effort` in
+  model_prices_and_context_window_backup.json) and rejects before the wire, so
+  proxy-verdict and backend-verdict can disagree.
+- `GET chatgpt.com/backend-api/codex/models?client_version=<v>` is the picker
+  truth but is **version-filtered**: at `client_version=0.0.0` (the version
+  LiteLLM's own User-Agent claims) the list shows only the 5.6 generation and
+  reads as "gpt-6.1-sol / gpt-6-luna do not exist". ≥0.159.0 adds gpt-6.1-sol,
+  gpt-6.1-terra, gpt-6-sol, gpt-6-luna. Never conclude a slug is unentitled from
+  a low client_version, and remember `supported_reasoning_levels` there is the
+  PRODUCT ladder, not the wire vocabulary.
+- `ultra` is the product's top picker level (Astra/Sol/Terra, subagent-orchestrated;
+  `/models` pairs it with `multi_agent_reasoning_effort`) and is NOT a wire
+  `reasoning.effort` value — the backend 400s it with the global enum
+  `none, minimal, low, medium, high, xhigh, max`. So a caps document that stops at
+  `max` is correct even though ChatGPT shows one more level; write that reason next
+  to the entry or the next reader will "fix" it by adding `ultra` and break every
+  request. Hermes mirrors this: `EFFORT_LADDER` has `ultra` internally,
+  `OPENAI_COMPAT_WIRE_EFFORTS` stops at `max`, and `codex_supported_efforts()`
+  already keys `gpt-6-astra` + `NO_DISABLE_TIER_PREFIXES=('gpt-6.1-sol',)` to
+  `low..max` and `GPT6_TIER_PREFIXES=('gpt-6-sol','gpt-6-luna')` to
+  `none..max` — verified identical to the backend for all three cogito aliases.
+- Effort really is graded on this route (fixed prompt, reasoning_tokens from
+  `usage.output_tokens_details`): astra/sol omit≈low→0 reasoning tokens, max→~270;
+  luna none→0 vs omit→71, so luna's `none` is a working off switch and
+  `mandatory: false` is right, while astra/sol `mandatory: true` is right.
+- Consumer trap that survives a CORRECT caps document: `caps.get_caps()` is
+  cache-only and warming is background-only, so a short-lived process reads
+  whatever disk mirror was last written (`~/.hermes/cache/litellm_caps.json`, or
+  `$HERMES_HOME/cache/` in the cluster agent) — a mirror older than the alias's
+  ship date returns None, and "None" falls back to the bundled widest ladder,
+  which advertises `none`/`minimal` on models where both 400. Fix for a live box:
+  call the plugin's `caps.fetch(caps_url)` once (it rewrites the mirror), or
+  restart the consumer so it warms; the structural weakness is that absence
+  defaults to the WIDEST vocabulary instead of the honest unknown.
+
 ## Pitfalls
 
 - Do not add a `supported_efforts` list to a local override unless the consuming code reads it; provider capability metadata and override shape are separate, and decorative keys create false confidence.
