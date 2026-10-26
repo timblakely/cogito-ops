@@ -15,10 +15,11 @@
 # The LiteLLMProxy CRD has no sidecar field, so this is a sibling Deployment
 # next to the proxy rather than an actual sidecar container.
 #
-# caps.json is derived from LIVE PROBES of each backing runtime (see the notes
-# beside each entry; reproducers in the Hermes scratch scripts). A model with no
-# entry is passed through with NO reasoning block, which consumers parse as
-# "unknown" and fall back to their prior behavior — never a guessed verdict.
+# Local-model entries are derived from live probes of each backing runtime (see
+# the notes beside each entry; reproducers in the Hermes scratch scripts).
+# OpenAI entries follow the published model catalog. A model with no entry is
+# passed through with NO reasoning block, which consumers parse as "unknown"
+# and fall back to their prior behavior — never a guessed verdict.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -26,6 +27,18 @@ metadata:
 data:
   caps.json: |
     {
+      "gpt-6-astra": {
+        "supported_efforts": ["low", "medium", "high", "xhigh", "max"],
+        "mandatory": true
+      },
+      "gpt-6.1-sol": {
+        "supported_efforts": ["low", "medium", "high", "xhigh", "max"],
+        "mandatory": true
+      },
+      "gpt-6-luna": {
+        "supported_efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+        "mandatory": false
+      },
       "Muse-Glimmer-30B": {
         "supported_efforts": [],
         "mandatory": true

@@ -24,7 +24,7 @@ instance:
       app.kubernetes.io/name: flux
   kustomize:
     patches:
-      - # Increase the number of workers
+      - # Increase Helm and source controller workers
         patch: |
           - op: add
             path: /spec/template/spec/containers/0/args/-
@@ -34,7 +34,7 @@ instance:
             value: --requeue-dependency=5s
         target:
           kind: Deployment
-          name: (kustomize-controller|helm-controller|source-controller)
+          name: (helm-controller|source-controller)
       - # Increase the memory limits
         patch: |
           apiVersion: apps/v1
@@ -52,17 +52,50 @@ instance:
         target:
           kind: Deployment
           name: (kustomize-controller|helm-controller|source-controller)
-      - # Enable in-memory kustomize builds
+      - # Keep enough kustomize workers free for children while parent
+        # Kustomizations wait in health checks (ten workers all blocked there).
         patch: |
           - op: add
             path: /spec/template/spec/containers/0/args/-
-            value: --concurrent=20
+            value: --concurrent=24
+          - op: add
+            path: /spec/template/spec/containers/0/args/-
+            value: --requeue-dependency=5s
           - op: replace
             path: /spec/template/spec/volumes/0
             value:
               name: temp
               emptyDir:
                 medium: Memory
+        target:
+          kind: Deployment
+          name: kustomize-controller
+      - # Give the busy controller room to serve probes during reconciliation.
+        # It was repeatedly killed by 1s liveness timeouts with one CPU and
+        # 1Gi of memory, leaving every GitOps app on an old revision.
+        patch: |
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: kustomize-controller
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: manager
+                    resources:
+                      requests:
+                        cpu: 500m
+                        memory: 256Mi
+                      limits:
+                        cpu: "2"
+                        memory: 4Gi
+                    livenessProbe:
+                      timeoutSeconds: 5
+                      failureThreshold: 6
+                    readinessProbe:
+                      timeoutSeconds: 5
+                      failureThreshold: 6
         target:
           kind: Deployment
           name: kustomize-controller

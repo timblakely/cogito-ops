@@ -25,13 +25,24 @@ state, use `kubectl -n llm get litellmmodels` and
 `kubectl -n llm get litellmvirtualkeys`; an existing key's scope in LiteLLM's
 database can lag its edited resource (see the [Hermes README](../../../hermes/README.md)).
 
-**Local only.** Every entry points directly at its InferenceService's Service
-(there is no router in between; with one always-on backend there is nothing to
-dispatch across), and the string after `openai/` is the served model name. On
-the vLLM-served Qwen aliases that string must stay byte-identical to the
-backend's `--served-model-name` or the request 404s at the backend. The
-llama.cpp lanes (embedder, reranker) launch without a served-model
-name at all and ignore the model field, so theirs is a label rather than a key.
+**Local routes.** Local entries point directly at their InferenceService's
+Service (there is no router in between; with one always-on backend there is
+nothing to dispatch across), and the string after `openai/` is the served model
+name. On the vLLM-served Qwen aliases that string must stay byte-identical to
+the backend's `--served-model-name` or the request 404s at the backend. The
+llama.cpp lanes (embedder, reranker) launch without a served-model name at all
+and ignore the model field, so theirs is a label rather than a key.
+
+**ChatGPT subscription routes.** `gpt-6-astra`, `gpt-6.1-sol`, and `gpt-6-luna`
+use LiteLLM's `chatgpt/` provider and the writable OAuth token at
+`CHATGPT_TOKEN_DIR`. They do not use OpenAI API credits. Their model IDs and
+supported efforts follow the [OpenAI model catalog](https://developers.openai.com/api/docs/models)
+and [ChatGPT model catalog](https://learn.chatgpt.com/docs/models).
+Paseo's Hermes agent uses a separate Responses provider for these models because
+Astra and Sol require the Responses API for tool calls. The per-model effort
+lists are published by `model-caps.yaml`; do not create one LiteLLM alias per
+effort. Subscription usage is reported as zero-dollar spend by LiteLLM, so the
+Hermes virtual key's dollar budget does not limit subscription requests.
 
 Local models declare `input_cost_per_token: 0` / `output_cost_per_token: 0`.
 Not cosmetic: LiteLLM raises "This model isn't mapped yet" inside spend

@@ -16,7 +16,7 @@ spec:
   # migrate deploy` at boot, and LiteLLMProxy has no migrationJob equivalent -
   # there is no database or migration field on the CRD at all, so migrations
   # have to come from the image or they stop happening.
-  image: ghcr.io/berriai/litellm-database:1.97.0@sha256:4b3226f4ccd7793d7dca6862d3681604d7ab640d8d6285be6061fd48514e6e71
+  image: ghcr.io/berriai/litellm-database:v1.105.5@sha256:87a881738240d0458a47588dd45cd819b00966ae3565786a7818e6d17d837921
 
   # Unchanged from the chart. One replica is the deliberate position: every
   # local model lives on iggy's two GPUs, so that node is the availability
@@ -60,9 +60,8 @@ spec:
     # watches the Secrets this pod references and does that automatically.
     reloader.stakater.com/auto: "true"
 
-  # PROXY_MASTER_KEY and OPENAI_API_KEY, from the single 1Password `litellm`
-  # item. Both are dereferenced from the rendered config as os.environ/NAME, so
-  # neither value is ever written into the ConfigMap.
+  # PROXY_MASTER_KEY and other provider keys come from the 1Password `litellm`
+  # item. The ChatGPT subscription routes use the mounted OAuth token below.
   envFrom:
     - secretRef:
         name: litellm-secrets
