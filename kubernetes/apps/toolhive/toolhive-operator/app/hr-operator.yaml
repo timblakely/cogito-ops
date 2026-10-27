@@ -1,0 +1,36 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/fluxcd-community/flux2-schemas/main/helmrelease-helm-v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: toolhive-operator
+spec:
+  interval: 1h
+  releaseName: toolhive-operator
+  dependsOn:
+    - name: toolhive-operator-crds
+  chartRef:
+    kind: OCIRepository
+    name: toolhive-operator
+  install:
+    timeout: 5m
+    remediation:
+      retries: 1
+  upgrade:
+    timeout: 5m
+    remediation:
+      retries: 1
+  values:
+    operator:
+      replicaCount: 1
+      # v0.58.0 multi-arch index digests (verified against GHCR 2026-10-27).
+      image: ghcr.io/stacklok/toolhive/operator@sha256:7518a095b47d774c26eff0c50607ca1de77313adf7e0ae6c49d01938690cea6b
+      toolhiveRunnerImage: ghcr.io/stacklok/toolhive/proxyrunner@sha256:67369b998ebd42049675634f158691a2abf4653cd59972e8f512f79106f4bfe8
+      rbac:
+        # Toy deployment: watch only this namespace instead of the whole
+        # cluster. Namespace scope REQUIRES storageVersionMigrator=false.
+        scope: namespace
+        allowedNamespaces:
+          - toolhive
+      features:
+        storageVersionMigrator: false
