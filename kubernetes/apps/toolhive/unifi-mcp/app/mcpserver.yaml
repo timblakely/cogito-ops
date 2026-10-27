@@ -2,9 +2,9 @@
 # Toy ToolHive deployment: unifi-mcp is reachable at
 #   http://mcp-unifi-mcp-proxy.toolhive.svc.cluster.local:8080/mcp
 # (cluster-internal only; the ToolHive proxy runs unauthenticated because no
-# oidcConfigRef/authServerRef is set -- keep it that way until this leaves
-# the toy phase). The backend itself still requires the MCP_AUTH_TOKEN bearer
-# token on every request.
+# oidcConfigRef/authServerRef is set, and the stdio backend adds no auth of
+# its own -- the ClusterIP Service is the only gate, so keep everything in
+# this namespace unexposed until OIDC is configured on the proxy).
 apiVersion: toolhive.stacklok.dev/v1beta1
 kind: MCPServer
 metadata:
@@ -14,9 +14,13 @@ spec:
   # GHCR 2026-10-27. Third-party (Apache-2.0); no official Ubiquiti MCP
   # server exists.
   image: ghcr.io/enuno/unifi-mcp-server@sha256:447125d5c11f4c823697b11fa864cfeeecdf514efabb4272b86a5c8beacd6811
-  # The image natively serves Streamable HTTP on MCP_SERVER_PORT at /mcp.
-  transport: streamable-http
-  mcpPort: 3000
+  # The image speaks MCP over stdio by default; the ToolHive proxy presents
+  # it as Streamable HTTP at /mcp. (The image can also serve HTTP natively,
+  # but that mode requires its own bearer token; stdio keeps this toy to a
+  # single credential -- the UniFi API key. stdio is single-client by
+  # design, so replicas stay at 1.)
+  transport: stdio
+  proxyMode: streamable-http
   proxyPort: 8080
   replicas: 1
   backendReplicas: 1
@@ -42,21 +46,12 @@ spec:
       value: "false"
     - name: UNIFI_AUDIT_LOG_ENABLED
       value: "false"
-    - name: MCP_SERVER_TRANSPORT
-      value: streamable_http
-    - name: MCP_SERVER_HOST
-      value: 0.0.0.0
-    - name: MCP_SERVER_PORT
-      value: "3000"
     - name: LOG_LEVEL
       value: INFO
   # Secret keys are injected as the same-named env vars.
   secrets:
     - name: unifi-mcp
       key: UNIFI_API_KEY
-    - name: unifi-mcp-token
-      key: password
-      targetEnvName: MCP_AUTH_TOKEN
   resources:
     requests:
       cpu: 10m
