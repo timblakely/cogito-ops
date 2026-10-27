@@ -5,6 +5,7 @@ kind: Kustomization
 configMapGenerator:
   - name: APP-app-vars
     literals:
-      - APP=toolhive-operator
+      - APP=toolhive
+      - RESOURCES=unifi-mcp
 components:
-  - ../../../components/ks/app
+  - ../../../components/ks/app-resources

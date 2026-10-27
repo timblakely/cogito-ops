@@ -27,10 +27,11 @@ spec:
       image: ghcr.io/stacklok/toolhive/operator@sha256:7518a095b47d774c26eff0c50607ca1de77313adf7e0ae6c49d01938690cea6b
       toolhiveRunnerImage: ghcr.io/stacklok/toolhive/proxyrunner@sha256:67369b998ebd42049675634f158691a2abf4653cd59972e8f512f79106f4bfe8
       rbac:
-        # Toy deployment: watch only this namespace instead of the whole
-        # cluster. Namespace scope REQUIRES storageVersionMigrator=false.
+        # Toy deployment: watch only the namespace we live in (llm) instead
+        # of the whole cluster. Namespace scope REQUIRES
+        # storageVersionMigrator=false.
         scope: namespace
         allowedNamespaces:
-          - toolhive
+          - llm
       features:
         storageVersionMigrator: false
