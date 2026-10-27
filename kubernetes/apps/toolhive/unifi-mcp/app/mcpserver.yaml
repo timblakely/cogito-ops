@@ -1,0 +1,87 @@
+---
+# Toy ToolHive deployment: unifi-mcp is reachable at
+#   http://mcp-unifi-mcp-proxy.toolhive.svc.cluster.local:8080/mcp
+# (cluster-internal only; the ToolHive proxy runs unauthenticated because no
+# oidcConfigRef/authServerRef is set -- keep it that way until this leaves
+# the toy phase). The backend itself still requires the MCP_AUTH_TOKEN bearer
+# token on every request.
+apiVersion: toolhive.stacklok.dev/v1beta1
+kind: MCPServer
+metadata:
+  name: unifi-mcp
+spec:
+  # enuno/unifi-mcp-server v0.6.4, multi-arch index digest verified against
+  # GHCR 2026-10-27. Third-party (Apache-2.0); no official Ubiquiti MCP
+  # server exists.
+  image: ghcr.io/enuno/unifi-mcp-server@sha256:447125d5c11f4c823697b11fa864cfeeecdf514efabb4272b86a5c8beacd6811
+  # The image natively serves Streamable HTTP on MCP_SERVER_PORT at /mcp.
+  transport: streamable-http
+  mcpPort: 3000
+  proxyPort: 8080
+  replicas: 1
+  backendReplicas: 1
+  env:
+    - name: UNIFI_API_TYPE
+      value: local
+    - name: UNIFI_LOCAL_HOST
+      value: 192.168.1.1
+    - name: UNIFI_LOCAL_PORT
+      value: "443"
+    - name: UNIFI_DEFAULT_SITE
+      value: default
+    - name: UNIFI_PROFILE
+      value: network
+    # Read-only: mutating tools are never registered, so they are absent
+    # from tools/list entirely.
+    - name: UNIFI_READ_ONLY
+      value: "true"
+    # Console serves a self-signed cert; verification is off for this toy.
+    # Upgrade path: mount the console CA PEM and set UNIFI_LOCAL_CA_FILE
+    # with UNIFI_LOCAL_VERIFY_SSL=true instead.
+    - name: UNIFI_LOCAL_VERIFY_SSL
+      value: "false"
+    - name: UNIFI_AUDIT_LOG_ENABLED
+      value: "false"
+    - name: MCP_SERVER_TRANSPORT
+      value: streamable_http
+    - name: MCP_SERVER_HOST
+      value: 0.0.0.0
+    - name: MCP_SERVER_PORT
+      value: "3000"
+    - name: LOG_LEVEL
+      value: INFO
+  # Secret keys are injected as the same-named env vars.
+  secrets:
+    - name: unifi-mcp
+      key: UNIFI_API_KEY
+    - name: unifi-mcp-token
+      key: password
+      targetEnvName: MCP_AUTH_TOKEN
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  podTemplateSpec:
+    spec:
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      containers:
+        # Name 'mcp' is how the operator identifies the backend container.
+        - name: mcp
+          volumeMounts:
+            # Default profile is readOnlyRootFilesystem; the app wants
+            # scratch space and writes (if anything) under /app/logs.
+            - name: tmp
+              mountPath: /tmp
+            - name: tmp
+              mountPath: /app/logs
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi

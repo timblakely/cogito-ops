@@ -1,0 +1,21 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: APP-app-vars
+    literals:
+      - APP=unifi-mcp
+components:
+  - ../../../components/ks/app
+patches:
+  # The MCPServer CRD only exists after the operator Kustomization has
+  # installed it; order the app Kustomizations explicitly.
+  - patch: |-
+      - op: add
+        path: /spec/dependsOn
+        value:
+          - name: toolhive-operator
+    target:
+      kind: Kustomization
+      group: kustomize.toolkit.fluxcd.io
