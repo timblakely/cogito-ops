@@ -1,0 +1,229 @@
+---
+# Stage the ComfyUI model set onto amnesia's NVMe, once, verified.
+#
+# Every file is pinned by repo revision AND sha256. This is not ceremony: the
+# encoder repo and the quant repo are both moving targets on Hugging Face, and
+# a silently-replaced 12 GB blob shows up as "the renders got worse", which is
+# an extremely unpleasant thing to debug over a weekend.
+#
+# WHAT IS STAGED, AND WHY THESE
+#
+# Video (MiniMax H3, the NVFP4-rotated line the owner picked):
+#   diffusion_models/h3_base_T1.safetensors   11.68 GiB  the DiT; the whole
+#                                              point is that this is one file
+#                                              that sits resident on a 16 GiB
+#                                              Blackwell card on the native
+#                                              W4A4 kernel. 8-step quality
+#                                              line - the FastH3 4-step
+#                                              sibling flickers on neon/water.
+#   text_encoders/...Q3_K_S_vis.gguf          11.78 GiB  Qwen3-VL 32B encoder
+#                                              as one GGUF with the vision
+#                                              tower merged in, so
+#                                              CLIPLoaderGGUF needs no sidecar
+#                                              mmproj file. The `_vis` variant
+#                                              because image-conditioned runs
+#                                              are a goal of this experiment.
+#   vae/minimax_h3_video_vae_fp16.safetensors  4.85 GiB
+#   vae/minimax_h3_audio_vae_fp32.safetensors  0.56 GiB  H3 generates audio in
+#                                              the same denoising pass; without
+#                                              this VAE the latents decode to
+#                                              silent video.
+#   loras/...turbo_4step...bf16.safetensors    1.82 GiB  optional 4-step
+#                                              distillation for production
+#                                              passes. Never stacked with
+#                                              EasyCache/TeaCache: the caches
+#                                              skip steps the LoRA already
+#                                              removed (measured 0/8 skipped).
+#   embeddings/minimaxh3_kiss_camera.safetensors 1 MiB   the "Camera" control
+#                                              embeddings; tiny, and a headline
+#                                              H3 feature.
+#
+# Image, two lines on purpose:
+#   checkpoints/RealVisXL_V5.0_fp16.safetensors  6.46 GiB  SDXL. Chosen for the
+#   vae/sdxl_vae.safetensors                     0.31 GiB  thing the owner
+#                                              actually asked for: realistic
+#                                              humans plus the depth of the
+#                                              Civitai LoRA library. Nothing
+#                                              else is close on the second
+#                                              half of that sentence.
+#   diffusion_models/flux-2-klein-4b.safetensors 7.22 GiB  FLUX.2 Klein 4B
+#   text_encoders/qwen_3_4b_fp4_flux2.safetensors 3.58 GiB (FP4 encoder cut)
+#   vae/flux2-vae.safetensors                    0.31 GiB  The current-
+#                                              generation side: newer
+#                                              architecture, better prompt
+#                                              following and text rendering,
+#                                              ~11 GiB resident so it can run
+#                                              while the card is otherwise
+#                                              idle. Its LoRA library does NOT
+#                                              accept FLUX.1 LoRAs - FLUX.2
+#                                              retrained the latent space, VAE
+#                                              and text encoder - which is
+#                                              exactly why the SDXL line above
+#                                              stays in the set.
+#
+# Civitai LoRAs are NOT staged here: they need an account token and manual
+# terms acceptance. Drop them into the `loras/` directory of the comfyui-data
+# volume (kubectl cp, or the UI's upload) - see README.md.
+#
+# Job pod templates are immutable and Flux prunes the old Job when the rendered
+# object changes: rotate metadata.name when changing this file, and note that
+# YAML comments are stripped, so comment-only edits do not recreate it.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: comfyui-stage-weights-v2
+  annotations:
+    kustomize.toolkit.fluxcd.io/force: Enabled
+  labels:
+    app.kubernetes.io/name: comfyui-stage-weights
+spec:
+  # ~30 GiB of first-time download plus a sha256 pass over every byte twice.
+  activeDeadlineSeconds: 10800
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: comfyui-stage-weights
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: amnesia
+      # Never-preempt, lowest class: a weight download must not be the reason
+      # an inference lane loses its pod, and on this node that is a hard rule.
+      # The Job waits instead. It asks for no GPU.
+      priorityClassName: llmkube-batch
+      containers:
+        - name: stage
+          image: docker.io/library/python:3.13-slim
+          env:
+            - name: HOME
+              value: /tmp
+            - name: HF_HOME
+              value: /tmp/huggingface
+            - name: PIP_DISABLE_PIP_VERSION_CHECK
+              value: "1"
+          command:
+            - sh
+            - -ec
+            - |
+              M=/data/models
+              mkdir -p "$M/diffusion_models" "$M/text_encoders" "$M/vae" \
+                       "$M/loras" "$M/checkpoints" "$M/embeddings" \
+                       /data/output /data/input /data/user /data/temp
+
+              # dir|repo|revision|path|sha256
+              cat > /tmp/want.tsv <<'TSV'
+              diffusion_models|pottokao/MiniMax-H3-NVFP4-rotated|2dd1a4e33f5ac4270f1136aa37311296e6745deb|h3_base_T1.safetensors|303d2dd6178ff32586fb93f3e0a600a95f1d918f87e0ce8b37b4ce2de79f89b3
+              text_encoders|pottokao/MiniMax-H3-TextEncoder-Qwen3VL-32B-abliterated-GGUF|fcab56761c77a203f93c40722181cbc773a34615|MiniMax-H3-TextEncoder-Qwen3VL-32B-abliterated-Q3_K_S_vis.gguf|74b04cd89568fe4e74f371ebec3c52bbe16ffe25a9f3ba0c50687db556e6151d
+              vae|Comfy-Org/MiniMax-H3|912b6e38b2092ec4d2e86d24183e0d59ea059d48|minimax_h3_video_vae_fp16.safetensors|7c1f131492e7eddacaac9069a61b81bdd39de5cc96561e677c5eab1cdce5e522
+              vae|Comfy-Org/MiniMax-H3|912b6e38b2092ec4d2e86d24183e0d59ea059d48|minimax_h3_audio_vae_fp32.safetensors|8e505d95dd1561d47abd43d4238fd40d9bb1ae9e147ed0a4cba778d76ae4db48
+              loras|Comfy-Org/MiniMax-H3|912b6e38b2092ec4d2e86d24183e0d59ea059d48|minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors|c396a9a06f58399e9df9754b18299818d84a2ddd371724ba48fe4a41221437dc
+              embeddings|Comfy-Org/MiniMax-H3|912b6e38b2092ec4d2e86d24183e0d59ea059d48|minimaxh3_kiss_camera.safetensors|9da82f56c26f2a81b80803a31486d31036c122112203b62d4991759a90ddf4b8
+              checkpoints|SG161222/RealVisXL_V5.0|ac93e0dda1f6d448cae19bbfab8c5e720a5e48bc|RealVisXL_V5.0_fp16.safetensors|6a35a7855770ae9820a3c931d4964c3817b6d9e3c6f9c4dabb5b3a94e5643b80
+              vae|madebyollin/sdxl-vae-fp16-fix|207b116dae70ace3637169f1ddd2434b91b3a8cd|sdxl_vae.safetensors|235745af8d86bf4a4c1b5b4f529868b37019a10f7c0b2e79ad0abca3a22bc6e1
+              diffusion_models|Comfy-Org/Flux-2-Klein-4B|5b3abca5c0dc1ecd4eaf3340868d09063fc1c965|flux-2-klein-4b.safetensors|ec3d4e733a771f61c052fb4856c48b336c55eaf2c65487c2a1faeb9bbda7a343
+              text_encoders|Comfy-Org/Flux-2-Klein-4B|5b3abca5c0dc1ecd4eaf3340868d09063fc1c965|qwen_3_4b_fp4_flux2.safetensors|3eab03a77adb0ee5304a4e677d5c10ac22f9049c1d7c894adca4f8bb39206ca8
+              vae|Comfy-Org/Flux-2-Klein-4B|5b3abca5c0dc1ecd4eaf3340868d09063fc1c965|flux2-vae.safetensors|868fe7b343cc8f3a19dbcfcafbc3d5f888802be3f89bd81b65b3621a066ce8f3
+              TSV
+
+              # The source path inside each repo differs from the destination
+              # file name for the two Comfy-Org repos, whose trees are already
+              # organised by ComfyUI model type:
+              #   Comfy-Org/MiniMax-H3       vae/<file>, loras/<file>, ...
+              #   Comfy-Org/Flux-2-Klein-4B  split_files/<dir>/<file>
+              # and both pottokao repos keep their single file at the root.
+              #
+              # Do NOT "simplify" the subject back to `case "$2|$4"` with
+              # patterns like `Comfy-Org/MiniMax-H3|*`. In shell case syntax `|`
+              # is pattern alternation, not a literal: that pattern means
+              # "Comfy-Org/MiniMax-H3, or anything at all", so every repo matched
+              # the first branch and the first download asked HF for
+              # diffusion_models/h3_base_T1.safetensors - a path that does not
+              # exist in pottokao/MiniMax-H3-NVFP4-rotated. That is exactly how
+              # the first live run of this Job died. Branch on the repo alone.
+              srcpath() {
+                case "$2" in
+                  Comfy-Org/MiniMax-H3)      echo "$1/$4" ;;
+                  Comfy-Org/Flux-2-Klein-4B) echo "split_files/$1/$4" ;;
+                  *)                         echo "$4" ;;
+                esac
+              }
+
+              verify_all() {
+                ok=1
+                while IFS='|' read -r dir repo rev file sha; do
+                  [ -f "$M/$dir/$file" ] || { echo "missing $M/$dir/$file"; ok=0; continue; }
+                  got=$(sha256sum "$M/$dir/$file" | cut -d' ' -f1)
+                  [ "$got" = "$sha" ] || { echo "SHA MISMATCH $M/$dir/$file ($got)"; ok=0; }
+                done < /tmp/want.tsv
+                [ "$ok" = 1 ]
+              }
+
+              # Fast path, same reason as every other cache-prime Job here:
+              # this object is force-recreated whenever its rendering changes,
+              # and re-shingilling 30 GiB to discover nothing moved is both
+              # slow and hard on the disk that serving pods also read from.
+              if [ -f /data/.weights-v1.promoted ] && verify_all; then
+                echo "all $(wc -l < /tmp/want.tsv) files present and sha256-verified; nothing to do"
+                du -sh "$M"
+                exit 0
+              fi
+
+              python -m venv /tmp/venv
+              /tmp/venv/bin/pip install --no-cache-dir "huggingface_hub[cli]"
+
+              while IFS='|' read -r dir repo rev file sha; do
+                src=$(srcpath "$dir" "$repo" "$rev" "$file")
+                dst="$M/$dir/$file"
+                if [ -f "$dst" ] && [ "$(sha256sum "$dst" | cut -d' ' -f1)" = "$sha" ]; then
+                  echo "ok   $dir/$file"
+                  continue
+                fi
+                # Not ${rev:0:12}: /bin/sh in python:3.13-slim is dash, and dash
+                # has no substring expansion - it would abort the first download
+                # with "Bad substitution" long before anything was written.
+                echo "get  $repo @ $rev :: $src"
+                rm -rf /tmp/dl && mkdir -p /tmp/dl
+                # Download to the Job's own scratch (node disk, 356 GiB free),
+                # verify there, then move onto the volume: a truncated transfer
+                # must never be able to land as an installed weight.
+                /tmp/venv/bin/hf download "$repo" "$src" --revision "$rev" \
+                  --local-dir /tmp/dl --max-workers 4
+                got=$(sha256sum "/tmp/dl/$src" | cut -d' ' -f1)
+                [ "$got" = "$sha" ] || { echo "sha256 mismatch for $src: $got"; exit 1; }
+                # cp -L, not mv: hf is allowed to leave a symlink in --local-dir
+                # pointing into its own blob cache, and mv would move that link
+                # onto the volume - a dangling one, because HF_HOME lives in the
+                # Job's emptyDir and is deleted when the Job ends. Then verify
+                # the bytes that are actually installed, not the bytes that were
+                # downloaded, and only then make them visible under $M.
+                cp -fL "/tmp/dl/$src" "$dst.partial"
+                got=$(sha256sum "$dst.partial" | cut -d' ' -f1)
+                [ "$got" = "$sha" ] || { echo "sha256 mismatch after copy for $dst: $got"; exit 1; }
+                mv "$dst.partial" "$dst"
+              done < /tmp/want.tsv
+
+              verify_all
+              touch /data/.weights-v1.promoted
+              du -sh "$M"/* 
+          resources:
+            requests:
+              cpu: "2"
+              memory: 2Gi
+            limits:
+              # sha256sum is streaming; the ceiling is for the hf client's
+              # parallel range buffers, not for the models.
+              memory: 8Gi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: comfyui-data
+        - name: tmp
+          emptyDir: {}

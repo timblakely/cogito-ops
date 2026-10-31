@@ -1,0 +1,186 @@
+---
+# ComfyUI on amnesia's RTX 5070 Ti - an experiment, not a service.
+#
+# TENANCY. One heavy tenant at a time on this card. The Deployment claims both
+# advertised time-sliced units (`nvidia.com/gpu: 2`), which is how the gemma
+# lane already behaves there: the units are not capacity, they are a lock, and
+# taking only one would let a second tenant allocate VRAM behind our back on a
+# card with no SR-IOV and no MPS. Preemption does the rest:
+#
+#   nothing running        gemma-4-12b holds the card (llmkube-low, 1000)
+#   scale this to 1        scheduler cannot fit 2 GPU units -> gemma is evicted
+#   gaming session starts  gaming-interactive (20000) evicts this pod
+#   scale this to 0        gemma's pending pod schedules again by itself
+#
+# Preemption here is eviction, not pause. A half-finished render is gone; there
+# is no resume. Budget a clip at ~66 s warm (480p, 124 frames, 8 steps) and
+# expect to lose one if someone sits down to play.
+#
+# REPLICA COUNT IS GIT-OWNED. Flux re-applies `replicas: 0` on every reconcile
+# (30m, and immediately on push), so a `kubectl scale` that survives a minute
+# does not survive the sync. Two honest ways to run it, both in README.md:
+# suspend the two comfyui Kustomizations for the session, or commit replicas 1.
+#
+# The image is built by .github/workflows/comfyui-h3-image.yaml from
+# services/comfyui-h3/Dockerfile: ComfyUI v0.34.2 + nunchaku NVFP4 kernel +
+# the pottokao H3RotNVFP4Loader + ComfyUI-GGUF, all pinned by revision. Nothing
+# is pip-installed at container start on purpose - a pod that needs the network
+# to become usable is a pod that fails while nobody is watching.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: comfyui
+spec:
+  # Off until someone asks for it. See the README for the session procedure.
+  replicas: 0
+  revisionHistoryLimit: 2
+  strategy:
+    # The PVC is RWO and holds the sqlite database; two pods mounting it is a
+    # corrupt-database story, not a rolling update.
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: comfyui
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: comfyui
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: amnesia
+      # Above the LLM lane, far below gaming. See priority-class.yaml.
+      priorityClassName: comfyui-interactive
+      runtimeClassName: nvidia
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      # A render is disposable; do not make a node drain wait for one.
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: comfyui
+          # Digest-pinned, not the moving `comfyui-v0.34.2` tag the image
+          # workflow also pushes: a rebuild must not silently change the VRAM
+          # profile of a card that has no capacity to spare.
+          #   ghcr.io/timblakely/comfyui-h3:comfyui-v0.34.2
+          #   ghcr.io/timblakely/comfyui-h3:5d4c77569e2d88224534b721ffb4045eca3f4c39
+          # both resolve to this OCI index (856-byte manifest, anonymous pull
+          # verified, so no imagePullSecrets - same as cuda-dev). Published by
+          # the ComfyUI H3 Image workflow, run 41384580988, from the Dockerfile
+          # now on main. Bump by re-running that workflow and replacing this
+          # line; never repoint it at the tag.
+          # renovate: datasource=docker depName=ghcr.io/timblakely/comfyui-h3
+          image: ghcr.io/timblakely/comfyui-h3@sha256:28bf210e8c9858c80ef8815c222e6b4819feb01c00b0193874bb0cd7b94fd056
+          # No `command:` on purpose: the image ENTRYPOINT is `python main.py`
+          # (podman inspect on the built image), so these args are appended to
+          # it. A command: [/entrypoint.sh] override would fail at start.
+          args:
+            - --listen
+            - 0.0.0.0
+            - --port
+            - "8188"
+            # Community-measured on Blackwell: the ck backend roughly halved
+            # H3 step time on a 5070 Ti-class card, while SageAttention made
+            # low-VRAM cards 2.5-3x SLOWER because its own workspace pushed
+            # more of the model into RAM. Do not "optimise" this flag away.
+            - --use-ck-attention
+            # Everything mutable lives on the PVC; the image's install
+            # directory stays as built.
+            - --models-directory
+            - /data/models
+            - --input-directory
+            - /data/input
+            - --output-directory
+            - /data/output
+            - --user-directory
+            - /data/user
+            - --temp-directory
+            - /data/temp
+            # Deliberately absent, each for a measured reason:
+            #   --disable-smart-memory  would force the 11.8 GiB GGUF encoder
+            #     and the 11.7 GiB DiT to be resident at once. Default smart
+            #     memory swaps them, and that swap is what makes 16 GiB work.
+            #   --cpu / --gpu-only      same story from the other direction.
+            #   --lowvram               escape hatch if the peak comes in above
+            #     the authored 13.6 GiB; it costs speed, so it is a decision,
+            #     not a default.
+            #   --fast                  trades output quality for speed, and
+            #     the point of this experiment is to judge output quality.
+          env:
+            # compute,utility only - this container never needs graphics or
+            # video, and NVIDIA_VISIBLE_DEVICES is left unset so the device
+            # plugin decides which units the pod sees.
+            - name: NVIDIA_DRIVER_CAPABILITIES
+              value: compute,utility
+            - name: HOME
+              value: /data
+            - name: HF_HOME
+              value: /data/.cache/huggingface
+            - name: TORCH_HOME
+              value: /data/.cache/torch
+            - name: PIP_DISABLE_PIP_VERSION_CHECK
+              value: "1"
+          ports:
+            - name: http
+              containerPort: 8188
+          startupProbe:
+            exec:
+              command:
+                - curl
+                - -fsS
+                - http://127.0.0.1:8188/system_stats
+            periodSeconds: 5
+            # Custom node import plus the first mmap of a 12 GB file.
+            failureThreshold: 60
+          readinessProbe:
+            exec:
+              command:
+                - curl
+                - -fsS
+                - http://127.0.0.1:8188/system_stats
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - curl
+                - -fsS
+                - http://127.0.0.1:8188/system_stats
+            periodSeconds: 30
+            timeoutSeconds: 10
+            # A long VRAM-bound generation stalls the event loop in bursts; a
+            # liveness miss here would kill a 60-second render that was about
+            # to finish. Failing ten times in five minutes is a real hang.
+            failureThreshold: 10
+          securityContext:
+            # The hostpath volume and everything the staging Job wrote into it
+            # is root-owned; running as another user would need a chown Job and
+            # buys nothing on a single-purpose node volume.
+            runAsUser: 0
+          resources:
+            requests:
+              cpu: "4"
+              # Measured ~31 GB of system RAM to load the GGUF encoder and the
+              # NVFP4 DiT on the reference 5070 Ti build, and amnesia's whole
+              # node has 60.4 GiB. 24 Gi requested keeps this pod schedulable
+              # next to gemma's 24 Gi request - the GPU lock, not RAM, is what
+              # evicts gemma. No CPU limit (repo convention); the memory
+              # ceiling is the real guard: going over it is an OOM kill of a
+              # render, not a node memory-pressure eviction of a gaming pod.
+              memory: 24Gi
+            limits:
+              memory: 44Gi
+              # Both time-sliced units = the whole card. See header.
+              nvidia.com/gpu: "2"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: comfyui-data
+        - name: shm
+          emptyDir:
+            medium: Memory
+            # torch shares tensors to worker processes through here; the
+            # default 64 MiB is a failure waiting for a big batch.
+            sizeLimit: 4Gi

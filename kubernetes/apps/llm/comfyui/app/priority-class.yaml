@@ -1,0 +1,29 @@
+---
+# The rung between the gaming card's owner and the LLM lane.
+#
+#   gaming-interactive   20000   Direwolf/Fenrir session pod (kubernetes/apps/
+#                                dreamcast/session-config/app/gaming-priority.yaml)
+#   comfyui-interactive   5000   this class
+#   llmkube-normal       10000   serving lanes elsewhere in the cluster
+#   llmkube-low           1000   gemma-4-12b on this node
+#
+# Preemption lower priority: while a gaming session exists, ComfyUI is evicted
+# off the RTX 5070 Ti - which is the whole point of running image/video work on
+# this box. It preempts llmkube-low, so scaling ComfyUI up is what reclaims the
+# card from gemma; nothing has to be suspended for that to happen, and scaling
+# ComfyUI back to zero lets the gemma lane refill on its own.
+#
+# 5000 is deliberate: below llmkube-normal (10000) so a ComfyUI pod can never
+# evict a real serving lane anywhere else in the cluster, and far below the
+# gaming rung. Do not raise it to "make ComfyUI start faster" - on this node
+# that would put it above the LLM lane by accident and above gaming by ambition.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: comfyui-interactive
+value: 5000
+preemptionPolicy: PreemptLowerPriority
+globalDefault: false
+description: >-
+  Interactive but disposable GPU work on the gaming node (ComfyUI). Yields to
+  gaming-interactive, preempts the llmkube-low inference lane.

@@ -626,7 +626,12 @@ immediately (§14).
 ## 14. Co-residency with LLM workloads on `amnesia`
 
 `amnesia` also hosts a preemptible inference lane (`gemma-4-12b`,
-`priority: low` → `llmkube-low` = 1000, hostname-pinned).
+`priority: low` → `llmkube-low` = 1000, hostname-pinned) and, while its
+experiment is switched on, an interactive ComfyUI pod
+(`comfyui-interactive` = 5000, `../../llm/comfyui/README.md`). Both sit under
+gaming, so a session reclaims the card from either of them; ComfyUI in turn
+preempts the LLM lane, which is how it gets the card without anything being
+suspended by hand.
 
 `gaming-interactive` = **20000** with `PreemptLowerPriority`, so launching a
 session reclaims the card from inference immediately. Design rule: **never raise

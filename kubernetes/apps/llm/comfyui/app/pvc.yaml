@@ -1,0 +1,27 @@
+---
+# Model weights, outputs, workflow JSONs and the ComfyUI user database.
+#
+# openebs-hostpath-retain (amnesia's NVMe) rather than Ceph, deliberately: the
+# H3 DiT and the Qwen3-VL encoder are read into VRAM/RAM in one long sequential
+# pass per generation, and a network filesystem under a streaming quant turns
+# into the bottleneck the moment the card is not the limit. The volume is
+# hostname-pinned with the Deployment anyway, so replication buys nothing.
+# Accepted tradeoff: this volume does not survive loss of that disk, and every
+# byte on it is re-staged by ../resources/weights-job.yaml except the renders
+# in output/ and the workflows in user/.
+#
+# Retain, not Delete: the class is the one that survives a pruned PVC. 60 GiB
+# covers the pinned H3 set (~32 GiB), both image lines (~16 GiB) and headroom
+# for Civitai LoRAs; openebs-hostpath-retain allows expansion, so this number
+# is not one-way the way cuda-dev's is.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: comfyui-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: openebs-hostpath-retain
+  resources:
+    requests:
+      storage: 60Gi

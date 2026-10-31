@@ -1,0 +1,58 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: APP-app-vars
+    literals:
+      - APP=comfyui
+      - RESOURCES=resources
+components:
+  - ../../../components/ks/app-resources
+patches:
+  # The shared ks base fixes timeout at 3m, which the first reconcile of this
+  # app cannot meet: the ComfyUI image is 7.58 GB (measured from the built
+  # image). cuda-dev already needs 15m for the same reason; this gets 20m
+  # because it pulls on a node that is usually busy serving or gaming, so the
+  # kubelet may be contending for disk before the pod can even start. Without
+  # it the first apply reports a spurious timeout and retries only at the 30m
+  # interval.
+  - target:
+      kind: Kustomization
+      group: kustomize.toolkit.fluxcd.io
+    patch: |
+      - op: replace
+        path: /spec/timeout
+        value: 20m
+  # Let the staging Job run without waiting for this app to report Ready.
+  #
+  # The shared ks component gives every resources Kustomization
+  # `dependsOn: [<app>]`, and kustomize-controller (v1.7.3 here) health-checks
+  # every supported kind by default once it applies. comfyui-data is
+  # `WaitForFirstConsumer` and this Deployment sits at replicas 0 by design, so
+  # nothing consumes the claim and the PVC stays Pending forever - the app KS
+  # sat in "Running health checks" until it timed out, and the Job that exists
+  # to be that first consumer never applied because it was waiting on the app
+  # KS. Three-way deadlock: KS waits on PVC, PVC waits on a consumer pod, the
+  # only consumer waits on the KS. Observed on the first reconcile of this app:
+  # `persistentvolumeclaim/comfyui-data ... waiting for first consumer to be
+  # created before binding` alongside `HealthCheckFailed` on kustomization/comfyui.
+  #
+  # `.spec.healthCheck` cannot express "check only the Deployment" here: this
+  # cluster's kustomizations CRD predates that field, so server-side apply
+  # rejects it with `.spec.healthCheck: field not declared in schema` and takes
+  # the whole `llm` parent Kustomization down with it. Do not add it back until
+  # the CRD is upgraded.
+  #
+  # Dropping the dependency is safe rather than merely unblocking: the Job's one
+  # real prerequisite is the claim, which the app Kustomization creates, and a
+  # Job pod that appears a moment earlier just waits on the mount and resolves
+  # itself. A failed download still turns comfyui-resources red, because the Job
+  # keeps its own health check there.
+  - target:
+      kind: Kustomization
+      group: kustomize.toolkit.fluxcd.io
+      name: comfyui-resources
+    patch: |
+      - op: remove
+        path: /spec/dependsOn

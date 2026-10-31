@@ -1,0 +1,25 @@
+---
+# ClusterIP only, on purpose.
+#
+# ComfyUI ships no authentication, and the queue endpoint accepts arbitrary
+# workflow JSON - which on this box means "run python with whatever the
+# request says, on the gaming GPU, as root on a hostpath volume". The cluster
+# has an OIDC-capable gateway and putting the UI behind it is the right next
+# step, but it is a next step: for the experiment, reach it with
+#
+#   kubectl -n llm port-forward svc/comfyui 8188:8188
+#
+# and do not add an Ingress or a LoadBalancer in front of this until the auth
+# policy exists.
+apiVersion: v1
+kind: Service
+metadata:
+  name: comfyui
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: comfyui
+  ports:
+    - name: http
+      port: 8188
+      targetPort: http
