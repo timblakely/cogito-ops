@@ -1,0 +1,58 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: ComfyUI H3 Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - services/comfyui-h3/**
+      - .github/workflows/comfyui-h3-image.yaml
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Authenticate to GHCR
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+
+      # The tag carries the ComfyUI pin, not just the git revision: the image is
+      # only meaningful as "ComfyUI X + nunchaku Y", and a bare sha tag hides
+      # which stack a pod is actually running. The immutable revision tag is
+      # pushed too; the cluster manifest pins THAT by digest.
+      - name: Build and publish
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/comfyui-h3
+          REVISION: ${{ github.sha }}
+          COMFYUI_PIN: v0.34.2
+        run: |
+          docker build --pull \
+            --label "org.opencontainers.image.revision=$REVISION" \
+            --tag "$IMAGE:$REVISION" \
+            --tag "$IMAGE:comfyui-$COMFYUI_PIN" \
+            services/comfyui-h3
+          docker push "$IMAGE:$REVISION"
+          # The moving tag carries the ComfyUI version, not the git revision:
+          # the cluster manifest points at it only until the digest pin is
+          # applied, and it keeps the tag meaningful ("which stack is this
+          # pod running") without pretending to be immutable.
+          docker push "$IMAGE:comfyui-$COMFYUI_PIN"
+
+      - name: Report digest for the cluster pin
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/comfyui-h3
+          REVISION: ${{ github.sha }}
+        run: |
+          digest=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' "$IMAGE:$REVISION")
+          echo "Pin in kubernetes/apps/llm/comfyui/app/deployment.yaml to:"
+          echo "  image: $IMAGE@$digest"
