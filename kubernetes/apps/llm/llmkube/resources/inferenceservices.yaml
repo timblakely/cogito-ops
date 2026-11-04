@@ -150,36 +150,37 @@ spec:
   resources:
     gpu: 1
     cpu: '2'
-    # Split request from ceiling ON PURPOSE, and the split is the whole reason
-    # this lane can share Iggy with the Qwen AWQ coding lane.
+    # Split request from ceiling ON PURPOSE. The 32 GiB-board pair this lane
+    # carried (6 Gi request / 22 Gi ceiling) is retired: iggy's DIMMs went
+    # back in on 2026-11-04 and the node reports 60.1 GiB allocatable, so the
+    # reservation no longer has to be squeezed to share the node with the
+    # Qwen AWQ coding lane on the other 3090.
     #
-    # Iggy allocatable is 28.6 GiB and the Qwen lane already reserves 16 GiB,
-    # leaving 9.2 GiB. A 16 Gi request here (the value this lane carried on
-    # Kristeva's 128 GiB board) would sit Pending forever with the scheduler
-    # saying "Insufficient memory" while a whole 3090 looks free.
+    # 12 Gi is the scheduling reservation. llama.cpp maps the GGUF with mmap,
+    # so the ~17.3 GiB of weights is FILE-BACKED page cache, not anonymous
+    # memory: it charges the cgroup - measured 15.08 GiB working-set peak on
+    # an active pod, 1.68 GiB once idle and reclaimed - but it is clean, so
+    # the kernel reclaims it instead of reaching for the OOM killer. The
+    # anonymous need (compute buffers, the sampler, the CPU fallback path) is
+    # low single-digit GiB. Reserving 12 Gi instead of 6 Gi is what stops a
+    # packed node from reclaiming tensor pages between decode steps; that
+    # failure reads as a slow model, not a fault.
     #
-    # 6 Gi is the scheduling reservation. llama.cpp maps the GGUF with mmap, so
-    # the ~17.3 GiB of weights is FILE-BACKED page cache, not anonymous memory:
-    # it counts against the cgroup but is clean and reclaimable, so the kernel
-    # evicts it under pressure instead of invoking the OOM killer. The real
-    # steady-state anonymous need is compute buffers, the sampler and the CPU
-    # projector - low single-digit GiB.
+    # 32 Gi is the ceiling, well above the ~18.6 GiB the weights plus KV plus
+    # buffers want. The gap is the load-bearing part: with the ceiling near
+    # the mapped working set the kernel evicts tensor pages between decode
+    # steps and re-reads them off NVMe every token - a slowdown, not a crash,
+    # and easy to mistake for a slow model. Raising the ceiling buys host-RAM
+    # headroom only; the window here is still capped by the 3090's 24 GiB, so
+    # --ctx-size does not move with it (see the VRAM measurements in the args
+    # below before touching that).
     #
-    # 22 Gi is the ceiling, above the 18.6 GiB the weights plus KV plus buffers
-    # want, so llama.cpp's mapped pages are never competing with a tight limit.
-    # That matters more than it looks: if the ceiling sat below the mapped
-    # working set, the kernel would evict tensor pages between decode steps and
-    # re-read them off NVMe every token - a slowdown, not a crash, and easy to
-    # mistake for a slow model.
-    #
-    # The Qwen lane was NOT touched: its 16 Gi is untouched, so its page-cache
-    # prefetch gate and its ~450 s cold-load path are unchanged, and it was
-    # never restarted. If this lane ever needs more reservation, drop Qwen to
-    # `memory: 6Gi` + `memoryLimit: 16Gi` - that frees 10 GiB of scheduling
-    # budget without moving its ceiling - but that rolls its pod and costs a
-    # cold reload, so it is the fallback, not the default.
-    memory: 6Gi
-    memoryLimit: 22Gi
+    # The two GPU lanes together now ask 44 Gi of iggy's 60.1 GiB allocatable
+    # (Qwen 32 Gi with request=limit, this lane 12 Gi). Node limits overcommit
+    # deliberately - the excess is reclaimable page cache, and measured whole-
+    # node working set with both lanes loaded was 14.5 GiB of 62.7 GiB.
+    memory: 12Gi
+    memoryLimit: 32Gi
   endpoint:
     port: 8080
     type: ClusterIP

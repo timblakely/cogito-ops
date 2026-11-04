@@ -98,24 +98,41 @@ spec:
   priority: normal
   resources:
     gpu: 1
-    # 16Gi request = 16Gi limit, resized when this lane moved to iggy: iggy
-    # is a 32 GiB RAM box (2x16 GiB DIMMs; 28.6 GiB allocatable), so the
-    # 32 Gi request this lane carried on Kristeva's 128 GiB board could never
-    # schedule here. The honest cost of the smaller cgroup: the 19.57 GiB
-    # checkpoint read over NFS fills the page cache past vLLM's 90%-of-limit
-    # gate, so its auto-prefetch is skipped and the cold load is the slow
-    # ~450 s path measured at 16 Gi (confirmed on first iggy boot) - inside
-    # the 1 h startup-probe budget, and accepted deliberately for a lane
-    # that will rarely restart. Request EQUALS limit on purpose: Talos's
-    # userspace OOM controller kills BestEffort cgroups first and a prior
-    # Qwen lane was SIGKILLed four times under page-cache pressure while it
-    # had no requests at all; the matched memory pair keeps this cgroup out
-    # of that tier (QoS reports Burstable, not Guaranteed, because llmkube
-    # sets no CPU limit - the memory tier is what the OOM order keys on).
-    # Page cache is reclaimable, so a full cache throttles prefetch rather
-    # than OOM-killing the container.
+    # 32Gi request = 32Gi limit. Restored 2026-11-04: iggy's missing DIMMs
+    # went back in and the node now reports 65739608Ki capacity / 60.1 GiB
+    # allocatable, where it had been a 32 GiB box with 28.6 GiB allocatable
+    # when this lane moved onto it. At 16 Gi the lane was running on its
+    # ceiling, not under it: container_memory_working_set_bytes peaked at
+    # 15.34 GiB in the 24 h before this change (96 % of the limit) while the
+    # pod was otherwise idle - exactly the page-cache pressure the matched
+    # request/limit pair exists to absorb.
+    #
+    # The second, measurable win is the cold path. vLLM skips its NFS
+    # read-ahead when the checkpoint is bigger than 90 % of the cgroup limit,
+    # so at 16 Gi the 19.57 GiB weights never prefetched and the load was the
+    # slow ~450 s path measured on the first iggy boot. 0.9 x 32 = 28.8 GiB
+    # clears the checkpoint, so the prefetched path should come back - read
+    # the startup log on the next cold boot to confirm it rather than
+    # assuming it, and note that the 1 h startup-probe budget no longer has
+    # to carry a slow load.
+    #
+    # Request STILL EQUALS limit on purpose: Talos's userspace OOM controller
+    # kills BestEffort cgroups first and a prior Qwen lane was SIGKILLed four
+    # times under page-cache pressure while it had no requests at all; the
+    # matched memory pair keeps this cgroup out of that tier (QoS reports
+    # Burstable, not Guaranteed, because llmkube sets no CPU limit - the
+    # memory tier is what the OOM order keys on). It also means the ceiling
+    # is honestly reserved: this lane plus muse-glimmer-30b (12 Gi) ask 44 Gi
+    # of iggy's 60.1 GiB allocatable, leaving room for the DB replicas, the
+    # foreman agent and the DaemonSets that share the node. Page cache is
+    # reclaimable, so a full cache throttles prefetch rather than OOM-killing
+    # the container.
+    #
+    # GPU-side ceilings are unchanged by this resize: --max-model-len,
+    # --gpu-memory-utilization and --max-num-batched-tokens below are
+    # sized against the 3090's 24 GiB, not against host RAM.
     cpu: "4"
-    memory: 16Gi
+    memory: 32Gi
   # Declared, not inherited. llmkube derives the container port and the
   # Service target from this field and defaults it to 8080; the first render of
   # this lane advertised 8080 while vLLM was told to listen on 8000, which is
