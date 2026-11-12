@@ -129,6 +129,22 @@ metadata:
 spec:
   modelRef: muse-glimmer-30b
   replicas: 1
+  # Suspended 2026-11-12 to hand this card to the procedural-weight-compression
+  # research. Its Stage-0 embedding sweep and all of Stage 1 are forward-pass-bound,
+  # and the workstation CPU prices one 32,768-token behavioural gate at 454-575 s
+  # (fp32) or 1,607-2,089 s (bf16) - 26 such evaluations is 3-10 h there against
+  # minutes here. See procedural/docs/research/findings/2026-11-12-cpu-behavioural-cost.md.
+  #
+  # `suspend`, not removal, on purpose: Flux garbage-collects a PVC dropped from a
+  # Kustomization, and this lane's `muse-iggy` claim holds 18.6 GiB of resumable
+  # GGUF weights (text + matched mmproj + DFlash drafter). llmkube co-owns
+  # .spec.replicas, so the flag is the field-safe off switch; the Model, the claim,
+  # the alias and the key scopes all stay registered.
+  #
+  # Consequence while suspended: the `Muse-Glimmer-30B` alias - Hermes
+  # `auxiliary.vision` and the gateway's `image` route - resolves to a backend with
+  # no pod, so image analysis fails until this flag is cleared. Nothing else moves.
+  suspend: true
   runtime: generic
   # Repinned: the digest this lane carried (sha256:6ac92152...) 404s at GHCR -
   # llama.cpp garbage-collects untagged builds, so a pin that booted last month
