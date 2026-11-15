@@ -1,0 +1,15 @@
+---
+# Retain the pinned Maya-M shards and generated pack on Iggy's fast NVMe.
+# The manual staging Job is not a Flux health dependency and starts no server.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: maya-m-iggy
+  annotations:
+    volume.kubernetes.io/selected-node: iggy
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: openebs-hostpath-retain
+  resources:
+    requests:
+      storage: 160Gi

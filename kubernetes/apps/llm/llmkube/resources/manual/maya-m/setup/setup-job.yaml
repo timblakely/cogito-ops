@@ -1,0 +1,72 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: maya-m-upstream-setup-v1
+  labels:
+    app.kubernetes.io/name: maya-m-upstream-setup
+spec:
+  activeDeadlineSeconds: 28800
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: maya-m-upstream-setup
+    spec:
+      automountServiceAccountToken: false
+      runtimeClassName: nvidia
+      restartPolicy: Never
+      priorityClassName: llmkube-batch
+      preemptionPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: iggy
+      tolerations:
+        - key: workload.cogito/dedicated
+          operator: Equal
+          value: ml
+          effect: NoSchedule
+      containers:
+        - name: setup
+          image: docker.io/nvidia/cuda:13.0.0-devel-ubuntu24.04@sha256:435220c0fef35cbf712e11999f8670a83835ef3cdd18564e5e8122f83078c88c
+          command: [bash, /scripts/bootstrap.sh]
+          env:
+            - name: HOME
+              value: /model/maya-work/home
+            - name: MAYA_UPDATE_CHECK
+              value: '0'
+            - name: PYTHONUNBUFFERED
+              value: '1'
+            - name: OMP_NUM_THREADS
+              value: '8'
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              add: [IPC_LOCK, SYS_RESOURCE]
+          resources:
+            requests:
+              cpu: '8'
+              memory: 108Gi
+              nvidia.com/gpu: '2'
+            limits:
+              cpu: '8'
+              memory: 108Gi
+              nvidia.com/gpu: '2'
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+            - name: model
+              mountPath: /model
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: scripts
+          configMap:
+            name: maya-m-upstream-setup
+        - name: model
+          persistentVolumeClaim:
+            claimName: maya-m-iggy
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi

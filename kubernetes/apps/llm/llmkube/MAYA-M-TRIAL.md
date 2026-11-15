@@ -77,7 +77,57 @@ Also preserve the CUDA development claim, local FlashNext requants/builds,
 `d5-work`, Muse claims, and the empty former Foreman cache claim. No PVC or PV
 was deleted during this preparation.
 
-## Pinned Maya-M inputs (not downloaded or built)
+## Verified Maya-M preparation
+
+Completed on 2026-11-15:
+
+- `maya-m-stage-v1` completed at 20:35:45 UTC. All three source GGUFs
+  (116003563168 bytes) passed full SHA256 checks on Iggy and the NAS. A
+  separate read-only inspector matched both retained reports and all six
+  file sizes after the staging Pod exited.
+- `maya-m-upstream-setup-v1` completed at 20:46:14 UTC using the intended
+  upstream installer. Both GPU hardware checks, engine compilation, normal
+  compatibility pack creation and default vision-encoder setup succeeded.
+  The engine's `--help` also ran successfully; no server was started.
+- The retained config is
+  `/model/maya-work/project-maya/maya-maya-m.json`, with GPUs `[0, 1]`,
+  context 32768, parallel 1, 1024 MiB reserves, RAM tier 90 GiB, and four
+  CPU-lane threads per GPU. The inspector checked the executable, config,
+  source pin and completion marker directly on the PVC.
+- `/model/Maya-M/pack` occupies 951660152 bytes, including a 943935232-byte
+  `dense.bin`; no duplicated `experts.bin` exists. Original GGUFs remain the
+  expert source. The backing filesystem still had 125257773056 free bytes
+  at post-setup inspection.
+- Native engine and vision encoder are present, but a full model load,
+  pinned-memory peak, inference, vision ingestion, calibration and throughput
+  are NOT yet tested. This is ready for a deliberate trial, not a verified
+  serving deployment. The completed setup Job releases both GPU allocations.
+
+The manual `maya-m-stage-v1` Job stages only model files; it does not allocate
+GPUs or start a server. Its `maya-m-iggy` PVC is Retain, pinned to Iggy, and
+registered separately in the Flux resources list. The long-running Job is
+intentionally NOT a Flux health-check dependency. Its script tries verified
+hot/NAS files before ISP access, resumes `.partial` transfers, drains dirty
+page cache in bounded chunks, and verifies every shard on both tiers.
+Progress survives the Pod in `/model/Maya-M/.staging.log`; completion requires
+`.verified.json` on both tiers and a successful Job, not file presence alone.
+
+Run the cheap stager regression tests from the repository root:
+
+```sh
+python3 -m unittest discover \
+  -s kubernetes/apps/llm/llmkube/resources/manual/maya-m -p test_stage.py -v
+```
+
+The manual recipe is rendered with explicit load restrictions because it
+references the separately registered PVC definition:
+
+```sh
+kustomize build --load-restrictor=LoadRestrictionsNone \
+  kubernetes/apps/llm/llmkube/resources/manual/maya-m
+```
+
+## Pinned Maya-M inputs
 
 This is ordinary Maya-M, not the experimental Maya-M-Derisked variant.
 
@@ -89,7 +139,8 @@ This is ordinary Maya-M, not the experimental Maya-M-Derisked variant.
 - HF revision: `5ca1df1d2436bd1ab270b169c5ea6c47aad23641`.
 - All three files are below `Maya-M/`; total 116003563168 bytes
   (~108.04 GiB). Sizes and publisher LFS digests were verified through the
-  immutable HF revision API; full Maya files have NOT been downloaded/hashed.
+  immutable HF revision API. Full hot/NAS checks completed successfully;
+  the retained reports agree on the exact revision and all three shard hashes.
 
 | File | Bytes | Published SHA256 |
 | --- | ---: | --- |
@@ -97,13 +148,40 @@ This is ordinary Maya-M, not the experimental Maya-M-Derisked variant.
 | GLM-5.3-Flash-Maya-M-IQ2_S-00002-of-00003.gguf | 47820244896 | 285951d2afa0cd98285b03d0dc4aa68d83daf1a6f4a2594fe40b0cdd27ade485 |
 | GLM-5.3-Flash-Maya-M-IQ2_S-00003-of-00003.gguf | 20504990688 | ebf1ce713f71207747e10eeebed87597969d8b5e1d9dd817420d2c2f7ca51e0e |
 
-There is no official engine image. Build the pinned upstream Dockerfile on a
-cluster/authorized CI builder, not the workstation. Use CUDA 13.0.0,
-`CUDA_ARCHITECTURES=86`, the pinned llama.cpp commit, and `JOBS=4` with an
-explicit builder budget (4 CPUs / 24 GiB is the initial target). Publish and
-verify a real digest before writing a serving resource. The docs' v1.1.54
-example is not the current release. The image recipe is text-only: no vision
-encoder or DFlash2; native NextN/MTP is a separate supported drafting path.
+Use the intended upstream installer, not a custom Maya image pipeline. The
+manual `resources/manual/maya-m/setup` recipe runs pinned upstream `./setup.sh`
+inside an NVIDIA CUDA 13 development container on Iggy. No packages are
+installed on Talos or the workstation. The abandoned CI/Dockerfile scaffolding
+was removed without publishing or dispatching a build.
+
+The development image is pinned to its linux/amd64 digest:
+`docker.io/nvidia/cuda:13.0.0-devel-ubuntu24.04@sha256:435220c0fef35cbf712e11999f8670a83835ef3cdd18564e5e8122f83078c88c`.
+The source archive is SHA256-checked before extraction. Source, `.venv`,
+builds, configs, logs and auxiliary models persist below `/model/maya-work`
+on `maya-m-iggy`; upstream owns dependency installation, compilation and pack
+creation. Both GPU units are reserved by the Job, with an 8 CPU / 108Gi
+request and limit, a 2Gi shared-memory cap, and an eight-hour deadline.
+
+The bootstrap checks upstream `./setup.sh --help` and `--check`, then waits for
+the existing stager's exact revision/report and all three full-size files. It
+never starts another model downloader. The actual installer invocation uses
+`--setup --yes --plain --no-start --backend cuda --gguf-dir /model/Maya-M`,
+`--gpus 0,1`, context 32768, parallel 1, native MTP, 1024 MiB VRAM reserves,
+and explicit RAM/CPU-lane settings. Vision retains upstream's default rather
+than being silently omitted by a text-only runtime image. No server or Service
+is started; a full inference/vision test remains a separate trial.
+
+Apply this separately from the staging recipe, after its PVC is Bound:
+
+```sh
+kustomize build --load-restrictor=LoadRestrictionsNone \
+  kubernetes/apps/llm/llmkube/resources/manual/maya-m/setup |
+  kubectl -n llm apply -f -
+```
+
+Setup logs persist at `/model/maya-work/setup.log`. A successful Job and
+`/model/maya-work/.setup-complete` indicate installer/engine-help completion,
+not inference readiness. No serving lane or LiteLLM alias is registered.
 
 ## Trial gates and initial bounds
 
@@ -112,13 +190,14 @@ This preparation does not deploy or benchmark Maya. Before the first trial:
 1. Stage the pinned model resumably and SHA256-check every complete shard;
    retain a verified NAS copy to avoid repeat ISP transfers. Serve from the
    Iggy NVMe, never treat NFS as its intended overflow tier.
-2. Use `tools/iq_pack.py --compat-bf16`, with the output pack directly below
-   the folder containing the shards. Do NOT pass `--experts-bin`: normal GLM
-   packing indexes original shards; the optional flag duplicates ~97.6 GiB
-   of trunk experts. Header/packer analysis predicts ~0.88 GiB of dense
-   overhead, ~108.92 GiB including shards; verify actual generated sizes.
-   Require at least 120 GiB genuinely free on the backing filesystem, plus
-   separate image/build headroom.
+2. Let upstream setup create the pack from the existing shards. The normal
+   GLM `iq_pack.py --compat-bf16` layout indexes experts in the source shards;
+   do NOT opt into `--experts-bin`, which duplicates ~97.6 GiB of trunk
+   experts. Header/packer analysis predicts ~0.88 GiB of dense overhead for
+   that layout, ~108.92 GiB including shards; verify actual generated sizes.
+   The 227.75 GiB post-cleanup space budget covers source GGUFs plus the
+   derived pack and workspace. Recheck current remaining free space before
+   additions; do not require another full model's free bytes after staging.
 3. Start at context 32768, parallel 1, both GPUs (`gpu: [0, 1]` in server
    config, auto layer splitting), 1024 MiB initial/later VRAM reserves,
    and `--expert-cache auto`. This is not DeepSeek's tensor-parallel flag.
