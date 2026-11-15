@@ -24,7 +24,8 @@ spec:
   keyAlias: Hermes subscription
   secretName: litellm-key-hermes-subscription
   secretKey: api-key
-  # Exactly the four chatgpt/ aliases. Anything added to the subscription
+  # Public subscription models from the upstream catalogue (hidden/internal IDs excluded).
+  # Anything added to the subscription
   # catalogue needs to be added here as well as under models/.
   maxBudget: "50"
   budgetDuration: 30d
@@ -33,6 +34,10 @@ spec:
     - gpt-6.1-sol
     - gpt-6.1-terra
     - gpt-6-luna
+    - gpt-6-sol
+    - gpt-5.6-sol
+    - gpt-5.6-terra
+    - gpt-5.6-luna
 ---
 apiVersion: external-secrets.io/v1alpha1
 kind: PushSecret

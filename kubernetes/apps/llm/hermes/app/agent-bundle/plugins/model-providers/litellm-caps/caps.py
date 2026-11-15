@@ -32,7 +32,8 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-DISK_TTL_SECONDS = 24 * 3600
+# Refresh threshold, not an expiry: stale capabilities remain usable offline.
+DISK_TTL_SECONDS = 15 * 60
 _FETCH_FAILURE_SUPPRESS_SECONDS = 60
 _USER_AGENT = "hermes-litellm-caps-plugin/1"
 
@@ -40,6 +41,7 @@ _USER_AGENT = "hermes-litellm-caps-plugin/1"
 _memory: dict[str, dict[str, Any]] = {}
 _lock = threading.Lock()
 _warm_started: set[str] = set()
+_retry_after: dict[str, float] = {}
 
 
 def _disk_path() -> Path:
@@ -161,12 +163,20 @@ def get_caps(base_url: str, model: str) -> Optional[dict[str, Any]]:
     return model_caps
 
 
+def has_model(base_url: str, model: str) -> bool:
+    """Cache-only catalog membership, including entries with unknown metadata."""
+    get_caps(base_url, model)  # Load a disk mirror if needed; never fetch.
+    with _lock:
+        entry = _memory.get(base_url)
+        return entry is not None and any(mid.lower() == model.lower() for mid in entry["caps"])
+
+
 def warm_async(base_url: str, api_key: str = "") -> None:
     """Background-fetch the catalog unless it is fresh in memory or already warming."""
     if not base_url or os.environ.get("PYTEST_CURRENT_TEST"):
         return
     with _lock:
-        if base_url in _warm_started:
+        if base_url in _warm_started or time.monotonic() < _retry_after.get(base_url, 0):
             return
         entry = _memory.get(base_url)
         if entry is not None and time.time() - entry["ts"] < DISK_TTL_SECONDS:
@@ -174,18 +184,27 @@ def warm_async(base_url: str, api_key: str = "") -> None:
         _warm_started.add(base_url)
 
     def _run():
+        succeeded = False
         try:
-            if fetch(base_url, api_key) is None:
-                # Remember the failure briefly so a dead endpoint doesn't re-storm,
-                # but allow a retry in a long-lived process instead of giving up forever.
-                with _lock:
-                    _warm_started.discard(base_url)
+            succeeded = fetch(base_url, api_key) is not None
         except Exception:
+            logger.debug("litellm-caps: background fetch failed", exc_info=True)
+        finally:
             with _lock:
+                if succeeded:
+                    _retry_after.pop(base_url, None)
+                else:
+                    _retry_after[base_url] = time.monotonic() + _FETCH_FAILURE_SUPPRESS_SECONDS
                 _warm_started.discard(base_url)
 
-    threading.Thread(target=contextvars.copy_context().run, args=(_run,),
-                     name="litellm-caps-warm", daemon=True).start()
+    try:
+        threading.Thread(target=contextvars.copy_context().run, args=(_run,),
+                         name="litellm-caps-warm", daemon=True).start()
+    except Exception:
+        with _lock:
+            _retry_after[base_url] = time.monotonic() + _FETCH_FAILURE_SUPPRESS_SECONDS
+            _warm_started.discard(base_url)
+        logger.debug("litellm-caps: could not start background fetch", exc_info=True)
 
 
 def caps_age_seconds(base_url: str) -> Optional[float]:

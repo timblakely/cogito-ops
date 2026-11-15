@@ -33,18 +33,33 @@ the backend's `--served-model-name` or the request 404s at the backend. The
 llama.cpp lanes (embedder, reranker) launch without a served-model name at all
 and ignore the model field, so theirs is a label rather than a key.
 
-**ChatGPT subscription routes.** `gpt-6-astra`, `gpt-6.1-sol`, `gpt-6.1-terra`,
-and `gpt-6-luna` use LiteLLM's `chatgpt/` provider and the writable OAuth token at
+**ChatGPT subscription routes.** The eight public subscription models in
+`kustomization.yaml` use LiteLLM's `chatgpt/` provider and the writable OAuth token at
 `CHATGPT_TOKEN_DIR`. They do not use OpenAI API credits; `litellm-secrets` carries
-no `OPENAI_API_KEY` at all. Their model IDs come from the
-[OpenAI model catalog](https://developers.openai.com/api/docs/models) and
-[ChatGPT model catalog](https://learn.chatgpt.com/docs/models), but the effort
-ladders do not: the catalogs advertise `minimal` and `ultra` for all of them, while
-the backend rejects `minimal` for every alias, rejects `none` on Astra and Sol, and
-never accepts `ultra` as a wire effort. Each ladder in `model-caps.yaml` is
-therefore probe evidence from the backend itself (see the notes beside it).
-They ride the dedicated `hermes-subscription` virtual key, scoped to exactly these
-four aliases, and are deliberately absent from the shared `hermes` key: LiteLLM
+no `OPENAI_API_KEY` at all. Model IDs and product reasoning tiers come from the
+authenticated `https://chatgpt.com/backend-api/codex/models` catalogue using the
+tested `client_version=0.169.0` query. The `model-caps` publisher reads the shared
+token **read-only**, fetches metadata every 15 minutes, and joins it to the
+proxy's registered `chatgpt/` routes. It never logs credentials or response bodies,
+refreshes OAuth, registers routes, or rewrites GitOps resources.
+
+The sanitized `../model-caps/openai-models.json` is a cold-start fallback; a failed
+fetch retains last-known-good metadata. `/caps/v1/models` publishes freshness and
+visible-but-unregistered IDs under `openai_catalogue`, so new releases do not stay
+invisible while registration/key scope remains an explicit GitOps change. The
+November live catalogue contains eight public models plus two hidden/internal IDs;
+only the eight public models are registered.
+
+Product tiers are not identical to wire tiers: `ultra` orchestrates multi-agent
+work in OpenAI's client and resolves to another wire effort. It is preserved as
+product metadata but never advertised as a sendable `reasoning.effort`. The
+product picker also omits Off on models with a working off switch, so separately
+verified `none` overrides are preserved: six public models accept Off; Astra and
+6.1 Sol reject it. Local-runtime controls
+remain curated/probed; an OpenAI catalogue does not describe those backends.
+
+Subscription models ride the dedicated `hermes-subscription` virtual key and are
+deliberately absent from the shared `hermes` key: LiteLLM
 filters `/v1/models` by key scope, so leaving them on `hermes` made a
 chat-completions client discover them *and* its Responses provider list them again.
 Paseo's Hermes agent uses a separate Responses provider for these models because

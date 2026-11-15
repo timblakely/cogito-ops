@@ -15,9 +15,9 @@ OpenRouter-schema reasoning metadata::
      "reasoning": {"supported_efforts": ["none"], "mandatory": false}}
 
 Cogito publishes that shape at https://litellm.timblakely.com/caps/v1/models via
-the model-caps-annotator sidecar; without a caps document every model parses as
-unknown and behavior is byte-for-byte the bundled CustomProfile's — this plugin
-can only make the wire more honest, never different when it has no data.
+the model-caps-annotator sidecar. Unknown models attributable to a configured
+caps source report an undeclared ladder (None); unrelated custom providers keep
+bundled behavior. Unknown does not mean that reasoning is unsupported.
 
 Config (optional, per entry in ``providers:``)::
 
@@ -64,16 +64,16 @@ _caps = _load_caps_module()
 
 # Provider entries are read rarely and change rarely; one parse per minute.
 _providers_ttl = 60.0
-_providers_cache: tuple[float, list[dict[str, str]]] = (0.0, [])
+_providers_cache: tuple[float, list[dict[str, Any]]] = (0.0, [])
 
 
-def _openai_compat_providers() -> list[dict[str, str]]:
+def _openai_compat_providers() -> list[dict[str, Any]]:
     """[{base_url, key_env, caps_url}] from ``providers:`` / ``custom_providers:`` config."""
     global _providers_cache
     now = time.monotonic()
     if now - _providers_cache[0] < _providers_ttl:
         return _providers_cache[1]
-    entries: list[dict[str, str]] = []
+    entries: list[dict[str, Any]] = []
     try:
         from hermes_cli.config import load_config_readonly
 
@@ -88,20 +88,20 @@ def _openai_compat_providers() -> list[dict[str, str]]:
     if isinstance(custom, list):
         raw.extend(p for p in custom if isinstance(p, dict))
     for entry in raw:
-        # ``providers:`` entries spell the endpoint ``api:``; ``custom_providers:``
-        # entries spell it ``base_url:``. Hermes' own readers (runtime_provider_custom,
-        # model_switch, agent_init) accept every alias — so must we, or a correctly
-        # configured provider is invisible to caps and every model falls back to the
-        # bundled widest ladder.
-        base_url = str(entry.get("base_url") or entry.get("api")
-                       or entry.get("url") or "").strip()
+        base_url = str(entry.get("base_url") or entry.get("api") or entry.get("url") or "").strip()
         if not base_url or not urlparse(base_url).hostname:
             continue
         caps_url = str(entry.get("caps_url") or "").strip()
+        models = entry.get("models")
+        model_ids = list(models) if isinstance(models, (dict, list)) else []
+        if entry.get("default_model"):
+            model_ids.append(str(entry["default_model"]))
         entries.append({
             "base_url": base_url,
             "key_env": str(entry.get("key_env") or "").strip(),
             "caps_url": caps_url or f"{base_url.rstrip('/')}/models",
+            "caps_managed": bool(caps_url),
+            "models": tuple(str(mid) for mid in model_ids),
         })
     _providers_cache = (now, entries)
     return entries
@@ -128,17 +128,15 @@ def _caps_for_model(model: str, base_url: str = "") -> Optional[dict[str, Any]]:
     candidates = _openai_compat_providers()
     if base_url:
         base = base_url.rstrip("/")
-        candidates = sorted(candidates, key=lambda e: 0 if e["base_url"].rstrip("/") == base else 1)
+        candidates = [e for e in candidates if e["base_url"].rstrip("/") == base]
     for entry in candidates:
         caps = _caps.get_caps(entry["caps_url"], model)
-        if caps is not None:
-            return caps
-    for entry in candidates:
         age = _caps.caps_age_seconds(entry["caps_url"])
         if age is None or age >= _caps.DISK_TTL_SECONDS:
-            # Missing entirely, or past TTL (get_caps serves stale deliberately) —
-            # re-warm in the background; warm_async itself skips fresh entries.
+            # Refresh stale hits too, without blocking the request on HTTP.
             _caps.warm_async(entry["caps_url"], _api_key_for(entry["key_env"]))
+        if caps is not None:
+            return caps
     return None
 
 
@@ -203,17 +201,21 @@ class LiteLLMCapsProfile(_Bundled if _Bundled is not None else ProviderProfile):
         if self._stand_down:
             return None
         caps = _caps_for_model(str(model or ""))
-        if caps is None or not caps.get("supports_reasoning"):
-            # Unknown -> bundled widest-vocabulary answer; definitive negative ->
-            # the transport contract for "omit reasoning fields entirely".
-            if caps is not None and caps.get("supports_reasoning") is False:
-                return ()
-            return super().supported_reasoning_efforts(model) if not self._stand_down else None
+        if caps is None:
+            # The hook has no endpoint context: only claim unknown for models
+            # attributable to a configured caps source, not unrelated custom routes.
+            for entry in _openai_compat_providers():
+                if not entry.get("caps_managed", True):
+                    continue
+                if (str(model or "").lower() in {str(mid).lower() for mid in entry.get("models", ())}
+                        or _caps.has_model(entry["caps_url"], str(model or ""))):
+                    return None
+            return super().supported_reasoning_efforts(model)
+        if not caps.get("supports_reasoning"):
+            return ()
         efforts = caps.get("supported_efforts")
         if efforts is None:
-            # Binary thinking route (accepts the field, no graded ladder):
-            # report unknown so transports keep their default vocabulary.
-            return super().supported_reasoning_efforts(model) if not self._stand_down else None
+            return None  # Unknown ladder, not a declaration of the widest set.
         return tuple(efforts)
 
     def build_api_kwargs_extras(self, *, reasoning_config: dict | None = None, **ctx: Any):
