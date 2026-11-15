@@ -53,6 +53,15 @@ lists are published by `model-caps.yaml`; do not create one LiteLLM alias per
 effort. Subscription usage is reported as zero-dollar spend by LiteLLM, so a
 virtual key's dollar budget does not limit subscription requests.
 
+The proxy mounts `chatgpt-recovery/sitecustomize.py` through a ConfigMap. On
+LiteLLM 1.105.5, a ChatGPT plan or security change can revoke an access token
+before its stored expiry; LiteLLM otherwise keeps sending it until expiry. The
+hook recognizes only the upstream `401 token_expired` response, locks the shared
+token volume, refreshes once, and retries the request once. Other errors pass
+through. If the refresh token is also rejected, an operator must complete the
+ChatGPT device login again; `LiteLLMChatGPTAuthFailure` alerts on the unrecovered
+401. Remove the hook when the pinned LiteLLM release handles early revocation.
+
 Local models declare `input_cost_per_token: 0` / `output_cost_per_token: 0`.
 Not cosmetic: LiteLLM raises "This model isn't mapped yet" inside spend
 calculation for any `openai/<slug>` missing from its cost map, so the choice is

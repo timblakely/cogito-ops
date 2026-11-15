@@ -85,6 +85,24 @@ spec:
           labels:
             severity: warning
 
+        # The failure-response counter did not record the ChatGPT 401s seen
+        # during a Plus -> Pro upgrade. The router cooldown counter did record
+        # them, so alert on that signal if the one-time refresh cannot recover.
+        - alert: LiteLLMChatGPTAuthFailure
+          expr: |-
+            sum by (litellm_model_name) (
+              increase(litellm_deployment_cooled_down_total{
+                api_provider="chatgpt", exception_status="401"
+              }[15m])
+            ) > 0
+          for: 1m
+          annotations:
+            summary: >-
+              LiteLLM {{ $labels.litellm_model_name }} still received a ChatGPT 401
+              after automatic token refresh; check auth.json or re-login
+          labels:
+            severity: warning
+
         # A few 503s are normal during a backend rollout (a config change
         # reloads the model for ~2-4 min); a sustained rate means the one
         # always-on backend is down or stuck, not merely slow.

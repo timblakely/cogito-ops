@@ -72,13 +72,23 @@ spec:
     - name: chatgpt-token
       persistentVolumeClaim:
         claimName: litellm-chatgpt-token-rwx
+    - name: chatgpt-recovery
+      configMap:
+        name: litellm-chatgpt-recovery
   volumeMounts:
     - name: chatgpt-token
       mountPath: /var/lib/litellm/chatgpt
+    - name: chatgpt-recovery
+      mountPath: /opt/litellm-chatgpt-recovery
+      readOnly: true
 
   env:
     - name: CHATGPT_TOKEN_DIR
       value: /var/lib/litellm/chatgpt
+    # Python imports sitecustomize.py from this ConfigMap on startup. It retries
+    # once when ChatGPT revokes a token before the expiry stored in auth.json.
+    - name: PYTHONPATH
+      value: /opt/litellm-chatgpt-recovery
     - name: DATABASE_URL
       valueFrom:
         secretKeyRef:

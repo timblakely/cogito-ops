@@ -20,6 +20,9 @@ configMapGenerator:
   - name: litellm-dashboard
     files:
       - dashboard/litellm.json
+  - name: litellm-chatgpt-recovery
+    files:
+      - chatgpt-recovery/sitecustomize.py
 generatorOptions:
   # The GrafanaDashboard above references this ConfigMap by name, so the
   # content hash kustomize would otherwise append has to go - a rolling name
