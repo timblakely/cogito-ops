@@ -217,6 +217,46 @@ This preparation does not deploy or benchmark Maya. Before the first trial:
    No local throughput claim is established by hardware fit or another
    machine's benchmark.
 
+## Live Maya-M trial (2026-11-15)
+
+The user-authorized first start uses the separate manual `resources/manual/maya-m/run`
+recipe and existing upstream config; it does not repeat setup, repack or model
+downloads. `llm/maya-m-trial` requests both Iggy GPUs, 20 CPUs and 112Gi RAM,
+uses the same pinned CUDA development image and persistent workspace, and has
+`restartPolicy: Never` plus a four-hour active deadline. Its batch priority and
+`preemptionPolicy: Never` cannot evict other workloads. It is not registered
+as an always-on Flux workload or a LiteLLM route.
+
+Verified on the live Pod:
+
+- Upstream started the engine at 21:57:26 UTC and reached Ready at 21:58:20 UTC.
+- `/health` is OK and `/v1/models` reports loaded model `glm-5.3-flash`,
+  context 32768. A non-streaming completion with thinking disabled returned
+  exactly `MAYA_OK` (5 output tokens) in 1.954 seconds. This tiny smoke test
+  is not a throughput benchmark.
+- Both expected RTX 3090 UUIDs are allocated. Post-request VRAM usage was
+  23344 / 23318 MiB, with both 280 W caps intact.
+- Post-request cgroup memory was 84753416192 bytes; peak was 85234454528 bytes
+  (~79.38 GiB), below the 112Gi limit, with zero OOM/max events.
+- Startup measured the native vision encoder's reserve, but actual image
+  ingestion/answer correctness and sustained load remain untested.
+- Radiance health remains OK; Muse and Qwen stay suspended and their weights
+  remain intact.
+
+The server binds only to Pod loopback at `127.0.0.1:8080`, without an API key.
+There is no Kubernetes Service or ingress. A workstation-only port forward
+was started and verified at `http://127.0.0.1:18081/` (UI 200, health OK and
+model list correct). Recreate it when needed with:
+
+```sh
+KUBECONFIG=./kubeconfig kubectl -n llm port-forward \
+  --address 127.0.0.1 pod/maya-m-trial 18081:8080
+```
+
+The trial stops automatically at its four-hour deadline. To stop sooner,
+delete only `llm/maya-m-trial`; do not delete its retained PVC. Add proper
+authentication before any later non-loopback serving deployment.
+
 ## Sources
 
 - [Upstream memory table](https://github.com/mw00/project-maya/blob/d93d1499021b98a39bede20d33368907f1ea4ad8/docs/MEMORY.md)
