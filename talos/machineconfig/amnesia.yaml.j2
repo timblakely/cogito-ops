@@ -32,6 +32,8 @@ machine:
       - name: nvidia_modeset
       - name: nvidia_drm
       - name: uinput
+  nodeTaints:
+    workload.cogito/dedicated: gaming-ml:NoSchedule
   nodeLabels:
     workload.cogito/gaming: "true"
     nvidia.com/device-plugin.config: gaming.yaml

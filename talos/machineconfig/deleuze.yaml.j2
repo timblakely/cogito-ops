@@ -26,6 +26,8 @@ machine:
   kernel:
     modules:
       - name: amdgpu
+  nodeTaints:
+    workload.cogito/dedicated: ml:NoSchedule
   nodeLabels:
     node-role.kubernetes.io/machine-learning: "true"
     node-role.kubernetes.io/high-mem: "true"

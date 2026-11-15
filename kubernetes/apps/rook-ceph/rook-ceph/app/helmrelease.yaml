@@ -11,6 +11,13 @@ spec:
   interval: 1h
   values:
     csi:
+      # Existing game mounts and their agents stay untouched during upgrades.
+      cephFSPluginUpdateStrategy: OnDelete
+      rbdPluginUpdateStrategy: OnDelete
+      pluginTolerations:
+        - key: workload.cogito/dedicated
+          operator: Exists
+          effect: NoSchedule
       cephFSKernelMountOptions: ms_mode=prefer-crc
       enableLiveness: true
       serviceMonitor:

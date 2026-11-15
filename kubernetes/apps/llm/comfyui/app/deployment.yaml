@@ -51,6 +51,11 @@ spec:
       # Above the LLM lane, far below gaming. See priority-class.yaml.
       priorityClassName: comfyui-interactive
       runtimeClassName: nvidia
+      tolerations:
+        - key: workload.cogito/dedicated
+          operator: Equal
+          value: gaming-ml
+          effect: NoSchedule
       automountServiceAccountToken: false
       enableServiceLinks: false
       # A render is disposable; do not make a node drain wait for one.

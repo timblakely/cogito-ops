@@ -5,6 +5,15 @@ kind: Repository
 metadata:
   name: ntfy
 spec:
+  moverDefaults:
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: kubernetes.io/hostname
+                  operator: In
+                  values: [kristeva, nuc-1, nuc-2, nuc-3]
   backend:
     filesystem:
       path: /mnt/repository
@@ -51,9 +60,8 @@ spec:
     maxParallelFileReads: 2
   mover:
     cache:
-      mode: Persistent
-      capacity: 2Gi
-      storageClassName: openebs-hostpath
+      # Disposable Kopia cache; old local cache PVC is preserved for rollback.
+      mode: Ephemeral
     podSecurityContext:
       runAsUser: 1000
       runAsGroup: 1000

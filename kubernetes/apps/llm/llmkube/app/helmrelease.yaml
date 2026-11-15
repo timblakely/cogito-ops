@@ -26,6 +26,14 @@ spec:
   values:
     controllerManager:
       replicaCount: 1
+      nodeSelector:
+        kubernetes.io/hostname: iggy
+      # The manager mounts the node-local hot model cache; this is ML support.
+      tolerations:
+        - key: workload.cogito/dedicated
+          operator: Equal
+          value: ml
+          effect: NoSchedule
       image:
         repository: ghcr.io/defilantech/llmkube-controller
         digest: sha256:81b8ba794d76aea8aa4e361a5e6d28fa0573e9f3aa1ad5af47ffae076e709dfc

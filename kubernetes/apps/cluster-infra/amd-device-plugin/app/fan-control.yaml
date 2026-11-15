@@ -19,6 +19,9 @@ spec:
         kubernetes.io/hostname: iggy
         amd.com/gpu.present: "true"
       tolerations:
+        - key: workload.cogito/dedicated
+          operator: Exists
+          effect: NoSchedule
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
           effect: NoSchedule

@@ -20,6 +20,19 @@ spec:
       retries: 3
   values:
     runtimeClassName: nvidia
+    # Never roll GPU agents out from under an active Fenrir session.
+    # Replace these pods explicitly in a gaming-idle maintenance window.
+    updateStrategy:
+      type: OnDelete
+    tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      - key: workload.cogito/dedicated
+        operator: Exists
+        effect: NoSchedule
     # Standalone NFD labels display-class NVIDIA PCI devices with the class in
     # the key. The chart's default pci-10de.present key is absent on Cogito.
     affinity:

@@ -9,6 +9,24 @@ spec:
     kind: OCIRepository
     name: multus
   interval: 1h
+  # The chart's hardcodedValues overwrite controllers.multus.pod.tolerations.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: DaemonSet
+              name: multus
+            patch: |-
+              - op: add
+                path: /spec/template/spec/tolerations/-
+                value:
+                  key: workload.cogito/dedicated
+                  operator: Exists
+                  effect: NoSchedule
+              - op: replace
+                path: /spec/updateStrategy
+                value:
+                  type: OnDelete
   values:
     cni:
       binPath: /opt/cni/bin

@@ -47,6 +47,11 @@ spec:
       labels:
         app.kubernetes.io/name: cuda-dev
     spec:
+      tolerations:
+        - key: workload.cogito/dedicated
+          operator: Equal
+          value: ml
+          effect: NoSchedule
       nodeSelector:
         kubernetes.io/hostname: iggy
       # Below every serving priority (llmkube-normal is 10000) and with

@@ -4,3 +4,14 @@ kind: RuntimeClass
 metadata:
   name: nvidia
 handler: nvidia
+# RuntimeClass admission adds these to NEW pods without rolling active sessions.
+scheduling:
+  tolerations:
+    - key: workload.cogito/dedicated
+      operator: Equal
+      value: ml
+      effect: NoSchedule
+    - key: workload.cogito/dedicated
+      operator: Equal
+      value: gaming-ml
+      effect: NoSchedule

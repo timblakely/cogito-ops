@@ -36,6 +36,8 @@ machine:
       - name: nvidia_modeset
       - name: nvidia_drm
       - name: nct6775 # NCT6797 case-fan sensor/control; modular in Talos 1.14.
+  nodeTaints:
+    workload.cogito/dedicated: ml:NoSchedule
   nodeLabels:
     node-role.kubernetes.io/machine-learning: 'true'
     node-role.kubernetes.io/high-cpu: 'true'

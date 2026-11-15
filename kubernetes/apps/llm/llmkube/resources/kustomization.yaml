@@ -25,3 +25,26 @@ resources:
   - ./radiance-deleuze.yaml
   - ./radiance-httproute.yaml
   - ./radiance-oidc.yaml
+patches:
+  - target:
+      kind: InferenceService
+      name: (muse-glimmer-30b|qwen3-8-27b|qwen3-8-awq-iggy|radiance)
+    patch: |-
+      - op: add
+        path: /spec/tolerations
+        value:
+          - key: workload.cogito/dedicated
+            operator: Equal
+            value: ml
+            effect: NoSchedule
+  - target:
+      kind: InferenceService
+      name: gemma-4-12b
+    patch: |-
+      - op: add
+        path: /spec/tolerations
+        value:
+          - key: workload.cogito/dedicated
+            operator: Equal
+            value: gaming-ml
+            effect: NoSchedule

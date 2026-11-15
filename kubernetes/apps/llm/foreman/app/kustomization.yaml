@@ -6,3 +6,30 @@ resources:
   - ./repo.yaml
   - ./helmrelease.yaml
   - ./github-app.yaml
+  - ./gate-cache-portable.yaml
+patches:
+  - target:
+      kind: HelmRelease
+      name: foreman
+    patch: |-
+      - op: add
+        path: /spec/postRenderers
+        value:
+          - kustomize:
+              patches:
+                - target:
+                    kind: Deployment
+                    name: foreman-execution-agent
+                  patch: |
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    metadata:
+                      name: foreman-execution-agent
+                    spec:
+                      template:
+                        spec:
+                          volumes:
+                            - name: gate-cache
+                              persistentVolumeClaim:
+                                claimName: foreman-execution-gate-cache-portable
+

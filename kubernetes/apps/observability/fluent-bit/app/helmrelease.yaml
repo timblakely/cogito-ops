@@ -10,6 +10,10 @@ spec:
     name: fluent-bit
   interval: 1h
   values:
+    tolerations:
+      - key: workload.cogito/dedicated
+        operator: Exists
+        effect: NoSchedule
     config:
       service: |-
         [SERVICE]

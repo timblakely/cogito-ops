@@ -7,6 +7,13 @@ metadata:
 spec:
   affinity:
     podAntiAffinityType: ${CNPG_AFFINITY_TYPE:=required}
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values: [kristeva, nuc-1, nuc-2, nuc-3]
   instances: ${CNPG_REPLICAS:=3}
   primaryUpdateStrategy: ${CNPG_UPDATE_STRAT:=unsupervised}
   primaryUpdateMethod: switchover

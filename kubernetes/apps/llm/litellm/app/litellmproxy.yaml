@@ -53,6 +53,8 @@ spec:
       key: PROXY_MASTER_KEY
 
   podAnnotations:
+    # Roll through the operator after applying GPU-host dedication taints.
+    cogito.dev/node-tenancy: general
     # LiteLLM reads the provider keys below out of the environment once, at
     # startup. ExternalSecrets picks up a rotated 1Password value on its own,
     # but the running proxy never sees it - the standing caveat on this app's
