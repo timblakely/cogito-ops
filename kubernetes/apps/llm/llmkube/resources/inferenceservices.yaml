@@ -129,11 +129,10 @@ metadata:
 spec:
   modelRef: muse-glimmer-30b
   replicas: 1
-  # Suspended 2026-11-12 to hand this card to the procedural-weight-compression
-  # research. Its Stage-0 embedding sweep and all of Stage 1 are forward-pass-bound,
-  # and the workstation CPU prices one 32,768-token behavioural gate at 454-575 s
-  # (fp32) or 1,607-2,089 s (bf16) - 26 such evaluations is 3-10 h there against
-  # minutes here. See procedural/docs/research/findings/2026-11-12-cpu-behavioural-cost.md.
+  # Suspended for GPU experiments; now held off alongside qwen3-8-awq-iggy
+  # so the Maya-M trial can own both Iggy 3090s. Its NAS archive and local
+  # weights remain intact. The initial procedural-compression work is recorded
+  # in procedural/docs/research/findings/2026-11-12-cpu-behavioural-cost.md.
   #
   # `suspend`, not removal, on purpose: Flux garbage-collects a PVC dropped from a
   # Kustomization, and this lane's `muse-iggy` claim holds 18.6 GiB of resumable

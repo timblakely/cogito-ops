@@ -1,0 +1,146 @@
+# Iggy Maya-M trial preparation
+
+## Verified baseline (2026-11-15)
+
+- Iggy and Deleuze are Ready, uncordoned, and retain
+  `workload.cogito/dedicated=ml:NoSchedule`.
+- Radiance remains on Deleuze. `/health` returned 200 and a chat request to
+  its advertised `qwen3.8-flash-next` model returned `RADIANCE_OK`.
+- Iggy reports 131799820Ki capacity and 129075980Ki allocatable RAM
+  (~128 GiB physical / 123.1 GiB allocatable). Deleuze now reports
+  65738476Ki capacity / 63014636Ki allocatable (~64 / 60.1 GiB).
+  Older 64 GiB Iggy / 128 GiB Deleuze inventories are stale.
+- Both `muse-glimmer-30b` and `qwen3-8-awq-iggy` are intentionally suspended.
+  Their Models, PVCs, Services, LiteLLM aliases and key scopes remain registered.
+  Restore either lane by clearing only its `spec.suspend` in Git and reconciling
+  `llm/llmkube-resources`; do not resume it while a trial owns both GPUs.
+- A bounded NVIDIA-runtime Pod successfully allocated both exclusive GPU units:
+  `GPU-787b1f07-4246-5ccd-5074-4bb2120f2c14` and
+  `GPU-a5982685-6ed7-6fce-8096-52d29e241396`. Both are RTX 3090 24576 MiB,
+  driver 595.91.07, 280 W limits. No compute processes were present.
+  Reported free VRAM was 24126 / 24115 MiB. Topology is PHB, not NVLink.
+- A second bounded Pod using the cached Qwen image, `runtimeClassName: nvidia`,
+  and capabilities `IPC_LOCK` / `SYS_RESOURCE` raised RLIMIT_MEMLOCK from
+  8388608 bytes to unlimited and successfully allocated/freed 64 MiB through
+  `cuMemHostAlloc` on each GPU. This verifies capability/runtime support,
+  not a full-size 90 GiB RAM-tier allocation or Maya itself.
+
+## Preserved NAS weights
+
+The existing Retain PV `llm-model-archive` points to
+`nuglab-storage.internal:/volume1/nuglab/Models`.
+No replacement download or new copy was necessary:
+
+- `llmkube/muse-glimmer-30b-abliterated`: all three GGUFs were fully SHA256-checked
+  against the published hashes in `resources/muse-iggy-staging-job.yaml`.
+  The local `muse-iggy` claim and its weights remain intact.
+- `llmkube/qwen-3-8-awq-int4`: all five safetensors shards and eleven tokenizer,
+  configuration, template and license files were fully SHA256-checked against
+  `resources/qwen38-awq-kristeva-staging.yaml`. The suspended serving lane
+  already reads this archive directly; it needs no Iggy hot copy.
+
+## Cleanup boundary
+
+Five abandoned Kopia cache directories had no PV, PVC or Pod references and
+were removed, reclaiming ~0.99 GiB:
+
+```text
+pvc-0c4c4a6c-840c-4fb6-922d-874fa5aa034f
+pvc-15180082-e1f6-46e6-a22d-2694981556f7
+pvc-79a19592-5f30-4a48-987a-b70bfd554021
+pvc-7f7cfd48-3377-4b08-90af-f8493f739aa8
+pvc-9e072d30-02e8-43cb-8c99-a8d6e661f56d
+```
+
+The retired DeepSeek hot-cache subdirectory was evicted only after all four
+GGUF sizes and full SHA256 hashes matched the retained NAS copy:
+`/var/mnt/local-hostpath/pvc-d0f08fa0-b083-4d20-a271-c38bc426f74b/deepseek-v4-flash-0731`.
+No live Model or InferenceService referenced it. The eviction removed
+117310852864 bytes of model files (~109.25 GiB); an independent read verified
+the target absent, every sibling unchanged, and **227.75 GiB available** on the
+backing filesystem. The shared cache PVC and NAS files remain intact. The
+local-only zero-byte `.promoted` marker was metadata, not a missing archive
+file. All temporary maintenance and preflight Pods were removed afterward.
+
+Preserve the five orphaned `pgdata` directories (~16.0 GiB) until provenance
+and disposal are separately confirmed:
+
+```text
+pvc-bc442370-bac1-487c-88ed-e1daef98f48a
+pvc-6f250819-7edf-482c-8120-9a61fa54ca3a
+pvc-ab064876-7df3-4dd0-9385-32826ec9d1cf
+pvc-bedafd47-6709-46ff-b00f-fe74dd822de3
+pvc-d5938a83-8592-4f46-8b6d-6c3dd991730b
+```
+
+Also preserve the CUDA development claim, local FlashNext requants/builds,
+`d5-work`, Muse claims, and the empty former Foreman cache claim. No PVC or PV
+was deleted during this preparation.
+
+## Pinned Maya-M inputs (not downloaded or built)
+
+This is ordinary Maya-M, not the experimental Maya-M-Derisked variant.
+
+- Engine release: `v1.1.64`, commit
+  `d93d1499021b98a39bede20d33368907f1ea4ad8`.
+- Upstream llama.cpp dependency:
+  `3cf03257f219afbe7334045ff7c6a06ac68c627d`.
+- HF repository: `peasantsmith/GLM-5.3-Flash-Maya-GGUF`.
+- HF revision: `5ca1df1d2436bd1ab270b169c5ea6c47aad23641`.
+- All three files are below `Maya-M/`; total 116003563168 bytes
+  (~108.04 GiB). Sizes and publisher LFS digests were verified through the
+  immutable HF revision API; full Maya files have NOT been downloaded/hashed.
+
+| File | Bytes | Published SHA256 |
+| --- | ---: | --- |
+| GLM-5.3-Flash-Maya-M-IQ2_S-00001-of-00003.gguf | 47678327584 | 3f740d1b1022b4a0ddad50cd861bb071dd415bde94afa1292d0476641186c638 |
+| GLM-5.3-Flash-Maya-M-IQ2_S-00002-of-00003.gguf | 47820244896 | 285951d2afa0cd98285b03d0dc4aa68d83daf1a6f4a2594fe40b0cdd27ade485 |
+| GLM-5.3-Flash-Maya-M-IQ2_S-00003-of-00003.gguf | 20504990688 | ebf1ce713f71207747e10eeebed87597969d8b5e1d9dd817420d2c2f7ca51e0e |
+
+There is no official engine image. Build the pinned upstream Dockerfile on a
+cluster/authorized CI builder, not the workstation. Use CUDA 13.0.0,
+`CUDA_ARCHITECTURES=86`, the pinned llama.cpp commit, and `JOBS=4` with an
+explicit builder budget (4 CPUs / 24 GiB is the initial target). Publish and
+verify a real digest before writing a serving resource. The docs' v1.1.54
+example is not the current release. The image recipe is text-only: no vision
+encoder or DFlash2; native NextN/MTP is a separate supported drafting path.
+
+## Trial gates and initial bounds
+
+This preparation does not deploy or benchmark Maya. Before the first trial:
+
+1. Stage the pinned model resumably and SHA256-check every complete shard;
+   retain a verified NAS copy to avoid repeat ISP transfers. Serve from the
+   Iggy NVMe, never treat NFS as its intended overflow tier.
+2. Use `tools/iq_pack.py --compat-bf16`, with the output pack directly below
+   the folder containing the shards. Do NOT pass `--experts-bin`: normal GLM
+   packing indexes original shards; the optional flag duplicates ~97.6 GiB
+   of trunk experts. Header/packer analysis predicts ~0.88 GiB of dense
+   overhead, ~108.92 GiB including shards; verify actual generated sizes.
+   Require at least 120 GiB genuinely free on the backing filesystem, plus
+   separate image/build headroom.
+3. Start at context 32768, parallel 1, both GPUs (`gpu: [0, 1]` in server
+   config, auto layer splitting), 1024 MiB initial/later VRAM reserves,
+   and `--expert-cache auto`. This is not DeepSeek's tensor-parallel flag.
+4. Explicitly set `MAYA_GLM_RAM_GB=90` (implementation units are GiB and it is
+   one shared budget, not per GPU), `MAYA_GLM_CPU_LANE0=4` and
+   `MAYA_GLM_CPU_LANE1=4`. Fixed RAM sizing bypasses the automatic headroom
+   subtraction; do not subtract `MAYA_GLM_RAM_HEADROOM_GB` a second time.
+5. Initial Pod scheduling target: 20 CPU request/limit, 112Gi memory
+   request/limit, two exclusive GPU request/limit, hostname `iggy`, NVIDIA
+   RuntimeClass and ML dedication toleration. Recheck current requests first.
+   During preparation, Iggy requested only 1065m CPU and 3590Mi RAM including
+   maintenance Pods; the target fit its 23950m / ~123.1 GiB allocatable.
+   Set memlock explicitly at startup and include the tested capabilities.
+6. Keep the initial endpoint ClusterIP-only and authenticated. Allow a long
+   startup budget; prove `/health`, `/v1/models`, and a completion using its
+   returned exact model ID. Record cold load, prefill, decode and memory peak.
+   No local throughput claim is established by hardware fit or another
+   machine's benchmark.
+
+## Sources
+
+- [Upstream memory table](https://github.com/mw00/project-maya/blob/d93d1499021b98a39bede20d33368907f1ea4ad8/docs/MEMORY.md)
+- [Pinned Docker recipe](https://github.com/mw00/project-maya/blob/d93d1499021b98a39bede20d33368907f1ea4ad8/docker/Dockerfile)
+- [Pinned packer](https://github.com/mw00/project-maya/blob/d93d1499021b98a39bede20d33368907f1ea4ad8/tools/iq_pack.py)
+- [Immutable model metadata](https://huggingface.co/api/models/peasantsmith/GLM-5.3-Flash-Maya-GGUF/revision/5ca1df1d2436bd1ab270b169c5ea6c47aad23641?blobs=true)

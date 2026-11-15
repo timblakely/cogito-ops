@@ -79,6 +79,9 @@ metadata:
 spec:
   modelRef: qwen-3-8-awq-int4
   replicas: 1
+  # Reserve both Iggy 3090s for the Maya-M trial. Keep the NAS-backed model,
+  # endpoint, aliases and key scopes intact; clear this flag to restore Qwen.
+  suspend: true
   runtime: generic
   # vLLM 0.31.0, amd64, CUDA 13.0.2, built with sm_86 in TORCH_CUDA_ARCH_LIST
   # (7.5 8.0 8.6 8.9 9.0 10.0 12.0), vllm commit db9527a4. Pinned by digest,
