@@ -1,0 +1,117 @@
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: Model
+metadata:
+  name: maya-m
+spec:
+  source: pvc://maya-m-iggy/Maya-M/pack
+  format: custom
+  quantization: IQ2_S
+  hardware:
+    accelerator: cuda
+    gpu:
+      enabled: true
+      count: 2
+      vendor: nvidia
+      resourceName: nvidia.com/gpu
+---
+apiVersion: inference.llmkube.dev/v1alpha1
+kind: InferenceService
+metadata:
+  name: maya-m
+spec:
+  modelRef: maya-m
+  runtime: generic
+  image: registry.timblakely.com/timblakely/maya-m@sha256:5e82c10d8b7e042f40eac275fcf9ced54f583faacbc63c0ed352b764ab06763c
+  imagePullSecrets:
+    - name: registry-pull-auth
+  replicas: 1
+  suspend: false
+  skipModelInit: true
+  runtimeClassName: nvidia
+  priority: low
+  nodeSelector:
+    kubernetes.io/hostname: iggy
+  tolerations:
+    - key: workload.cogito/dedicated
+      operator: Equal
+      value: ml
+      effect: NoSchedule
+  command: [bash, /scripts/start.sh]
+  env:
+    - name: HOME
+      value: /model/maya-work/home
+    - name: MAYA_UPDATE_CHECK
+      value: '0'
+    - name: PYTHONUNBUFFERED
+      value: '1'
+    - name: PYTHONDONTWRITEBYTECODE
+      value: '1'
+    - name: OMP_NUM_THREADS
+      value: '8'
+  resources:
+    cpu: '20'
+    memory: 112Gi
+    gpu: 2
+    ephemeralStorage: 8Gi
+  # Must match the retained upstream --max-context argument.
+  contextSize: 32768
+  endpoint:
+    port: 8080
+    path: /v1/chat/completions
+  rolloutPolicy:
+    waitForIdle: false
+  probeOverrides:
+    startup:
+      exec:
+        command:
+          - /model/maya-work/project-maya/.venv/bin/python
+          - -c
+          - "import json,urllib.request; h=json.load(urllib.request.urlopen('http://127.0.0.1:8080/health',timeout=2)); assert h['status']=='ok' and not h.get('unloaded',True)"
+      timeoutSeconds: 5
+      periodSeconds: 10
+      failureThreshold: 180
+    readiness:
+      exec:
+        command:
+          - /model/maya-work/project-maya/.venv/bin/python
+          - -c
+          - "import json,urllib.request; h=json.load(urllib.request.urlopen('http://127.0.0.1:8080/health',timeout=2)); assert h['status']=='ok' and not h.get('unloaded',True)"
+      timeoutSeconds: 5
+      periodSeconds: 10
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      add: [IPC_LOCK, SYS_RESOURCE]
+  extraVolumes:
+    - name: model
+      persistentVolumeClaim:
+        claimName: maya-m-iggy
+    - name: runtime
+      emptyDir:
+        sizeLimit: 8Gi
+    - name: scripts
+      configMap:
+        name: maya-m-start
+    - name: shm
+      emptyDir:
+        medium: Memory
+        sizeLimit: 2Gi
+  extraVolumeMounts:
+    - name: model
+      mountPath: /model
+    - name: runtime
+      mountPath: /model/maya-work/project-maya
+    - name: model
+      mountPath: /etc/maya/retained-config.json
+      subPath: maya-work/project-maya/maya-maya-m.json
+      readOnly: true
+    # Calibration survives Pod replacement; the image seed never overwrites it.
+    - name: model
+      mountPath: /model/maya-work/project-maya/data
+      subPath: maya-work/project-maya/data
+    - name: scripts
+      mountPath: /scripts
+      readOnly: true
+    - name: shm
+      mountPath: /dev/shm

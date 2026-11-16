@@ -1,5 +1,8 @@
 # Iggy Maya-M trial preparation
 
+Historical preparation notes. The persistent Zot-backed deployment, LiteLLM
+alias and Paseo catalogue are documented in [MAYA-M-SERVING.md](MAYA-M-SERVING.md).
+
 ## Verified baseline (2026-11-15)
 
 - Iggy and Deleuze are Ready, uncordoned, and retain

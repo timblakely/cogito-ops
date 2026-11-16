@@ -1,0 +1,20 @@
+---
+# The native dashboard has model-management endpoints and no separate auth.
+# Only the authenticated LiteLLM proxy may reach it over the Pod network.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: maya-m-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app: maya-m
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: litellm
+      ports:
+        - protocol: TCP
+          port: 8080

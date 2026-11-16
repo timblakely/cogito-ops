@@ -9,6 +9,9 @@ resources:
   - ./muse-kristeva-storage.yaml
   - ./muse-iggy-storage.yaml
   - ./maya-m-storage.yaml
+  - ./registry-pull-auth.yaml
+  - ./maya-m.yaml
+  - ./maya-m-networkpolicy.yaml
   - ./muse-iggy-staging-job.yaml
   - ./qwen38-awq-kristeva-staging.yaml
   - ./iggy-radiance-rccl-stage.yaml
@@ -26,6 +29,16 @@ resources:
   - ./radiance-deleuze.yaml
   - ./radiance-httproute.yaml
   - ./radiance-oidc.yaml
+configurations:
+  - ./kustomizeconfig.yaml
+configMapGenerator:
+  - name: maya-m-start
+    files:
+      - prepare.py=./manual/maya-m/serve/prepare.py
+      - start.sh=./manual/maya-m/serve/start.sh
+    options:
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
 patches:
   - target:
       kind: InferenceService

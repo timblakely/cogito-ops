@@ -64,6 +64,10 @@ data:
         "supported_efforts": [],
         "mandatory": true
       },
+      "Maya-M": {
+        "supported_efforts": ["none", "low", "high", "max"],
+        "mandatory": false
+      },
       "flashnext-deleuze": {
         "supported_efforts": ["none", "minimal", "low", "medium", "xhigh"],
         "mandatory": false
@@ -73,7 +77,13 @@ data:
         "mandatory": false
       }
     }
-  # Probe evidence for the values above (Oct 2026, fixed prompt/temperature,
+  # Maya-M (Nov 16, pinned Maya 1.1.64): native and Hermes-key LiteLLM probes
+  # passed Off chat, High reasoning/SSE, Low/Max wire acceptance, streamed tool
+  # calls, a tool-result round trip and image ingestion (+393 prompt tokens).
+  # GLM's canonical template choices are Off/Low/High/Max; medium and xhigh
+  # are aliases, not additional distinct levels. No per-level budget is claimed.
+  #
+  # Probe evidence for the other values above (Oct 2026, fixed prompt/temperature,
   # reasoning_content length compared per variant):
   #
   # Muse-Glimmer-30B (llama.cpp server-cuda on Kristeva, --reasoning-budget

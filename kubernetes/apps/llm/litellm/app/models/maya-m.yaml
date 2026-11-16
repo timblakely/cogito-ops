@@ -1,0 +1,28 @@
+---
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: maya-m
+spec:
+  modelName: Maya-M
+  proxyRef: litellm
+  params:
+    model: openai/glm-5.3-flash
+    apiBase: http://maya-m.llm.svc.cluster.local:8080/v1
+    apiKey: unused
+    additional:
+      timeout: 1800
+      allowed_openai_params:
+        - reasoning_effort
+  info:
+    mode: chat
+    supportsFunctionCalling: true
+    supportsVision: true
+    maxTokens: 32768
+    maxInputTokens: 32768
+    maxOutputTokens: 8192
+    extra:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+      supports_reasoning: true
+      thinking_levels: [none, low, high, max]
