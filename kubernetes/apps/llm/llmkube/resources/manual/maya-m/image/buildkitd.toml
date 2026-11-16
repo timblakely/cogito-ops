@@ -1,0 +1,15 @@
+[worker.oci]
+  enabled = true
+  snapshotter = "overlayfs"
+  max-parallelism = 1
+  gc = true
+  reservedSpace = "2GB"
+  maxUsedSpace = "45GB"
+  minFreeSpace = "10GB"
+
+[worker.containerd]
+  enabled = false
+
+[registry."registry.timblakely.com"]
+  http = false
+  insecure = false

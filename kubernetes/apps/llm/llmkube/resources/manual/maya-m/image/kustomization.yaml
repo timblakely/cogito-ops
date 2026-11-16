@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: cluster-infra
+resources:
+  - cache-pvc.yaml
+  - build-job.yaml
+configMapGenerator:
+  - name: maya-m-image-build
+    files:
+      - Dockerfile
+      - build_runtime.py
+      - verify.py
+      - requirements.txt
+      - build.sh
+      - buildkitd.toml
+generatorOptions:
+  annotations:
+    kustomize.toolkit.fluxcd.io/substitute: disabled

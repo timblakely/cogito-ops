@@ -1,0 +1,97 @@
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: registry-kopia
+spec:
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: onepassword
+  target:
+    name: registry-kopia
+    template:
+      data:
+        KOPIA_PASSWORD: "{{ .KOPIA_PASSWORD }}"
+  data:
+    - secretKey: KOPIA_PASSWORD
+      remoteRef:
+        key: volsync-template
+        property: KOPIA_PASSWORD
+---
+# Use the existing NAS repository and its existing maintenance owner. Snapshot
+# the entire Ceph volume: tag enumeration misses digest-only images and metadata.
+apiVersion: kopiur.home-operations.com/v1alpha1
+kind: Repository
+metadata:
+  name: registry
+spec:
+  moverDefaults:
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: kubernetes.io/hostname
+                  operator: In
+                  values: [kristeva, nuc-1, nuc-2, nuc-3]
+  backend:
+    filesystem:
+      path: /mnt/repository
+      volume:
+        nfs:
+          server: nuglab-storage.internal
+          path: /volume1/nuglab/VolsyncKopia
+  encryption:
+    passwordSecretRef:
+      name: registry-kopia
+      key: KOPIA_PASSWORD
+  create:
+    enabled: false
+  bootstrap:
+    failurePolicy:
+      activeDeadlineSeconds: 900
+  maintenance:
+    enabled: false
+---
+apiVersion: kopiur.home-operations.com/v1alpha1
+kind: SnapshotPolicy
+metadata:
+  name: registry
+spec:
+  repository:
+    kind: Repository
+    name: registry
+  sources:
+    - pvc:
+        name: registry-data
+      sourcePathOverride: /data
+  identity:
+    username: registry
+    hostname: cluster-infra
+  copyMethod: Snapshot
+  volumeSnapshotClassName: csi-ceph-blockpool
+  compression:
+    compressor: zstd-fastest
+  upload:
+    maxParallelFileReads: 2
+  mover:
+    cache:
+      mode: Ephemeral
+    # Zot's metadata is root-owned; read the snapshot as the same UID.
+    podSecurityContext:
+      runAsUser: 0
+      runAsGroup: 0
+      fsGroup: 0
+  retention:
+    keepDaily: 14
+    keepWeekly: 8
+---
+apiVersion: kopiur.home-operations.com/v1alpha1
+kind: SnapshotSchedule
+metadata:
+  name: registry
+spec:
+  policyRef:
+    name: registry
+  schedule:
+    cron: "0 4 * * *"

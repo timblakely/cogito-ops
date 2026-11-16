@@ -3,3 +3,8 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: cluster-infra
+  annotations:
+    # Zot's backup mover must read root-owned registry metadata. This trusts
+    # namespace workloads to reuse the elevated kopiur-mover ServiceAccount;
+    # cluster-infra already permits privileged infrastructure/build Pods.
+    kopiur.home-operations.com/privileged-movers: "true"

@@ -1,0 +1,123 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app registry
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+    namespace: flux-system
+  install:
+    timeout: 15m
+    remediation:
+      retries: 3
+  upgrade:
+    timeout: 15m
+    cleanupOnFail: true
+    remediation:
+      strategy: rollback
+      retries: 3
+  values:
+    controllers:
+      registry:
+        replicas: 1
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: ghcr.io/project-zot/zot
+              # Pinned to the multi-arch index digest of v2.1.23.
+              tag: v2.1.23@sha256:9d3de83ac2099e6f4843045b4c9b65b7e8baf40f92d28f54906dee9d4d390fd7
+            args:
+              - serve
+              - /zot/config/config.json
+            env:
+              TZ: "${TZ}"
+            # /v2/ answers 401 once htpasswd auth is on, and kubelet only counts
+            # 2xx-3xx as success, so an HTTP probe would declare a healthy registry
+            # unhealthy. The port opening is the signal that is actually meaningful.
+            probes:
+              liveness:
+                enabled: true
+                type: TCP
+                spec:
+                  tcpSocket:
+                    port: &http-port 8080
+              readiness:
+                enabled: true
+                type: TCP
+                spec:
+                  tcpSocket:
+                    port: *http-port
+              startup:
+                enabled: true
+                type: TCP
+                spec:
+                  tcpSocket:
+                    port: *http-port
+                  failureThreshold: 30
+                  periodSeconds: 5
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: [ALL] }
+            resources:
+              requests:
+                cpu: 100m
+                memory: 512Mi
+              limits:
+                memory: 4Gi
+    defaultPodOptions:
+      # Keep ordinary infrastructure off the dedicated GPU nodes. Data is on
+      # replicated Ceph RBD, not node-local storage.
+      nodeSelector:
+        kubernetes.io/hostname: kristeva
+      # Root owns the blob store; all Linux capabilities remain dropped.
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
+        seccompProfile: { type: RuntimeDefault }
+    service:
+      app:
+        ports:
+          http:
+            port: *http-port
+    route:
+      app:
+        hostnames: ["registry.${DOMAIN_NAME}"]
+        parentRefs:
+          - name: envoy-internal
+            namespace: envoy-system
+        rules:
+          - backendRefs:
+              - name: *app
+                port: *http-port
+    persistence:
+      config:
+        enabled: true
+        type: configMap
+        name: registry-configmap
+        globalMounts:
+          - path: /zot/config/config.json
+            subPath: zot.json
+      auth:
+        enabled: true
+        type: secret
+        name: registry-auth
+        globalMounts:
+          - path: /zot/auth/htpasswd
+            subPath: htpasswd
+      data:
+        existingClaim: registry-data
+        globalMounts:
+          - path: /var/lib/zot/storage
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp

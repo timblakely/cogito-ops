@@ -1,0 +1,21 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: registry-data
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+spec:
+  accessModes: [ReadWriteOnce]
+  # Ceph RBD, not a node hostpath: these private images are the only copy of
+  # things that exist nowhere else (until the snapshot backup has run), so they
+  # get replicated storage. `ceph-block` also has a real provisioned size, and
+  # it is the class VolSync snapshots for the NAS backup in backup.yaml.
+  #
+  # Nothing here is a filesystem quota. The PVC size is what gets provisioned;
+  # Zot's own maxRepoBytes is a per-repo logical limit checked when a manifest is
+  # published, so neither one is a hard cap on bytes on disk.
+  storageClassName: ceph-block
+  resources:
+    requests:
+      storage: 80Gi

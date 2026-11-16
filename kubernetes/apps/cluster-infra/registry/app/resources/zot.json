@@ -1,0 +1,50 @@
+{
+  "distSpecVersion": "1.1.1",
+  "storage": {
+    "rootDirectory": "/var/lib/zot/storage",
+    "dedupe": true,
+    "commit": true,
+    "gc": true,
+    "gcDelay": "2h",
+    "gcInterval": "12h",
+    "maxRepoBytes": 32212254720,
+    "retention": {
+      "dryRun": false,
+      "delay": "24h",
+      "policies": [
+        {
+          "repositories": ["timblakely/**"],
+          "deleteReferrers": false,
+          "deleteUntagged": false,
+          "keepTags": [
+            { "mostRecentlyPushedCount": 20 },
+            { "pulledWithin": "2160h" }
+          ]
+        }
+      ]
+    }
+  },
+  "http": {
+    "address": "0.0.0.0",
+    "port": "8080",
+    "readTimeout": "30m",
+    "writeTimeout": "30m",
+    "compat": ["docker2s2"],
+    "auth": {
+      "htpasswd": { "path": "/zot/auth/htpasswd" },
+      "failDelay": 1
+    },
+    "accessControl": {
+      "disableAnonymousCatalog": true,
+      "repositories": {
+        "timblakely/**": {
+          "policies": [
+            { "users": ["ci"], "actions": ["read", "create", "update"] }
+          ],
+          "defaultPolicy": ["read"]
+        }
+      }
+    }
+  },
+  "log": { "level": "info" }
+}
