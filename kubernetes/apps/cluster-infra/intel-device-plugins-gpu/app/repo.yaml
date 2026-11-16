@@ -11,4 +11,7 @@ spec:
     operation: copy
   ref:
     tag: 0.34.1
-  url: oci://ghcr.io/home-operations/charts-mirror/intel-device-plugins-gpu
+  # Upstream Intel org OCI charts. The old ghcr.io/home-operations/charts-mirror
+  # path started answering DENIED to anonymous token requests on 2026-10-28
+  # (repo gone private or removed); upstream verified anonymously pullable.
+  url: oci://ghcr.io/intel/helm-charts/intel-device-plugins-gpu

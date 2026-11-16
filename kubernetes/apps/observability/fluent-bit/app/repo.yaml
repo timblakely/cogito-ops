@@ -1,14 +1,14 @@
 ---
-# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/source.toolkit.fluxcd.io/ocirepository_v1.json
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/source.toolkit.fluxcd.io/helmrepository_v1.json
 apiVersion: source.toolkit.fluxcd.io/v1
-kind: OCIRepository
+kind: HelmRepository
 metadata:
   name: fluent-bit
 spec:
   interval: 15m
-  layerSelector:
-    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
-    operation: copy
-  ref:
-    tag: 0.54.0
-  url: oci://ghcr.io/home-operations/charts-mirror/fluent-bit
+  # Upstream Fluent project index. The old ghcr.io/home-operations/charts-mirror
+  # OCI path started answering DENIED to anonymous token requests on 2026-10-28
+  # (repo gone private or removed); the project publishes only via this HTTP
+  # index, no OCI mirror. Chart 0.54.0 verified pullable from it.
+  url: https://fluent.github.io/helm-charts
+
