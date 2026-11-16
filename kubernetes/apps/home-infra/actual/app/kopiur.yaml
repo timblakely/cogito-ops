@@ -27,9 +27,16 @@ spec:
   bootstrap:
     failurePolicy:
       activeDeadlineSeconds: 900
-  # Volsync's KopiaMaintenance CR still owns maintenance on this shared
-  # repository during the pilot/parallel-run window - leave this off until
-  # every app is fully cut over, to avoid two maintenance processes racing.
+  # Volsync's KopiaMaintenance CR was retired 2026-11-16 after the volsync
+  # parallel-run window closed (all 13 ReplicationSources paused; kopiur owns
+  # every snapshot). kopiur now owns maintenance: default quick-6h/full-daily.
+  # One physical repo (nuglab-storage:/volume1/nuglab/VolsyncKopia), one
+  # maintenance owner: storage/shared's managed Maintenance runs quick-6h /
+  # full-daily for every Repository CR pointed at this backend. Enabling it
+  # here too would fight - each CR derives a distinct lease string
+  # (kopiur/<ns>/<name>) and they can only yield to each other.
+  # (Volsync's KopiaMaintenance was retired 2026-11-16 when its 13
+  # ReplicationSources were all found paused.)
   maintenance:
     enabled: false
 ---

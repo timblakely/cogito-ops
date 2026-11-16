@@ -18,8 +18,13 @@ spec:
         key: volsync-template
         property: KOPIA_PASSWORD
 ---
-# Use the existing NAS repository and its existing maintenance owner. Snapshot
-# the entire Ceph volume: tag enumeration misses digest-only images and metadata.
+# Own archive repository on the NAS (nuglab-storage:/volume1/nuglab/RegistryArchive)
+# instead of the shared VolsyncKopia repo: kopiur/ceph is for app backups, and a
+# bulk image archive mirrored ~6k snapshot Catalog CRs into the shared repo's
+# discovery. Snapshot the entire Ceph volume: tag enumeration misses
+# digest-only images and metadata. The subdir was created server-side
+# (NFS does not mkdir client-side); kopiur bootstraps the kopia repo inside it
+# (repository create is idempotent - it adopts if it already exists).
 apiVersion: kopiur.home-operations.com/v1alpha1
 kind: Repository
 metadata:
@@ -40,18 +45,16 @@ spec:
       volume:
         nfs:
           server: nuglab-storage.internal
-          path: /volume1/nuglab/VolsyncKopia
+          path: /volume1/nuglab/RegistryArchive
   encryption:
     passwordSecretRef:
       name: registry-kopia
       key: KOPIA_PASSWORD
-  create:
-    enabled: false
   bootstrap:
     failurePolicy:
       activeDeadlineSeconds: 900
   maintenance:
-    enabled: false
+    enabled: true
 ---
 apiVersion: kopiur.home-operations.com/v1alpha1
 kind: SnapshotPolicy
