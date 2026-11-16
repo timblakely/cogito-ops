@@ -11,8 +11,13 @@ Verified 2026-11-16. Historical preparation is recorded in [MAYA-M-TRIAL.md](MAY
 - Maya 1.1.64, source `d93d1499021b98a39bede20d33368907f1ea4ad8`.
 - Placement: Iggy, both RTX 3090s, NVIDIA RuntimeClass, low priority.
   CPU request 20; RAM request/limit 112Gi; retained config uses a 90Gi RAM tier.
-- Context: 32768 tokens, one parallel slot. LiteLLM advertises an 8192-token
-  output ceiling, not an additional context window.
+- Context: 262144 tokens, one parallel slot, verified by the
+  [long-context pilot](MAYA-M-262K-BENCHMARK.md). Prompt, generation and the
+  native 8-token admission margin share this window. LiteLLM advertises an
+  8192-token output ceiling, not an additional context window.
+- `COGITO_MAYA_CONTEXT_SIZE` changes only the writable runtime config copy;
+  the original retained setup config remains untouched. Normal prefix caching
+  is enabled; `MAYA_GLM_NO_REUSE=1` was used only for cold benchmarks.
 - Weights, pack, vision assets and upstream config remain on `maya-m-iggy`.
   The image seed populates a nested ephemeral workspace at its original absolute
   path; a separate retained `data` mount preserves expert calibration profiles.
@@ -61,7 +66,9 @@ Using the actual Hermes virtual key through LiteLLM, not the admin key:
 - Catalogue self-test: 17 public model names, 6 virtual keys, 9 backends.
   Targeted Flux parity: 6 tests passed. Runtime seed regression test passed.
 
-This does not benchmark sustained concurrency or the full context ceiling.
+The integration checks do not benchmark sustained concurrency. The separate
+[262144-token pilot](MAYA-M-262K-BENCHMARK.md) records long-context throughput
+and a three-depth retrieval test, not a general accuracy guarantee.
 The old manual trial Pod remains historical; no four-hour deadline applies to
 this persistent InferenceService. Image-build cache/backup details are in
 [the image recipe](resources/manual/maya-m/image/README.md).

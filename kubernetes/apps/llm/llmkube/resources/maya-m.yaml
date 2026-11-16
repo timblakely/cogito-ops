@@ -49,13 +49,15 @@ spec:
       value: '1'
     - name: OMP_NUM_THREADS
       value: '8'
+    - name: COGITO_MAYA_CONTEXT_SIZE
+      value: '262144'
   resources:
     cpu: '20'
     memory: 112Gi
     gpu: 2
     ephemeralStorage: 8Gi
-  # Must match the retained upstream --max-context argument.
-  contextSize: 32768
+  # Mirrored to the runtime config copy by COGITO_MAYA_CONTEXT_SIZE.
+  contextSize: 262144
   endpoint:
     port: 8080
     path: /v1/chat/completions

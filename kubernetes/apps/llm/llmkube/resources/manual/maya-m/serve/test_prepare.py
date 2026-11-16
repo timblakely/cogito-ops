@@ -25,7 +25,8 @@ class PrepareRuntimeTest(unittest.TestCase):
             (seed / "build/maya").write_bytes(b"baked native engine")
             (seed / "python-link").symlink_to("/usr/bin/python3.12")
             config = root / "retained.json"
-            config.write_text(json.dumps({"model_name": "glm-5.3-flash", "gpu": [0, 1]}))
+            config.write_text(json.dumps({"model_name": "glm-5.3-flash", "gpu": [0, 1],
+                                          "args": ["--max-context", "32768", "--parallel", "1"]}))
             before = config.read_bytes()
             module.prepare(seed, runtime, config)
             self.assertEqual((runtime / "data/expert-profile-glm.bin").read_bytes(), b"retained calibration")
@@ -33,6 +34,11 @@ class PrepareRuntimeTest(unittest.TestCase):
             self.assertTrue((runtime / "python-link").is_symlink())
             self.assertEqual(config.read_bytes(), before)
             self.assertEqual((runtime / "maya-maya-m.json").read_bytes(), before)
+            module.prepare(seed, runtime, config, context_size=262144)
+            changed = json.loads((runtime / "maya-maya-m.json").read_text())
+            self.assertEqual(changed['args'], ['--max-context', '262144', '--parallel', '1'])
+            self.assertEqual(config.read_bytes(), before)
+            self.assertEqual((runtime / "data/expert-profile-glm.bin").read_bytes(), b"retained calibration")
 
 
 if __name__ == "__main__":
