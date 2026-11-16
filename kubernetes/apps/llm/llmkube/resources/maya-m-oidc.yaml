@@ -1,0 +1,54 @@
+# Same Pocket ID gateway-authentication convention as the radiance lane: the
+# engine's dashboard has no authentication of its own, so the gateway supplies it.
+# The maya-m-oidc Secret is minted by the Pocket ID operator from this client.
+---
+apiVersion: pocketid.internal/v1alpha1
+kind: PocketIDUserGroup
+metadata:
+  name: maya
+spec:
+  users:
+    usernames:
+    - tim
+---
+apiVersion: pocketid.internal/v1alpha1
+kind: PocketIDOIDCClient
+metadata:
+  name: maya
+spec:
+  clientID: maya
+  launchUrl: https://maya.${DOMAIN_NAME}
+  callbackUrls:
+  - https://maya.${DOMAIN_NAME}/oauth2/callback
+  allowedUserGroups:
+  - name: maya
+    namespace: llm
+  secret:
+    name: maya-oidc
+    keys:
+      clientID: client-id
+      clientSecret: client-secret
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: maya-oidc
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: maya
+  oidc:
+    provider:
+      issuer: https://pid.${DOMAIN_NAME}
+    clientIDRef:
+      name: maya-oidc
+    clientSecret:
+      name: maya-oidc
+    refreshToken: true
+    redirectURL: https://maya.${DOMAIN_NAME}/oauth2/callback
+    logoutPath: /logout
+    scopes:
+    - openid
+    - profile
+    - email
