@@ -27,10 +27,17 @@ Verified 2026-11-16. Historical preparation is recorded in [MAYA-M-TRIAL.md](MAY
   `--host 0.0.0.0 --port 8080`.
 - Health probes require JSON `status=ok` and `unloaded=false`. HTTP 200 alone
   is not a loaded-model guarantee on this server.
-- `maya-m-ingress` allows native-server traffic only from LiteLLM Pods in the
-  same namespace. The unauthenticated dashboard/model-management surface is not
-  exposed through an HTTPRoute. A non-proxy Pod's request timed out while the
-  LiteLLM path remained reachable.
+- Two NetworkPolicies select these Pods, and both must match for a request to
+  land: `maya-m-ingress` allows LiteLLM Pods, and `maya-m-gateway-ingress` adds
+  only the `envoy-internal` proxy. Everything else is refused.
+- The native dashboard is reachable at `https://maya.${DOMAIN_NAME}` through the
+  internal gateway, protected by Pocket ID gateway authentication
+  (`maya-m-httproute.yaml`, `maya-m-oidc.yaml`) exactly as the radiance lane is.
+  The engine itself still has no authentication: the gateway supplies it, so the
+  route, the SecurityPolicy and the policies must stay together.
+- `envoy-external` is deliberately absent from `maya-m-gateway-ingress`, so a
+  future route onto the public gateway would fail closed at the Pod instead of
+  exposing the unauthenticated model-management surface.
 
 ## LiteLLM and Paseo
 
