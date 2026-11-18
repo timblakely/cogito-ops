@@ -118,3 +118,58 @@ spec:
   podSecurityContext:
     seccompProfile:
       type: Unconfined
+---
+# Radiance 2.1.0 fleet config for the deleuze lane (engine bump 1.16.0 ->
+# 2.1.0, staged before the InferenceService change). Consumed first by
+# manual/radiance-21-preflight.yaml (applied out-of-band, NOT Flux-managed),
+# which runs `radiance --check`; then mounted by the InferenceService. A
+# format refusal at load names the offending weight; the primary fallback if
+# the CPU-only check is inconclusive is doc evidence (GUIDE.md benchmarks
+# this exact container type on v2.1.0) plus a fast jj revert.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: radiance-fleet-config
+data:
+  radiance.yaml: |
+    # Radiance 2.1.0 fleet config for the deleuze lane. Translated from the
+    # 1.16.0 CLI flags per docs/MULTIMODEL.md §4.1 (tag v2.1.0): every former
+    # flag is a same-named YAML key at its level; unknown keys are fatal. The
+    # entry name is the model id (served-model-name is gone, §4.3), so LiteLLM's
+    # openai/qwen3.8-flash-next keeps resolving. kv-cache-dtype: fp8 no longer
+    # exists outside GLM-5.3-Flash -> i8 (GUIDE key table). Keyless on purpose:
+    # server.api-key/api-key-env omitted (default none; OIDC edge in front;
+    # api-key-env with an unset variable refuses startup).
+    server:
+      host: "0.0.0.0"
+      port: 8080
+    memory:
+      gpu-headroom-mib: 160
+    scheduler:
+      stuck-exit: 60s
+      # Explicit: 2.x /health is process liveness, so a cold load exposes a
+      # 503+Retry-After window bounded by this; upstream's own tp2 fleet sets
+      # 600s and distrusts the undocumented default.
+      load-timeout: 600s
+    models:
+      qwen3.8-flash-next:
+        model: /models/radiance/qwen3.8-next-flash-fp8-iq4r-moe.rad
+        tp: 2
+        tp-wire: exact
+        max-num-seqs: 8
+        max-model-len: 262144
+        placement: expert_tiered
+        # 1.x pinned host-pool-mib per rank (v1.17.0 GUIDE: "pinned on every
+        # card"); 2.x is the total split equally across ranks (upstream
+        # tp2.radiance.yaml: 16384 = "8 GiB a rank"), so 8192/rank x 2 = 16384.
+        host-pool-mib: 16384
+        ngram-placement: disk
+        kv-cache-dtype: i8
+        num-speculative-tokens: 3
+        max-num-batched-tokens: 4096
+        mm-max-patches: 0
+        embedding-placement: ram
+        draft-window: fixed
+        prefill-span: 2
+        prefix-cache-mib: 8192
+

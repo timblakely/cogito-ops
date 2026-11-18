@@ -1,0 +1,76 @@
+# NOT in the Flux kustomization (convention per manual/iggy-r9700-smoke.yaml):
+# one-shot pre-flight for the radiance 1.16.0 -> 2.1.0 bump, applied out-of-band
+# with kubectl AFTER the radiance-fleet-config ConfigMap has synced. A failed
+# one-shot Job inside the prune+wait llmkube-resources KS stalls its health
+# check (see the stalled cache-prime-muse Job), so it lives here instead.
+#
+# Runs `radiance --check` (parse, validate, plan, serve nothing -
+# docs/MULTIMODEL.md §4 at tag v2.1.0) against the real container on the PVC in
+# a CPU-only pod: the live lane holds both amd.com/gpu cards. A format refusal
+# names the offending weight; a device-enumeration failure WITHOUT a refusal is
+# inconclusive - doc evidence (GUIDE.md benchmarks this exact container type on
+# v2.1.0) plus a fast jj revert is the primary fallback.
+#
+# Mirrors the lane: the 2.x pinned-host cap derives from the container memory
+# limit (75%), so the limit must cover host-pool-mib: 16384 like the lane's
+# 48Gi. Mount shape (whole ConfigMap at /etc/radiance) mirrors commit 2 so the
+# check exercises the exact mount the lane will use.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: radiance-21-preflight
+  labels:
+    app: radiance-21-preflight
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 21600
+  ttlSecondsAfterFinished: 7200
+  template:
+    metadata:
+      labels:
+        app: radiance-21-preflight
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      nodeSelector:
+        kubernetes.io/hostname: deleuze
+      tolerations:
+      - key: workload.cogito/dedicated
+        operator: Equal
+        value: ml
+        effect: NoSchedule
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+      volumes:
+      - name: weights
+        persistentVolumeClaim:
+          claimName: radiance-deleuze
+      - name: config
+        configMap:
+          name: radiance-fleet-config
+          defaultMode: 420
+      containers:
+      - name: check
+        image: docker.io/stilldeadcode/radiance:2.1.0@sha256:d3d6c796083b0d00f2b462554aa002f853248506d55658d60d685017abb9b42d # amd64 child of index sha256:c9affc48...
+        command:
+        - /opt/radiance/bin/radiance
+        args:
+        - --config
+        - /etc/radiance/radiance.yaml
+        - --check
+        volumeMounts:
+        - name: weights
+          mountPath: /models
+          readOnly: true
+        - name: config
+          mountPath: /etc/radiance
+          readOnly: true
+        resources:
+          requests:
+            cpu: "2"
+            memory: 8Gi
+          limits:
+            cpu: "8"
+            memory: 48Gi
