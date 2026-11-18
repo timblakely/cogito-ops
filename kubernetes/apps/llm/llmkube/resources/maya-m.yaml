@@ -50,7 +50,7 @@ spec:
     - name: OMP_NUM_THREADS
       value: '8'
     - name: COGITO_MAYA_CONTEXT_SIZE
-      value: '262144'
+      value: '1048576'
     - name: COGITO_MAYA_PARALLEL
       value: '2'
     # Rewritten into MAYA_GLM_* config-env pairs by prepare.py.
@@ -71,8 +71,10 @@ spec:
     memory: 112Gi
     gpu: 2
     ephemeralStorage: 8Gi
+  # GLM-5.3-Flash's native 1048576-token window; both parallel seats size to
+  # it (streamed KV ~6.5 KB/token/seat), absorbed by the RAM tier at start.
   # Mirrored to the runtime config copy by COGITO_MAYA_CONTEXT_SIZE.
-  contextSize: 262144
+  contextSize: 1048576
   endpoint:
     port: 8080
     path: /v1/chat/completions

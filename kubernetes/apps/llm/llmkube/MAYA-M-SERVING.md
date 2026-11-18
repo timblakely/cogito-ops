@@ -11,9 +11,11 @@ Verified 2026-11-16. Historical preparation is recorded in [MAYA-M-TRIAL.md](MAY
 - Maya 1.1.64, source `d93d1499021b98a39bede20d33368907f1ea4ad8`.
 - Placement: Iggy, both RTX 3090s, NVIDIA RuntimeClass, low priority.
   CPU request 20; RAM request/limit 112Gi; retained config uses a 90Gi RAM tier.
-- Context: 262144 tokens, one parallel slot, verified by the
-  [long-context pilot](MAYA-M-262K-BENCHMARK.md). Prompt, generation and the
-  native 8-token admission margin share this window. LiteLLM advertises an
+- Context: 1048576 tokens (GLM-5.3-Flash's native window), two parallel
+  MTP-drafted slots; `MAYA_GLM_MULTI_ROOM=4096` keeps admission inside it.
+  Prompt, generation and the native 8-token admission margin share this
+  window. The 262144-token predecessor was verified by the
+  [long-context pilot](MAYA-M-262K-BENCHMARK.md). LiteLLM advertises an
   8192-token output ceiling, not an additional context window.
 - `COGITO_MAYA_CONTEXT_SIZE` changes only the writable runtime config copy;
   the original retained setup config remains untouched. Normal prefix caching
