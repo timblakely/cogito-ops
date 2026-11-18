@@ -11,17 +11,23 @@ import time
 
 NVML_LIB = "/host-libs/libnvidia-ml.so.1"
 HWMON_ROOT = "/sys/class/hwmon"  # host sysfs (privileged pod); hostPath subtree mounts break sysfs relative symlinks
-# Board headers are FIRMWARE-OWNED by policy. The BIOS profile on these boxes runs
-# every header except SYS_FAN at full speed, and the previous GPU-keyed curve capped
-# pwm3-7 at ~87% (CEIL needs a 85C GPU; the cards never pass ~77C) while ignoring CPU
-# temperature entirely -- iggy tripped its internal thermal limit on 2026-11-17 with
-# the CPU at 93-95C and these headers parked at 83%. Software therefore never writes
-# a board duty in normal operation; it only takes over at 100% as a CPU redline
-# fail-safe (see board_guard), so it can add airflow but never remove it.
+# Board headers: HELD AT FULL SPEED, ALWAYS. Two measured facts about this
+# MSI X570 / NCT6797D box drove this policy:
+#  - Writing pwm_enable=5 ("auto", which is what the previous version did on clean
+#    stop) parks pwm7 at duty 0 and the chassis exhaust fan stops outright:
+#    measured 2026-11-18, fan7 5133 RPM -> 0 RPM. AUTO is never safe here.
+#  - The old GPU-keyed curve could only reach ~87% (CEIL=100 needs an 85C GPU and
+#    the cards never pass ~77C) and never read CPU temperature, so iggy cooked
+#    itself at 93-95C CPU with these headers parked at 83% and tripped its internal
+#    thermal limit on 2026-11-17.
+# So every board header is written pwm=255 with pwm_enable=0 (no software control ->
+# fan runs full on) on every poll and on clean stop. The operator's BIOS profile runs
+# these headers at full speed, so this only ever matches that intent, never undercuts
+# it. pwm1 (AIO pump) and pwm2 are left exactly as firmware leaves them.
 BOARD_PWMS = [3, 4, 5, 6, 7]
-FLOOR, CEIL = 50, 100       # percent
+FLOOR, CEIL = 50, 100       # percent (GPU card-fan curve)
 T_LO, T_HI = 55.0, 85.0     # deg C (GPU card-fan curve)
-CPU_HI, CPU_LO = 90.0, 80.0 # deg C: board-fan redline arm / release (k10temp)
+CPU_WARN = 90.0             # deg C: log a warning; the fans are already at 100%
 POLL_S = 5
 LOG_EVERY = 12              # ~60s
 METRICS_PORT = 9410
@@ -30,7 +36,6 @@ nvml = ctypes.CDLL(NVML_LIB)
 _running = True
 _last_duty = FLOOR
 _state = {"handles": [], "hwmon": None, "cpu_hwmon": None}
-_override = {"armed": False}
 
 def _stop(sig, frame):
     global _running
@@ -110,53 +115,47 @@ def cpu_temp(hwmon):
             best = v
     return best
 
-def board_guard(ctemp):
-    """CPU redline fail-safe for the firmware-owned board headers.
+def board_fullspeed(hwmon):
+    """Hold every board header at full speed: pwm=255 with pwm_enable=0.
 
-    Normal operation writes nothing: the BIOS profile already runs these headers at
-    full speed. Only when the CPU crosses CPU_HI do we seize them at 100%, and we
-    hand them straight back once it cools below CPU_LO."""
-    hwmon = _state["hwmon"]
-    if not hwmon or ctemp is None or not BOARD_PWMS:
+    pwm_enable=0 means "no software fan speed control", which on this chip leaves the
+    header driven fully on. The old clean-stop value (5, "auto") is deliberately never
+    written anywhere in this script: on this board it parks pwm7 at duty 0 and the
+    chassis exhaust fan stops outright."""
+    if not hwmon:
         return
-    if not _override["armed"] and ctemp >= CPU_HI:
-        _override["armed"] = True
-        print("OVERRIDE cpu=%.1fC >= %.0fC: forcing board pwm%s to 100%%"
-              % (ctemp, CPU_HI, BOARD_PWMS), flush=True)
-    elif _override["armed"] and ctemp <= CPU_LO:
-        _override["armed"] = False
-        board_restore(hwmon)  # hand the headers back to firmware, do not linger at 100%
-        print("OVERRIDE released at cpu=%.1fC: firmware retakes board fans" % ctemp, flush=True)
-    if _override["armed"]:
-        board_set(hwmon, CEIL)
-
-def board_set(hwmon, duty):
-    raw = duty * 255 // 100  # sysfs pwm is 0-255, not percent
     for p in BOARD_PWMS:
         en = os.path.join(hwmon, "pwm%d_enable" % p)
         pw = os.path.join(hwmon, "pwm%d" % p)
         try:
-            if open(en).read().strip() != "1":
-                open(en, "w").write("1")
-            if open(pw).read().strip() != str(raw):
-                open(pw, "w").write(str(raw))
+            if open(pw).read().strip() != "255":
+                open(pw, "w").write("255")
+            if open(en).read().strip() != "0":
+                open(en, "w").write("0")
         except OSError as e:
             print("WARN board pwm%d: %s" % (p, e), flush=True)
 
-def board_restore(hwmon):
+def board_state(hwmon):
+    """(pwm, duty percent, enable) per board header: metrics plus startup logging."""
+    out = []
+    if not hwmon:
+        return out
     for p in BOARD_PWMS:
         try:
-            open(os.path.join(hwmon, "pwm%d_enable" % p), "w").write("5")  # AUTO
-        except OSError:
-            pass
+            duty = int(open(os.path.join(hwmon, "pwm%d" % p)).read().strip()) * 100 // 255
+            en = open(os.path.join(hwmon, "pwm%d_enable" % p)).read().strip()
+        except (OSError, ValueError):
+            continue
+        out.append((p, duty, en))
+    return out
 
 def restore(handles, hwmon):
     for gi, h in enumerate(handles):
         rc = nvml.nvmlDeviceSetFanControlPolicy(h, 0)  # AUTO
         if rc != 0:
             print("WARN restore gpu%d policy rc=%d" % (gi, rc), flush=True)
-    if hwmon:
-        board_restore(hwmon)
+    # Deliberately not AUTO: full speed is the state we leave behind for firmware.
+    board_fullspeed(hwmon)
 
 def board_temps(hwmon):
     out = {}
@@ -195,12 +194,9 @@ def render_metrics():
           "# TYPE fanctl_applied_duty_percent gauge",
           "fanctl_applied_duty_percent %d" % _last_duty]
     ct = cpu_temp(_state["cpu_hwmon"])
-    L += ["# HELP fanctl_cpu_temp_celsius Hottest k10temp channel, the CPU redline input.",
+    L += ["# HELP fanctl_cpu_temp_celsius Hottest k10temp channel (Tctl/Tdie).",
           "# TYPE fanctl_cpu_temp_celsius gauge",
           "fanctl_cpu_temp_celsius %.1f" % (ct if ct is not None else -1)]
-    L += ["# HELP fanctl_board_override_active Board pwm forced to 100 by the CPU redline fail-safe (1/0).",
-          "# TYPE fanctl_board_override_active gauge",
-          "fanctl_board_override_active %d" % (1 if _override["armed"] else 0)]
     L += ["# HELP fanctl_gpu_fan_percent Reported card fan speed per GPU (0-100).",
           "# TYPE fanctl_gpu_fan_percent gauge"]
     for i, h in enumerate(handles):
@@ -209,13 +205,12 @@ def render_metrics():
             L.append('fanctl_gpu_fan_percent{gpu="%d"} %d' % (i, v))
     if hwmon:
         L += ["# HELP fanctl_board_pwm_percent Board fan pwm duty (0-100).",
-              "# TYPE fanctl_board_pwm_percent gauge"]
-        for p in BOARD_PWMS:
-            try:
-                raw = open(os.path.join(hwmon, "pwm%d" % p)).read().strip()
-                L.append('fanctl_board_pwm_percent{pwm="%d"} %d' % (p, int(raw) * 100 // 255))
-            except (OSError, ValueError):
-                pass
+              "# TYPE fanctl_board_pwm_percent gauge",
+              "# HELP fanctl_board_pwm_enable Board pwm_enable mode (0=no software control).",
+              "# TYPE fanctl_board_pwm_enable gauge"]
+        for p, duty, en in board_state(hwmon):
+            L.append('fanctl_board_pwm_percent{pwm="%d"} %d' % (p, duty))
+            L.append('fanctl_board_pwm_enable{pwm="%d"} %s' % (p, en))
         temps = board_temps(hwmon)
         L += ["# HELP fanctl_board_temp_c On-board (case) temperature sensor, deg C.",
               "# TYPE fanctl_board_temp_c gauge"]
@@ -253,18 +248,20 @@ def main():
         sys.exit(1)
     hwmon = board_hwmon()
     if not hwmon:
-        print("WARN: board hwmon not found; CPU redline fail-safe disabled", flush=True)
+        print("WARN: board hwmon not found; board headers stay as firmware left them", flush=True)
     chwmon = cpu_hwmon()
     if not chwmon:
-        print("WARN: k10temp hwmon not found; CPU redline fail-safe disabled", flush=True)
+        print("WARN: k10temp hwmon not found; CPU temperature will not be reported", flush=True)
     for gi, h in enumerate(handles):
         rc = nvml.nvmlDeviceSetFanControlPolicy(h, 1)  # MANUAL
         print("gpu%d fan policy MANUAL rc=%d" % (gi, rc), flush=True)
     _state["handles"], _state["hwmon"], _state["cpu_hwmon"] = handles, hwmon, chwmon
+    print("board headers as found: %s" % (board_state(hwmon),), flush=True)
+    board_fullspeed(hwmon)
+    print("board headers pinned full speed: %s" % (board_state(hwmon),), flush=True)
     serve_metrics()
-    print("fan-control started: %d gpus, board hwmon=%s (firmware-owned, redline at %.0fC), "
-          "cpu hwmon=%s, metrics on :%d"
-          % (len(handles), hwmon, CPU_HI, chwmon, METRICS_PORT), flush=True)
+    print("fan-control started: %d gpus, board hwmon=%s, cpu hwmon=%s, metrics on :%d"
+          % (len(handles), hwmon, chwmon, METRICS_PORT), flush=True)
     i = 0
     try:
         global _last_duty
@@ -276,13 +273,17 @@ def main():
                 duty = curve(max(live))
                 _last_duty = duty
                 gpu_set_fans(handles, duty)
-            # Runs even when GPU telemetry is missing: the CPU fail-safe must not
-            # depend on the cards answering.
-            board_guard(cpu_temp(_state["cpu_hwmon"]))
+            # Independent of GPU telemetry: board headers stay pinned at full speed
+            # even when the cards stop answering.
+            board_fullspeed(hwmon)
+            ctemp = cpu_temp(_state["cpu_hwmon"])
             if i % LOG_EVERY == 0:
-                print("temps=[%s] gpu_duty=%d%% cpu=%s board_override=%d"
-                      % (",".join(str(t) for t in temps), duty,
-                         cpu_temp(_state["cpu_hwmon"]), 1 if _override["armed"] else 0), flush=True)
+                print("temps=[%s] gpu_duty=%d%% cpu=%s board=%s"
+                      % (",".join(str(t) for t in temps), duty, ctemp, board_state(hwmon)),
+                      flush=True)
+                if ctemp is not None and ctemp >= CPU_WARN:
+                    print("WARN cpu=%.1fC >= %.0fC with board headers already at 100%%: "
+                          "at the cooling limit" % (ctemp, CPU_WARN), flush=True)
             i += 1
             time.sleep(POLL_S)
     finally:
