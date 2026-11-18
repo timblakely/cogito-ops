@@ -1,12 +1,17 @@
 ---
 # Fan controller for iggy (2x RTX 3090 + NCT6797 board fans).
 # Card fans: NVML MANUAL policy, driven by a curve of the hottest GPU temp.
-# Board fans pwm3-7: sysfs manual, same curve (exhaust follows GPU heat).
-# pwm1 (100% flat) and pwm2 (auto-tracks a board sensor) are untouched.
-# Script lives in fanctl.py (content-hashed ConfigMap via configMapGenerator,
-# so script edits roll the pod). Exposes :9410/metrics (applied duty, card fan
-# %, board pwm %, case temps) for the gpu-thermal dashboard; DCGM covers
-# temp/power/clock but has no fan-speed field on GeForce.
+# Board fans pwm3-7: LEFT TO FIRMWARE. The BIOS profile runs every header except
+# SYS_FAN at full speed, so a software curve on them can only ever slow the box
+# down -- the old GPU-keyed curve capped out at ~87% (CEIL needs a 85C GPU, the
+# cards never pass ~77C) and never looked at CPU temperature. The script now only
+# seizes pwm3-7 at 100% if k10temp crosses 90C (released below 80C), so software
+# can add airflow but never remove it. pwm1 (AIO pump, already 100%) and pwm2
+# (firmware auto) remain untouched. Script lives in fanctl.py (content-hashed
+# ConfigMap via configMapGenerator, so script edits roll the pod). Exposes
+# :9410/metrics (applied duty, card fan %, board pwm %, case temps, cpu temp,
+# override state) for the gpu-thermal dashboard; DCGM covers temp/power/clock but
+# has no fan-speed field on GeForce.
 # On clean stop: restores firmware auto profile + board AUTO mode.
 apiVersion: apps/v1
 kind: DaemonSet
