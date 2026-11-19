@@ -61,10 +61,12 @@ spec:
   # window to hit.
   #
   # Two consequences for whoever edits this file next:
-  #  - Every push is a lane restart, and warm-up reloads every entry first
-  #    (Muse alone re-reads 33.15 GiB from the container in 6.2 s at 5.7 GB/s,
-  #    then flashnext's warm load displaces it). Schedule it when the cards are
-  #    free - waitForIdle: false means it lands mid-conversation.
+  #  - Every push is a lane restart, and warm-up reloads EVERY entry first, in
+  #    file order, each one displaced by the next: Muse re-reads 33.15 GiB in
+  #    6.2 s at 5.7 GB/s, FLUX 9.35 GiB, and flashnext lands last - so boot
+  #    cost grows with each entry added and only the last one stays resident.
+  #    Schedule pushes when the cards are free: waitForIdle: false means the
+  #    restart lands mid-conversation.
   #  - `radiance --check` has to gate the PUSH, not the reload. An unknown key
   #    is fatal at startup, so a bad file here crashloops the lane that serves
   #    this agent instead of being refused by reload. Validate against the
@@ -214,6 +216,32 @@ data:
         # be the one holding VRAM; without this Muse keeps both cards until an
         # agent request forces the swap.
         ttl: 15m
+      flux-3-klein:
+        # FLUX.3 [klein] IQ8R (9.35 GiB container, staged by
+        # manual/radiance-deleuze-stage-models.yaml, sha256-gated): text to image
+        # plus edits from up to ten reference pictures. Its card is explicit that
+        # this one wants ONE card, so tp 1 - unlike the two text lanes - and 5.8 s
+        # per 1024x1024 on a single R9700 (gfx1201), 16 unguided steps because the
+        # checkpoint is distilled. It serves ONLY OpenAI's images API
+        # (/v1/images/generations, /v1/images/edits); chat and completions answer
+        # 501, the mirror image of Muse's picture problem.
+        #
+        # max-model-len mirrors the upstream image entry's arithmetic: a request
+        # holds two sequences of that many tokens in the cache, and 20480 covers a
+        # 2048x2048 picture (16384 latents). Leaving it unset would size the KV
+        # pool from whatever the card has left, which an image model never uses.
+        #
+        # Licensing is the user's call, stated as fact: the repo is HF-gated under
+        # the FLUX Kommunity License (non-commercial use, commercial OUTPUT only for
+        # Qualifying Users, granted by Black Forest Labs), and because its text
+        # encoder is Qwen3-VL-4B-Instruct the container also carries
+        # LICENSE-Qwen3-VL. It is reachable only by direct calls to this lane - no
+        # LiteLLM route - which keeps who can use it explicit.
+        model: /models/radiance/flux-3-klein-iq8r.rad
+        aliases: [flux]
+        tp: 1
+        max-model-len: 20480
+        ttl: 15m
     groups:
       # Measured, not guessed: /admin/fleet reports qwen3.8-flash-next at
       # 33487111208 B = 31.19 GiB PER CARD against the 31.3 GiB each R9700
@@ -222,8 +250,10 @@ data:
       # across tp 2 + 7.4 GiB KV), so it and flashnext are mutually exclusive by
       # arithmetic. Saying so explicitly is what makes the planner park to make
       # room instead of waiting out load-timeout for room that does not exist.
-      # Revisit if flashnext's claim is ever shrunk (max-model-len/max-num-seqs),
-      # and add flux-3-klein here when its entry lands.
+      # Revisit if flashnext's claim is ever shrunk (max-model-len/max-num-seqs).
+      # flux-3-klein is tp 1 and only wants ~11 GiB on ONE card, but flashnext
+      # holds both cards outright, so it is in the exclusive set too: nothing
+      # of ours is co-resident with the agent lane on this node.
       one-at-a-time:
-        exclusive: [qwen3.8-flash-next, muse-glimmer]
+        exclusive: [qwen3.8-flash-next, muse-glimmer, flux-3-klein]
 

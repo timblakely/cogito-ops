@@ -15,19 +15,21 @@
 # mounting it read-write from a second pod on the SAME node is the pattern
 # muse-iggy-staging-job.yaml uses against its own lane claim.
 #
-# Still blocked on a human: StillDeadcode/radiance-flux-3-klein-iq8r is a GATED
-# Hugging Face repo ("gated": "auto"). The HF account behind
-# op://kubernetes/huggingface/HF_TOKEN (Timmay) reads its metadata but the
-# resolve URL answers 403, so the FLUX Kommunity License terms have never been
-# accepted on that repo page. Accepting them is the user's call, not something
-# to do with his token. Once accepted, FLUX.3 [klein] IQ8R stages with this same
-# script and that token as a header: flux-3-klein-iq8r.rad, sha256
-# d1f10ea160e293a7715f16b8d5c4be3c10fbd00f4fccee8aa5e6bb0affd4a800,
-# 10044059904 bytes.
+# StillDeadcode/radiance-flux-3-klein-iq8r is a GATED Hugging Face repo
+# ("gated": "auto"): the FLUX Kommunity License must be accepted on the repo page
+# by the HF account itself. That happened 2026-11-19, so the gated file is listed
+# below. The token is NEVER in this file: it is read at apply time from
+# op://kubernetes/huggingface/HF_TOKEN into the Secret radiance-hf-gated
+#     op read ... | kubectl -n llm create secret generic radiance-hf-gated \
+#         --from-file=HF_TOKEN=/dev/stdin --dry-run=client -o yaml | kubectl apply -f -
+# and mounted via secretKeyRef (optional: true, so the ungated Muse file still
+# stages when the Secret is absent). A 403 from a gated resolve URL means the
+# gate was re-checked or the token lost its gated-repo read scope - not a bug
+# here. Delete the Secret when the staging run is over.
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: radiance-deleuze-stage-muse-v1
+  name: radiance-deleuze-stage-flux-v1
   namespace: llm
 spec:
   # Ride out Hugging Face throttling: the fetch resumes from its .partial, so a
@@ -72,6 +74,19 @@ spec:
                       "sha256": "7f1649d5a4965e8bd1d92924e172aab38e94eb596e2df86c52a4e1924ab1f60b",
                       "size": 38292385792,
                   },
+                  # FLUX.3 [klein] IQ8R: text to image plus edits from up to ten
+                  # pictures, on ONE card (its card says tp 1, 16 unguided steps,
+                  # 5.8 s per 1024x1024 on a single R9700, gfx1201). Gated repo,
+                  # so this is the entry that needs the bearer header below. The
+                  # digest is the LFS OID the tree API publishes for the object.
+                  {
+                      "url": ("https://huggingface.co/StillDeadcode/radiance-flux-3-klein-iq8r"
+                              "/resolve/main/flux-3-klein-iq8r.rad"),
+                      "name": "flux-3-klein-iq8r.rad",
+                      "sha256": "d1f10ea160e293a7715f16b8d5c4be3c10fbd00f4fccee8aa5e6bb0affd4a800",
+                      "size": 10044059904,
+                      "bearer": "HF_TOKEN",
+                  },
               ]
 
               def sha256_of(path):
@@ -98,6 +113,18 @@ spec:
                       os.remove(part)
                       have = 0
                   headers = {"User-Agent": "cogito-weight-stager"}
+                  if spec.get("bearer"):
+                      # .strip() is load-bearing: a Secret created with
+                      # --from-file=/dev/stdin keeps op's trailing newline, and a
+                      # header value containing \\n makes urllib raise ValueError
+                      # with the whole header value in the message - i.e. the
+                      # token in the pod log. Never let the value reach a log.
+                      tok = (os.environ.get(spec["bearer"]) or "").strip()
+                      if not tok:
+                          print("FATAL %s needs $%s (Secret radiance-hf-gated) for the gated repo"
+                                % (spec["name"], spec["bearer"]), flush=True)
+                          sys.exit(1)
+                      headers["Authorization"] = "Bearer " + tok
                   if have:
                       headers["Range"] = "bytes=%d-" % have
                       print("resuming", spec["name"], "at", have, "of", spec["size"], flush=True)
@@ -151,6 +178,13 @@ spec:
               for spec in FILES:
                   fetch(spec)
               print("ALL FILES STAGED", flush=True)
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: radiance-hf-gated
+                  key: HF_TOKEN
+                  optional: true
           resources:
             requests:
               cpu: 200m
