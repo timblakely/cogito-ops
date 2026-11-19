@@ -1,0 +1,170 @@
+# One-shot weight staging for the deleuze Radiance fleet. Applied out-of-band
+# with kubectl AFTER the InferenceService's weights claim is bound, and NOT
+# added to llmkube/resources/kustomization.yaml.
+#
+# Why manual, when muse-iggy-staging-job.yaml IS registered: a registered batch
+# Job is health-checked by llmkube-resources, so a download that stalls or dies
+# on Hugging Face throttling holds that Kustomization Ready=False for its whole
+# activeDeadline and makes every unrelated llmkube change look stuck. A 35.66
+# GiB fetch is one-shot infrastructure, not desired state, so it lives beside
+# radiance-21-preflight.yaml instead. Re-run by deleting the completed Job and
+# applying this file again; the script is digest-gated and resumes, so a re-run
+# costs nothing once the bytes are verified.
+#
+# The claim is RWO and the serving pod already mounts it read-only on this node;
+# mounting it read-write from a second pod on the SAME node is the pattern
+# muse-iggy-staging-job.yaml uses against its own lane claim.
+#
+# Still blocked on a human: StillDeadcode/radiance-flux-3-klein-iq8r is a GATED
+# Hugging Face repo ("gated": "auto"). The HF account behind
+# op://kubernetes/huggingface/HF_TOKEN (Timmay) reads its metadata but the
+# resolve URL answers 403, so the FLUX Kommunity License terms have never been
+# accepted on that repo page. Accepting them is the user's call, not something
+# to do with his token. Once accepted, FLUX.3 [klein] IQ8R stages with this same
+# script and that token as a header: flux-3-klein-iq8r.rad, sha256
+# d1f10ea160e293a7715f16b8d5c4be3c10fbd00f4fccee8aa5e6bb0affd4a800,
+# 10044059904 bytes.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: radiance-deleuze-stage-muse-v1
+  namespace: llm
+spec:
+  # Ride out Hugging Face throttling: the fetch resumes from its .partial, so a
+  # patient deadline beats a fast failure that restarts the download.
+  activeDeadlineSeconds: 21600
+  backoffLimit: 3
+  template:
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: deleuze
+      # deleuze is a dedicated-ML node: taint workload.cogito/dedicated=ml:NoSchedule.
+      # Without this toleration the pod sits Pending with "3 node(s) had
+      # untolerated taint(s)", which reads like a volume-binding failure.
+      tolerations:
+        - key: workload.cogito/dedicated
+          operator: Equal
+          value: ml
+          effect: NoSchedule
+      containers:
+        - name: stage
+          # Page cache written through a hostpath volume is charged to this
+          # cgroup; a small limit throttles writeback instead of letting the
+          # fetch crowd out the serving pod's pinned host pools.
+          image: docker.io/library/python:3.12-slim
+          command: ["python3", "-u", "-c"]
+          args:
+            - |
+              import hashlib, os, sys, time, urllib.error, urllib.request
+
+              DEST_DIR = "/models/radiance"
+              FILES = [
+                  # Meta Muse Glimmer 30B: IQ8R trunk, int8 lm_head, merged
+                  # DFlash drafter, vision tower. radiance >= 2.1.0. The digest
+                  # is the LFS OID Hugging Face publishes for the object, so the
+                  # digest is the contract, not the repo name.
+                  {
+                      "url": ("https://huggingface.co/StillDeadcode/muse-glimmer-30b-iq8r-dflash"
+                              "/resolve/main/muse-glimmer-30b-iq8r-dflash.rad"),
+                      "name": "muse-glimmer-30b-iq8r-dflash.rad",
+                      "sha256": "7f1649d5a4965e8bd1d92924e172aab38e94eb596e2df86c52a4e1924ab1f60b",
+                      "size": 38292385792,
+                  },
+              ]
+
+              def sha256_of(path):
+                  h = hashlib.sha256()
+                  with open(path, "rb") as f:
+                      for chunk in iter(lambda: f.read(1 << 24), b""):
+                          h.update(chunk)
+                  return h.hexdigest()
+
+              def fetch(spec):
+                  dst = os.path.join(DEST_DIR, spec["name"])
+                  part = dst + ".partial"
+                  if os.path.exists(dst):
+                      got = sha256_of(dst)
+                      if got == spec["sha256"]:
+                          print("present, digest verified:", dst, flush=True)
+                          return
+                      print("existing file has wrong digest, refetching:", dst, flush=True)
+                      os.remove(dst)
+
+                  # Resume from however much of .partial already landed.
+                  have = os.path.getsize(part) if os.path.exists(part) else 0
+                  if have > spec["size"]:
+                      os.remove(part)
+                      have = 0
+                  headers = {"User-Agent": "cogito-weight-stager"}
+                  if have:
+                      headers["Range"] = "bytes=%d-" % have
+                      print("resuming", spec["name"], "at", have, "of", spec["size"], flush=True)
+
+                  # urlopen follows HF's LFS redirect to the CDN. A 403 here is
+                  # an unaccepted gate or a revoked token, and says which.
+                  req = urllib.request.Request(spec["url"], headers=headers)
+                  try:
+                      resp = urllib.request.urlopen(req, timeout=180)
+                  except urllib.error.HTTPError as e:
+                      why = "gated repo or revoked token" if e.code == 403 else "transient"
+                      print("FATAL HTTP %d (%s): %s" % (e.code, why, spec["url"]), flush=True)
+                      sys.exit(1)
+
+                  mode = "ab" if (have and resp.status == 206) else "wb"
+                  if mode == "wb":
+                      have = 0
+                  t0 = time.time()
+                  last = have
+                  session_bytes = 0
+                  with resp, open(part, mode) as out:
+                      while have < spec["size"]:
+                          chunk = resp.read(1 << 22)
+                          if not chunk:
+                              break
+                          out.write(chunk)
+                          have += len(chunk)
+                          session_bytes += len(chunk)
+                          if have - last >= (2 << 30):
+                              secs = time.time() - t0
+                              print("  %s: %.2f / %.2f GiB (%.1f MB/s)" % (
+                                  spec["name"], have / 2**30, spec["size"] / 2**30,
+                                  session_bytes / (time.time() - t0 + 1e-9) / 2**20), flush=True)
+                              t0 = time.time()
+                              last = have
+                      out.flush()
+                      os.fsync(out.fileno())
+
+                  if have != spec["size"]:
+                      print("short read:", have, "of", spec["size"], "- leaving .partial", flush=True)
+                      sys.exit(1)
+                  got = sha256_of(part)
+                  if got != spec["sha256"]:
+                      print("DIGEST MISMATCH", spec["name"], "got", got, "- leaving .partial", flush=True)
+                      sys.exit(1)
+                  os.replace(part, dst)
+                  os.sync()
+                  print("staged:", dst, "%.2f GiB" % (have / 2**30), "digest verified", flush=True)
+
+              os.makedirs(DEST_DIR, exist_ok=True)
+              for spec in FILES:
+                  fetch(spec)
+              print("ALL FILES STAGED", flush=True)
+          resources:
+            requests:
+              cpu: 200m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: weights
+              mountPath: /models
+      volumes:
+        - name: weights
+          persistentVolumeClaim:
+            claimName: radiance-deleuze

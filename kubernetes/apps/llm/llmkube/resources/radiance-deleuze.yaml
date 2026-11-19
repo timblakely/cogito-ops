@@ -46,8 +46,29 @@ spec:
   command:
   - /opt/radiance/bin/radiance
   # 2.x removed all server CLI flags: radiance --config FILE only. All 20
-  # former flags live in the fleet ConfigMap below (mount at /etc/radiance,
+  # former flags live in the fleet ConfigMap below (mounted at /etc/radiance,
   # same shape the radiance-21-preflight --check validated out-of-band).
+  #
+  # MEASURED 2026-11-19, and it corrects what this comment used to claim:
+  # pushing a changed fleet ConfigMap DOES roll this pod. llmkube owns the
+  # Deployment with rolloutPolicy.waitForIdle: false, and it deleted and
+  # recreated the pod ~1 s after Flux wrote the ConfigMap - events show
+  # SuccessfulDelete then SuccessfulCreate on the SAME ReplicaSet hash, so the
+  # pod template never changed and it is the operator killing the pod, not the
+  # Deployment controller. `POST /admin/reload` / SIGHUP behave exactly as
+  # docs/MULTIMODEL.md 10 describes, but they only help for edits made
+  # out-of-band inside the container; through Flux there is no in-place reload
+  # window to hit.
+  #
+  # Two consequences for whoever edits this file next:
+  #  - Every push is a lane restart, and warm-up reloads every entry first
+  #    (Muse alone re-reads 33.15 GiB from the container in 6.2 s at 5.7 GB/s,
+  #    then flashnext's warm load displaces it). Schedule it when the cards are
+  #    free - waitForIdle: false means it lands mid-conversation.
+  #  - `radiance --check` has to gate the PUSH, not the reload. An unknown key
+  #    is fatal at startup, so a bad file here crashloops the lane that serves
+  #    this agent instead of being refused by reload. Validate against the
+  #    rendered ConfigMap with manual/radiance-21-preflight.yaml first.
   args:
   - --config
   - /etc/radiance/radiance.yaml
@@ -144,4 +165,65 @@ data:
         draft-window: fixed
         prefill-span: 2
         prefix-cache-mib: 8192
+        # Fleet hygiene, not a serve setting. This entry is what the agent
+        # session runs on, so it keeps its cards until something asks for them:
+        # no `ttl`, because a park resets the prefix cache (docs/MULTIMODEL.md
+        # 7.1, and Engine::park calls reset_prefix_cache) so an idle park would
+        # throw away every live conversation's KV for no gain. No `priority`
+        # either: 6.4 will not displace an equal-or-higher priority model, so
+        # giving this one a priority would starve every other entry into
+        # load-timeout. Upstream's own tp2 fleet runs all entries at one
+        # priority and lets the least recently used give way.
+      muse-glimmer:
+        # Meta Muse Glimmer 30B: IQ8R trunk, int8 lm_head, merged DFlash
+        # drafter, windowed ViT (35.66 GiB container, staged by
+        # manual/radiance-deleuze-stage-models.yaml, sha256-gated).
+        # Serve settings are the container card's own minimal pair - tp 2 plus
+        # int8 KV - and the drafter stays on by default (upstream measured
+        # 73/176/322 tok/s at 1/4/8 streams on two R9700 with exactly those two
+        # keys; num-speculative-tokens: 0 would serve the trunk alone and is not
+        # wanted). max-model-len is deliberately unset: the engine gives the KV
+        # pool what the cards have left and caps the context at what that pool
+        # holds, which is what upstream measured (7.4 GiB a card with the
+        # drafter, 14.4 without).
+        model: /models/radiance/muse-glimmer-30b-iq8r-dflash.rad
+        aliases: [muse]
+        tp: 2
+        kv-cache-dtype: i8
+        max-num-seqs: 8
+        # Vision is OFF. The first image request ever sent to this entry
+        # segfaulted the process: exit 139, container restart 4, finishedAt
+        # 2026-11-19T19:04:41Z. Radiance logged the request at prompt=79 tok -
+        # the 64x64 and 512x512 PNGs never became tokens, so the fault is in the
+        # ViT/multimodal path, and the container card already warned that
+        # pictures were "not checked". The whole fleet is one process, so that
+        # segfault took qwen3.8-flash-next down with it: an image sent to Muse
+        # is an availability hit on the agent lane. This is the same key
+        # flashnext uses above, so the engine refuses images with a 400 naming
+        # what the model serves instead of dying. Delete this line to retest
+        # once upstream validates the windowed ViT on gfx1201.
+        mm-max-patches: 0
+        # Host tier for finished conversations, sized small on purpose: the
+        # container cgroup is 48 Gi and the fleet's pinned-host budget is
+        # min(3/4 of the host, 3/4 of the cgroup) = 36 Gi (6.5), of which
+        # flashnext already reserves 16 Gi of expert pool + 8 Gi of its own
+        # prefix tier. Anything larger gets the copy refused under pressure.
+        prefix-cache-mib: 4096
+        # Hand the cards back to the agent lane once idle. A swap costs whoever
+        # gets parked a full re-prefill, so the model that is NOT in use should
+        # be the one holding VRAM; without this Muse keeps both cards until an
+        # agent request forces the swap.
+        ttl: 15m
+    groups:
+      # Measured, not guessed: /admin/fleet reports qwen3.8-flash-next at
+      # 33487111208 B = 31.19 GiB PER CARD against the 31.3 GiB each R9700
+      # actually exposes (device-reported beats the 32 GB label), so nothing
+      # co-resides with it. Muse alone wants ~25 GiB a card (17.8 GiB weights
+      # across tp 2 + 7.4 GiB KV), so it and flashnext are mutually exclusive by
+      # arithmetic. Saying so explicitly is what makes the planner park to make
+      # room instead of waiting out load-timeout for room that does not exist.
+      # Revisit if flashnext's claim is ever shrunk (max-model-len/max-num-seqs),
+      # and add flux-3-klein here when its entry lands.
+      one-at-a-time:
+        exclusive: [qwen3.8-flash-next, muse-glimmer]
 
