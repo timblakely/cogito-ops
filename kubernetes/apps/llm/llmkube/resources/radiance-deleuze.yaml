@@ -36,7 +36,7 @@ metadata:
 spec:
   modelRef: flashnext-deleuze-radiance
   runtime: generic
-  image: docker.io/stilldeadcode/radiance:1.16.0@sha256:b1017ce0e615dbd16370f84724aac1f0b999a2cfb769d1b2f49d2dd7c0913cd1
+  image: docker.io/stilldeadcode/radiance:2.1.0@sha256:d3d6c796083b0d00f2b462554aa002f853248506d55658d60d685017abb9b42d # amd64 child of index sha256:c9affc48
   replicas: 1
   suspend: false
   skipModelInit: true
@@ -45,54 +45,26 @@ spec:
     amd.com/gpu.present: 'true'
   command:
   - /opt/radiance/bin/radiance
+  # 2.x removed all server CLI flags: radiance --config FILE only. All 20
+  # former flags live in the fleet ConfigMap below (mount at /etc/radiance,
+  # same shape the radiance-21-preflight --check validated out-of-band).
   args:
-  - --model
-  - /models/radiance/qwen3.8-next-flash-fp8-iq4r-moe.rad
-  - --served-model-name
-  - qwen3.8-flash-next
-  - --tp
-  - '2'
-  - --tp-wire
-  - exact
-  - --max-num-seqs
-  - '8'
-  - --max-model-len
-  - '262144'
-  - --placement
-  - expert_tiered
-  - --host-pool-mib
-  - '8192'
-  - --ngram-placement
-  - disk
-  - --gpu-headroom-mib
-  - '160'
-  - --kv-cache-dtype
-  - fp8
-  - --num-speculative-tokens
-  - '3'
-  - --max-num-batched-tokens
-  - '4096'
-  - --host
-  - 0.0.0.0
-  - --port
-  - '8080'
-  - --mm-max-patches
-  - '0'
-  - --embedding-placement
-  - ram
-  - --draft-window
-  - fixed
-  - --prefill-span
-  - '2'
-  - --prefix-cache-mib
-  - '8192'
+  - --config
+  - /etc/radiance/radiance.yaml
   extraVolumes:
   - name: weights
     persistentVolumeClaim:
       claimName: radiance-deleuze
+  - name: radiance-config
+    configMap:
+      name: radiance-fleet-config
+      defaultMode: 420
   extraVolumeMounts:
   - name: weights
     mountPath: /models
+    readOnly: true
+  - name: radiance-config
+    mountPath: /etc/radiance
     readOnly: true
   resources:
     cpu: '8'
