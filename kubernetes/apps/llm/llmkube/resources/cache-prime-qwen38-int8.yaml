@@ -10,9 +10,18 @@
 #
 # They are staged anyway, and deliberately: the packed embedding is worth
 # ~1.12 GiB of KV pool if vLLM ever grows support, and re-pulling 30 GB to
-# test that later is the expensive part. Deleting this Job would also delete
-# the weights, so remove it only together with that entry in the untried-lever
-# list in plans/llm/bench-notes.md.
+# test that later is the expensive part. The staged trees are NOT owned by this
+# Job - the manifest creates no PVC or PV, the files sit on the shared
+# llmkube-model-cache hot tier and the llm-model-archive NFS claim - so holding
+# this Job out of the kustomization (done 2026-11-19, after the Nov 17 recreate
+# burned its full 6 h deadline and left llmkube-resources Healthy=False) does
+# not delete them. Verified that day: /hot/Qwen3.8-27B-DFlash2-W8 and
+# /hot/qwen-3-8-int8-w8a16-dflash2 both exist on iggy's NVMe, and
+# /archive/llmkube/Qwen3.8-27B-DFlash2-W8 carries its 2172742656 B
+# model.safetensors (the INT8 trunk directory exists on the hot tier but its
+# contents were not enumerated). Keep the weights until the untried-lever entry
+# in plans/llm/bench-notes.md is retired; delete the files, not just the Job,
+# when that lever is abandoned.
 #
 # Both repos are pinned by revision and every LFS blob is verified by sha256
 # in the archive and again after its atomic install into the hot cache.

@@ -1,3 +1,21 @@
+# HELD OUT of the kustomization since 2026-11-19 (see
+# resources/kustomization.yaml). Two reasons, both measured:
+#
+#  1. It could never have run. iggy carries
+#     workload.cogito/dedicated=ml:NoSchedule and this pod only tolerates the
+#     control-plane taint, so the pod sat Pending for 2d21h
+#     ("3 node(s) had untolerated taint(s), 4 node(s) didn't match Pod's node
+#     affinity/selector") while holding llmkube-resources Healthy=False. Add the
+#     dedicated=ml toleration before this is ever registered again.
+#  2. Its payload is already installed and in use: /hot/iggy-radiance-rccl
+#     (the llmkube-model-cache claim) holds librccl.so.1 (873325984 B) and
+#     libiggy-rccl-compat.so, both dated Sep 29, and
+#     inferenceservices.yaml:60-62 mounts that directory into the iggy Radiance
+#     lane. Re-running it would overwrite a live lane's RCCL library with
+#     whatever the pinned image carries now, so it is not a no-op: treat a
+#     re-stage as a deliberate lane change, not as cleanup.
+#
+# Copy the RCCL compat payload into iggy's hot tier, once.
 apiVersion: batch/v1
 kind: Job
 metadata:

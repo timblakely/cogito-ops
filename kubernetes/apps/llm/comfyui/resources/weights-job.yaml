@@ -1,4 +1,14 @@
 ---
+# HELD OUT of comfyui/resources/kustomization.yaml since 2026-11-19 so its
+# Failed state stops holding that Kustomization's health check red (the Nov 17
+# recreate ran the full 3 h deadline and returned DeadlineExceeded). Nothing is
+# lost: the set below was verified complete on the volume that day - all eleven
+# pinned files present under /data/models with zero leftover .partial files and
+# the job's own /data/.weights-v1.promoted marker dated Nov 2. Pruning the Job
+# object cannot delete them: this manifest creates no PVC or PV, only mounts the
+# comfyui-data claim the app owns. Re-run by applying this file out-of-band, or
+# re-register it after rotating metadata.name.
+#
 # Stage the ComfyUI model set onto amnesia's NVMe, once, verified.
 #
 # Every file is pinned by repo revision AND sha256. This is not ceremony: the

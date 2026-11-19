@@ -3,4 +3,10 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ./weights-job.yaml
+  # The one-shot weight stager is deliberately NOT listed: it finished on
+  # Nov 2 (every pinned file verified on /data/models plus the job's own
+  # /data/.weights-v1.promoted marker, re-checked 2026-11-19) and a Failed
+  # Job in this Kustomization's inventory keeps Healthy=False forever, which
+  # made every unrelated comfyui change look stuck. The manifest stays here
+  # for re-runs; rotate metadata.name before re-registering it.
+  []

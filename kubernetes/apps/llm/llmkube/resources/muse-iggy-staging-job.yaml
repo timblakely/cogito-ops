@@ -1,3 +1,17 @@
+# HELD OUT of the kustomization since 2026-11-19 (removed from
+# resources/kustomization.yaml, which lets Flux prune the Job object). The trio
+# it stages is verifiably already installed: /archive/llmkube/muse-glimmer-30b-
+# abliterated and muse-iggy's hot /models/muse-glimmer-30b both carry the text
+# Q4_K_M (16935296896 B), mmproj (1400329152 B) and dflash (1631210720 B) files,
+# read directly off both tiers on 2026-11-19. Registered, the Nov 17 recreate
+# ran the full 6 h activeDeadlineSeconds and returned Failed/DeadlineExceeded,
+# which held llmkube-resources Healthy=False and made every unrelated llmkube
+# push look stuck. Pruning the Job does NOT touch the weights: this manifest
+# creates no PVC or PV - the files live on the shared llm-model-archive and
+# muse-iggy claims, defined in muse-iggy-storage.yaml / model-archive.yaml.
+# To re-stage: add the file back to resources/kustomization.yaml AFTER rotating
+# metadata.name, or apply it out-of-band from here.
+#
 # History: this Job was held out of the kustomization for one release, because
 # Iggy's local-volume filesystem (/dev/nvme1n1p1 at /var/mnt/local-hostpath)
 # had reached 100% - 1.4M free - and an 18.6 GiB staging run had nowhere to

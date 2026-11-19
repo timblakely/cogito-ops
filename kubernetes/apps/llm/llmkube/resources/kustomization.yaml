@@ -13,9 +13,16 @@ resources:
   - ./maya-m.yaml
   - ./maya-m-networkpolicy.yaml
   - ./maya-m-gateway-networkpolicy.yaml
-  - ./muse-iggy-staging-job.yaml
+  # Three finished one-shot staging Jobs are deliberately NOT listed here
+  # (muse-iggy-staging-job.yaml, iggy-radiance-rccl-stage.yaml,
+  # cache-prime-qwen38-int8.yaml). Each one already did its work - verified on
+  # the tiers 2026-11-19, see the header of each file - and a registered Job
+  # that is Failed or unschedulable holds this Kustomization's health check
+  # red forever, which makes every unrelated llmkube change look stuck. Keeping
+  # them registered also made Flux relaunch ~50 GiB of already-finished HF
+  # downloads on every recreate. Re-register only after rotating metadata.name,
+  # and give the pod the dedicated=ml toleration or it can never schedule.
   - ./qwen38-awq-kristeva-staging.yaml
-  - ./iggy-radiance-rccl-stage.yaml
   - ./inferenceservices.yaml
   - ./qwen38-awq-iggy.yaml
   - ./retrieval-floor.yaml
@@ -24,7 +31,6 @@ resources:
   - ./cache-prime-embeddinggemma2.yaml
   - ./single-card-models.yaml
   - ./cache-prime-single-card.yaml
-  - ./cache-prime-qwen38-int8.yaml
 
   - ./gemma-4-12b-amnesia.yaml
   - ./radiance-deleuze.yaml
