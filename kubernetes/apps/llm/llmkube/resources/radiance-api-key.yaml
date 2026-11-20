@@ -1,0 +1,34 @@
+---
+# yaml-language-server: $schema=https://kustomize.toolkit.fluxcd.io
+# The radiance engine's bearer key, sourced from 1Password 
+# like every other credential in this repo (see ../litellm/app/externalsecret.yaml)
+# rather than generated into git.
+#
+# Three consumers pin this Secret by name, so it must never be name-suffixed:
+#   * the engine        - server.api-key-env RADIANCE_API_KEY (radiance-deleuze.yaml)
+#   * LiteLLM           - os.environ/RADIANCE_API_KEY on the proxy (litellmproxy.yaml)
+#   * Prometheus scrape - bearer patched onto PodMonitor llmkube-inference
+#                         (../app/helmrelease.yaml postRenderers)
+#
+# Refresh: external-secrets re-reads 1Password on the interval below. LiteLLM and
+# the engine both read the key only at process start, so a rotation still needs
+# both pods rolled - reloader.stakater.com/auto does litellm, radiance is manual.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: radiance-api-key
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: onepassword
+  target:
+    name: radiance-api-key
+    template:
+      data:
+        api-key: "{{ .API_KEY }}"
+  data:
+    - secretKey: API_KEY
+      remoteRef:
+        key: Radiance
+        property: credential
