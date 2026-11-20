@@ -72,6 +72,10 @@ data:
         "supported_efforts": ["none", "minimal", "low", "medium", "xhigh"],
         "mandatory": false
       },
+      "glimmer-deleuze": {
+        "supported_efforts": [],
+        "mandatory": true
+      },
       "google/gemma-4-12b-it": {
         "supported_efforts": ["none"],
         "mandatory": false
@@ -101,6 +105,16 @@ data:
   # instruction, medium leaves it open without an effort instruction, and xhigh
   # adds the careful-thinking instruction. Omitting effort renders exactly the
   # xhigh prompt. These are template controls, not measured token-budget tiers.
+  #
+  # glimmer-deleuze (Muse Glimmer 30B IQ8R + DFlash, radiance 2.2.0 fleet entry
+  # on Deleuze, read live 2026-11-19): the engine itself publishes
+  # `reasoning: true` with `reasoning_efforts: null` for that entry on both
+  # /v1/models and /admin/fleet, and `image: false` (the fleet pins
+  # mm-max-patches: 0 after the gfx1201 ViT segfault). null means no named level
+  # exists, so the ladder is empty and thinking is mandatory - omit reasoning
+  # fields, same honest wire as the Iggy Muse lane above. Do NOT give it a Hermes
+  # reasoning_override: there is no level to select, and a request that names one
+  # is the kind of thing a template then ignores silently.
   #
   # google/gemma-4-12b-it: same shape - none -> 0 chars, xhigh ~ omitted. -> ["none"].
   #

@@ -1,0 +1,78 @@
+---
+# Backend: the `muse-glimmer` entry of the Radiance 2.x fleet on Deleuze
+# (InferenceService/radiance, runtime generic, tp 2 on both Radeon AI PRO
+# R9700s) - Meta Muse Glimmer 30B IQ8R with its merged DFlash drafter,
+# /models/radiance/muse-glimmer-30b-iq8r-dflash.rad. This is NOT the Iggy
+# llama.cpp lane behind `Muse-Glimmer-30B` (that InferenceService is suspended
+# while the Maya-M trial holds Iggy's 3090s); two aliases, two cards, one model
+# lineage - name the lane when talking about it.
+#
+# apiBase is the SAME Service as `flashnext-deleuze`, because the fleet is one
+# radiance process serving three entries on one port. Consequence of the fleet's
+# `one-at-a-time` exclusive group, measured on this lane 2026-11-19: a request
+# here displaces qwen3.8-flash-next, the pinned-host budget cannot hold both, so
+# Muse re-reads 33.15 GiB in ~6.2 s and flashnext is unloaded (0.49 s, no host
+# copy) rather than parked - whoever comes back pays a full cold reload (~23 s)
+# plus a re-prefill of every live conversation. `ttl: 15m` on the Muse entry
+# hands the cards back when idle. This route is therefore a deliberate, visible
+# lane switch, not a free extra model.
+#
+# maxInputTokens mirrors the engine's own startup report for this entry:
+# `--max-model-len 131072 [auto]` = the checkpoint's training context (52
+# layers, 131072 ctx). KV is not what caps it here: the cache grows to 3.63 GiB
+# a card = 1,068,416 tokens, ~8.2 concurrent full-window sessions. llmkube's
+# generic runtime carries no contextSize/vllmConfig, so
+# scripts/validate-llm-catalogue.py cannot see the backend value and cannot
+# check this mirror - it is hand-mirrored from the live `[muse-glimmer]`
+# STARTUP REPORT, same as `flashnext-deleuze` above it.
+#
+# NO supportsVision, deliberately. The engine publishes `image: false` for this
+# entry and the fleet pins `mm-max-patches: 0`, because the first image ever
+# sent here segfaulted the ViT path on gfx1201 (exit 139, container restart) and
+# one shared process means that took `flashnext-deleuze` down mid-task with it.
+# The refusal is now a clean 4xx, but it fires only AFTER the planner has swapped
+# the model in - an image to this alias still evicts the agent lane to be told
+# no. Keep Hermes' `auxiliary.vision` off this name.
+#
+# Reasoning: the engine publishes `reasoning: true` with `reasoning_efforts:
+# null` - thinking is always on and NO named level exists, so the honest wire is
+# to omit reasoning fields entirely (mirrored in ../../model-caps.yaml). It is a
+# verbose reasoner: under ~600 max_tokens the answer stays in
+# `reasoning_content` and `content` comes back empty, which is why
+# `maxOutputTokens` is generous rather than tight.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: glimmer-deleuze
+spec:
+  modelName: glimmer-deleuze
+  proxyRef: litellm
+  params:
+    # `muse-glimmer` is the fleet entry name, which in radiance 2.x IS the
+    # served model id (served-model-name is gone). `muse` is also registered as
+    # a lane-side alias; use the canonical id here so LiteLLM's request names
+    # exactly what /v1/models publishes.
+    model: openai/muse-glimmer
+    apiBase: http://radiance.llm.svc.cluster.local:8080/v1
+    # Same os.environ/ indirection and the same bearer as `flashnext-deleuze`:
+    # one radiance process, one key. The value lives in 1Password
+    # (kubernetes/Radiance, field API_KEY), reaches the proxy as RADIANCE_API_KEY
+    # from the radiance-api-key Secret, and no key literal sits in git.
+    apiKey: os.env..._KEY
+    additional:
+      # Matches the sibling alias on the same lane: a displaced entry has to
+      # reload inside the lane's `load-timeout: 600s`, and a reasoned essay at
+      # ~73 tok/s on one stream needs its own room on top of that.
+      timeout: 1800
+  info:
+    # The engine's own capability banner for this entry: chat, tools, reasoning,
+    # grammar, logprobs true; image false. Upstream's container card lists tool
+    # calls among "not checked", so this claim is the engine's, not a measured
+    # round trip - re-verify with a tools array before trusting it blind.
+    supportsFunctionCalling: true
+    maxInputTokens: 131072
+    maxOutputTokens: 16384
+    extra:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+      supports_reasoning: true
