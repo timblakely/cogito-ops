@@ -1,0 +1,78 @@
+# NOT in the Flux kustomization (same convention as radiance-21-preflight.yaml):
+# one-shot pre-flight for the radiance 2.1.0 -> 2.2.0 engine bump, applied
+# out-of-band with kubectl while the lane keeps serving, BEFORE the image pin is
+# pushed. A failed one-shot Job inside the prune+wait llmkube-resources KS would
+# stall its health check forever, so it lives here instead.
+#
+# Runs `radiance --check` against the LIVE radiance-fleet-config ConfigMap - which
+# this bump does not change - so it validates exactly the file the 2.2.0 pod will
+# read: every key against 2.2's schema (an unknown key is fatal at startup), and
+# every weight path and container format against the PVC (a format refusal names
+# the offending weight). CPU-only on purpose: the lane holds both amd.com/gpu
+# cards, and --check plans without loading them, so this never contends.
+#
+# Mirrors the lane's mount shape (whole ConfigMap at /etc/radiance) and its 48Gi
+# memory limit, because 2.x derives the pinned-host cap from the container limit
+# (75%) and host-pool-mib: 16384 has to fit under it the same way it does in the
+# lane. Inconclusive only if it fails on device enumeration without naming a
+# weight or a key; then the fallback is the startup FINDINGS gate plus a fast
+# jj revert of the pin.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: radiance-22-preflight
+  labels:
+    app: radiance-22-preflight
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 21600
+  ttlSecondsAfterFinished: 7200
+  template:
+    metadata:
+      labels:
+        app: radiance-22-preflight
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      nodeSelector:
+        kubernetes.io/hostname: deleuze
+      tolerations:
+      - key: workload.cogito/dedicated
+        operator: Equal
+        value: ml
+        effect: NoSchedule
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+      volumes:
+      - name: weights
+        persistentVolumeClaim:
+          claimName: radiance-deleuze
+      - name: config
+        configMap:
+          name: radiance-fleet-config
+          defaultMode: 420
+      containers:
+      - name: check
+        image: docker.io/stilldeadcode/radiance:2.2.0@sha256:167466f5556fdb3a4e0efbb42820fae10cfd9b3a98c786f46a51263bfd6fe53f # amd64 child of index sha256:a7000897
+        command:
+        - /opt/radiance/bin/radiance
+        args:
+        - --config
+        - /etc/radiance/radiance.yaml
+        - --check
+        volumeMounts:
+        - name: weights
+          mountPath: /models
+          readOnly: true
+        - name: config
+          mountPath: /etc/radiance
+          readOnly: true
+        resources:
+          requests:
+            cpu: "2"
+            memory: 8Gi
+          limits:
+            cpu: "8"
+            memory: 48Gi

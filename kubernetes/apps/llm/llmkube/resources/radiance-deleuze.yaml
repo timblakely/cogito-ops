@@ -36,7 +36,36 @@ metadata:
 spec:
   modelRef: flashnext-deleuze-radiance
   runtime: generic
-  image: docker.io/stilldeadcode/radiance:2.1.0@sha256:d3d6c796083b0d00f2b462554aa002f853248506d55658d60d685017abb9b42d # amd64 child of index sha256:c9affc48
+  image: docker.io/stilldeadcode/radiance:2.2.0@sha256:167466f5556fdb3a4e0efbb42820fae10cfd9b3a98c786f46a51263bfd6fe53f # amd64 child of index sha256:a7000897
+  # 2.2.0 (2026-11-19) is an engine-only bump for this lane: RAD_FORMAT_VER is
+  # still 2, so all three containers load byte-unchanged, and RAD_ABI_VERSION
+  # 40 -> 43 is container-internal (the arch plugins ship inside the image and
+  # cogito carries no out-of-tree plugin). No fleet key was removed from 2.1 to
+  # 2.2 (core/fleet/config.cpp key sets diff clean; new ones are
+  # memory.card-headroom-mib and models.NAME.cards), and the radiance-fleet-config
+  # below is deliberately byte-identical - `radiance --check` on the 2.2.0 image
+  # ran against those exact bytes (manual/radiance-22-preflight.yaml, Complete in
+  # 8 s, three entries accepted, no refusal). Its "2.1.0" comment stamps which
+  # tag the flag translation came from; it is provenance, not a version claim.
+  #
+  # What reaches this lane without being asked for:
+  #  - Code000's qwen4exp decode series (#485-#519, #544-#546): acquire-free
+  #    chained launches, doorbell flush + scalar-cache emptying, register-form
+  #    fused all-reduce, QSA score/select skips, hc_read's 48-row tile. Upstream
+  #    measures Flash-Next TP2 on two R9700s at 11.2 ms a decode step at one
+  #    stream (12.4 on 2.1.0), 15.0 at two, 21.4 at four, cold prefill 2-3% up.
+  #  - prefill-tail-snapshot now defaults ON (core/rad_core.h
+  #    prefill_tail_snapshot = true). It is documented as touching exactly what
+  #    this lane runs - a lone spanned prefill, Flash-Next at two ranks - so
+  #    prefill reduction order and prefix-resume boundaries move versus 2.1.0.
+  #    Pin `prefill-tail-snapshot: off` on the entry to hold the 2.1 geometry;
+  #    upstream recommends the default, so the default ships here.
+  #  - scheduler.stuck-exit no longer fires while the first engine is still
+  #    loading (5c66eecc8e), which matters because this fleet warm-loads three
+  #    entries at boot under a 60s watchdog.
+  #  - rkcth's fleet fixes: model discovery no longer restarts idle TTLs (this
+  #    fleet's muse/flux entries run ttl: 15m), host room reserved atomically
+  #    for loads, yielded expert cache capacity restored while idle.
   replicas: 1
   suspend: false
   skipModelInit: true
