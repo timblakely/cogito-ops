@@ -308,17 +308,26 @@ data:
         max-num-seqs: 8
         max-num-batched-tokens: 2048
         num-speculative-tokens: 3
-        # The tower sits in host RAM exactly as the card has it, so a resident
-        # Gemma never spends card memory on an encoder this lane will not use.
-        # Images are refused for the reason Muse's are: one image request
+        # Images are refused, for the reason Muse's are: one image request
         # segfaulted this process class on gfx1201 (Muse, 2026-11-19, exit 139)
         # and the fleet is ONE process, so a picture here is an availability hit
-        # on the agent lane. Unlike Muse, this container's tower is bf16 and
-        # upstream measured its vision path on R9700s, so the edit to make is
-        # mm-max-patches: 1120 - the value upstream's own Gemma 4 12B entry uses
-        # - and only after one image has been probed here on purpose. It has not
-        # been probed.
-        vision-tower-placement: ram
+        # on the agent lane. Unlike Muse this container's tower is bf16 and
+        # upstream measured its vision path on R9700s, so the edit that turns
+        # vision on is mm-max-patches: 1120 - upstream's own Gemma 4 12B value -
+        # to be made after an image has been probed here on purpose. It has not.
+        #
+        # vision-tower-placement is DELIBERATELY ABSENT, because it had to be.
+        # This entry shipped `vision-tower-placement: ram` alongside
+        # mm-max-patches: 0 and the lane refused to load the model at all:
+        # "engine_bringup.cpp ... --vision-tower-placement ram: --mm-max-patches
+        # 0 asked for no media, so this server declares no encoder tower to
+        # place" (tower_placement == Ram && tower_max == 0 -> RAD_E_INVAL).
+        # Asking where to put a tower that does not exist is invalid, not a
+        # no-op - and `radiance --check` does not catch it, because --check
+        # validates keys and container formats without building the server plan.
+        # Re-add it together with vision, and know the cost first: every rank
+        # pins a WHOLE tower (encoders are not sharded, so tp 2 pins it twice)
+        # into host RAM, out of the same 36 Gi budget as the expert pool.
         mm-max-patches: 0
         # 36 Gi is the fleet's pinned-host budget (3/4 of the 48 Gi container
         # limit): flashnext reserves 24 Gi of it, Muse takes 4. 4 Gi keeps this
