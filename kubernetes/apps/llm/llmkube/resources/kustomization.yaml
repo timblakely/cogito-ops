@@ -40,30 +40,6 @@ resources:
   - ./maya-m-oidc.yaml
 configurations:
   - ./kustomizeconfig.yaml
-# Single source of truth for the radiance lane's api key. Two consumers read it:
-# the engine (InferenceService spec.env -> server.api-key-env in
-# radiance-fleet-config) and Prometheus (the bearer token this repo patches onto
-# the llmkube PodMonitor in ../app/helmrelease.yaml). Generating it here, rather
-# than writing a Secret manifest, is what keeps those two from drifting: an
-# engine key that no longer matches what LiteLLM sends is a 401 on the lane this
-# agent runs on.
-#
-# disableNameSuffixHash is load-bearing: the hash suffix would rename the Secret
-# on every value change and both consumers pin the name literally.
-#
-# The value is the same dummy LiteLLM already sends to EVERY internal lane
-# (`apiKey: not-needed` in every models/*.yaml, and visible in the live
-# litellm-config ConfigMap). It is a gate-opener for the engine's own
-# dashboard/admin/metrics routes, NOT a credential: the real gate for the
-# dashboard is Pocket ID OIDC on envoy-internal, and anyone inside the cluster
-# could already reach this Service unauthenticated. Rotate it by changing this
-# line AND litellm/app/models/flashnext-deleuze.yaml in the same change.
-secretGenerator:
-  - name: radiance-api-key
-    options:
-      disableNameSuffixHash: true
-    literals:
-      - api-key=not-needed
 configMapGenerator:
   - name: maya-m-start
     files:

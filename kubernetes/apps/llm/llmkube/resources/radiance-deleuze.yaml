@@ -103,16 +103,6 @@ spec:
   args:
   - --config
   - /etc/radiance/radiance.yaml
-  # The engine's api key (see the server: block of the fleet ConfigMap below).
-  # valueFrom rather than value: the value is generated once in
-  # kustomization.yaml and shared with the Prometheus scrape credential, so the
-  # key the engine checks and the key LiteLLM sends cannot drift apart.
-  env:
-  - name: RADIANCE_API_KEY
-    valueFrom:
-      secretKeyRef:
-        name: radiance-api-key
-        key: api-key
   extraVolumes:
   - name: weights
     persistentVolumeClaim:
@@ -171,27 +161,12 @@ data:
     # flag is a same-named YAML key at its level; unknown keys are fatal. The
     # entry name is the model id (served-model-name is gone, §4.3), so LiteLLM's
     # openai/qwen3.8-flash-next keeps resolving. kv-cache-dtype: fp8 no longer
-    # exists outside GLM-5.3-Flash -> i8 (GUIDE key table).
-    #
-    # KEYED, and keyed on purpose (2026-11-19). Keyless, the engine answers its
-    # dashboard, /diagnostics and every /admin route only on a loopback socket,
-    # so the page loads anywhere and 403s all of its data - and no amount of
-    # gateway work fixes that, because the check is the socket, not the Host:
-    # server.allow-host only widens the Host test (docs §6.6). A key is the one
-    # supported way to open the dashboard from another device.
-    #
-    # The value comes from spec.env below (Secret `radiance-api-key`, generated
-    # in kustomization.yaml) and is deliberately the same dummy LiteLLM already
-    # sends this lane: no LiteLLM change, and every existing caller keeps
-    # working. /health, /v1/health and /ping stay exempt so the probes are
-    # unaffected; /metrics is NOT exempt, hence the bearer token patched onto
-    # the llmkube PodMonitor in ../app/helmrelease.yaml.
-    # api-key-env with an unset or empty variable refuses startup, so the Secret
-    # must exist for the pod to boot at all - it ships in the same Kustomization.
+    # exists outside GLM-5.3-Flash -> i8 (GUIDE key table). Keyless on purpose:
+    # server.api-key/api-key-env omitted (default none; OIDC edge in front;
+    # api-key-env with an unset variable refuses startup).
     server:
       host: "0.0.0.0"
       port: 8080
-      api-key-env: RADIANCE_API_KEY
     memory:
       gpu-headroom-mib: 160
     scheduler:
