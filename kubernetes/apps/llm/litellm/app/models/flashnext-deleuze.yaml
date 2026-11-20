@@ -8,7 +8,13 @@ spec:
   params:
     model: openai/qwen3.8-flash-next
     apiBase: http://radiance.llm.svc.cluster.local:8080/v1
-    apiKey: not-needed
+    # Resolved from the proxy's environment at startup, not stored here: the value
+    # lives in 1Password (kubernetes/Radiance, field API_KEY) and reaches this pod as
+    # RADIANCE_API_KEY through the radiance-api-key Secret - see
+    # ../../llmkube/resources/radiance-api-key.yaml and the env block of
+    # ../litellmproxy.yaml. Same os.environ/ indirection the proxy already uses for
+    # PROXY_MASTER_KEY, so no key literal sits in git on either side of this hop.
+    apiKey: os.environ/RADIANCE_API_KEY
     additional:
       timeout: 1800
   info:

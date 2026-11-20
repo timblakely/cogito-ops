@@ -101,6 +101,20 @@ spec:
           # of three.
           name: litellm-db-app
           key: uri
+    # The radiance lane's bearer key, presented on every call to
+    # models/flashnext-deleuze.yaml (apiKey: os.environ/RA...EY). Comes from
+    # 1Password kubernetes/Radiance via ExternalSecret
+    # ../../llmkube/resources/radiance-api-key.yaml, which lives in the llmkube app but
+    # lands in this same namespace - the Secret is verified to exist before this
+    # reference ships, because a missing one leaves this pod at
+    # CreateContainerConfigError instead of degrading softly.
+    # reloader.stakater.com/auto below means a 1Password rotation rolls this pod on
+    # its own; the engine side has to be rolled by hand.
+    - name: RADIANCE_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: radiance-api-key
+          key: api-key
     - name: LITELLM_LOG
       value: INFO
     # --- Admin UI SSO via Pocket ID (generic OIDC) --------------------------
