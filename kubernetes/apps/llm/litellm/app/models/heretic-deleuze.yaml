@@ -1,0 +1,83 @@
+---
+# Backend: the `gemma4-heretic` entry of the Radiance 2.x fleet on Deleuze
+# (InferenceService/radiance, runtime generic, tp 2 on both Radeon AI PRO
+# R9700s) - Gemma 4 31B it, heretic-ara abliteration, in the upstream-blessed
+# i8g container /models/radiance/gemma4-31b-heretic-ara-i8g.rad (33.37 GiB,
+# 60 layers, 5376 embd, n_ctx_train 262144, converted from
+# src/gemma-4-31b-it-heretic-ara). Chosen over the same author's 20 GiB a4
+# build on its published numbers: mean KL 0.00249 vs 0.0529 and 98.7% vs 94.4%
+# top-token agreement against bf16.
+#
+# apiBase is the SAME Service as `flashnext-deleuze` and `glimmer-deleuze`: the
+# fleet is one radiance process serving four entries on one port, and all three
+# LLM entries sit in the fleet's `one-at-a-time` exclusive group. tp 2 means
+# this entry wants BOTH cards, so selecting it is a deliberate, visible lane
+# switch, not a free extra model. Measured on this lane 2026-11-20: Gemma loads
+# in 8.3-11.1 s holding 20.15 GiB a card, and flashnext is UNLOADED (0.21 s, no
+# host copy - the pinned-host budget cannot hold both) rather than parked, so
+# whoever comes back pays a full cold reload plus a re-prefill of every live
+# conversation. `ttl: 15m` here hands the cards back once it goes idle.
+#
+# maxInputTokens mirrors the FLEET PIN `max-model-len: 65536`, NOT the
+# checkpoint's 262144 training context - the pin is what the engine accepts.
+# Length is not what KV starves here: the engine's own plan for this entry is a
+# cache that grows to 12.12 GiB a card = 527,552 tokens = 8.0 concurrent
+# sessions at the full 65536. llmkube's generic runtime exposes no contextSize,
+# so scripts/validate-llm-catalogue.py cannot see the backend value and cannot
+# check this mirror; like its siblings it is hand-mirrored from the lane's
+# STARTUP REPORT.
+#
+# NO supportsVision, deliberately, even though this checkpoint carries a vision
+# tower (27 layers, hidden 1152 - 1.07 GiB of bf16 planes in the container, read
+# with `rad-info --planes '*'`). The fleet loads it with `mm-max-patches: 0`, so
+# the engine publishes `image: false` and no encoder exists at runtime. That is
+# history, not ability: the first image ever sent to this shared process
+# segfaulted the ViT path on gfx1201 (exit 139) and took the agent lane down
+# mid-task with it. Turning vision on is `mm-max-patches: 1120` plus a placement
+# decision, and must be earned with exactly one deliberate image probe. Until
+# that probe passes, keep Hermes' `auxiliary.vision` off this name.
+#
+# Reasoning: the engine publishes `reasoning: true` with `reasoning_efforts:
+# null` - thinking is always on and no named level exists, so omit reasoning
+# fields on the wire (mirrored in ../../model-caps.yaml, as for
+# `glimmer-deleuze`) and add NO Hermes reasoning_override. It is a verbose
+# reasoner: a one-word answer spent 35 of 37 completion tokens in
+# `reasoning_content`, so `maxOutputTokens` stays generous or `content` arrives
+# empty.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: heretic-deleuze
+spec:
+  modelName: heretic-deleuze
+  proxyRef: litellm
+  params:
+    # The fleet entry name IS the served model id in radiance 2.x
+    # (served-model-name is gone). `heretic` is registered lane-side as an
+    # alias; name the canonical id so LiteLLM asks for exactly what /v1/models
+    # publishes.
+    model: openai/gemma4-heretic
+    apiBase: http://radiance.llm.svc.cluster.local:8080/v1
+    # Same os.environ/ indirection and the same bearer as the two siblings on
+    # this lane: one radiance process, one key. The value lives in 1Password
+    # (kubernetes/Radiance, field API_KEY), reaches the proxy as
+    # RADIANCE_API_KEY from the radiance-api-key Secret, and no literal sits in
+    # git.
+    apiKey: os.environ/RADIANCE_API_KEY
+    additional:
+      # Matches the siblings on this lane: a displaced entry has to reload
+      # inside the lane's `load-timeout: 600s`, and a reasoned answer at ~89
+      # tok/s decode on one stream needs its own room on top of that.
+      timeout: 1800
+  info:
+    # The engine's own capability banner, read off /v1/models while the entry
+    # was resident: chat, tools, reasoning, grammar, logprobs true; image
+    # false. Tools are MEASURED here, not merely published: finish_reason
+    # tool_calls with arguments {"city": "Denver"}.
+    supportsFunctionCalling: true
+    maxInputTokens: 65536
+    maxOutputTokens: 16384
+    extra:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+      supports_reasoning: true
