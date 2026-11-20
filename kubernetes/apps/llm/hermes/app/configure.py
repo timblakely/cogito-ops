@@ -202,10 +202,14 @@ aliases.update(
         # member of the same exclusive fleet group, so it competes with the
         # default model exactly as `glimmer` does: picking it displaces the
         # agent lane off both R9700s until its 15m ttl frees them (reload is
-        # ~9 s for Gemma, ~25 s for flashnext plus a re-prefill). Text only -
-        # the fleet loads this entry with mm-max-patches 0, so images are
-        # refused. No reasoning_override: thinking is mandatory and the engine
-        # publishes no effort ladder.
+        # ~9 s for Gemma, ~25 s for flashnext plus a re-prefill). It takes
+        # images: the encoder tower sits on the cards and an image costs 280
+        # prompt tokens (probed 2026-11-20, restartCount stayed 0), so it is the
+        # one route on this fleet that could carry `auxiliary.vision` - which is
+        # NOT wired to it, because pointing an auxiliary lane at a model in the
+        # agent lane's exclusive group would evict the agent on every picture.
+        # No reasoning_override: thinking is mandatory and the engine publishes
+        # no effort ladder.
         "heretic": {
             "model": "heretic-deleuze",
             "provider": "custom:litellm-chat",

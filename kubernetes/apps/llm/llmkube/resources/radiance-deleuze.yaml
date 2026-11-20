@@ -340,6 +340,15 @@ data:
         # sizes pools, it never runs the encoder - so the first real image is the
         # only evidence that the vision path works on this GPU.
         #
+        # That image was sent on 2026-11-20 and the path holds: synthetic 96x96
+        # PNGs answered "Red" and "1" correctly at 291/289 prompt tokens (280 of
+        # them image soft tokens, so the encoder really ran), 10.1 s then 1.3 s,
+        # and the container's restartCount stayed 0 - no gfx1201 segfault. The
+        # engine reported `placement: encoder towers (1.03 GiB a rank) vram` and
+        # `media: images and video through 'vision'`; the measured price was the
+        # per-card settlement moving 11.24/11.31 -> 10.49/10.50 GiB free with the
+        # KV ceiling unchanged at 12.12 GiB a card (527,552 tokens).
+        #
         # The pairing rule that already cost one push: a placement key is INVALID
         # when mm-max-patches is 0 - "--vision-tower-placement ram:
         # --mm-max-patches 0 asked for no media, so this server declares no

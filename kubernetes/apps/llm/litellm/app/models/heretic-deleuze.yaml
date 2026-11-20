@@ -27,15 +27,21 @@
 # check this mirror; like its siblings it is hand-mirrored from the lane's
 # STARTUP REPORT.
 #
-# NO supportsVision, deliberately, even though this checkpoint carries a vision
-# tower (27 layers, hidden 1152 - 1.07 GiB of bf16 planes in the container, read
-# with `rad-info --planes '*'`). The fleet loads it with `mm-max-patches: 0`, so
-# the engine publishes `image: false` and no encoder exists at runtime. That is
-# history, not ability: the first image ever sent to this shared process
-# segfaulted the ViT path on gfx1201 (exit 139) and took the agent lane down
-# mid-task with it. Turning vision on is `mm-max-patches: 1120` plus a placement
-# decision, and must be earned with exactly one deliberate image probe. Until
-# that probe passes, keep Hermes' `auxiliary.vision` off this name.
+# supportsVision: true, MEASURED rather than assumed. The engine loads this
+# checkpoint's bf16 encoder tower onto the cards (`placement: encoder towers
+# (1.03 GiB a rank) vram`) and reports `media: images and video through
+# 'vision'`, an image becoming at most 280 soft tokens. Probed on 2026-11-20
+# with synthetic 96x96 PNGs: prompt tokens 291/289 (280 of them image tokens, so
+# the encoder really ran), answers "Red" and "1" - both correct - and container
+# restartCount stayed 0.
+#
+# That probe is the whole reason this gate is not simply copied from the model
+# card: the first image ever sent to this shared process class segfaulted the ViT
+# path on gfx1201 (Muse, exit 139) and took the agent lane down with it, and a
+# boot warm-up would never have caught that, because warm-up loads weights and
+# sizes pools without ever running the encoder. One process, four entries, so an
+# image here is still an availability decision - it just happens to be a safe
+# one now.
 #
 # Reasoning: the engine publishes `reasoning: true` with `reasoning_efforts:
 # null` - thinking is always on and no named level exists, so omit reasoning
@@ -70,10 +76,11 @@ spec:
       # tok/s decode on one stream needs its own room on top of that.
       timeout: 1800
   info:
-    # The engine's own capability banner, read off /v1/models while the entry
-    # was resident: chat, tools, reasoning, grammar, logprobs true; image
-    # false. Tools are MEASURED here, not merely published: finish_reason
-    # tool_calls with arguments {"city": "Denver"}.
+    # Capability banner read off /v1/models while the entry was resident, then
+    # corrected by traffic: chat, tools, reasoning, grammar, logprobs true.
+    # Tools are MEASURED, not merely published: finish_reason tool_calls with
+    # arguments {"city": "Denver"}. Vision is measured too (see the header).
+    supportsVision: true
     supportsFunctionCalling: true
     maxInputTokens: 65536
     maxOutputTokens: 16384
