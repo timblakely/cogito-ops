@@ -58,7 +58,7 @@ spec:
     # one radiance process, one key. The value lives in 1Password
     # (kubernetes/Radiance, field API_KEY), reaches the proxy as RADIANCE_API_KEY
     # from the radiance-api-key Secret, and no key literal sits in git.
-    apiKey: os.env..._KEY
+    apiKey: os.environ/RADIANCE_API_KEY
     additional:
       # Matches the sibling alias on the same lane: a displaced entry has to
       # reload inside the lane's `load-timeout: 600s`, and a reasoned essay at
