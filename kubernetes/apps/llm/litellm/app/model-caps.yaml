@@ -76,10 +76,6 @@ data:
         "supported_efforts": [],
         "mandatory": true
       },
-      # gemma4-heretic on the same radiance 2.2.0 fleet (read live 2026-11-20):
-      # /v1/models publishes `reasoning: true` with `reasoning_efforts: null`,
-      # so no named level exists - empty ladder, thinking mandatory. Measured: a
-      # one-word answer put 35 of 37 completion tokens in reasoning_content.
       "heretic-deleuze": {
         "supported_efforts": [],
         "mandatory": true
@@ -113,6 +109,17 @@ data:
   # instruction, medium leaves it open without an effort instruction, and xhigh
   # adds the careful-thinking instruction. Omitting effort renders exactly the
   # xhigh prompt. These are template controls, not measured token-budget tiers.
+  #
+  # NOTHING above this line is a comment: the block is one JSON scalar, so a "#"
+  # here would land inside caps.json, and model-caps answers 503 on every route
+  # until it parses. That is exactly how 2026-11-20 took the capability service
+  # down for one minute - a `#` between two model keys. Evidence for the entries
+  # above belongs in this comment block, below the JSON, where it is inert.
+  #
+  # heretic-deleuze (Gemma 4 31B heretic-ara i8g, same radiance 2.2.0 fleet, read
+  # live 2026-11-20): reasoning true with reasoning_efforts null, so the ladder is
+  # empty and thinking is mandatory. A one-word answer put 35 of 37 completion
+  # tokens into reasoning_content - same omission rule as Muse below.
   #
   # glimmer-deleuze (Muse Glimmer 30B IQ8R + DFlash, radiance 2.2.0 fleet entry
   # on Deleuze, read live 2026-11-19): the engine itself publishes
