@@ -5,14 +5,12 @@ kind: Kustomization
 resources:
   - ./exclusive-gpu-rollout-policy.yaml
   - ./model-archive.yaml
-  - ./models.yaml
   - ./muse-kristeva-storage.yaml
   - ./muse-iggy-storage.yaml
   - ./maya-m-storage.yaml
   - ./registry-pull-auth.yaml
-  - ./maya-m.yaml
-  - ./maya-m-networkpolicy.yaml
-  - ./maya-m-gateway-networkpolicy.yaml
+  # Retired Iggy lanes stay out of the deployment; retained claims above
+  # preserve their local copies alongside the authoritative NAS archive.
   # Three finished one-shot staging Jobs are deliberately NOT listed here
   # (muse-iggy-staging-job.yaml, iggy-radiance-rccl-stage.yaml,
   # cache-prime-qwen38-int8.yaml). Each one already did its work - verified on
@@ -22,9 +20,7 @@ resources:
   # them registered also made Flux relaunch ~50 GiB of already-finished HF
   # downloads on every recreate. Re-register only after rotating metadata.name,
   # and give the pod the dedicated=ml toleration or it can never schedule.
-  - ./qwen38-awq-kristeva-staging.yaml
-  - ./inferenceservices.yaml
-  - ./qwen38-awq-iggy.yaml
+  - ./qwen38-awq-stage-storage.yaml
   - ./retrieval-floor.yaml
   - ./embeddinggemma-2-floor.yaml
   - ./cache-prime-retrieval.yaml
@@ -37,22 +33,12 @@ resources:
   - ./radiance-deleuze.yaml
   - ./radiance-httproute.yaml
   - ./radiance-oidc.yaml
-  - ./maya-m-httproute.yaml
-  - ./maya-m-oidc.yaml
 configurations:
   - ./kustomizeconfig.yaml
-configMapGenerator:
-  - name: maya-m-start
-    files:
-      - prepare.py=./manual/maya-m/serve/prepare.py
-      - start.sh=./manual/maya-m/serve/start.sh
-    options:
-      annotations:
-        kustomize.toolkit.fluxcd.io/substitute: disabled
 patches:
   - target:
       kind: InferenceService
-      name: (muse-glimmer-30b|qwen3-8-27b|qwen3-8-awq-iggy|radiance)
+      name: radiance
     patch: |-
       - op: add
         path: /spec/tolerations

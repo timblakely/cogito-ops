@@ -25,11 +25,12 @@ state, use `kubectl -n llm get litellmmodels` and
 `kubectl -n llm get litellmvirtualkeys`; an existing key's scope in LiteLLM's
 database can lag its edited resource (see the [Hermes README](../../../hermes/README.md)).
 
-**Local routes.** Local entries point directly at their InferenceService's
+**Local routes.** Local entries point directly at their serving backend's
 Service (there is no router in between; with one always-on backend there is
 nothing to dispatch across), and the string after `openai/` is the served model
-name. On the vLLM-served Qwen aliases that string must stay byte-identical to
-the backend's `--served-model-name` or the request 404s at the backend. The
+name. On the vLLM/radiance-served aliases that string must stay byte-identical
+to the backend's served model name or the request 404s at the backend (the
+radiance fleet's entry names, e.g. `qwen3.8-flash-next`, fill that role). The
 llama.cpp lanes (embedder, reranker) launch without a served-model name at all
 and ignore the model field, so theirs is a label rather than a key.
 
@@ -138,12 +139,12 @@ The mirror is not strict equality in one direction. An alias may advertise
 **less** than its backend serves, and `scripts/validate-llm-catalogue.py`
 treats an unexplained difference as the accident it usually is. It only
 compares when it can read the backend value, so a lane that carries its
-context in a raw engine argument — `--max-model-len` on `qwen3-8-awq-iggy`,
-`--ctx-size` on `muse-glimmer-30b` — is invisible to it. When changing an
-engine's raw context flag, inspect every included alias that points to that
-backend and update its `maxInputTokens` deliberately.
-`muse-glimmer-30b` carries the annotation for the same unreadable-context
-reason:
+context in a raw engine argument — the raw `--max-model-len`/`--ctx-size` of a
+generic-runtime lane is invisible to it (the radiance fleet entries are all
+hand-mirrored this way). When changing an engine's raw context flag, inspect
+every included alias that points to that backend and update its
+`maxInputTokens` deliberately. An alias holding a smaller window than its
+backend on purpose carries the annotation:
 
 ```yaml
 metadata:

@@ -68,8 +68,10 @@ spec:
       # Multi-fleet entries below own the four-slot capacity budget.
       maxSupervisedTasks: 0
       accelerator: cuda
-      installedModels:
-        - qwen3-8-27b
+      # Retired 2026-11-20: the qwen3-8-27b entry described the Iggy lane
+      # that is now parked (weights on NAS archive); no local model installs
+      # remain, so the list is empty.
+      installedModels: []
       commitAuthorName: Cogito Foreman
       commitAuthorEmail: foreman@cogito.invalid
       # Pools opt in below. Keeping the shared default empty prevents the
@@ -94,8 +96,8 @@ spec:
     # Splitting the pools turned R8's cluster-wide four-task ceiling into a
     # static 2+2, which silently halved planning concurrency: during a research
     # round the execution pool sits idle at 0/2 and scouts cannot borrow its
-    # slots, so Astra's third scout queued behind the first two. Measured with
-    # two scouts on the Qwen lane: ~15% of a 360,264-token KV pool, zero
+    # slots, so Astra's third scout queued behind the first two. Measured (on
+    # the since-retired Iggy Qwen lane): ~15% of a 360,264-token KV pool, zero
     # preemptions, Waiting: 0. The serving lane was never the constraint.
     agents:
       execution:

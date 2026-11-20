@@ -1,7 +1,9 @@
 ---
 # Role alias (routing teardown S11 / plan.md T1.2): the mechanical delegate -
-# yaml edits, bash, file work, limited coding. Points DIRECTLY at the
-# InferenceService's Service. Thinking defaults low: worker
+# yaml edits, bash, file work, limited coding. Points at the Deleuze radiance
+# fleet's qwen3.8-flash-next entry (same Service as `flashnext-deleuze`; the
+# Iggy vLLM lane it used to target is retired, weights on NAS archive).
+# Thinking defaults low: worker
 # turns are many and mechanical, and thinking tokens are latency multiplied by
 # turn count. Zero costs keep the free/paid split legible in the dashboard.
 apiVersion: litellm.home-operations.com/v1alpha1
@@ -18,9 +20,9 @@ spec:
   modelName: worker
   proxyRef: litellm
   params:
-    model: openai/qwen3.8-27b
-    apiBase: http://qwen3-8-awq-iggy.llm.svc.cluster.local:8000/v1
-    apiKey: not-needed
+    model: openai/qwen3.8-flash-next
+    apiBase: http://radiance.llm.svc.cluster.local:8080/v1
+    apiKey: os.environ/RADIANCE_API_KEY
     additional:
       reasoning_effort: low
       timeout: 300
@@ -28,15 +30,13 @@ spec:
       - reasoning_effort
   info:
     supportsFunctionCalling: true
-    # Equal to the backend ceiling now, not below it. On the two-card backend
-    # this alias deliberately declared 131072 against a 262144 serving window so
-    # fan-out stayed cheap. The AWQ INT4 lane on Kristeva's 3090 has no such
-    # headroom to give away: the fp8 KV ceiling is 65536 (see coder.yaml), so
-    # declaring more would tell clients they may send a prompt vLLM will
-    # reject. The annotation above
-    # is left in place - it remains true that this alias is budget-constrained,
-    # and it stays accurate if the lane is ever re-raised and this number held
-    # down again.
+    # Held at 65536 against a 262144-serving backend on purpose: fan-out
+    # stays cheap and the delegate role never needs the full window.
+    # Retired 2026-11-20: this alias used to point at the qwen3-8-awq-iggy
+    # vLLM lane, whose real ceiling WAS 65536 (fp8 KV on one 3090); that lane
+    # is parked and its weights are on NAS archive, so the number below now
+    # tracks a deliberate budget, not a backend limit. Raise it in the same
+    # change if the role ever needs more.
     #
     # Advisory, not a guard rail - verified 2026-08-28: a 257,600-token prompt
     # sent to this alias was ACCEPTED and answered. LiteLLM publishes
@@ -50,22 +50,18 @@ spec:
       output_cost_per_token: 0
       supports_reasoning: true
       # ONE level, and it is the one pinned in params.additional above - not
-      # the three the chat template knows. thinking_levels answers "what can a
+      # the levels the chat template knows. thinking_levels answers "what can a
       # CLIENT actually choose here", and on this alias the answer is nothing:
       # verified 2026-08-28 that LiteLLM's server-side reasoning_effort
-      # overwrites whatever a client puts in chat_template_kwargs. The proof is
-      # that sending the template-invalid `high` to this alias returns 200
-      # (the pin replaced it) while the same request to the passthrough alias
-      # Qwen/Qwen3.8-27B-INT8-W8A16, which pins nothing, 400s out of the Jinja.
+      # overwrites whatever a client puts in chat_template_kwargs.
       #
-      # So listing low/medium/xhigh here published two levels that silently did
-      # nothing. Listing the pinned level alone leaves a client offering
+      # Listing the pinned level alone leaves a client offering
       # exactly the two outcomes that are real: this effort, or thinking off -
       # `enable_thinking: false` is NOT overwritten, since the pin does not set
       # it, and does zero the reasoning output (verified same day).
       #
       # Raising the level for a whole role is a change to this alias's reasoning_effort, not a client
-      # setting. A caller who wants to choose per-request should use the
-      # passthrough alias, which is what it is for.
+      # setting. A caller who wants to choose per-request should use
+      # flashnext-deleuze directly, which advertises the full ladder.
       thinking_levels:
       - low

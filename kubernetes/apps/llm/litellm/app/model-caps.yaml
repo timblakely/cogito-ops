@@ -60,14 +60,6 @@ data:
         "supported_efforts": ["none", "low", "medium", "high", "xhigh", "max"],
         "mandatory": false
       },
-      "Muse-Glimmer-30B": {
-        "supported_efforts": [],
-        "mandatory": true
-      },
-      "Maya-M": {
-        "supported_efforts": ["none", "low", "high", "max"],
-        "mandatory": false
-      },
       "flashnext-deleuze": {
         "supported_efforts": ["none", "minimal", "low", "medium", "xhigh"],
         "mandatory": false
@@ -85,23 +77,13 @@ data:
         "mandatory": false
       }
     }
-  # Maya-M (Nov 16, pinned Maya 1.1.64): native and Hermes-key LiteLLM probes
-  # passed Off chat, High reasoning/SSE, Low/Max wire acceptance, streamed tool
-  # calls, a tool-result round trip and image ingestion (+393 prompt tokens).
-  # GLM's canonical template choices are Off/Low/High/Max; medium and xhigh
-  # are aliases, not additional distinct levels. No per-level budget is claimed.
-  #
-  # Probe evidence for the other values above (Oct 2026, fixed prompt/temperature,
-  # reasoning_content length compared per variant):
-  #
-  # Muse-Glimmer-30B (llama.cpp server-cuda on Kristeva, --reasoning-budget
-  # 16384): reasoning_effort omitted/none/low/medium/high/xhigh/bogus and
-  # per-request reasoning_budget 0/64/1024 produced identical reasoning output;
-  # chat_template_kwargs.enable_thinking is not consulted by the ATEM template.
-  # Thinking is always on (mandatory: true) and NO named level exists, hence the
-  # empty ladder: the honest wire is to omit reasoning fields entirely. The only
-  # real throttle is the server-start --reasoning-budget flag on the
-  # InferenceService.
+  # Probe evidence for the remaining values (Oct 2026, fixed prompt/temperature,
+  # reasoning_content length compared per variant). Retired 2026-11-20 with the
+  # Iggy lanes (records kept in git history): Muse-Glimmer-30B (llama.cpp
+  # server-cuda, always-on thinking, no named ladder) and Maya-M (Nov 16,
+  # pinned Maya 1.1.64: Off/Low/High/Max canonical choices, medium/xhigh
+  # aliases; probe passed Off chat, High reasoning/SSE, streamed tool calls, a
+  # tool-result round trip and image ingestion (+393 prompt tokens)).
   #
   # flashnext-deleuze (Radiance 1.10.0 on Deleuze, Oct 21 2026): /server_info
   # advertises none/minimal/low/medium/xhigh. Live /apply-template probes verify
@@ -119,7 +101,8 @@ data:
   # heretic-deleuze (Gemma 4 31B heretic-ara i8g, same radiance 2.2.0 fleet, read
   # live 2026-11-20): reasoning true with reasoning_efforts null, so the ladder is
   # empty and thinking is mandatory. A one-word answer put 35 of 37 completion
-  # tokens into reasoning_content - same omission rule as Muse below.
+  # tokens into reasoning_content - same omission rule as glimmer-deleuze
+  # below it.
   #
   # glimmer-deleuze (Muse Glimmer 30B IQ8R + DFlash, radiance 2.2.0 fleet entry
   # on Deleuze, read live 2026-11-19): the engine itself publishes
@@ -127,9 +110,9 @@ data:
   # /v1/models and /admin/fleet, and `image: false` (the fleet pins
   # mm-max-patches: 0 after the gfx1201 ViT segfault). null means no named level
   # exists, so the ladder is empty and thinking is mandatory - omit reasoning
-  # fields, same honest wire as the Iggy Muse lane above. Do NOT give it a Hermes
-  # reasoning_override: there is no level to select, and a request that names one
-  # is the kind of thing a template then ignores silently.
+  # fields, same honest wire as the other always-on reasoners. Do NOT give it a
+  # Hermes reasoning_override: there is no level to select, and a request that
+  # names one is the kind of thing a template then ignores silently.
   #
   # google/gemma-4-12b-it: same shape - none -> 0 chars, xhigh ~ omitted. -> ["none"].
   #
@@ -152,8 +135,9 @@ data:
   # gpt-6.1-sol explicitly rejected none. This verifies wire acceptance/off,
   # not graded reasoning behavior on the trivial one-word probe.
   #
-  # Qwen/Qwen3.8-27B-INT8-W8A16: deliberately absent (pod was not running when
-  # probed; unknown must stay unknown).
+  # Retired 2026-11-20: Qwen/Qwen3.8-27B-INT8-W8A16 (and the muse-glimmer-30b /
+  # maya-m backends) left the catalogue with the Iggy lanes, so their caps
+  # entries are gone too (Qwen had never been probed: unknown stayed unknown).
   server.py: |
     #!/usr/bin/env python3
     """Serve the LiteLLM model catalogue annotated with reasoning caps.

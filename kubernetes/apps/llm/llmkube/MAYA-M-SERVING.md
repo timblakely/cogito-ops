@@ -1,5 +1,8 @@
 # Maya-M serving integration
 
+> Retired from deployment on 2026-11-20. This is a historical serving record;
+> see [Iggy models on ice](IGGY-RETIRED-MODELS.md) for retained NAS assets and restoration scope.
+
 Verified 2026-11-16. Historical preparation is recorded in [MAYA-M-TRIAL.md](MAYA-M-TRIAL.md).
 
 ## Runtime

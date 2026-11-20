@@ -3,9 +3,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ./qwen3-8-27b.yaml
-  - ./muse-glimmer-30b.yaml
-  - ./maya-m.yaml
+  # Retired 2026-11-20: qwen3-8-27b, muse-glimmer-30b and maya-m (the Iggy
+  # lanes) are deregistered here so Flux prunes their LiteLLMModels; their
+  # weights stay archived on the NAS.
   - ./gemma-4-12b.yaml
   - ./flashnext-deleuze.yaml
   - ./glimmer-deleuze.yaml

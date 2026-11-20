@@ -1,0 +1,14 @@
+---
+# Retain the old staging copy without deploying its retired download Job.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qwen38-awq-stage
+  annotations:
+    volume.kubernetes.io/selected-node: kristeva
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: openebs-hostpath
+  resources:
+    requests:
+      storage: 40Gi

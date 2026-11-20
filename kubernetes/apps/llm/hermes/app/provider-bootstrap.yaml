@@ -182,20 +182,12 @@ data:
         config["model_aliases"] = aliases
     aliases.update(
         {
-            "qwen": {
-                "model": "Qwen/Qwen3.8-27B-INT8-W8A16",
-                "provider": "custom:litellm-chat",
-                "base_url": LITELLM_API,
-            },
-            "muse": {
-                "model": "Muse-Glimmer-30B",
-                "provider": "custom:litellm-chat",
-                "base_url": LITELLM_API,
-            },
-            # Muse Glimmer on the Deleuze radiance fleet - the live Muse route while
-            # the Iggy llama.cpp lane behind `muse` stays suspended for the Maya-M
-            # trial. Separate alias on purpose: `muse` names the Iggy artifact and
-            # its RTX 3090, `glimmer` names the R9700 pair. Only `glimmer` competes
+            # Retired 2026-11-20 with the Iggy lanes: the `qwen` and `muse`
+            # shortcuts pointed at Qwen/Qwen3.8-27B-INT8-W8A16 and
+            # Muse-Glimmer-30B, whose LiteLLM routes and InferenceServices are
+            # deregistered (weights archived on the NAS). `glimmer` and `heretic`
+            # cover the same model lineage on the Deleuze radiance fleet.
+            # Muse Glimmer on the Deleuze radiance fleet. Competes
             # with the default model - it sits in radiance's exclusive fleet group
             # with flashnext-deleuze, so selecting it displaces the agent lane until
             # the entry's 15m ttl frees the cards. Text only: the fleet refuses
@@ -211,10 +203,10 @@ data:
             # agent lane off both R9700s until its 15m ttl frees them (reload is
             # ~9 s for Gemma, ~25 s for flashnext plus a re-prefill). It takes
             # images: the encoder tower sits on the cards and an image costs 280
-            # prompt tokens (probed 2026-11-20, restartCount stayed 0), so it is the
-            # one route on this fleet that could carry `auxiliary.vision` - which is
-            # NOT wired to it, because pointing an auxiliary lane at a model in the
-            # agent lane's exclusive group would evict the agent on every picture.
+            # prompt tokens (probed 2026-11-20, restartCount stayed 0), which is
+            # why `auxiliary.vision` is pinned here below - the accepted cost is
+            # that each vision call lands on this fleet entry and displaces
+            # flashnext until the ttl frees the cards.
             # No reasoning_override: thinking is mandatory and the engine publishes
             # no effort ladder.
             "heretic": {
@@ -265,20 +257,21 @@ data:
     ):
         aux[slot] = {"model": "flashnext-deleuze", "provider": CHAT}
     # The vision slot has to be a model whose serving lane accepts image parts.
-    # Qwen/Qwen3.8-27B-INT8-W8A16 does not: that lane is text-only (its LiteLLM
-    # model declares supportsVision: false) and vLLM answers an image with
-    # "At most 0 image(s) may be provided in one prompt", so every vision_analyze
-    # call failed with HTTP 400 no matter which model the turn was using.
-    # Measured on the same 640x480 probe (Oct 2026): Muse-Glimmer-30B names the
-    # colour in seconds and counts the image in prompt_tokens; the CPU `vision`
-    # alias also answers correctly but needs minutes per call, which is unusable
-    # inside a tool call. Muse keeps --parallel 1, so vision traffic serialises on
-    # the slot of whoever is already talking to it - never on a gaming GPU.
+    # The Qwen lane never did (text-only vLLM: "At most 0 image(s) may be provided
+    # in one prompt"), and the Muse-Glimmer-30B pin this file carried was retired
+    # 2026-11-20 with the Iggy lanes (weights on NAS archive). The pin is now
+    # heretic-deleuze: measured vision on the Deleuze radiance fleet (96x96 probes
+    # 2026-11-20 - correct colour/count answers, restartCount 0, 280 image tokens
+    # per picture). Accepted cost: heretic shares radiance's `one-at-a-time`
+    # exclusive group with the flashnext agent lane, so a vision call displaces
+    # flashnext until the entry's 15m ttl frees the cards (~25 s reload plus a
+    # re-prefill of live conversations). glimmer-deleuze stays OFF this slot: the
+    # fleet refuses images for that entry (mm-max-patches: 0).
     # Note the wider effect of naming a vision backend at all: with an explicit
     # auxiliary.vision entry, Hermes' image_input_mode=auto always takes the text
     # path (describe-then-attach), even when the main model can see natively.
     aux["vision"] = {
-        "model": "Muse-Glimmer-30B",
+        "model": "heretic-deleuze",
         "provider": CHAT,
         "timeout": 300,
     }

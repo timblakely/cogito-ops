@@ -20,7 +20,6 @@ spec:
   maxBudget: "50"
   budgetDuration: 30d
   models:
-    - Qwen/Qwen3.8-27B-INT8-W8A16
     - flashnext-deleuze
     # Muse Glimmer on Deleuze's radiance fleet. It shares both R9700s with
     # flashnext-deleuze in an exclusive fleet group, so a session that picks it
@@ -30,8 +29,10 @@ spec:
     # exclusive group and same displacement cost: tp 2 wants both R9700s.
     - heretic-deleuze
     - google/gemma-4-12b-it
-    - Muse-Glimmer-30B
-    - Maya-M
+    # Retired 2026-11-20 with the Iggy lanes: Qwen/Qwen3.8-27B-INT8-W8A16,
+    # Muse-Glimmer-30B and Maya-M are deregistered; their weights are on NAS
+    # archive. Scope edits are NOT pushed to existing keys - push via
+    # /key/update after this lands (see open-webui.yaml note).
     - coder
     - embedder
     - reranker
