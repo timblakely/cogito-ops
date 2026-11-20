@@ -23,6 +23,24 @@ spec:
     timeout: 5m
     remediation:
       retries: 1
+  # Radiance requires its bearer key on /metrics as well as dashboard data.
+  # Other inference runtimes ignore this header when they do not require auth.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              group: monitoring.coreos.com
+              version: v1
+              kind: PodMonitor
+              name: llmkube-inference
+            patch: |
+              - op: add
+                path: /spec/podMetricsEndpoints/0/authorization
+                value:
+                  type: Bearer
+                  credentials:
+                    name: radiance-api-key
+                    key: api-key
   values:
     controllerManager:
       replicaCount: 1

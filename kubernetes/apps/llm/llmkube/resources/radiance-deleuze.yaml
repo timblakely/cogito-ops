@@ -103,6 +103,12 @@ spec:
   args:
   - --config
   - /etc/radiance/radiance.yaml
+  env:
+  - name: RADIANCE_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: radiance-api-key
+        key: api-key
   extraVolumes:
   - name: weights
     persistentVolumeClaim:
@@ -161,12 +167,12 @@ data:
     # flag is a same-named YAML key at its level; unknown keys are fatal. The
     # entry name is the model id (served-model-name is gone, §4.3), so LiteLLM's
     # openai/qwen3.8-flash-next keeps resolving. kv-cache-dtype: fp8 no longer
-    # exists outside GLM-5.3-Flash -> i8 (GUIDE key table). Keyless on purpose:
-    # server.api-key/api-key-env omitted (default none; OIDC edge in front;
-    # api-key-env with an unset variable refuses startup).
+    # exists outside GLM-5.3-Flash -> i8 (GUIDE key table). The bearer key
+    # comes from 1Password via radiance-api-key; OIDC still guards the edge.
     server:
       host: "0.0.0.0"
       port: 8080
+      api-key-env: RADIANCE_API_KEY
     memory:
       gpu-headroom-mib: 160
     scheduler:
