@@ -277,6 +277,57 @@ data:
         tp: 1
         max-model-len: 20480
         ttl: 15m
+      gemma4-heretic:
+        # Gemma 4 31B-it heretic-ara (refusals removed) at int8: keptn's i8a8
+        # container - every trunk linear int8 with a bf16 scale per 128 weights,
+        # int8 activations, int8 lm_heads, Google's bf16 assistant drafter and
+        # the bf16 vision tower. 35,835,154,432 B (33.37 GiB), staged by
+        # manual/radiance-deleuze-stage-gemma-heretic.yaml and sha256-gated on
+        # 405dd2a8f71a16af578c7e8cb1645fa49573bd2f52554b7d94d2d0f75fa9243c.
+        # Its card: radiance >= 2.0.0 (this lane is 2.2.0), "does not fit one
+        # card", tested on two AND four Radeon AI PRO R9700. Quality against the
+        # bf16 original over 42,283 MT-Bench answer tokens: mean KL 0.00249,
+        # 98.7% same top token, perplexity x1.006 - twenty times closer than the
+        # a4/int4 build of the same model (0.0529, 94.4%), which is why this
+        # file was chosen despite costing 13 GiB more. Behaviour: OR-Bench-Hard
+        # rejections 0.6% against the original's 33.5%, XSTest 0 refusals.
+        #
+        # Serve keys are the card's own two-card quick start: tp 2, int8 KV,
+        # 3 draft tokens. max-model-len is the card's 65536, not its 262144 -
+        # sizing the KV pool for a context nothing here sends would take VRAM
+        # the agent lane needs. Sampling (Google's temp 1.0 / top_p 0.95 /
+        # top_k 64) is left to the caller, as on the other entries. Three cards
+        # is impossible (32 attention heads do not split by three). Two cards
+        # is what upstream measured: 89.0 tok/s decode at one stream, 2,528
+        # tok/s prefill at 24k, 262 tok/s total at four.
+        model: /models/radiance/gemma4-31b-heretic-ara-i8g.rad
+        aliases: [heretic]
+        tp: 2
+        kv-cache-dtype: i8
+        max-model-len: 65536
+        max-num-seqs: 8
+        max-num-batched-tokens: 2048
+        num-speculative-tokens: 3
+        # The tower sits in host RAM exactly as the card has it, so a resident
+        # Gemma never spends card memory on an encoder this lane will not use.
+        # Images are refused for the reason Muse's are: one image request
+        # segfaulted this process class on gfx1201 (Muse, 2026-11-19, exit 139)
+        # and the fleet is ONE process, so a picture here is an availability hit
+        # on the agent lane. Unlike Muse, this container's tower is bf16 and
+        # upstream measured its vision path on R9700s, so the edit to make is
+        # mm-max-patches: 1120 - the value upstream's own Gemma 4 12B entry uses
+        # - and only after one image has been probed here on purpose. It has not
+        # been probed.
+        vision-tower-placement: ram
+        mm-max-patches: 0
+        # 36 Gi is the fleet's pinned-host budget (3/4 of the 48 Gi container
+        # limit): flashnext reserves 24 Gi of it, Muse takes 4. 4 Gi keeps this
+        # entry under the cap instead of having its host copies refused under
+        # pressure.
+        prefix-cache-mib: 4096
+        # Hand the cards back when idle: this entry is not the one an agent
+        # session lives on, and a swap re-prefills whoever gets displaced.
+        ttl: 15m
     groups:
       # Measured, not guessed: /admin/fleet reports qwen3.8-flash-next at
       # 33487111208 B = 31.19 GiB PER CARD against the 31.3 GiB each R9700
@@ -288,7 +339,9 @@ data:
       # Revisit if flashnext's claim is ever shrunk (max-model-len/max-num-seqs).
       # flux-3-klein is tp 1 and only wants ~11 GiB on ONE card, but flashnext
       # holds both cards outright, so it is in the exclusive set too: nothing
-      # of ours is co-resident with the agent lane on this node.
+      # of ours is co-resident with the agent lane on this node. gemma4-heretic
+      # is the same story at tp 2 (~16.7 GiB of weights a card before its KV
+      # pool), so it displaces the agent lane and is displaced by it.
       one-at-a-time:
-        exclusive: [qwen3.8-flash-next, muse-glimmer, flux-3-klein]
+        exclusive: [qwen3.8-flash-next, muse-glimmer, flux-3-klein, gemma4-heretic]
 

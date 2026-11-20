@@ -1,0 +1,116 @@
+# NOT in the Flux kustomization (see the note in radiance-deleuze-stage-models.yaml):
+# a CPU-only preflight that runs `radiance --check` against a CANDIDATE fleet
+# config, so a bad entry is caught here rather than by the serving lane.
+#
+# This is the gate that matters before editing radiance-fleet-config. Unknown
+# keys are fatal at startup and a container whose weights carry a refused
+# encoding is rejected at startup too, and the ConfigMap is owned by the
+# Deployment's pod template - so a typo does not fail a rollout cleanly, it
+# crashloops the process that every model on this node lives in, including the
+# one the agent session runs on. --check catches both without touching the lane:
+# it validates every key against the schema and opens every weight path on the
+# PVC to check its container format, then exits without loading weights.
+#
+# The candidate is NOT duplicated in this file. Build it from the repo's own
+# fleet ConfigMap so what gets checked is what will be pushed:
+#
+#   python3 - <<'PY'
+#   import yaml
+#   p = "kubernetes/apps/llm/llmkube/resources/radiance-deleuze.yaml"
+#   d = [x for x in yaml.safe_load_all(open(p)) if x]
+#   cm = [x for x in d if x.get("kind") == "ConfigMap"
+#         and x["metadata"]["name"] == "radiance-fleet-config"][0]
+#   open("/tmp/radiance-candidate.yaml", "w").write(cm["data"]["radiance.yaml"])
+#   PY
+#   kubectl -n llm create configmap radiance-fleet-config-check \
+#     --from-file=radiance.yaml=/tmp/radiance-candidate.yaml \
+#     --dry-run=client -o yaml | kubectl apply -f -
+#   kubectl apply -f manual/radiance-gemma-preflight.yaml
+#   kubectl -n llm logs job/radiance-gemma-preflight -f
+#
+# The weight must already be on the volume - --check opens the path named in the
+# entry, so run this AFTER the staging Job completes, or the entry is reported
+# missing for the wrong reason.
+#
+# Delete the Job and the radiance-fleet-config-check ConfigMap afterwards; a
+# Finished Job in the inventory stalls llmkube-resources' health check.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: radiance-gemma-preflight
+  namespace: llm
+spec:
+  activeDeadlineSeconds: 1800
+  # backoffLimit 0 with restartPolicy Never: a failing --check exits in about a
+  # second, and with a retry budget the Job deletes the failed pod - which is
+  # the only copy of the message saying WHAT it refused. The first run of this
+  # preflight did exactly that. Keep the pod, keep the log.
+  backoffLimit: 0
+  template:
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: deleuze
+      tolerations:
+        - key: workload.cogito/dedicated
+          operator: Equal
+          value: ml
+          effect: NoSchedule
+      containers:
+        - name: check
+          # The same image digest the lane runs, so the schema and the format
+          # gate being tested are the ones that will actually judge the push.
+          image: docker.io/stilldeadcode/radiance:2.2.0@sha256:167466f5556fdb3a4e0efbb42820fae10cfd9b3a98c786f46a51263bfd6fe53f
+          # --check refuses any config whose api-key-env names an unset
+          # variable - "RADIANCE_API_KEY is unset or empty; refusing to serve
+          # keyless under a guarded-looking command line" - and blames the first
+          # model entry for it. That is the harness being wrong, not the
+          # candidate: the preflight must present the same env the Deployment
+          # does, or every check fails before it looks at a single key. Same
+          # secret and key as the lane; the value is only ever put in an env.
+          env:
+            - name: RADIANCE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: radiance-api-key
+                  key: api-key
+          command:
+            - /opt/radiance/bin/radiance
+          args:
+            - --config
+            - /etc/radiance/radiance.yaml
+            - --check
+          # Requests are small on purpose: deleuze is at 85% of its memory
+          # requests with the lane running, so the 2 cpu / 8 Gi this kind of Job
+          # asked for in earlier preflights would simply not schedule. --check
+          # reads container headers, it does not load weights.
+          #
+          # The memory LIMIT still mirrors the serving container's 48 Gi, because
+          # the fleet derives its pinned-host budget as min(3/4 of the host, 3/4
+          # of the cgroup) and the check has to see the same cap the lane will
+          # see. Limits are not what the scheduler enforces, so this is free.
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              cpu: "8"
+              memory: 48Gi
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: weights
+              mountPath: /models
+              readOnly: true
+            - name: config
+              mountPath: /etc/radiance
+              readOnly: true
+      volumes:
+        - name: weights
+          persistentVolumeClaim:
+            claimName: radiance-deleuze
+        - name: config
+          configMap:
+            name: radiance-fleet-config-check
