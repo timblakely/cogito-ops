@@ -1,0 +1,737 @@
+I device: AQL backend, 2 device(s) [0:gfx1201 1:gfx1201]
+I fleet: 3 model(s) on card(s) 0,1; each loads when a request first names it
+I fleet: card 0: 8 queue(s) opened ahead of its next streams (8 open now)
+I fleet: card 1: 8 queue(s) opened ahead of its next streams (8 open now)
+I server: listening on http://0.0.0.0:8080 (12 threads, up to 2240)
+I warm-up: loading flux-3-klein (2 more after it)
+I model flux-3-klein: loading on card(s) 0
+I[flux-3-klein] model: flux3distilled  arch=flux3distilled  quant=bf16  36 layers  262144 ctx
+I[flux-3-klein] vocab: end-of-generation also on <|endoftext|>=151643 (a control token the container declares neither as eos nor eot; without this a turn ending on it runs on)
+W[flux-3-klein] kernel plugin 'libhalo' has no device code for device 0: the fat binary has code objects for [gfx1151] and this card runs [gfx1201, gfx12-generic]. Its 697 device kernel(s) are left out of selection here.
+I[flux-3-klein] plugin 'libhalo' declines this machine and is not loaded
+W[flux-3-klein] kernel plugin 'libr3d' has no device code for device 0: the fat binary has code objects for [gfx1151, gfx11-generic] and this card runs [gfx1201, gfx12-generic]. Its 123 device kernel(s) are left out of selection here.
+I[flux-3-klein] plugin 'libr3d' declines this machine and is not loaded
+I[flux-3-klein] vocab: 151669 tokens, bos=-1 eos=151645
+I[flux-3-klein] gbnf: vocabulary index built in 46 ms, 16.27 MiB
+I[flux-3-klein] chained launches: off -- no drafter whose plugin measured a gain with them decodes speculatively
+I[flux-3-klein] media: off -- the checkpoint has a vision tower but this container was converted without its weights; convert again to serve images and video
+I[flux-3-klein] control vectors: not loaded (no --control-vector); a request that asks for one is refused
+I[flux-3-klein] host-site execution: 2 of 1091 declared ops have no host kernel (gated_had_quant_i8g, rms_mod_had_quant_i8g). Their weights may still be tiered to host or SSD -- only the arithmetic is pinned to the device. --debug-graph lists the bands.
+I[flux-3-klein] declare: 1091 ops, 1080 weights, 223 buffers, 1 KV groups
+I[flux-3-klein] activation arena: not lent -- the 'flux3distilled' plugin does not declare at a smaller step size (RadArchProbe::shape_probe_ok)
+I[flux-3-klein] placement: token embedding (741.88 MiB a rank) ram (default): pinned in host memory and read over the link in place, so its VRAM goes to the KV cache and the experts
+I[flux-3-klein] placement: encoder towers (280.88 MiB a rank) vram (default)
+I[flux-3-klein] VRAM budget, per card:
+  card total          16.62 GiB
+  already held              0 B   measured: driver context, code objects, anything else resident
+  driver drift        16.00 MiB   what that moves by after it is read: kept free
+  activation arena     7.70 GiB   computed from the buffer plan
+  step staging        94.69 MiB   the step batch's block tables and media staging, and the
+                                  KV tiers' copy staging
+  hardware queues    160.00 MiB   2 a card at 0 B each, measured: the engine's streams
+  expert prefetch           0 B   the next-layer prefetch's ring of expert units and buffers
+  --gpu-headroom-mib        0 B   left unclaimed on purpose
+  ------------------------------
+  claimable            8.65 GiB
+  static weights       8.65 GiB   off the top: every rank's own shard, and not a share of anything
+  ------------------------------
+  elastic              2.00 MiB   the experts keep what the host pool cannot hold; the cache takes the rest
+                                  and lends what no live request holds to the expert slab
+    experts                 0 B   0% of it -- a dense model, so there is no expert plane for this share to fill and the
+                                  cache took everything it could address
+    kv cache           2.00 MiB   100% of it
+  ==============================
+  vram_weights         8.65 GiB   static + experts
+  vram_kv              1.00 MiB   the cache's share
+  unclaimed          784.00 KiB   the headroom, the unusable above, and what MiB rounding
+                                  could not place
+
+I[flux-3-klein] pools:
+vram_weights     8.65 GiB budget,        0 B used,   8.65 GiB free
+vram_kv          1.00 MiB budget,        0 B used,   1.00 MiB free
+host_pool      742.00 MiB budget,        0 B used, 742.00 MiB free
+
+I[flux-3-klein] placement: 'te.token_embd.weight' (741.88 MiB) in the pinned host pool, read in place (--embedding-placement ram, the default)
+I[flux-3-klein] mover: 0 slab slots (0 shadow, up to 0 more kept free out of a loan as swaps ask for them), 1 pinned pool slots, 8.65 GiB static vram
+I[flux-3-klein] load: rank 0, mover took 8.65 GiB, weights pool 243.99 KiB free of 8.65 GiB
+I[flux-3-klein] load: 8.06 GiB of 9.35 GiB read, 6.2 GB/s, at container offset 8603054080
+I[flux-3-klein] load: one pass over the container, 9.35 GiB read in 1.6 s (6.3 GB/s) for 1 rank(s); 1.5 s of that was the disk (6.5 GB/s)
+I[flux-3-klein] load: 814 weight(s), 8.11 GiB of planes, rearranged for their kernels by 10 worker(s) behind the read, 0 B held at most; done 1.6 s after the read began
+I[flux-3-klein] load: 1080 weights, 9.35 GiB placed from 9.35 GiB of container read
+I[flux-3-klein] chunk geometry: quantum 1 (attn block 1, state chunk 1), checkpoint interval 0, max_tok 43986 -> prefill chunks of at most 43986
+I[flux-3-klein] kv: KV layer bundles  (0 real layers)
+    vLLM stock    size  0 ->  0 groups,   0 slots (0 padding)
+    least-waste   size  0 ->  0 groups,   0 slots (0 padding)
+    radiance      per state kind, own pool ->  0 groups,   0 slots (0 padding)
+    (none)         ?        0 layers  state      0 B        0 slots =       0 B
+    pool at 0x7f91dfa00000, 1.00 MiB; groups at +0..+0
+
+I[flux-3-klein] prefix cache: disabled by --no-prefix-cache
+
+I[flux-3-klein] arena: 7.70 GiB device + 0 B scratch = 7.70 GiB, charged to the VRAM budget before it was split
+I[flux-3-klein] device allocations: 2 totalling 16.35 GiB, of which 8.65 GiB is the two pools -- the rest is the activation arena and the step staging. Anything on the card past this is the driver or a kernel plugin's own hipMalloc, which this cannot see.
+I[flux-3-klein] card 0 settled at 15.00 GiB free against 254.69 MiB (the 160.00 MiB --gpu-headroom-mib and 94.69 MiB kept for the step staging and for what is built on first use). The split accounted for it: neither pool could address another byte, which is the `unusable` line of the VRAM budget above.
+I[flux-3-klein] scheduler: --busy-prefill-chunk auto: a prefill chunk sharing a step leaves decode rows and waiting requests their room and keeps at least 1 tokens
+I[flux-3-klein] images: 'flux-3-image-klein', 1024x1024 by default, up to 16384 latent tokens, 10 picture(s) an edit, 16 steps by default
+I[flux-3-klein] STARTUP REPORT -- radiance 2.2.0
+I[flux-3-klein] CONFIGURATION -- every option not at its default, the value in force, and where it came from
+I[flux-3-klein]   --model                            /models/radiance/flux-3-klein-iq8r.rad      [models.flux-3-klein.model]
+I[flux-3-klein]   --kernels                          libavx@0.1.0,libr4d@0.5.0,spechub@0.1.0,libref@0.1.0  [auto]
+I[flux-3-klein]                                        every kernel library under --radiance-home, in the loader's order (a reference implementation last); architecture plugin flux3distilled@0.1.0
+I[flux-3-klein]   --tp                               1                                           [models.flux-3-klein.tp]
+I[flux-3-klein]   --p2p                              n/a                                         [auto]
+I[flux-3-klein]                                        one rank: no collective crosses a card
+I[flux-3-klein]   --max-num-batched-tokens           43986                                       [auto]
+I[flux-3-klein]                                        an image generator: a denoise pass carries the largest image's latent rows twice (with guidance)
+I[flux-3-klein]   --prefill-interleave               0                                           [auto]
+I[flux-3-klein]                                        a generator: its passes carry no decode rows
+I[flux-3-klein]   --max-num-seqs                     16                                          [auto]
+I[flux-3-klein]                                        an image generator: images in one pass
+I[flux-3-klein]   --max-model-len                    20480                                       [models.flux-3-klein.max-model-len]
+I[flux-3-klein]   --gpu-headroom-mib                 160                                         [memory.gpu-headroom-mib]
+I[flux-3-klein]   --embedding-placement              ram                                         [auto]
+I[flux-3-klein]                                        the table is 741.88 MiB a rank: pinned in host memory and read over the link in place, so its VRAM goes to the KV cache and the experts
+I[flux-3-klein]   --vision-tower-placement           vram                                        [auto]
+I[flux-3-klein]                                        the towers are 280.88 MiB a rank
+I[flux-3-klein]   --ngram-placement                  n/a                                         [auto]
+I[flux-3-klein]                                        this model has no n-gram table
+I[flux-3-klein]   --placement                        all_vram                                    [auto]
+I[flux-3-klein]                                        8.65 GiB of weights fit the 8.65 GiB weights pool
+I[flux-3-klein]   --checkpoint-interval              0 (none)                                    [auto]
+I[flux-3-klein]                                        the model keeps no linear state to checkpoint
+I[flux-3-klein]   --checkpoint-slots                 0                                           [auto]
+I[flux-3-klein]                                        the model keeps no linear or sliding-window state to snapshot
+I[flux-3-klein]   --no-prefix-cache                  prefix caching off                          [auto]
+I[flux-3-klein]                                        an image generator: a conditioning is read by its own request's images and by nothing after them
+I[flux-3-klein]   --host                             0.0.0.0                                     [server.host]
+I[flux-3-klein]   --port                             8080                                        [server.port]
+I[flux-3-klein]   --served-model-name                flux-3-klein                                [models.flux-3-klein]
+I[flux-3-klein]   --mm-max-patches                   0                                           [auto]
+I[flux-3-klein]                                        the checkpoint has a vision tower but this container was converted without its weights
+I[flux-3-klein]   --max-n                            16                                          [auto]
+I[flux-3-klein]                                        the larger of 8 and --max-num-seqs
+I[flux-3-klein]   --max-queued-requests              128                                         [auto]
+I[flux-3-klein]                                        8 x --max-num-seqs
+I[flux-3-klein]   --http-threads                     12                                          [auto]
+I[flux-3-klein]                                        one a hardware thread, at least 4
+I[flux-3-klein]   144 options at their default (-v lists every option; /diagnostics carries them all)
+I[flux-3-klein] ENVIRONMENT -- the RADIANCE_* variables set, by name; their values are not shown
+I[flux-3-klein]   RADIANCE_PORT
+I[flux-3-klein]   RADIANCE_PORT_8080_TCP
+I[flux-3-klein]   RADIANCE_PORT_8080_TCP_ADDR
+I[flux-3-klein]   RADIANCE_PORT_8080_TCP_PORT
+I[flux-3-klein]   RADIANCE_PORT_8080_TCP_PROTO
+I[flux-3-klein]   RADIANCE_SERVICE_HOST
+I[flux-3-klein]   RADIANCE_SERVICE_PORT
+I[flux-3-klein]   RADIANCE_SERVICE_PORT_HTTP
+I[flux-3-klein] DERIVED -- what startup worked out that no single option states
+I[flux-3-klein]   chained launches                   off
+I[flux-3-klein]                                        no drafter whose plugin measured a gain with them decodes speculatively
+I[flux-3-klein]   kernel selection                   libavx (host) 2228, libr4d 2346 op bands
+I[flux-3-klein]                                        attention:
+I[flux-3-klein]                                        attn_cross -> attn_cross_h128_bf16
+I[flux-3-klein]                                        attn_cross -> avx_attn_cross
+I[flux-3-klein]                                        attn_dense -> attn_dense_h128_bf16
+I[flux-3-klein]                                        attn_dense -> attn_dense_h512_bf16
+I[flux-3-klein]                                        attn_dense -> avx_attn_dense
+I[flux-3-klein]                                        qk_norm_rope -> avx_qk_norm_rope
+I[flux-3-klein]                                        qk_norm_rope -> qk_norm_rope_bf16
+I[flux-3-klein]   vram claim                         16.62 GiB
+I[flux-3-klein]                                        granted by the fleet: needs 16.62 GiB, could use 16.62 GiB
+I[flux-3-klein]   vram split                         weights 8.65 GiB (experts 0 B of it), KV cache 2.00 MiB, a card
+I[flux-3-klein]                                        VRAM budget, per card:
+I[flux-3-klein]                                          card total          16.62 GiB
+I[flux-3-klein]                                          already held              0 B   measured: driver context, code objects, anything else resident
+I[flux-3-klein]                                          driver drift        16.00 MiB   what that moves by after it is read: kept free
+I[flux-3-klein]                                          activation arena     7.70 GiB   computed from the buffer plan
+I[flux-3-klein]                                          step staging        94.69 MiB   the step batch's block tables and media staging, and the
+I[flux-3-klein]                                                                          KV tiers' copy staging
+I[flux-3-klein]                                          hardware queues    160.00 MiB   2 a card at 0 B each, measured: the engine's streams
+I[flux-3-klein]                                          expert prefetch           0 B   the next-layer prefetch's ring of expert units and buffers
+I[flux-3-klein]                                          --gpu-headroom-mib        0 B   left unclaimed on purpose
+I[flux-3-klein]                                          ------------------------------
+I[flux-3-klein]                                          claimable            8.65 GiB
+I[flux-3-klein]                                          static weights       8.65 GiB   off the top: every rank's own shard, and not a share of anything
+I[flux-3-klein]                                          ------------------------------
+I[flux-3-klein]                                          elastic              2.00 MiB   the experts keep what the host pool cannot hold; the cache takes the rest
+I[flux-3-klein]                                                                          and lends what no live request holds to the expert slab
+I[flux-3-klein]                                            experts                 0 B   0% of it -- a dense model, so there is no expert plane for this share to fill and the
+I[flux-3-klein]                                                                          cache took everything it could address
+I[flux-3-klein]                                            kv cache           2.00 MiB   100% of it
+I[flux-3-klein]                                          ==============================
+I[flux-3-klein]                                          vram_weights         8.65 GiB   static + experts
+I[flux-3-klein]                                          vram_kv              1.00 MiB   the cache's share
+I[flux-3-klein]                                          unclaimed          784.00 KiB   the headroom, the unusable above, and what MiB rounding
+I[flux-3-klein]                                                                          could not place
+I[flux-3-klein]   weights by tier                    VRAM 8.65 GiB, host pool 741.88 MiB, container on disk 0 B, mapped 0 B (rank 0)
+I[flux-3-klein]                                        the host pool holds the 741.88 MiB the placement flags put there (the token embedding, the encoder towers, the drafter's experts) beside the weights placed in it
+I[flux-3-klein] HARDWARE
+I[flux-3-klein]   host      AMD Ryzen 5 5600 6-Core Processor | 6 cores, 12 threads | RAM 62.69 GiB, 52.51 GiB available | swap none
+I[flux-3-klein]   system    kernel 6.18.57-talos | unknown | no container seen | cgroup memory 48.00 GiB | memlock 8.00 MiB
+I[flux-3-klein]   memory    huge pages madvise (defrag madvise, shmem never) | ttm.pages_limit 31.35 GiB | pinned by this process 2.33 GiB
+I[flux-3-klein]   iommu     passthrough (the display devices' IOMMU groups are of type identity)
+I[flux-3-klein]   amdgpu    cwsr_enable 1 | boot parameters: amd_iommu=on iommu=pt
+I[flux-3-klein]   cpu       governor powersave, energy preference balance_performance (amd-pstate-epp) | io_uring available
+I[flux-3-klein]   runtime   HIP 7.16.26385 | backend device
+I[flux-3-klein]   media     decoders libavformat 62.12.103
+I[flux-3-klein]   card 0000:0a:00.0  rank 0 (device 0)  gfx1201 "AMD Radeon AI PRO R9700"  31.86 GiB VRAM  NUMA -1  driver amdgpu card1
+I[flux-3-klein]       link   00:03.1 16.0 GT/s x8 (max 16.0 GT/s x8) -> 08:00.0 16.0 GT/s x8 (max 32.0 GT/s x16) -> 09:00.0 32.0 GT/s x16 (max 32.0 GT/s x16) -> 0a:00.0 32.0 GT/s x16 (max 32.0 GT/s x16)  [read at 3% busy: a link at rest parks below its maximum]
+I[flux-3-klein]       pcie   0: 2.5GT/s, x8 250Mhz | 1: 16.0GT/s, x8 616Mhz | *2: 16.0GT/s, x8 1143Mhz
+I[flux-3-klein]       dma    copy lists not used: nothing streams weights onto this card
+I[flux-3-klein]       power  cap 300 W (default 300 W, max 300 W) | voltage offset unknown | sclk 36-2350 MHz | mclk 96-1258 MHz | runtime pm active (control auto) | iommu group identity
+I[flux-3-klein]   card 0000:0d:00.0  device 1, not serving  gfx1201 "AMD Radeon AI PRO R9700"  31.86 GiB VRAM  NUMA -1  driver amdgpu card0
+I[flux-3-klein]       link   00:03.2 16.0 GT/s x8 (max 16.0 GT/s x8) -> 0b:00.0 16.0 GT/s x8 (max 32.0 GT/s x16) -> 0c:00.0 32.0 GT/s x16 (max 32.0 GT/s x16) -> 0d:00.0 32.0 GT/s x16 (max 32.0 GT/s x16)  [read at 3% busy: a link at rest parks below its maximum]
+I[flux-3-klein]       pcie   0: 2.5GT/s, x8 250Mhz | 1: 16.0GT/s, x8 616Mhz | *2: 16.0GT/s, x8 1143Mhz
+I[flux-3-klein]       power  cap 300 W (default 300 W, max 300 W) | voltage offset unknown | sclk 41-2350 MHz | mclk 96-1258 MHz | runtime pm active (control auto) | iommu group identity
+I[flux-3-klein] FINDINGS -- 0 warnings, 2 notes
+I[flux-3-klein]   note link-capped: card 0000:0a:00.0 (rank 0): the card's link is 32.0 GT/s x16 at most, and 0000:00:03.1 above it is 16.0 GT/s x8 at most
+I[flux-3-klein]        why: the host side of the link bounds what the card can move to and from host memory: streamed experts, the host pool and the all-reduce when it goes through host memory
+I[flux-3-klein]        fix: a slot with the card's full width and speed (the board manual says which slots share lanes), or no riser; nothing to do if the board has no faster slot
+I[flux-3-klein]   note cpu-governor: the CPU governor is powersave with energy preference balance_performance
+I[flux-3-klein]        why: the host side of a step -- scheduling, sampling, the n-gram gather, launch bookkeeping -- is single-threaded per rank, and a core that ramps slowly shows as host gap between steps
+I[flux-3-klein]        fix: cpupower frequency-set -g performance, or echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference
+I[flux-3-klein] model flux-3-klein serves  (/v1/images/generations and /v1/images/edits; completions and chat are 501)
+I[flux-3-klein] model flux-3-klein: ready
+I model flux-3-klein: loaded on card(s) 0 in 1.9 s, holding 16.62 GiB a card (paging owner 1)
+I warm-up: loading muse-glimmer (1 more after it)
+I model flux-3-klein: parked in 0.33 s (making room for muse-glimmer): 16.45 GiB off its cards; this time 5.44 GiB dropped, 0 B against earlier copies, 8.65 GiB against its container, 2.36 GiB copied to host memory, 0 B to disk (rest 0.00 s, slab 0.00 s, page-out 0.33 s, the cards' free figure 0.00 s); the fleet pins 5.69 GiB of 35.99 GiB
+I fleet: card 0: 2 queue(s) opened ahead of its next streams (10 open now)
+I model muse-glimmer: loading on card(s) 0,1
+I[muse-glimmer] model: museglimmer  arch=museglimmer  quant=compressed-tensors  52 layers  131072 ctx
+I[muse-glimmer] vocab: end-of-generation also on <|eot|>=200008 (named by the checkpoint's generation_config.json)
+I[muse-glimmer] vocab: 202048 tokens, bos=200000 eos=200001
+I[muse-glimmer] gbnf: vocabulary index built in 51 ms, 21.69 MiB
+I[muse-glimmer] device: the 2 cards reach each other's memory directly (peer to peer)
+I[muse-glimmer] speculation: depth 15, this drafter's own operating point (--num-speculative-tokens N overrides it)
+I[muse-glimmer] chained launches: off -- no drafter whose plugin measured a gain with them decodes speculatively
+I[muse-glimmer] control vectors: not loaded (no --control-vector); a request that asks for one is refused
+I speculation: 'muse_dflash' reads bf16 linears
+I speculation: 'muse_dflash' does not fuse its gate_up|silu|quant fold (0 row(s))
+I[muse-glimmer/r0] sampler: 202048-token vocabulary (101024 this rank), 128 rows, 3157 mask words (12.33 KiB per row)
+I speculation: 'muse_dflash' reads bf16 linears
+I speculation: 'muse_dflash' does not fuse its gate_up|silu|quant fold (0 row(s))
+I[muse-glimmer/r1] sampler: 202048-token vocabulary (101024 this rank), 128 rows, 3157 mask words (12.33 KiB per row)
+I[muse-glimmer] host-site execution: 2 of 1393 declared ops have no host kernel (rmsnorm_had_quant_i8g, gated_had_quant_i8g). Their weights may still be tiered to host or SSD -- only the arithmetic is pinned to the device. --debug-graph lists the bands.
+I[muse-glimmer] declare: 1393 ops, 992 weights, 70 buffers, 4 KV groups
+I[muse-glimmer] speculation: 'muse_dflash' proposes 15 token(s) in ONE block pass over 16 row(s) (mask id 201818, window 2048); prompt lookup fills in for any sequence it declines
+I[muse-glimmer] activation arena: not lent -- the 'museglimmer_ct' plugin does not declare at a smaller step size (RadArchProbe::shape_probe_ok)
+I[muse-glimmer] placement: token embedding (1.25 GiB a rank) ram (default): pinned in host memory and read over the link in place, so its VRAM goes to the KV cache and the experts
+I[muse-glimmer] VRAM budget, per card:
+  card total          16.30 GiB
+  already held              0 B   measured: driver context, code objects, anything else resident
+  driver drift        16.00 MiB   what that moves by after it is read: kept free
+  activation arena   386.85 MiB   computed from the buffer plan
+  step staging        26.35 MiB   the step batch's block tables and media staging, and the
+                                  KV tiers' copy staging
+  hardware queues    160.00 MiB   2 a card at 0 B each, measured: the engine's streams
+  expert prefetch           0 B   the next-layer prefetch's ring of expert units and buffers
+  --gpu-headroom-mib        0 B   left unclaimed on purpose
+  ------------------------------
+  claimable           15.72 GiB
+  static weights      15.04 GiB   off the top: every rank's own shard, and not a share of anything
+  ------------------------------
+  elastic            698.00 MiB   the experts keep what the host pool cannot hold; the cache takes the rest
+                                  and lends what no live request holds to the expert slab
+    experts                 0 B   0% of it -- a dense model, so there is no expert plane for this share to fill and the
+                                  cache took everything it could address
+    kv cache         698.00 MiB   100% of it -- 19% backing of the 8 x 0 worst case: 1.5 full-length
+                                  sessions. With prefix caching a finished sequence's blocks stay held
+                                  for reuse, so the demand is live sessions, not running requests
+  ==============================
+  vram_weights        15.04 GiB   static + experts
+  vram_kv            697.00 MiB   the cache's share
+  unclaimed          400.00 KiB   the headroom, the unusable above, and what MiB rounding
+                                  could not place
+
+I[muse-glimmer/r0] pools:
+vram_weights    15.04 GiB budget,        0 B used,  15.04 GiB free
+vram_kv          3.63 GiB budget,        0 B used,   3.63 GiB free
+host_pool        1.25 GiB budget,        0 B used,   1.25 GiB free
+
+I[muse-glimmer/r0] placement: 'token_embd.weight' (1.25 GiB) in the pinned host pool, read in place (--embedding-placement ram, the default)
+I[muse-glimmer/r1] pools:
+vram_weights    15.04 GiB budget,        0 B used,  15.04 GiB free
+vram_kv          3.63 GiB budget,        0 B used,   3.63 GiB free
+host_pool        1.25 GiB budget,        0 B used,   1.25 GiB free
+
+I[muse-glimmer/r1] placement: 'token_embd.weight' (1.25 GiB) in the pinned host pool, read in place (--embedding-placement ram, the default)
+I[muse-glimmer/r0] mover: 0 slab slots (0 shadow, up to 0 more kept free out of a loan as swaps ask for them), 1 pinned pool slots, 15.04 GiB static vram
+I[muse-glimmer/r0] load: rank 0, mover took 15.04 GiB, weights pool 627.75 KiB free of 15.04 GiB
+I[muse-glimmer/r1] mover: 0 slab slots (0 shadow, up to 0 more kept free out of a loan as swaps ask for them), 1 pinned pool slots, 15.04 GiB static vram
+I[muse-glimmer/r1] load: rank 1, mover took 15.04 GiB, weights pool 627.75 KiB free of 15.04 GiB
+I[muse-glimmer] load: 8.00 GiB of 32.07 GiB read, 4.5 GB/s, at container offset 8744538112
+I[muse-glimmer] load: 16.02 GiB of 32.07 GiB read, 4.7 GB/s, at container offset 17358368768
+I[muse-glimmer] load: 24.12 GiB of 32.07 GiB read, 4.6 GB/s, at container offset 25990586368
+I[muse-glimmer] load: one pass over the container, 32.07 GiB read in 7.3 s (4.7 GB/s) for 2 rank(s); 7.3 s of that was the disk (4.7 GB/s)
+I[muse-glimmer] load: 1876 weight(s), 24.81 GiB of planes, rearranged for their kernels by 10 worker(s) behind the read, 2.04 GiB held at most; done 7.3 s after the read began
+I[muse-glimmer] load: 1984 weights, 32.49 GiB placed from 32.07 GiB of container read
+I[muse-glimmer] chunk geometry: quantum 16 (attn block 16, state chunk 1), checkpoint interval 2048, max_tok 2048 -> prefill chunks of at most 2048
+I[muse-glimmer] prefix resume: exact -- a hit resumes only where an idle server's cold prefill of the same prompt starts a chunk (every 2048 tokens) and a prompt's tail snapshot is taken where its last chunk starts, so the hit recomputes the cold run's own chunks and answers bit-identically; a turn re-prefills up to one chunk more than --prefix-resume nearest
+I[muse-glimmer] checkpoint slots: auto: 72 sliding-window snapshot(s) of 60.39 MiB in pinned host memory (4.25 GiB), none of it on the card; 9 a sequence for --max-num-seqs 8: geometric-backoff keeps 8 for a 131072-token session at a 2048-token interval, and one more for a running turn
+I[muse-glimmer] kv tier transfer: 1 paged group(s), 52.81 KiB an entry, batches of 310 through gather_rows/scatter_rows at u8
+I[muse-glimmer] kv tiers: a finished conversation's KV is copied to host memory at once (4.00 GiB, 39709 entries, 635344 tokens of context) and its VRAM is given up when the expert loan or a request wants it; a full host tier drops its least recently used entries, the end of a conversation before its start. One entry is 105.62 KiB
+kv tiers: a session's linear state is saved to host memory -- 72 snapshot slot(s) of 60.39 MiB -- and a full store retires the least recently used
+I[muse-glimmer] kv: KV layer bundles 39/13/5 (57 real layers)
+    vLLM stock    size  5 -> 12 groups,  60 slots (3 padding)
+    least-waste   size  5 -> 12 groups,  60 slots (3 padding)
+    radiance      per state kind, own pool ->  3 groups,  57 slots (0 padding)
+    (none)         ?        0 layers  state      0 B        0 slots =       0 B
+    kv_sliding     window  39 layers  block   16 tok  page 158.44 KiB     1168 blocks = 180.72 MiB  (18688 tokens)
+    kv_full        full    13 layers  block   16 tok  page 52.81 KiB    66776 blocks =  3.36 GiB  (1068416 tokens)
+    kv_draft       window   5 layers  block   16 tok  page 81.25 KiB     1168 blocks = 92.68 MiB  (18688 tokens)
+    pool at 0x7f761d800000, 3.63 GiB; groups at +0..+3897921536
+
+I[muse-glimmer] prefix cache: 1 paged group(s) in 16-token entries; checkpoints every 2048 tokens (72 slots of 30.20 MiB a rank, pinned host memory), retention 'geometric-backoff'
+  group 'kv_sliding' is windowed (129 blocks): not cached; a checkpoint slot carries its window
+  group 'kv_draft' is windowed (129 blocks): not cached; a checkpoint slot carries its window
+
+I[muse-glimmer/r0] arena: 370.35 MiB device + 16.50 MiB scratch = 386.85 MiB, charged to the VRAM budget before it was split
+I[muse-glimmer/r1] arena: 370.35 MiB device + 16.50 MiB scratch = 386.85 MiB, charged to the VRAM budget before it was split
+I[muse-glimmer] kv: the cache can grow to 3.63 GiB a card -- 1068416 tokens of context, 8.2 sessions at 131072 -- with every block it lends the experts taken back; 0 B of that is per-sequence state, and nothing is lent: it is all the cache's
+I[muse-glimmer] device allocations: 9 totalling 47.28 GiB, of which 37.34 GiB is the two pools -- the rest is the activation arena and the step staging. Anything on the card past this is the driver or a kernel plugin's own hipMalloc, which this cannot see.
+I[muse-glimmer/r0] card 0 settled at 15.02 GiB free against 186.35 MiB (the 160.00 MiB --gpu-headroom-mib and 26.35 MiB kept for the step staging and for what is built on first use). The split accounted for it: neither pool could address another byte, which is the `unusable` line of the VRAM budget above.
+I[muse-glimmer/r1] card 1 settled at 15.10 GiB free against 186.35 MiB (the 160.00 MiB --gpu-headroom-mib and 26.35 MiB kept for the step staging and for what is built on first use). The split accounted for it: neither pool could address another byte, which is the `unusable` line of the VRAM budget above.
+I[muse-glimmer] draft floor: 3 paged group(s), 1 prefix-cached, 2 in the window snapshot -> a hit leaves no hole
+I[muse-glimmer] prefix cache: a trunk layer's windowed group is not prefix-cached -- a hit resumes from a window snapshot (a checkpoint slot)
+I[muse-glimmer] scheduler: --prefill-interleave auto: after a prefill chunk that leaves its prompt unfinished while other sequences decode, decode-only steps follow for up to 1.00 of the chunk step's measured time (at most 64 steps)
+I[muse-glimmer] step batch: 69.73 MiB pinned staging ring + 4.35 MiB device slab a rank (4.27 MiB of it block tables), 4 KV group(s), 0 derived buffer(s)
+I[muse-glimmer] scheduler: --busy-prefill-chunk auto: a prefill chunk sharing a step leaves decode rows and waiting requests their room and keeps at least 16 tokens
+I[muse-glimmer] chat: template loaded (9991 bytes); tools=1 tool_calls=1 system=1 thinking=1
+I[muse-glimmer] chat: reply format plugin:museglimmer: reasoning "to=self<|message|>".."<|eom|><|start|>assistant to=user<|message|>"; content "to=user<|message|>"; section "<atem:function_calls>".."</atem:function_calls>"; calls "<atem:invoke ""name=\""NAME"\">" "<atem:parameter name=\""ARG"\">"""VALUE"</atem:parameter>" "</atem:invoke>"""; no grammar
+I[muse-glimmer] sampling defaults for requests that send none: temperature 1.00, top_k 64, top_p 0.95, min_p 0.00 (from the container)
+I[muse-glimmer] STARTUP REPORT -- radiance 2.2.0
+I[muse-glimmer] CONFIGURATION -- every option not at its default, the value in force, and where it came from
+I[muse-glimmer]   --model                            /models/radiance/muse-glimmer-30b-iq8r-dflash.rad  [models.muse-glimmer.model]
+I[muse-glimmer]   --kernels                          libavx@0.1.0,libr4d@0.5.0,spechub@0.1.0,libref@0.1.0  [auto]
+I[muse-glimmer]                                        every kernel library under --radiance-home, in the loader's order (a reference implementation last); architecture plugin museglimmer_ct@0.1.0
+I[muse-glimmer]   --tp                               2                                           [models.muse-glimmer.tp]
+I[muse-glimmer]   --p2p                              peer to peer                                [auto]
+I[muse-glimmer]                                        the driver reports every pair of the ranks' cards can reach the other's memory
+I[muse-glimmer]   --prefill-interleave               auto:1                                      [auto]
+I[muse-glimmer]                                        decode-only steps for as long as a chunk step took while prompts prefill beside decoding sequences
+I[muse-glimmer]   --max-num-seqs                     8                                           [models.muse-glimmer.max-num-seqs]
+I[muse-glimmer]   --max-model-len                    131072                                      [auto]
+I[muse-glimmer]                                        the model's training context (--max-model-len 0)
+I[muse-glimmer]   --gpu-headroom-mib                 160                                         [memory.gpu-headroom-mib]
+I[muse-glimmer]   --kv-cache-dtype                   i8                                          [models.muse-glimmer.kv-cache-dtype]
+I[muse-glimmer]   --embedding-placement              ram                                         [auto]
+I[muse-glimmer]                                        the table is 1.25 GiB a rank: pinned in host memory and read over the link in place, so its VRAM goes to the KV cache and the experts
+I[muse-glimmer]   --vision-tower-placement           n/a                                         [auto]
+I[muse-glimmer]                                        this server declares no encoder tower
+I[muse-glimmer]   --ngram-placement                  n/a                                         [auto]
+I[muse-glimmer]                                        this model has no n-gram table
+I[muse-glimmer]   --prefix-cache-mib                 4096                                        [models.muse-glimmer.prefix-cache-mib]
+I[muse-glimmer]   --placement                        all_vram                                    [auto]
+I[muse-glimmer]                                        15.04 GiB of weights fit the 15.04 GiB weights pool
+I[muse-glimmer]   --checkpoint-slots                 72                                          [auto]
+I[muse-glimmer]                                        9 a sequence for --max-num-seqs 8: geometric-backoff keeps 8 for a 131072-token session at a 2048-token interval, and one more for a running turn
+I[muse-glimmer]   --num-speculative-tokens           15                                          [auto]
+I[muse-glimmer]                                        the depth the drafter in this container states as its operating point
+I[muse-glimmer]   --host                             0.0.0.0                                     [server.host]
+I[muse-glimmer]   --port                             8080                                        [server.port]
+I[muse-glimmer]   --served-model-name                muse-glimmer                                [models.muse-glimmer]
+I[muse-glimmer]   --mm-max-patches                   0                                           [models.muse-glimmer.mm-max-patches]
+I[muse-glimmer]   --temp                             1                                           [auto]
+I[muse-glimmer]                                        from the container
+I[muse-glimmer]   --top-k                            64                                          [auto]
+I[muse-glimmer]                                        from the container
+I[muse-glimmer]   --top-p                            0.95                                        [auto]
+I[muse-glimmer]                                        from the container
+I[muse-glimmer]   --min-p                            0                                           [auto]
+I[muse-glimmer]                                        the container states no min_p, so this is the built-in default
+I[muse-glimmer]   --max-n                            8                                           [auto]
+I[muse-glimmer]                                        the larger of 8 and --max-num-seqs
+I[muse-glimmer]   --max-queued-requests              64                                          [auto]
+I[muse-glimmer]                                        8 x --max-num-seqs
+I[muse-glimmer]   --http-threads                     12                                          [auto]
+I[muse-glimmer]                                        one a hardware thread, at least 4
+I[muse-glimmer]   140 options at their default (-v lists every option; /diagnostics carries them all)
+I[muse-glimmer] ENVIRONMENT -- the RADIANCE_* variables set, by name; their values are not shown
+I[muse-glimmer]   RADIANCE_PORT
+I[muse-glimmer]   RADIANCE_PORT_8080_TCP
+I[muse-glimmer]   RADIANCE_PORT_8080_TCP_ADDR
+I[muse-glimmer]   RADIANCE_PORT_8080_TCP_PORT
+I[muse-glimmer]   RADIANCE_PORT_8080_TCP_PROTO
+I[muse-glimmer]   RADIANCE_SERVICE_HOST
+I[muse-glimmer]   RADIANCE_SERVICE_PORT
+I[muse-glimmer]   RADIANCE_SERVICE_PORT_HTTP
+I[muse-glimmer] DERIVED -- what startup worked out that no single option states
+I[muse-glimmer]   chained launches                   off
+I[muse-glimmer]                                        no drafter whose plugin measured a gain with them decodes speculatively
+I[muse-glimmer]   kernel selection                   libavx (host) 3357, libr4d 3513 op bands
+I[muse-glimmer]                                        attention:
+I[muse-glimmer]                                        attn_paged -> attn_decode_h128_gqa16_i8
+I[muse-glimmer]                                        attn_paged -> attn_decode_h128_gqa4_i8
+I[muse-glimmer]                                        attn_paged -> attn_prefill_h128_gqa16_i8
+I[muse-glimmer]                                        attn_paged -> attn_window_h128_gqa16_i8kv
+I[muse-glimmer]                                        attn_paged -> avx_attn_paged
+I[muse-glimmer]                                        kv_store -> avx_kv_store
+I[muse-glimmer]                                        kv_store -> kv_store_i8
+I[muse-glimmer]                                        rope -> avx_rope
+I[muse-glimmer]                                        rope -> rope_bf16
+I[muse-glimmer]   vram claim                         16.30 GiB
+I[muse-glimmer]                                        granted by the fleet: needs 16.30 GiB, could use 19.18 GiB
+I[muse-glimmer]   kv flex                            3.63 GiB
+I[muse-glimmer]                                        the cache may grow to 1048576 tokens into memory no model holds
+I[muse-glimmer]   vram split                         weights 15.04 GiB (experts 0 B of it), KV cache 698.00 MiB, a card
+I[muse-glimmer]                                        VRAM budget, per card:
+I[muse-glimmer]                                          card total          16.30 GiB
+I[muse-glimmer]                                          already held              0 B   measured: driver context, code objects, anything else resident
+I[muse-glimmer]                                          driver drift        16.00 MiB   what that moves by after it is read: kept free
+I[muse-glimmer]                                          activation arena   386.85 MiB   computed from the buffer plan
+I[muse-glimmer]                                          step staging        26.35 MiB   the step batch's block tables and media staging, and the
+I[muse-glimmer]                                                                          KV tiers' copy staging
+I[muse-glimmer]                                          hardware queues    160.00 MiB   2 a card at 0 B each, measured: the engine's streams
+I[muse-glimmer]                                          expert prefetch           0 B   the next-layer prefetch's ring of expert units and buffers
+I[muse-glimmer]                                          --gpu-headroom-mib        0 B   left unclaimed on purpose
+I[muse-glimmer]                                          ------------------------------
+I[muse-glimmer]                                          claimable           15.72 GiB
+I[muse-glimmer]                                          static weights      15.04 GiB   off the top: every rank's own shard, and not a share of anything
+I[muse-glimmer]                                          ------------------------------
+I[muse-glimmer]                                          elastic            698.00 MiB   the experts keep what the host pool cannot hold; the cache takes the rest
+I[muse-glimmer]                                                                          and lends what no live request holds to the expert slab
+I[muse-glimmer]                                            experts                 0 B   0% of it -- a dense model, so there is no expert plane for this share to fill and the
+I[muse-glimmer]                                                                          cache took everything it could address
+I[muse-glimmer]                                            kv cache         698.00 MiB   100% of it -- 19% backing of the 8 x 0 worst case: 1.5 full-length
+I[muse-glimmer]                                                                          sessions. With prefix caching a finished sequence's blocks stay held
+I[muse-glimmer]                                                                          for reuse, so the demand is live sessions, not running requests
+I[muse-glimmer]                                          ==============================
+I[muse-glimmer]                                          vram_weights        15.04 GiB   static + experts
+I[muse-glimmer]                                          vram_kv            697.00 MiB   the cache's share
+I[muse-glimmer]                                          unclaimed          400.00 KiB   the headroom, the unusable above, and what MiB rounding
+I[muse-glimmer]                                                                          could not place
+I[muse-glimmer]   weights by tier                    VRAM 15.04 GiB, host pool 1.25 GiB, container on disk 0 B, mapped 0 B (rank 0)
+I[muse-glimmer]                                        the host pool holds the 1.25 GiB the placement flags put there (the token embedding, the encoder towers, the drafter's experts) beside the weights placed in it
+I[muse-glimmer]   kv cache                           3.63 GiB a card: 1068416 tokens, 8.2 sessions at 131072
+I[muse-glimmer]                                        0 B of it is per-sequence state; nothing is lent: it is all the cache's
+I[muse-glimmer] HARDWARE
+I[muse-glimmer]   host      AMD Ryzen 5 5600 6-Core Processor | 6 cores, 12 threads | RAM 62.69 GiB, 38.75 GiB available | swap none
+I[muse-glimmer]   system    kernel 6.18.57-talos | unknown | no container seen | cgroup memory 48.00 GiB | memlock 8.00 MiB
+I[muse-glimmer]   memory    huge pages madvise (defrag madvise, shmem never) | ttm.pages_limit 31.35 GiB | pinned by this process 13.16 GiB
+I[muse-glimmer]   iommu     passthrough (the display devices' IOMMU groups are of type identity)
+I[muse-glimmer]   amdgpu    cwsr_enable 1 | boot parameters: amd_iommu=on iommu=pt
+I[muse-glimmer]   cpu       governor powersave, energy preference balance_performance (amd-pstate-epp) | io_uring available
+I[muse-glimmer]   runtime   HIP 7.16.26385 | backend device
+I[muse-glimmer]   media     decoders libavformat 62.12.103
+I[muse-glimmer]   card 0000:0a:00.0  rank 0 (device 0)  gfx1201 "AMD Radeon AI PRO R9700"  31.86 GiB VRAM  NUMA -1  driver amdgpu card1
+I[muse-glimmer]       link   00:03.1 16.0 GT/s x8 (max 16.0 GT/s x8) -> 08:00.0 16.0 GT/s x8 (max 32.0 GT/s x16) -> 09:00.0 32.0 GT/s x16 (max 32.0 GT/s x16) -> 0a:00.0 32.0 GT/s x16 (max 32.0 GT/s x16)  [read at 3% busy: a link at rest parks below its maximum]
+I[muse-glimmer]       pcie   0: 2.5GT/s, x8 250Mhz | 1: 16.0GT/s, x8 616Mhz | *2: 16.0GT/s, x8 1143Mhz
+I[muse-glimmer]       dma    copy lists not used: nothing streams weights onto this card
+I[muse-glimmer]       power  cap 300 W (default 300 W, max 300 W) | voltage offset unknown | sclk 54-2350 MHz | mclk 96-1258 MHz | runtime pm active (control auto) | iommu group identity
+I[muse-glimmer]   card 0000:0d:00.0  rank 1 (device 1)  gfx1201 "AMD Radeon AI PRO R9700"  31.86 GiB VRAM  NUMA -1  driver amdgpu card0
+I[muse-glimmer]       link   00:03.2 16.0 GT/s x8 (max 16.0 GT/s x8) -> 0b:00.0 16.0 GT/s x8 (max 32.0 GT/s x16) -> 0c:00.0 32.0 GT/s x16 (max 32.0 GT/s x16) -> 0d:00.0 32.0 GT/s x16 (max 32.0 GT/s x16)  [read at 4% busy: a link at rest parks below its maximum]
+I[muse-glimmer]       pcie   0: 2.5GT/s, x8 250Mhz | 1: 16.0GT/s, x8 616Mhz | *2: 16.0GT/s, x8 1143Mhz
+I[muse-glimmer]       dma    copy lists not used: nothing streams weights onto this card
+I[muse-glimmer]       power  cap 300 W (default 300 W, max 300 W) | voltage offset unknown | sclk 51-2350 MHz | mclk 96-1258 MHz | runtime pm active (control auto) | iommu group identity
+I[muse-glimmer] FINDINGS -- 0 warnings, 3 notes
+I[muse-glimmer]   note link-capped: card 0000:0a:00.0 (rank 0): the card's link is 32.0 GT/s x16 at most, and 0000:00:03.1 above it is 16.0 GT/s x8 at most
+I[muse-glimmer]        why: the host side of the link bounds what the card can move to and from host memory: streamed experts, the host pool and the all-reduce when it goes through host memory
+I[muse-glimmer]        fix: a slot with the card's full width and speed (the board manual says which slots share lanes), or no riser; nothing to do if the board has no faster slot
+I[muse-glimmer]   note link-capped: card 0000:0d:00.0 (rank 1): the card's link is 32.0 GT/s x16 at most, and 0000:00:03.2 above it is 16.0 GT/s x8 at most
+I[muse-glimmer]        why: the host side of the link bounds what the card can move to and from host memory: streamed experts, the host pool and the all-reduce when it goes through host memory
+I[muse-glimmer]        fix: a slot with the card's full width and speed (the board manual says which slots share lanes), or no riser; nothing to do if the board has no faster slot
+I[muse-glimmer]   note cpu-governor: the CPU governor is powersave with energy preference balance_performance
+I[muse-glimmer]        why: the host side of a step -- scheduling, sampling, the n-gram gather, launch bookkeeping -- is single-threaded per rank, and a core that ramps slowly shows as host gap between steps
+I[muse-glimmer]        fix: cpupower frequency-set -g performance, or echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference
+I[muse-glimmer] model muse-glimmer serves  (/v1/completions; /v1/chat/completions with tools and reasoning)
+I[muse-glimmer] model muse-glimmer: ready
+I model muse-glimmer: loaded on card(s) 0,1 in 9.0 s, holding 16.30 GiB a card (paging owner 2)
+I warm-up: loading qwen3.8-flash-next (0 more after it)
+I[muse-glimmer] prefix cache: reset, 0 entries dropped
+I model muse-glimmer: parked in 0.04 s (making room for qwen3.8-flash-next): 32.26 GiB off its cards; this time 2.04 GiB dropped, 0 B against earlier copies, 30.08 GiB against its container, 148.00 MiB copied to host memory, 0 B to disk (rest 0.00 s, slab 0.00 s, page-out 0.04 s, the cards' free figure 0.00 s); the fleet pins 32.66 GiB of 35.99 GiB
+I fleet: card 0: 2 queue(s) opened ahead of its next streams (12 open now)
+I fleet: card 1: 2 queue(s) opened ahead of its next streams (10 open now)
+I model qwen3.8-flash-next: loading on card(s) 0,1
+I[qwen3.8-flash-next] model: qwen4exp  arch=qwen4exp  quant=bf16  48 layers  262144 ctx
+I[qwen3.8-flash-next] vocab: end-of-generation also on <|endoftext|>=248044 (a control token the container declares neither as eos nor eot; without this a turn ending on it runs on)
+I[qwen3.8-flash-next] vocab: 248077 tokens, bos=-1 eos=248046
+I[qwen3.8-flash-next] gbnf: vocabulary index built in 58 ms, 26.11 MiB
+I[qwen3.8-flash-next] device: the 2 cards reach each other's memory directly (peer to peer)
+I[qwen3.8-flash-next] chained launches: on -- the model's plugin measured a gain with them; their packets take no acquire from the packet processor
+I[qwen3.8-flash-next] control vectors: not loaded (no --control-vector); a request that asks for one is refused
+I[qwen3.8-flash-next/r0] sampler: 248320-token vocabulary (124160 this rank), 32 rows, 3880 mask words (15.16 KiB per row)
+I[qwen3.8-flash-next/r1] sampler: 248320-token vocabulary (124160 this rank), 32 rows, 3880 mask words (15.16 KiB per row)
+I[qwen3.8-flash-next] host-site execution: 9 of 2027 declared ops have no host kernel (ar_hc_write, gated_had_quant_i8g, ar_gather_hc_write, ngram_hint, qk_norm_rope_gate, qk_norm_rope_gate_kv_store, gate_quant_fp8, attn_paged_gate_quant, prefetch). Their weights may still be tiered to host or SSD -- only the arithmetic is pinned to the device. --debug-graph lists the bands.
+I[qwen3.8-flash-next] declare: 2027 ops, 101536 weights, 112 buffers, 8 KV groups
+I[qwen3.8-flash-next] speculation: 'mtp' drafts 3 token(s) a step in 3 serial pass(es); prompt lookup fills in for any sequence it declines
+I[qwen3.8-flash-next/r1] sampler: 248320-token vocabulary (124160 this rank), 32 rows, 3880 mask words (15.16 KiB per row)
+I[qwen3.8-flash-next/r0] sampler: 248320-token vocabulary (124160 this rank), 32 rows, 3880 mask words (15.16 KiB per row)
+I[qwen3.8-flash-next/r0] sampler: 248320-token vocabulary (124160 this rank), 32 rows, 3880 mask words (15.16 KiB per row)
+I[qwen3.8-flash-next/r0] sampler: 248320-token vocabulary (124160 this rank), 32 rows, 3880 mask words (15.16 KiB per row)
+I[qwen3.8-flash-next/r1] sampler: 248320-token vocabulary (124160 this rank), 32 rows, 3880 mask words (15.16 KiB per row)
+I[qwen3.8-flash-next/r1] sampler: 248320-token vocabulary (124160 this rank), 32 rows, 3880 mask words (15.16 KiB per row)
+I[qwen3.8-flash-next] activation arena: 256 tokens use 194.37 MiB, 1024 tokens use 549.83 MiB, 2048 tokens use 1.01 GiB of 1.27 GiB (the fixed region is 1.38 MiB); the rest is lent to the expert slab while the steps are that small
+I[qwen3.8-flash-next] model muse-glimmer: its snapshot store's 4.25 GiB of pinned host memory released while it is parked
+I[qwen3.8-flash-next] model flux-3-klein: unloading: its host memory is wanted for another park
+I[qwen3.8-flash-next] model flux-3-klein: unloaded in 2.09 s
+I[qwen3.8-flash-next] placement: token embedding (606.25 MiB a rank) ram: as asked
+I[qwen3.8-flash-next] placement: n-gram table (47.68 GiB) disk: as asked
+I[qwen3.8-flash-next] kv: the pool backs 13% of the worst case (8 sequences all at 262144 tokens), 1.0 full-length sessions; a larger --host-pool-mib gives the cache more
+I[qwen3.8-flash-next] VRAM budget, per card:
+  card total          28.71 GiB
+  already held              0 B   measured: driver context, code objects, anything else resident
+  driver drift        16.00 MiB   what that moves by after it is read: kept free
+  activation arena     1.32 GiB   computed from the buffer plan
+  step staging        32.23 MiB   the step batch's block tables and media staging, and the
+                                  KV tiers' copy staging
+  hardware queues    160.00 MiB   3 a card at 0 B each, measured: the engine's streams
+  expert prefetch           0 B   the next-layer prefetch's ring of expert units and buffers
+  --gpu-headroom-mib        0 B   left unclaimed on purpose
+  ------------------------------
+  claimable           27.19 GiB
+  static weights       2.75 GiB   off the top: every rank's own shard, and not a share of anything
+  ------------------------------
+  elastic             24.45 GiB   the experts keep what the host pool cannot hold; the cache takes the rest
+                                  and lends what no live request holds to the expert slab
+    experts           21.74 GiB   89% of it
+    kv cache           2.71 GiB   11% of it -- 13% backing of the 8 x 262144 worst case: 1.0 full-length
+                                  sessions. With prefix caching a finished sequence's blocks stay held
+                                  for reuse, so the demand is live sessions, not running requests
+  ==============================
+  vram_weights        24.49 GiB   static + experts
+  vram_kv              2.71 GiB   the cache's share
+  unclaimed          836.00 KiB   the headroom, the unusable above, and what MiB rounding
+                                  could not place
+
+I[qwen3.8-flash-next/r0] pools:
+vram_weights    24.49 GiB budget,        0 B used,  24.49 GiB free
+vram_kv          2.71 GiB budget,        0 B used,   2.71 GiB free
+host_pool        8.59 GiB budget,        0 B used,   8.59 GiB free
+
+I[qwen3.8-flash-next/r0] placement: 'token_embd.weight' (606.25 MiB) in the pinned host pool, read in place (--embedding-placement ram)
+I[qwen3.8-flash-next/r1] pools:
+vram_weights    24.49 GiB budget,        0 B used,  24.49 GiB free
+vram_kv          2.71 GiB budget,        0 B used,   2.71 GiB free
+host_pool        8.59 GiB budget,        0 B used,   8.59 GiB free
+
+I[qwen3.8-flash-next/r1] placement: 'token_embd.weight' (606.25 MiB) in the pinned host pool, read in place (--embedding-placement ram)
+I[qwen3.8-flash-next/r0] mover: 18381 slab slots (64 shadow, up to 320 more kept free out of a loan as swaps ask for them), 6762 pinned pool slots, 2.75 GiB static vram
+I[qwen3.8-flash-next/r0] load: rank 0, mover took 24.48 GiB, weights pool 924.00 KiB free of 24.49 GiB
+I[qwen3.8-flash-next/r0] heat engine: 25078 movable units, 64 moves a step, decay 0.950 hysteresis 1.25 min-gain 1.50 credit cap 512 admit-heat 8.0
+I[qwen3.8-flash-next/r1] mover: 18430 slab slots (64 shadow, up to 320 more kept free out of a loan as swaps ask for them), 6713 pinned pool slots, 2.70 GiB static vram
+I[qwen3.8-flash-next/r1] load: rank 1, mover took 24.49 GiB, weights pool 140.00 KiB free of 24.49 GiB
+I[qwen3.8-flash-next/r1] heat engine: 25078 movable units, 64 moves a step, decay 0.950 hysteresis 1.25 min-gain 1.50 credit cap 512 admit-heat 8.0
+I[qwen3.8-flash-next] load: 8.02 GiB of 64.94 GiB read, 4.1 GB/s, at container offset 59911929856
+I[qwen3.8-flash-next] load: 16.08 GiB of 64.94 GiB read, 4.3 GB/s, at container offset 68565880832
+I[qwen3.8-flash-next] load: 24.13 GiB of 64.94 GiB read, 4.3 GB/s, at container offset 77202935808
+I[qwen3.8-flash-next] load: 32.19 GiB of 64.94 GiB read, 4.4 GB/s, at container offset 85856362496
+I[qwen3.8-flash-next] load: 40.24 GiB of 64.94 GiB read, 4.4 GB/s, at container offset 94500155392
+I[qwen3.8-flash-next] load: 48.35 GiB of 64.94 GiB read, 4.4 GB/s, at container offset 103143092224
+I[qwen3.8-flash-next] load: 56.41 GiB of 64.94 GiB read, 4.4 GB/s, at container offset 111863828480
+I[qwen3.8-flash-next] load: 64.41 GiB of 64.94 GiB read, 4.4 GB/s, at container offset 120460873728
+I[qwen3.8-flash-next] load: one pass over the container, 65.05 GiB read in 15.8 s (4.4 GB/s) for 2 rank(s); 15.8 s of that was the disk (4.4 GB/s)
+I[qwen3.8-flash-next] load: 202452 weight(s), 64.07 GiB of planes, rearranged for their kernels by 10 worker(s) behind the read, 615.72 MiB held at most; done 15.9 s after the read began
+I[qwen3.8-flash-next] load: 203068 weights, 65.82 GiB placed from 65.05 GiB of container read
+I[qwen3.8-flash-next] load: 4 weight(s), 95.37 GiB, read in place from the container's mapping -- not copied and charged to no pool (summed over ranks, which map the same file: the resident bytes are that divided by --tp); 47.68 GiB of the container stays page-cached for them
+I[qwen3.8-flash-next] chunk geometry: quantum 64 (attn block 4, state chunk 64), checkpoint interval 2048, max_tok 4096 -> prefill chunks of at most 4096
+I[qwen3.8-flash-next] prefix resume: exact -- a hit resumes only where an idle server's cold prefill of the same prompt starts a chunk (every 4096 tokens from 2048) and a prompt's tail snapshot is taken where its last chunk starts, so the hit recomputes the cold run's own chunks and answers bit-identically; a turn re-prefills up to one chunk more than --prefix-resume nearest
+I[qwen3.8-flash-next] chunk geometry: a prefill alone in its step spans up to 2 intervals from its second interval on; every other step is planned at 2048 tokens
+I[qwen3.8-flash-next] checkpoint slots: auto: 71 linear-state snapshot(s) of 112.73 MiB in pinned host memory (7.82 GiB), none of it on the card; 10 a sequence for --max-num-seqs 8: geometric-backoff keeps 9 for a 262144-token session at a 2048-token interval, and one more for a running turn; 80 wanted, held to an eighth of host memory (7.84 GiB); --checkpoint-slots N sets more
+I[qwen3.8-flash-next] kv tier transfer: 2 paged group(s), 29.45 KiB an entry, batches of 556 through gather_rows/scatter_rows at u8
+I[qwen3.8-flash-next] kv tiers: a finished conversation's KV is copied to host memory at once (8.00 GiB, 142406 entries, 569624 tokens of context) and its VRAM is given up when the expert loan or a request wants it; a full host tier drops its least recently used entries, the end of a conversation before its start. One entry is 58.91 KiB
+kv tiers: a session's linear state is saved to host memory -- 71 snapshot slot(s) of 112.73 MiB -- and a full store retires the least recently used
+I[qwen3.8-flash-next] kv: KV layer bundles 13/36/36/13/1/1/13 (113 real layers)
+    vLLM stock    size  1 -> 113 groups, 113 slots (0 padding)
+    least-waste   size  1 -> 113 groups, 113 slots (0 padding)
+    radiance      per state kind, own pool ->  7 groups, 113 slots (0 padding)
+    (none)         ?        0 layers  state      0 B        0 slots =       0 B
+    kv_attn        full    13 layers  block    4 tok  page 26.20 KiB    65601 blocks =  1.64 GiB  (262404 tokens)
+    kv_gdn_state   linear  36 layers  state 54.00 MiB       16 slots = 864.00 MiB
+    kv_gdn_conv    conv    36 layers  state 2.11 MiB        8 slots = 16.88 MiB
+    kv_qsa_tail    linear  13 layers  state 22.75 KiB       16 slots = 364.00 KiB
+    kv_ple_tok     conv     1 layers  state     20 B        8 slots =     160 B
+    kv_ple_conv    conv     1 layers  state 240.00 KiB        8 slots =  1.88 MiB
+    kv_qsa_bkey    full    13 layers  block    4 tok  page 3.25 KiB    65601 blocks = 208.21 MiB  (262404 tokens)
+    pool at 0x7f939a400000, 2.71 GiB; groups at +0..+2904534272
+
+I[qwen3.8-flash-next] prefix cache: 2 paged group(s) in 4-token entries; checkpoints every 2048 tokens (71 slots of 56.37 MiB a rank, pinned host memory), retention 'geometric-backoff'
+
+I[qwen3.8-flash-next/r0] arena: 1.27 GiB device + 47.08 MiB scratch + 0 B for the second lane = 1.32 GiB, charged to the VRAM budget before it was split
+I[qwen3.8-flash-next/r1] arena: 1.27 GiB device + 47.08 MiB scratch + 0 B for the second lane = 1.31 GiB, charged to the VRAM budget before it was split
+I[qwen3.8-flash-next] mover: 1548 slots can be lent out of the KV cache (1.83 GiB), filled as it lends them
+I[qwen3.8-flash-next] mover: 1547 slots can be lent out of the KV cache (1.83 GiB), filled as it lends them
+I[qwen3.8-flash-next] kv: the cache can grow to 2.71 GiB a card -- 262404 tokens of context, 1.0 sessions at 262144 -- with every block it lends the experts taken back; 883.11 MiB of that is per-sequence state, and up to 1.83 GiB is lent to the experts while no request holds it
+I[qwen3.8-flash-next] mover: 912 slots can be lent out of the activation arena (1.08 GiB), filled as it lends them
+I[qwen3.8-flash-next] mover: 908 slots can be lent out of the activation arena (1.07 GiB), filled as it lends them
+I[qwen3.8-flash-next] activation arena: lends 1.08 GiB while steps are at most 256 tokens, 748.87 MiB while steps are at most 1024 tokens, 264.25 MiB while steps are at most 2048 tokens
+I[qwen3.8-flash-next] mover: 6761 slots can be lent out of the fleet's free VRAM (7.99 GiB), filled as it lends them
+I[qwen3.8-flash-next] mover: 6712 slots can be lent out of the fleet's free VRAM (7.95 GiB), filled as it lends them
+I[qwen3.8-flash-next] expert flex: the slab may grow by up to 7.95 GiB a card into memory no model of the fleet holds, while the model is busy
+I[qwen3.8-flash-next] device allocations: 21 totalling 82.44 GiB, of which 54.38 GiB is the two pools -- the rest is the activation arena and the step staging. Anything on the card past this is the driver or a kernel plugin's own hipMalloc, which this cannot see.
+I[qwen3.8-flash-next/r0] card 0 settled at 2.48 GiB free against 192.23 MiB (the 160.00 MiB --gpu-headroom-mib and 32.23 MiB kept for the step staging and for what is built on first use). The split accounted for it: neither pool could address another byte, which is the `unusable` line of the VRAM budget above.
+I[qwen3.8-flash-next/r1] card 1 settled at 2.56 GiB free against 192.23 MiB (the 160.00 MiB --gpu-headroom-mib and 32.23 MiB kept for the step staging and for what is built on first use). The split accounted for it: neither pool could address another byte, which is the `unusable` line of the VRAM budget above.
+I[qwen3.8-flash-next] draft floor: 2 paged group(s), 2 prefix-cached, 0 in the window snapshot -> a hit leaves no hole
+I[qwen3.8-flash-next] scheduler: --prefill-interleave auto: after a prefill chunk that leaves its prompt unfinished while other sequences decode, decode-only steps follow for up to 1.00 of the chunk step's measured time (at most 64 steps)
+I[qwen3.8-flash-next] step batch: 195.97 MiB pinned staging ring + 12.23 MiB device slab a rank (12.00 MiB of it block tables), 8 KV group(s), 0 derived buffer(s)
+I[qwen3.8-flash-next] scheduler: --busy-prefill-chunk auto: a prefill chunk sharing a step leaves decode rows and waiting requests their room and keeps at least 64 tokens
+I[qwen3.8-flash-next] device: card 0 copy lists go to DMA engine 0 on a queue of this process's own (0.8 ms to open)
+I[qwen3.8-flash-next] chat: template loaded (8952 bytes); tools=1 tool_calls=1 system=1 thinking=1
+I[qwen3.8-flash-next] device: card 1 copy lists go to DMA engine 0 on a queue of this process's own (0.8 ms to open)
+I[qwen3.8-flash-next] chat: reply format template: reasoning "<think>\n".."\n</think>\n\n"; calls "<tool_call>\n""<function="NAME">\n" "<parameter="ARG">\n"""VALUE"</parameter>\n" "</function>\n""</tool_call>"; grammar on "<tool_call>\n"
+I[qwen3.8-flash-next] sampling defaults for requests that send none: temperature 1.00, top_k 20, top_p 0.95, min_p 0.00 (from the container)
+I[qwen3.8-flash-next] chat: the template takes reasoning_effort low, medium, xhigh, and none or minimal turn thinking off
+I[qwen3.8-flash-next] chat: a request naming no reasoning_effort renders as 'xhigh', the template's own default (--reasoning-effort sets another)
+I[qwen3.8-flash-next] STARTUP REPORT -- radiance 2.2.0
+I[qwen3.8-flash-next] CONFIGURATION -- every option not at its default, the value in force, and where it came from
+I[qwen3.8-flash-next]   --model                            /models/radiance/qwen3.8-next-flash-fp8-iq4r-moe.rad  [models.qwen3.8-flash-next.model]
+I[qwen3.8-flash-next]   --kernels                          libavx@0.1.0,libr4d@0.5.0,spechub@0.1.0,libref@0.1.0  [auto]
+I[qwen3.8-flash-next]                                        every kernel library under --radiance-home, in the loader's order (a reference implementation last); architecture plugin qwen4exp_fp8@0.1.0
+I[qwen3.8-flash-next]   --tp                               2                                           [models.qwen3.8-flash-next.tp]
+I[qwen3.8-flash-next]   --tp-wire                          exact                                       [models.qwen3.8-flash-next.tp-wire]
+I[qwen3.8-flash-next]   --p2p                              peer to peer                                [auto]
+I[qwen3.8-flash-next]                                        the driver reports every pair of the ranks' cards can reach the other's memory
+I[qwen3.8-flash-next]   --max-num-batched-tokens           4096                                        [models.qwen3.8-flash-next.max-num-batched-tokens]
+I[qwen3.8-flash-next]   --prefill-interleave               auto:1                                      [auto]
+I[qwen3.8-flash-next]                                        decode-only steps for as long as a chunk step took while prompts prefill beside decoding sequences
+I[qwen3.8-flash-next]   --max-num-seqs                     8                                           [models.qwen3.8-flash-next.max-num-seqs]
+I[qwen3.8-flash-next]   --max-model-len                    262144                                      [models.qwen3.8-flash-next.max-model-len]
+I[qwen3.8-flash-next]   --gpu-headroom-mib                 160                                         [memory.gpu-headroom-mib]
+I[qwen3.8-flash-next]   --kv-cache-dtype                   i8                                          [models.qwen3.8-flash-next.kv-cache-dtype]
+I[qwen3.8-flash-next]   --host-pool-mib                    16384                                       [models.qwen3.8-flash-next.host-pool-mib]
+I[qwen3.8-flash-next]   --embedding-placement              ram                                         [models.qwen3.8-flash-next.embedding-placement]
+I[qwen3.8-flash-next]                                        the table is 606.25 MiB a rank: as asked
+I[qwen3.8-flash-next]   --vision-tower-placement           n/a                                         [auto]
+I[qwen3.8-flash-next]                                        this server declares no encoder tower
+I[qwen3.8-flash-next]   --ngram-placement                  disk                                        [models.qwen3.8-flash-next.ngram-placement]
+I[qwen3.8-flash-next]                                        the table is 47.68 GiB: as asked
+I[qwen3.8-flash-next]   --prefix-cache-mib                 8192                                        [models.qwen3.8-flash-next.prefix-cache-mib]
+I[qwen3.8-flash-next]   --placement                        expert_tiered                               [models.qwen3.8-flash-next.placement]
+I[qwen3.8-flash-next]                                        as asked
+I[qwen3.8-flash-next]   --prefill-span                     2                                           [models.qwen3.8-flash-next.prefill-span]
+I[qwen3.8-flash-next]   --checkpoint-slots                 71                                          [auto]
+I[qwen3.8-flash-next]                                        10 a sequence for --max-num-seqs 8: geometric-backoff keeps 9 for a 262144-token session at a 2048-token interval, and one more for a running turn; 80 wanted, held to an eighth of host memory (7.84 GiB); --checkpoint-slots N sets more
+I[qwen3.8-flash-next]   --num-speculative-tokens           3                                           [models.qwen3.8-flash-next.num-speculative-tokens]
+I[qwen3.8-flash-next]   --draft-window                     fixed                                       [models.qwen3.8-flash-next.draft-window]
+I[qwen3.8-flash-next]   --host                             0.0.0.0                                     [server.host]
+I[qwen3.8-flash-next]   --port                             8080                                        [server.port]
+I[qwen3.8-flash-next]   --served-model-name                qwen3.8-flash-next                          [models.qwen3.8-flash-next]
+I[qwen3.8-flash-next]   --mm-max-patches                   0                                           [models.qwen3.8-flash-next.mm-max-patches]
+I[qwen3.8-flash-next]   --temp                             1                                           [auto]
+I[qwen3.8-flash-next]                                        from the container
+I[qwen3.8-flash-next]   --top-k                            20                                          [auto]
+I[qwen3.8-flash-next]                                        from the container
+I[qwen3.8-flash-next]   --top-p                            0.95                                        [auto]
+I[qwen3.8-flash-next]                                        from the container
+I[qwen3.8-flash-next]   --min-p                            0                                           [auto]
+I[qwen3.8-flash-next]                                        the container states no min_p, so this is the built-in default
+I[qwen3.8-flash-next]   --max-n                            8                                           [auto]
+I[qwen3.8-flash-next]                                        the larger of 8 and --max-num-seqs
+I[qwen3.8-flash-next]   --max-queued-requests              64                                          [auto]
+I[qwen3.8-flash-next]                                        8 x --max-num-seqs
+I[qwen3.8-flash-next]   --http-threads                     12                                          [auto]
+I[qwen3.8-flash-next]                                        one a hardware thread, at least 4
+I[qwen3.8-flash-next]   135 options at their default (-v lists every option; /diagnostics carries them all)
+I[qwen3.8-flash-next] ENVIRONMENT -- the RADIANCE_* variables set, by name; their values are not shown
+I[qwen3.8-flash-next]   RADIANCE_PORT
+I[qwen3.8-flash-next]   RADIANCE_PORT_8080_TCP
+I[qwen3.8-flash-next]   RADIANCE_PORT_8080_TCP_ADDR
+I[qwen3.8-flash-next]   RADIANCE_PORT_8080_TCP_PORT
+I[qwen3.8-flash-next]   RADIANCE_PORT_8080_TCP_PROTO
+I[qwen3.8-flash-next]   RADIANCE_SERVICE_HOST
+I[qwen3.8-flash-next]   RADIANCE_SERVICE_PORT
+I[qwen3.8-flash-next]   RADIANCE_SERVICE_PORT_HTTP
+I[qwen3.8-flash-next] DERIVED -- what startup worked out that no single option states
+I[qwen3.8-flash-next]   chained launches                   on
+I[qwen3.8-flash-next]                                        the model's plugin measured a gain with them
+I[qwen3.8-flash-next]   kernel selection                   libavx (host) 3050, libr4d 3505 op bands
+I[qwen3.8-flash-next]                                        attention:
+I[qwen3.8-flash-next]                                        attn_paged -> attn_decode_h256_gqa12_i8
+I[qwen3.8-flash-next]                                        attn_paged -> attn_prefill_h256_gqa12_i8
+I[qwen3.8-flash-next]                                        attn_paged -> avx_attn_paged
+I[qwen3.8-flash-next]                                        attn_paged_gate_quant -> attn_decode_gq_h256_gqa12_i8
+I[qwen3.8-flash-next]                                        kv_store -> avx_kv_store
+I[qwen3.8-flash-next]                                        kv_store -> kv_store_i8
+I[qwen3.8-flash-next]                                        qk_norm_rope_gate -> qk_norm_rope_gate
+I[qwen3.8-flash-next]                                        qk_norm_rope_gate_kv_store -> qk_norm_rope_gate_kv_store_i8
+I[qwen3.8-flash-next]                                        qsa_block_key -> avx_qsa_block_key
+I[qwen3.8-flash-next]                                        qsa_block_key -> qsa_block_key_bf16
+I[qwen3.8-flash-next]                                        qsa_score -> avx_qsa_score
+I[qwen3.8-flash-next]                                        qsa_score -> qsa_score_bf16
+I[qwen3.8-flash-next]                                        qsa_select -> avx_qsa_select
+I[qwen3.8-flash-next]                                        qsa_select -> qsa_select_i32
+I[qwen3.8-flash-next]                                        qsa_tail_store -> avx_qsa_tail_store
+I[qwen3.8-flash-next]                                        qsa_tail_store -> qsa_tail_store_bf16
+I[qwen3.8-flash-next]                                        qsa_work -> avx_qsa_work
+I[qwen3.8-flash-next]                                        qsa_work -> qsa_work_bf16
+I[qwen3.8-flash-next]                                        rope -> avx_rope
+I[qwen3.8-flash-next]                                        rope -> rope_bf16
+I[qwen3.8-flash-next]                                        rope_table -> avx_rope_table
+I[qwen3.8-flash-next]                                        rope_table -> rope_table_f32
+I[qwen3.8-flash-next]   vram claim                         28.71 GiB
+I[qwen3.8-flash-next]                                        granted by the fleet: needs 28.71 GiB, could use 49.51 GiB
+I[qwen3.8-flash-next]   vram split                         weights 24.49 GiB (experts 21.74 GiB of it), KV cache 2.71 GiB, a card
+I[qwen3.8-flash-next]                                        VRAM budget, per card:
+I[qwen3.8-flash-next]                                          card total          28.71 GiB
+I[qwen3.8-flash-next]                                          already held              0 B   measured: driver context, code objects, anything else resident
+I[qwen3.8-flash-next]                                          driver drift        16.00 MiB   what that moves by after it is read: kept free
+I[qwen3.8-flash-next]                                          activation arena     1.32 GiB   computed from the buffer plan
+I[qwen3.8-flash-next]                                          step staging        32.23 MiB   the step batch's block tables and media staging, and the
+I[qwen3.8-flash-next]                                                                          KV tiers' copy staging
+I[qwen3.8-flash-next]                                          hardware queues    160.00 MiB   3 a card at 0 B each, measured: the engine's streams
+I[qwen3.8-flash-next]                                          expert prefetch           0 B   the next-layer prefetch's ring of expert units and buffers
+I[qwen3.8-flash-next]                                          --gpu-headroom-mib        0 B   left unclaimed on purpose
+I[qwen3.8-flash-next]                                          ------------------------------
+I[qwen3.8-flash-next]                                          claimable           27.19 GiB
+I[qwen3.8-flash-next]                                          static weights       2.75 GiB   off the top: every rank's own shard, and not a share of anything
+I[qwen3.8-flash-next]                                          ------------------------------
+I[qwen3.8-flash-next]                                          elastic             24.45 GiB   the experts keep what the host pool cannot hold; the cache takes the rest
+I[qwen3.8-flash-next]                                                                          and lends what no live request holds to the expert slab
+I[qwen3.8-flash-next]                                            experts           21.74 GiB   89% of it
+I[qwen3.8-flash-next]                                            kv cache           2.71 GiB   11% of it -- 13% backing of the 8 x 262144 worst case: 1.0 full-length
+I[qwen3.8-flash-next]                                                                          sessions. With prefix caching a finished sequence's blocks stay held
+I[qwen3.8-flash-next]                                                                          for reuse, so the demand is live sessions, not running requests
+I[qwen3.8-flash-next]                                          ==============================
+I[qwen3.8-flash-next]                                          vram_weights        24.49 GiB   static + experts
+I[qwen3.8-flash-next]                                          vram_kv              2.71 GiB   the cache's share
+I[qwen3.8-flash-next]                                          unclaimed          836.00 KiB   the headroom, the unusable above, and what MiB rounding
+I[qwen3.8-flash-next]                                                                          could not place
+I[qwen3.8-flash-next]   weights by tier                    VRAM 24.36 GiB, host pool 8.57 GiB, container on disk 0 B, mapped 47.68 GiB (rank 0)
+I[qwen3.8-flash-next]                                        the host pool holds the 606.25 MiB the placement flags put there (the token embedding, the encoder towers, the drafter's experts) beside the weights placed in it
+I[qwen3.8-flash-next]   kv cache                           2.71 GiB a card: 262404 tokens, 1.0 sessions at 262144
+I[qwen3.8-flash-next]                                        883.11 MiB of it is per-sequence state; up to 1.83 GiB is lent to the experts while no request holds it
+I[qwen3.8-flash-next] HARDWARE
+I[qwen3.8-flash-next]   host      AMD Ryzen 5 5600 6-Core Processor | 6 cores, 12 threads | RAM 62.69 GiB, 11.46 GiB available | swap none
+I[qwen3.8-flash-next]   system    kernel 6.18.57-talos | unknown | no container seen | cgroup memory 48.00 GiB | memlock 8.00 MiB
+I[qwen3.8-flash-next]   memory    huge pages madvise (defrag madvise, shmem never) | ttm.pages_limit 31.35 GiB | pinned by this process 41.33 GiB
+I[qwen3.8-flash-next]   iommu     passthrough (the display devices' IOMMU groups are of type identity)
+I[qwen3.8-flash-next]   amdgpu    cwsr_enable 1 | boot parameters: amd_iommu=on iommu=pt
+I[qwen3.8-flash-next]   cpu       governor powersave, energy preference balance_performance (amd-pstate-epp) | io_uring available
+I[qwen3.8-flash-next]   runtime   HIP 7.16.26385 | backend device
+I[qwen3.8-flash-next]   media     decoders libavformat 62.12.103
+I[qwen3.8-flash-next]   card 0000:0a:00.0  rank 0 (device 0)  gfx1201 "AMD Radeon AI PRO R9700"  31.86 GiB VRAM  NUMA -1  driver amdgpu card1
+I[qwen3.8-flash-next]       link   00:03.1 16.0 GT/s x8 (max 16.0 GT/s x8) -> 08:00.0 16.0 GT/s x8 (max 32.0 GT/s x16) -> 09:00.0 32.0 GT/s x16 (max 32.0 GT/s x16) -> 0a:00.0 32.0 GT/s x16 (max 32.0 GT/s x16)  [read at 4% busy: a link at rest parks below its maximum]
+I[qwen3.8-flash-next]       pcie   0: 2.5GT/s, x8 250Mhz | 1: 16.0GT/s, x8 616Mhz | *2: 16.0GT/s, x8 1143Mhz
+I[qwen3.8-flash-next]       dma    copy lists on DMA engine 0, a queue of this process's own; they give way to the collectives
+I[qwen3.8-flash-next]       power  cap 300 W (default 300 W, max 300 W) | voltage offset unknown | sclk 67-2350 MHz | mclk 96-1258 MHz | runtime pm active (control auto) | iommu group identity
+I[qwen3.8-flash-next]   card 0000:0d:00.0  rank 1 (device 1)  gfx1201 "AMD Radeon AI PRO R9700"  31.86 GiB VRAM  NUMA -1  driver amdgpu card0
+I[qwen3.8-flash-next]       link   00:03.2 16.0 GT/s x8 (max 16.0 GT/s x8) -> 0b:00.0 16.0 GT/s x8 (max 32.0 GT/s x16) -> 0c:00.0 32.0 GT/s x16 (max 32.0 GT/s x16) -> 0d:00.0 32.0 GT/s x16 (max 32.0 GT/s x16)  [read at 4% busy: a link at rest parks below its maximum]
+I[qwen3.8-flash-next]       pcie   0: 2.5GT/s, x8 250Mhz | 1: 16.0GT/s, x8 616Mhz | *2: 16.0GT/s, x8 1143Mhz
+I[qwen3.8-flash-next]       dma    copy lists on DMA engine 0, a queue of this process's own; they give way to the collectives
+I[qwen3.8-flash-next]       power  cap 300 W (default 300 W, max 300 W) | voltage offset unknown | sclk 61-2350 MHz | mclk 96-1258 MHz | runtime pm active (control auto) | iommu group identity
+I[qwen3.8-flash-next] FINDINGS -- 1 warning, 5 notes
+I[qwen3.8-flash-next]   WARN cgroup-limit: the container's memory limit is 48.00 GiB and the process pins 41.33 GiB
+I[qwen3.8-flash-next]        why: pinned memory counts against the limit and cannot be reclaimed; what is left is all the page cache and the process's own allocations get before the OOM killer
+I[qwen3.8-flash-next]        fix: raise the container's memory limit or lower the pools
+I[qwen3.8-flash-next]   note experts-from-host: 7.98 GiB of weights a rank live in the pinned host pool and cross PCIe when they are used
+I[qwen3.8-flash-next]        why: a prefill step streams every routed layer's pooled experts onto the card, so its speed is bounded by the link; decode reads the ones it routes to
+I[qwen3.8-flash-next]        fix: more VRAM for the experts: a shorter --max-model-len or fewer --max-num-seqs, --embedding-placement ram, --kv-cache-dtype i8, or more cards (--tp)
+I[qwen3.8-flash-next]   note link-capped: card 0000:0a:00.0 (rank 0): the card's link is 32.0 GT/s x16 at most, and 0000:00:03.1 above it is 16.0 GT/s x8 at most
+I[qwen3.8-flash-next]        why: the host side of the link bounds what the card can move to and from host memory: streamed experts, the host pool and the all-reduce when it goes through host memory
+I[qwen3.8-flash-next]        fix: a slot with the card's full width and speed (the board manual says which slots share lanes), or no riser; nothing to do if the board has no faster slot
+I[qwen3.8-flash-next]   note link-capped: card 0000:0d:00.0 (rank 1): the card's link is 32.0 GT/s x16 at most, and 0000:00:03.2 above it is 16.0 GT/s x8 at most
+I[qwen3.8-flash-next]        why: the host side of the link bounds what the card can move to and from host memory: streamed experts, the host pool and the all-reduce when it goes through host memory
+I[qwen3.8-flash-next]        fix: a slot with the card's full width and speed (the board manual says which slots share lanes), or no riser; nothing to do if the board has no faster slot
+I[qwen3.8-flash-next]   note memlock-limited: RLIMIT_MEMLOCK is 8.00 MiB and the n-gram table is read from the container on disk
+I[qwen3.8-flash-next]        why: a locked copy of the table in RAM is one of the faster tiers, and the memlock limit is one of the things that keeps --ngram-placement auto off it
+I[qwen3.8-flash-next]        fix: Docker: ulimits memlock -1 (--ulimit memlock=-1); systemd: LimitMEMLOCK=infinity
+I[qwen3.8-flash-next]   note cpu-governor: the CPU governor is powersave with energy preference balance_performance
+I[qwen3.8-flash-next]        why: the host side of a step -- scheduling, sampling, the n-gram gather, launch bookkeeping -- is single-threaded per rank, and a core that ramps slowly shows as host gap between steps
+I[qwen3.8-flash-next]        fix: cpupower frequency-set -g performance, or echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference
+W[qwen3.8-flash-next] startup report: cgroup-limit: the container's memory limit is 48.00 GiB and the process pins 41.33 GiB. Fix: raise the container's memory limit or lower the pools
+I[qwen3.8-flash-next] model qwen3.8-flash-next serves  (/v1/completions; /v1/chat/completions with tools and reasoning)
+I[qwen3.8-flash-next] model qwen3.8-flash-next: ready
+I model qwen3.8-flash-next: loaded on card(s) 0,1 in 22.9 s, holding 28.71 GiB a card (paging owner 3)
+I gbnf: compiled a grammar of 645 rules in 144.5 ms: 5843 mask keys (43 dense, 3 deep at most), 74737 remainder nodes, 5.7 MiB
+I req chatcmpl-5d09048690b2f13dd0b70bd6 chat stream from 10.42.6.90:55640 model=qwen3.8-flash-next msgs=62 tools=19 prompt=63988 tok n=1 max_tokens=198156
+I[qwen3.8-flash-next] recorded pass: draft pass -1 at 2048 token(s) -- 20 records, 4 of the 20 dispatches unordered behind the one before; 0 host op(s), 0 table refresh point(s) and 0 routing report(s) between the played stretches
+I[qwen3.8-flash-next] expert flex: the slab grows into memory no model holds: 1.00 GiB a card of up to 7.95 GiB

@@ -1,0 +1,20 @@
+== phase A: waiting for the 2.2.0 pod ==
+new pod Ready: radiance-6b57cb8878-btvcw
+== phase B: startup gate ==
+I[flux-3-klein] FINDINGS -- 0 warnings, 2 notes
+I[muse-glimmer] FINDINGS -- 0 warnings, 3 notes
+I[qwen3.8-flash-next] FINDINGS -- 1 warning, 5 notes
+--- findings diff (baseline -> 2.2.0), empty means unchanged ---
+== phase C: functional probes ==
+non-stream chat: {"id":"chatcmpl-d5e905782cb3ccba2c1c7309","object":"chat.completion","created":1795135344,"model":"qwen3.8-flash-next","system_fingerprint":"radiance-2.2.0","ch
+streamed SSE chunks: 228
+json mode: {"id":"chatcmpl-85edf0f12d98891ee50a4bfc","object":"chat.completion","created":1795135363,"model":"qwen3.8-flash-next","system_fingerprint":"radiance-2.2.0","ch
+fleet version: 2.2.0
+  qwen3.8-flash-next resident loads 1 restores 0 vram/card 28.709784030914307 GiB
+  muse-glimmer parked loads 1 restores 0 vram/card 0.1646416187286377 GiB
+  flux-3-klein cold loads 1 restores 0 vram/card 0.0 GiB
+flux entry restore probe: {"created":1795135372,"data":[{"b64_json":"iVBORw0KGgoAAAANS
+== phase D: decode counters (speculative decode must still be recording) ==
+restarts: 0
+[{"lastTransitionTime":"2026-10-24T16:57:59Z","message":"Service is not suspended","observedGeneration":19,"reason":"NotSuspended","status":"False","type":"Suspended"},{"lastTransitionTime":"2026-11-20T00:41:53Z","message":"Inference service is ready and serving requests","observedGeneration":19,"reason":"InferenceReady","status":"True","type":"Available"}]
+VERDICT: PASS - 2.2.0 serving, fleet states restored, probes green
