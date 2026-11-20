@@ -1,18 +1,24 @@
 ---
-# yaml-language-server: $schema=https://kustomize.toolkit.fluxcd.io
-# The radiance engine's bearer key, sourced from 1Password 
-# like every other credential in this repo (see ../litellm/app/externalsecret.yaml)
-# rather than generated into git.
+# The radiance engine's bearer key, sourced from the 1Password item `Radiance`
+# (vault kubernetes, field API_KEY) and surfaced as a Secret exactly like every
+# other credential in this repo - see ../litellm/app/externalsecret.yaml. No key
+# literal belongs in git, not even a long-standing dummy.
 #
-# Three consumers pin this Secret by name, so it must never be name-suffixed:
+# The cluster contract is the item TITLE and the field LABEL, both matched
+# literally by the 1Password Connect store (ClusterSecretStore `onepassword`,
+# cluster-infra/external-secrets/stores/onepassword.yaml), so they are spelled
+# exactly as the vault holds them: key "Radiance", property "API_KEY".
+#
+# Three consumers pin this Secret by name, so it must keep a stable name:
 #   * the engine        - server.api-key-env RADIANCE_API_KEY (radiance-deleuze.yaml)
 #   * LiteLLM           - os.environ/RADIANCE_API_KEY on the proxy (litellmproxy.yaml)
 #   * Prometheus scrape - bearer patched onto PodMonitor llmkube-inference
 #                         (../app/helmrelease.yaml postRenderers)
 #
-# Refresh: external-secrets re-reads 1Password on the interval below. LiteLLM and
-# the engine both read the key only at process start, so a rotation still needs
-# both pods rolled - reloader.stakater.com/auto does litellm, radiance is manual.
+# Rotation: external-secrets re-reads 1Password on the interval below, which only
+# updates the Secret. Both the engine and LiteLLM read the key at process start,
+# so a rotation needs both pods rolled - litellm carries
+# reloader.stakater.com/auto and rolls itself; the radiance pod is rolled by hand.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
@@ -31,4 +37,4 @@ spec:
     - secretKey: API_KEY
       remoteRef:
         key: Radiance
-        property: credential
+        property: API_KEY
