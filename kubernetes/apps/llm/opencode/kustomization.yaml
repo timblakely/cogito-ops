@@ -9,6 +9,11 @@ configMapGenerator:
       - SUBDOMAIN=opencode
 components:
   - ../../../components/ks/app/subdomain
+  # Both claims hold state that cannot be re-derived: the agent's HOME (model
+  # config, session history, the Paseo tool-bridge plugin) and the workspace that
+  # Paseo's x-opencode-directory paths resolve against. Multi-claim variant, so
+  # no phantom ${APP}-named claim is generated alongside the two real ones.
+  - ../../../components/kustomize/volsync-multi
 patches:
   # The pod reads litellm-key-opencode, which the litellm-operator only creates
   # after the LiteLLMVirtualKey in the litellm app has reconciled. Without this

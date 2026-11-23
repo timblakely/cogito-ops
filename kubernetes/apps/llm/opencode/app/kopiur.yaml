@@ -1,0 +1,90 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kopiur.home-operations.com/repository_v1alpha1.json
+apiVersion: kopiur.home-operations.com/v1alpha1
+kind: Repository
+metadata:
+  name: opencode
+spec:
+  backend:
+    filesystem:
+      path: /mnt/repository
+      volume:
+        nfs:
+          server: nuglab-storage.internal
+          path: /volume1/nuglab/VolsyncKopia
+  encryption:
+    passwordSecretRef:
+      name: opencode-volsync-secret
+      key: KOPIA_PASSWORD
+  # The physical repository already exists and is shared by every app pointed at
+  # this backend - adopt it, never (re)initialize.
+  create:
+    enabled: false
+  bootstrap:
+    failurePolicy:
+      activeDeadlineSeconds: 900
+  # One physical repo, one maintenance owner: storage/shared's managed
+  # Maintenance runs quick-6h / full-daily for every Repository CR on this
+  # backend. Enabling it here too would fight over the lease.
+  maintenance:
+    enabled: false
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kopiur.home-operations.com/snapshotpolicy_v1alpha1.json
+apiVersion: kopiur.home-operations.com/v1alpha1
+kind: SnapshotPolicy
+metadata:
+  name: opencode
+spec:
+  repository:
+    kind: Repository
+    name: opencode
+  # Two claims, both load-bearing, one consistent group snapshot (kopiur's
+  # default groupBy covers every source in the policy):
+  #   opencode-home     - the agent's HOME: model config, session history, and
+  #                       the Paseo tool-bridge plugin registered under
+  #                       ~/.config/opencode. Losing it means re-pinning the
+  #                       plugin by hand before Paseo can bind a session again.
+  #   opencode-workspace - mounted at both /workspace and /home/tim. The
+  #                       /home/tim half is what Paseo sends as
+  #                       x-opencode-directory, so the Paseo OpenCode home and
+  #                       every ~/git/<repo> workspace live here.
+  sources:
+    - pvc:
+        name: opencode-home
+    - pvc:
+        name: opencode-workspace
+  # No sourcePathOverride: the default records each source as /pvc/<name>, which
+  # keeps the two sources distinct inside the shared repository. Pinning both to
+  # one path (as single-claim apps pin /data) would collide.
+  identity:
+    username: opencode
+    hostname: llm
+  copyMethod: Snapshot
+  volumeSnapshotClassName: csi-ceph-blockpool
+  compression:
+    compressor: zstd-fastest
+  upload:
+    maxParallelFileReads: 2
+  mover:
+    cache:
+      mode: Persistent
+      capacity: 2Gi
+      storageClassName: openebs-hostpath
+    podSecurityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+  retention:
+    keepHourly: 24
+    keepDaily: 7
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kopiur.home-operations.com/snapshotschedule_v1alpha1.json
+apiVersion: kopiur.home-operations.com/v1alpha1
+kind: SnapshotSchedule
+metadata:
+  name: opencode
+spec:
+  policyRef:
+    name: opencode
+  schedule:
+    cron: "0 * * * *"
