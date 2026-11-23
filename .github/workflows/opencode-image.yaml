@@ -1,0 +1,55 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: OpenCode Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - services/opencode/**
+      - .github/workflows/opencode-image.yaml
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Authenticate to GHCR
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+
+      # The tag carries the OpenCode version, not just the git revision: the
+      # image only means "OpenCode X + cogito's tooling", and a bare sha tag
+      # hides which agent version a pod runs. The immutable revision tag is
+      # pushed too; the cluster manifest pins THAT by digest.
+      - name: Build and publish
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/opencode-cogito
+          REVISION: ${{ github.sha }}
+          OPENCODE_PIN: "2.3.2"
+        run: |
+          docker build --pull \
+            --label "org.opencontainers.image.revision=$REVISION" \
+            --tag "$IMAGE:$REVISION" \
+            --tag "$IMAGE:opencode-$OPENCODE_PIN" \
+            services/opencode
+          docker push "$IMAGE:$REVISION"
+          docker push "$IMAGE:opencode-$OPENCODE_PIN"
+
+      - name: Report digest for the cluster pin
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/opencode-cogito
+          REVISION: ${{ github.sha }}
+        run: |
+          digest=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' "$IMAGE:$REVISION")
+          echo "Pin in kubernetes/apps/llm/opencode/app/helmrelease.yaml to:"
+          echo "  repository: $IMAGE"
+          echo "  tag: $REVISION@${digest}"
