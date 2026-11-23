@@ -1,0 +1,64 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: opencode-image-build
+  namespace: cluster-infra
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 3600
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: opencode-image-build
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      priorityClassName: llmkube-batch
+      preemptionPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: kristeva
+        kubernetes.io/arch: amd64
+      containers:
+        - name: buildkit
+          image: docker.io/moby/buildkit:v0.26.2@sha256:2be0a5be7ae3cd9268f6836782e9690cce7bc4124142f7700f1641af5ccca8de
+          imagePullPolicy: IfNotPresent
+          command: [/bin/sh, /scripts/build.sh]
+          env:
+            - name: DOCKER_CONFIG
+              value: /root/.docker
+          securityContext:
+            privileged: true
+            runAsUser: 0
+            runAsGroup: 0
+          resources:
+            requests:
+              cpu: "2"
+              memory: 4Gi
+              ephemeral-storage: 1Gi
+            limits:
+              cpu: "4"
+              memory: 8Gi
+              ephemeral-storage: 2Gi
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+            - name: scratch
+              mountPath: /scratch
+            - name: registry-auth
+              mountPath: /root/.docker/config.json
+              subPath: .dockerconfigjson
+              readOnly: true
+      volumes:
+        - name: scripts
+          configMap:
+            name: opencode-image-build
+            defaultMode: 0444
+        - name: scratch
+          persistentVolumeClaim:
+            claimName: opencode-image-build-cache
+        - name: registry-auth
+          secret:
+            secretName: registry-build-auth
+            defaultMode: 0400

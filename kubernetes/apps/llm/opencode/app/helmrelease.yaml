@@ -39,6 +39,8 @@ spec:
           nodeSelector:
             kubernetes.io/hostname: kristeva
           hostUsers: false
+          imagePullSecrets:
+            - name: opencode-registry-pull
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
@@ -49,8 +51,8 @@ spec:
         initContainers:
           configure-paseo:
             image: &image
-              repository: ghcr.io/timblakely/opencode-cogito
-              tag: e4ce0f290fc69c89615bd192fb1bbd27834b43ab@sha256:6a0b44b09e5a72d7f5b59a014da6ab303fb05966b32f03c3cf0ed8f26850e512
+              repository: registry.timblakely.com/timblakely/opencode-cogito
+              tag: homeops-1dd3256ba14b493a@sha256:0c43d3bab624f901ee7417eb934606c97c6ca6b990bf3c38cb017304bd9703e5
             command: [/bin/sh, -ec]
             args:
               - |

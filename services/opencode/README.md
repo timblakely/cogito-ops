@@ -35,19 +35,84 @@ old `opencode-lan` HTTPRoute are obsolete.
 
 ## Image and bootstrap
 
-The child image pins OpenCode and Paseo, includes Git, jj, Node/npm and Python,
-and generates Paseo's official bridge from the installed server package during
-CI. Init copies that artifact and the managed Paseo configuration to the home
+The child image pins OpenCode and Paseo, and generates Paseo's official bridge
+from the installed server package during the cluster-local build. Init copies
+that artifact and the managed Paseo configuration to the home
 claim before either daemon starts. A fresh home claim therefore does not need
 manual bridge installation. User sessions, host identity and repositories remain
 persistent state; init never clears them.
 
-Build the image through `.github/workflows/opencode-image.yaml`, verify its
-linux/amd64 manifest digest, and update the shared image anchor in the
-HelmRelease. It covers the init container, OpenCode and Paseo. Validate with
-`flux build kustomization opencode -n llm --path
-./kubernetes/apps/llm/opencode/app`, server dry-run, and the targeted flux-local
-tests before publishing the manifests through jj.
+The home-ops toolset in `packages.txt` includes Git/jj, Bash, ripgrep, curl,
+GNU coreutils, jq, Mike Farah yq, yamlfmt/yamllint, ShellCheck/shfmt, Helm,
+Kustomize, Flux, GitHub CLI, SOPS/age, Python/PyYAML/pip/uv, Node/npm, just,
+SSH/rsync, DNS/network diagnostics, archive utilities, and GCC/G++/make.
+Kubectl is checksum-verified and pinned to 1.34.2 to match the cluster instead
+of taking Alpine's newer, out-of-skew client. Mise 2026.11.13 is copied from
+its digest-pinned static image; project tools can be installed as uid 1000
+under the persistent HOME. Use `mise exec` for noninteractive project commands,
+trust only intended configurations, and keep tool versions/locks in each repo.
+No kubeconfig, GitHub token, SOPS private key, Rust toolchain, or CUDA is baked in.
+Installing administration binaries does not grant deployment authority or change
+OpenCode's existing permission policy.
+
+GNU env fixes the upstream Paseo launcher's `env -S` requirement on Alpine.
+The sidecar's explicit Node command remains compatible. `/opt/opencode-apk-packages.txt`
+records the resolved OS package versions; OS indexes and npm transitive packages
+are not fully locked, so a clean rebuild may have a different digest. Pin the
+published artifact, not a claim of byte-identical rebuilds.
+
+## LAN-only image builds
+
+Images live only at `registry.timblakely.com/timblakely/opencode-cogito`.
+The manual builder (`kustomization.yaml` plus `build/`) is outside the Flux app tree:
+publishing this recipe does not start a build. It runs on kristeva, requests no
+GPU, mounts no user/model workspace, and pushes directly to Zot over the LAN.
+Only the small recipe is sent from the workstation; downloads go to the builder
+and image layers never upload to a public registry. GitHub Actions performs
+source checks only, with no image build or package-write permission.
+
+From the repository root:
+
+```sh
+kubectl kustomize services/opencode > "$TMPDIR/opencode-build.yaml"
+kubectl apply --dry-run=server -f "$TMPDIR/opencode-build.yaml"
+kubectl apply -f "$TMPDIR/opencode-build.yaml"
+kubectl -n cluster-infra logs job/opencode-image-build
+```
+
+The Job has a one-hour deadline, no retries, 4 CPU/8Gi limits, and a dedicated
+25Gi Ceph build cache. Privileged BuildKit is a deliberate trust decision; its
+RUN workers are placed under the same finite Pod cgroup (Guaranteed or Burstable
+QoS), rather than escaping limits into host-root cgroups. It has no Kubernetes
+service-account token and only the existing `registry-build-auth` push credential.
+Do not reuse it for untrusted Dockerfiles. Image build runs `opencode-image-check`
+as uid 1000 and fails before publication if the tool smoke test fails.
+
+To rebuild, first confirm the previous Job has finished, then delete only
+`job/opencode-image-build` and reapply the render. Keep the cache PVC. Recipe
+ConfigMaps are content-addressed; do not alter a running build's inputs. Tags
+use a recipe-content hash (`homeops-<hash>`) covering the image inputs, builder
+script/config and Job definition; the full hash and source URL are OCI labels.
+Upstream package changes can
+produce a new digest for the same recipe tag. Always deploy by digest. A completed
+Job prints `PUBLISHED_IMAGE` and BuildKit's `containerimage.digest` metadata.
+
+Verify the exact published digest with the namespace-local pull credential:
+
+```sh
+python3 services/opencode/build/verify.py registry.timblakely.com/timblakely/opencode-cogito:homeops-<hash> --expected-digest sha256:<digest>
+```
+
+A fresh uid-1000 Pod should pull that digest with `opencode-registry-pull`, a
+read-only root filesystem and writable HOME/tmp/workspace, then run
+`opencode-image-check`. The pull Secret is supplied by External Secrets from
+`registry-template/PULL_PASSWORD`; the builder credential is never mounted into
+OpenCode. The shared HelmRelease image anchor covers init, OpenCode and Paseo.
+Validate its change with `flux build kustomization opencode -n llm --path
+./kubernetes/apps/llm/opencode/app`, server dry-run, Helm render and targeted
+flux-local tests before publishing through jj. Check for active Paseo turns
+before rolling the pod.
+
 
 ## Verification
 

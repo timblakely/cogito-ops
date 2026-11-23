@@ -1,6 +1,6 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: OpenCode Image
+name: OpenCode Image Checks
 
 on:
   workflow_dispatch:
@@ -9,57 +9,26 @@ on:
     paths:
       - services/opencode/**
       - .github/workflows/opencode-image.yaml
+  pull_request:
+    paths:
+      - services/opencode/**
+      - .github/workflows/opencode-image.yaml
 
 permissions:
   contents: read
-  packages: write
 
+# Images are built on kristeva and published only to LAN Zot. Hosted CI checks
+# the recipe; it must never build/publish a replacement image to GHCR.
 jobs:
-  publish:
+  check:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-
-      - name: Authenticate to GHCR
-        env:
-          GHCR_TOKEN: ${{ github.token }}
-        run: echo "$GHCR_TOKEN" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
-
-      # The tag carries the OpenCode version, not just the git revision: the
-      # image only means "OpenCode X + cogito's tooling", and a bare sha tag
-      # hides which agent version a pod runs. The immutable revision tag is
-      # pushed too; the cluster manifest pins THAT by digest.
-      #
-      # The version is read out of the Dockerfile's pinned base rather than
-      # duplicated here. A second literal drifts the moment the base is bumped,
-      # and the drift is invisible: the pod would run 2.4.1 under a tag that
-      # claims 2.3.2.
-      - name: Build and publish
-        env:
-          IMAGE: ghcr.io/${{ github.repository_owner }}/opencode-cogito
-          REVISION: ${{ github.sha }}
+      - name: Check source and LAN-only build contract
         run: |
-          OPENCODE_PIN=$(grep -oE 'opencode:[0-9]+\.[0-9]+\.[0-9]+' services/opencode/Dockerfile | head -1 | cut -d: -f2)
-          if [ -z "$OPENCODE_PIN" ]; then
-            echo "::error::could not read the OpenCode version from services/opencode/Dockerfile" >&2
-            exit 1
-          fi
-          echo "building against upstream OpenCode $OPENCODE_PIN"
-          docker build --pull \
-            --label "org.opencontainers.image.revision=$REVISION" \
-            --tag "$IMAGE:$REVISION" \
-            --tag "$IMAGE:opencode-$OPENCODE_PIN" \
-            services/opencode
-          docker push "$IMAGE:$REVISION"
-          docker push "$IMAGE:opencode-$OPENCODE_PIN"
-
-      - name: Report digest for the cluster pin
-        env:
-          IMAGE: ghcr.io/${{ github.repository_owner }}/opencode-cogito
-          REVISION: ${{ github.sha }}
-        run: |
-          digest=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' "$IMAGE:$REVISION")
-          echo "Pin in kubernetes/apps/llm/opencode/app/helmrelease.yaml to:"
-          echo "  repository: $IMAGE"
-          echo "  tag: $REVISION@${digest}"
+          node --check services/opencode/materialize-bridge.mjs
+          sh -n services/opencode/smoke.sh
+          sh -n services/opencode/build/build.sh
+          kubectl kustomize services/opencode > /dev/null
+          python3 -m unittest discover -s services/opencode -p 'test_*.py' -v

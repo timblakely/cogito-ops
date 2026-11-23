@@ -22,43 +22,37 @@
 # agent needs, and create the uid 1000 user the HelmRelease runs as.
 #
 # The base is pinned by its amd64 digest (the same digest convention the rest of
-# this repo uses for cluster images), so this child image is reproducible and a
-# floating upstream tag can never silently change what the pod runs.
+# this repo uses for cluster images). Base updates are explicit; OS packages
+# and npm transitive dependencies can still change between clean rebuilds.
 
 ARG OPENCODE_IMAGE=ghcr.io/anomalyco/opencode:2.4.1@sha256:3759026602e055d93cc357dbc59a4d5c8120a4323f99573de130ba3c59fc2d52
+# Static musl binary, mise 2026.11.13 (linux/amd64).
+FROM ghcr.io/jdx/mise@sha256:6115f8d37719375ccd8aa0003884384182e15695dac762649586cc41754ad2a0 AS mise
 FROM ${OPENCODE_IMAGE}
 
 USER root
 
-# git + openssh-client: snapshots, commits, cloning work repos.
-# bash: upstream ships only busybox ash; agent shell tool calls and any
-#   shell-oriented helper script written into a workspace expect bash.
-# ca-certificates + curl: HTTPS egress for provider APIs, MCP servers and
-#   plugin installs, plus a usable in-pod health probe.
-# nodejs + npm: the Paseo sidecar's runtime (`paseo daemon run`) and the
-#   build-time bridge materializer below.
-# jujutsu: the agent workspaces under /workspace are jj checkouts; the
-#   agent commits, diffs and squashes with jj.
-# python3: runtime tooling for the Node/npm stack in-pod.
-RUN apk add --no-cache \
-      git \
-      openssh-client \
-      bash \
-      ca-certificates \
-      curl \
-      tzdata \
-      nodejs \
-      npm \
-      jujutsu \
-      python3
+# Keep OS dependencies in the image; per-project versions can use mise under
+# the writable HOME. coreutils also fixes Paseo's env -S launcher on Alpine.
+COPY packages.txt /tmp/packages.txt
+RUN xargs apk add --no-cache < /tmp/packages.txt \
+    && apk info -vv > /opt/opencode-apk-packages.txt \
+    && rm /tmp/packages.txt
+COPY --from=mise /usr/local/bin/mise /usr/local/bin/mise
 
-# Paseo CLI, pinned to the exact version the sidecar runs. Optional native
-# deps (e.g. msgpackr-extract) may compile at install time, so make and g++
-# ride along as a virtual package set and are removed once npm is done.
-RUN apk add --no-cache --virtual .npm-build-deps make g++ \
-    && npm install --global --omit=dev @getpaseo/cli@0.17.3 \
-    && npm cache clean --force \
-    && apk del .npm-build-deps
+# Alpine's kubectl is newer than the cluster's supported client skew. Download
+# the matching minor explicitly and verify against upstream's checksum.
+ARG KUBECTL_VERSION=1.34.2
+RUN curl --fail --silent --show-error --location \
+      "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl" -o /tmp/kubectl \
+    && curl --fail --silent --show-error --location \
+      "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256" -o /tmp/kubectl.sha256 \
+    && printf '%s  /tmp/kubectl\n' "$(cat /tmp/kubectl.sha256)" | sha256sum -c - \
+    && install -m 0755 /tmp/kubectl /usr/local/bin/kubectl \
+    && rm /tmp/kubectl /tmp/kubectl.sha256
+
+RUN npm install --global --omit=dev @getpaseo/cli@0.17.3 \
+    && npm cache clean --force
 
 # uid/gid 1000 is what the HelmRelease pod securityContext runs as; the PVCs
 # mounted over /home/opencode and /workspace are chowned by fsGroup.
@@ -76,9 +70,13 @@ RUN node /tmp/materialize-bridge.mjs "$(npm root -g)/@getpaseo/cli" /opt/paseo-b
     && rm /tmp/materialize-bridge.mjs \
     && chown -R opencode:opencode /opt/paseo-bridge
 
+COPY smoke.sh /usr/local/bin/opencode-image-check
+RUN chmod 0755 /usr/local/bin/opencode-image-check
+
 USER 1000
 ENV HOME=/home/opencode
 WORKDIR /workspace
+RUN opencode-image-check
 
 # Entrypoint is inherited from upstream (`opencode`); the HelmRelease supplies
 # the `serve --hostname ... --port ...` arguments, and the Paseo sidecar
