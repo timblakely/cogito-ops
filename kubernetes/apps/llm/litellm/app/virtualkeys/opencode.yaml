@@ -1,0 +1,57 @@
+---
+# Credential boundary for the OpenCode coding agent (kubernetes/apps/llm/opencode).
+# The litellm-operator asks the proxy's admin API for the key, writes it to
+# litellm-key-opencode, and the PushSecret below files it into 1Password so a
+# rebuild recovers the same key instead of re-issuing it.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: opencode
+spec:
+  proxyRef: litellm
+  # Aliases are globally unique in LiteLLM; reusing an existing one makes
+  # /key/generate return 400 and the resource never reconciles, which takes the
+  # whole litellm Kustomization unready with it.
+  keyAlias: role-opencode
+  secretName: litellm-key-opencode
+  secretKey: api-key
+  # The scope is a free local alias (cost 0), so this budget is a tripwire for
+  # a runaway agent loop, not an allowance.
+  maxBudget: "1"
+  budgetDuration: 30d
+  # One agent can fan out subagents; a small ceiling keeps that queuing at the
+  # proxy with clean per-key 429s instead of stacking timeouts on the backend.
+  maxParallelRequests: 4
+  models:
+    # `coder` -> qwen3.8-flash-next on the radiance lane (262k context, function
+    # calling, reasoning). Widening this list is deliberate: a coding agent that
+    # can reach a paid alias can spend money unattended. See the operator gap
+    # note in litellm/app/models/README.md — scope edits are NOT pushed to an
+    # already-issued key; they need the admin API /key/update afterwards.
+    - coder
+---
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: litellm-key-opencode
+spec:
+  refreshInterval: 1h
+  secretStoreRefs:
+    - kind: ClusterSecretStore
+      name: onepassword
+  selector:
+    secret:
+      name: litellm-key-opencode
+  # The proxy's database is the authority on whether a key is valid, so a stale
+  # copy in the vault is worthless — Replace keeps the vault tracking the key
+  # the operator actually issued.
+  updatePolicy: Replace
+  # Deleting the PushSecret must not delete the vault entry; recovering the key
+  # after a cluster rebuild is the entire point of pushing it there.
+  deletionPolicy: None
+  data:
+    - match:
+        secretKey: api-key
+        remoteRef:
+          remoteKey: litellm
+          property: LITELLM_OPENCODE_API_KEY
