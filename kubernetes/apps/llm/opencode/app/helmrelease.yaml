@@ -160,6 +160,14 @@ spec:
           opencode:
             main:
               - path: /workspace
+              # Same claim, second mount point. Paseo sends its own workspace
+              # path on every OpenCode request (header x-opencode-directory) and
+              # OpenCode answers 404 LocationNotFoundError for any path the
+              # server cannot see - that silently keeps the provider from ever
+              # becoming ready, so it never appears in the Paseo UI. Mounting the
+              # repos claim at the laptop's repo root makes a Paseo workspace at
+              # ~/git/<repo> resolve to real, persistent, writable storage here.
+              - path: /home/tim/git
       tmp:
         type: emptyDir
         advancedMounts:
