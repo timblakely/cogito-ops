@@ -8,6 +8,51 @@
 # Flux postBuild substitution runs over this file. It deliberately contains no
 # `${...}` token: OpenCode's own variable syntax is `{env:VAR}` (no dollar), and
 # the LiteLLM endpoint is a literal cluster DNS name rather than a template.
+#
+# The `opencode.json` value below is STRICT JSON, with no `#` comments, even
+# though upstream documents examples as .jsonc. OpenCode's own docs call a `#`
+# between two keys a syntax error whose failure is silent in exactly this shape
+# of config (the same trap that made cogito's `model-caps` ConfigMap answer 503
+# while /health kept returning 200). Rationale for the model list therefore
+# lives here, in YAML comments, not inside the parsed document.
+#
+# WHY EVERY MODEL IS LISTED BY HAND: OpenCode v2 does NOT discover models for a
+# custom openai-compatible provider — discovery exists only for Ollama, LM
+# Studio and vLLM (upstream anomalyco/opencode issue #63330). A provider whose
+# `models` map is empty is dropped outright. So this list, not LiteLLM's
+# /v1/models, is what the picker shows.
+#
+# TWO LISTS MUST STAY IN STEP. This map is what OpenCode offers; the
+# `role-opencode` virtual key's scope
+# (kubernetes/apps/llm/litellm/app/virtualkeys/opencode.yaml) is what LiteLLM
+# actually permits. Declared here but missing from the scope → every request
+# 403s with key_model_access_denied; in the scope but missing here → the model
+# simply never appears. That mirrors the workstation Hermes split, where the
+# `hermes` key's scope and Paseo's replacement catalogue (skill
+# paseo-litellm-catalog-sync) are likewise two layers over one gateway.
+#
+# Per model: `modelID` is what goes on the wire and must equal the LiteLLM alias
+# byte-for-byte; `limit` mirrors that alias's maxInputTokens / maxOutputTokens in
+# kubernetes/apps/llm/litellm/app/models/; `capabilities` mirrors the
+# supportsFunctionCalling / supportsVision claims proven in those files. The
+# failure mode to avoid is advertising a wider window or a capability the backend
+# refuses — a context limit above the engine's pin gets the prompt refused
+# mid-session, and a reasoning `effort` the chat template rejects is a control
+# that silently does nothing (see litellm/app/models/README.md).
+#
+# Reasoning ladders here are MEASURED on `coder`, not copied: `none`, `minimal`,
+# `low`, `medium` and `xhigh` return 200; `high` and `max` 400 out of the chat
+# template with "It takes 'low', 'medium' and 'xhigh'; 'none' and 'minimal' turn
+# thinking off". `coder` carries that ladder because it passes
+# `allowed_openai_params: [reasoning_effort]`; the caps publisher
+# (litellm/app/model-caps.yaml) publishes it for `flashnext-deleuze` but has no
+# `coder` entry at all, so Hermes shows that ladder and OpenCode would not.
+#
+# `glimmer-deleuze` and `heretic-deleuze` get `reasoning.supported` with NO
+# effort list and no toggle: the radiance fleet publishes no named level for
+# either entry (their caps `supported_efforts` are empty), so any level offered
+# here would be a lie. `google/gemma-4-12b-it` gets only the Off toggle, which
+# is the single verified level for that lane.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -26,12 +71,73 @@ data:
           "env": ["COGITO_LITELLM_API_KEY"],
           "package": "@opencode/ai/providers/openai-compatible",
           "settings": {
-            "baseURL": "http://litellm.llm.svc.cluster.local:4000/v1"
+            "baseURL": "http://litellm.llm.svc.cluster.local:4000/v1",
+            "headerTimeout": 3600000,
+            "chunkTimeout": false
           },
           "models": {
             "coder": {
+              "modelID": "coder",
               "name": "Cogito coder (qwen3.8-flash-next)",
+              "capabilities": {
+                "tools": true,
+                "input": ["text"],
+                "output": ["text"],
+                "reasoning": {
+                  "supported": true,
+                  "toggle": true,
+                  "effort": ["minimal", "low", "medium", "xhigh"]
+                }
+              },
               "limit": { "context": 262144, "output": 16384 }
+            },
+            "flashnext-deleuze": {
+              "modelID": "flashnext-deleuze",
+              "name": "FlashNext @deleuze (qwen3.8-flash-next)",
+              "capabilities": {
+                "tools": true,
+                "input": ["text"],
+                "output": ["text"],
+                "reasoning": {
+                  "supported": true,
+                  "toggle": true,
+                  "effort": ["minimal", "low", "medium", "xhigh"]
+                }
+              },
+              "limit": { "context": 262144, "output": 8192 }
+            },
+            "glimmer-deleuze": {
+              "modelID": "glimmer-deleuze",
+              "name": "Muse Glimmer @deleuze",
+              "capabilities": {
+                "tools": true,
+                "input": ["text"],
+                "output": ["text"],
+                "reasoning": { "supported": true }
+              },
+              "limit": { "context": 131072, "output": 16384 }
+            },
+            "heretic-deleuze": {
+              "modelID": "heretic-deleuze",
+              "name": "Gemma 4 heretic @deleuze (vision)",
+              "capabilities": {
+                "tools": true,
+                "input": ["text", "image"],
+                "output": ["text"],
+                "reasoning": { "supported": true }
+              },
+              "limit": { "context": 65536, "output": 16384 }
+            },
+            "gemma-4-12b": {
+              "modelID": "google/gemma-4-12b-it",
+              "name": "Gemma 4 12B @amnesia (vision, preemptible)",
+              "capabilities": {
+                "tools": true,
+                "input": ["text", "image"],
+                "output": ["text"],
+                "reasoning": { "supported": true, "toggle": true }
+              },
+              "limit": { "context": 65536, "output": 8192 }
             }
           }
         }

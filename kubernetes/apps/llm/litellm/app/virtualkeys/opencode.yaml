@@ -29,6 +29,22 @@ spec:
     # note in litellm/app/models/README.md — scope edits are NOT pushed to an
     # already-issued key; they need the admin API /key/update afterwards.
     - coder
+    # Chat-capable local aliases, mirroring the workstation Hermes `hermes` key
+    # so the cluster OpenCode picker offers the same models as the laptop. All
+    # four assert zero cost and all four support tool calls, so OpenCode can
+    # drive them; the local runtime aliases are still free, so widening does
+    # not open a paid path. The ChatGPT subscription aliases stay on
+    # `hermes-subscription` on purpose: they are a real subscription spend and
+    # an unattended agent loop must not hold them without a deliberate choice.
+    - flashnext-deleuze
+    # glimmer- and heretic-deleuze are entries on the same exclusive radiance
+    # fleet group as `coder`; picking one displaces the agent lane until the
+    # entry ttl frees both R9700s, exactly as it does for Hermes.
+    - glimmer-deleuze
+    - heretic-deleuze
+    - google/gemma-4-12b-it
+    # embedder / reranker / worker stay out: they are not chat models, so
+    # OpenCode's picker could offer nothing useful with them.
 ---
 apiVersion: external-secrets.io/v1alpha1
 kind: PushSecret
