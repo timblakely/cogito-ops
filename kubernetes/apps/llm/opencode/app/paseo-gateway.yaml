@@ -1,0 +1,29 @@
+---
+# Paseo authenticates its API/WebSocket itself. Browser OIDC redirects would
+# prevent desktop clients from connecting. Only the internal gateway serves it.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: paseo
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: envoy-internal
+      namespace: envoy-system
+      sectionName: https
+  hostnames:
+    - paseo.${DOMAIN_NAME}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      timeouts:
+        request: 0s
+        backendRequest: 0s
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: opencode-paseo
+          port: 6767

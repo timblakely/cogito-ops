@@ -46,24 +46,29 @@ spec:
             fsGroup: 1000
             fsGroupChangePolicy: OnRootMismatch
             seccompProfile: { type: RuntimeDefault }
+        initContainers:
+          configure-paseo:
+            image: &image
+              repository: ghcr.io/timblakely/opencode-cogito
+              tag: e4ce0f290fc69c89615bd192fb1bbd27834b43ab@sha256:6a0b44b09e5a72d7f5b59a014da6ab303fb05966b32f03c3cf0ed8f26850e512
+            command: [/bin/sh, -ec]
+            args:
+              - |
+                mkdir -p /home/opencode/.paseo/opencode-home
+                mkdir -p /home/opencode/.config/opencode/plugins/paseo-opencode-bridge
+                cp -R /opt/paseo-bridge/. /home/opencode/.config/opencode/plugins/paseo-opencode-bridge/
+                cp /etc/paseo/config.json /home/opencode/.paseo/config.json
+                chmod 600 /home/opencode/.paseo/config.json
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
         containers:
           main:
-            image:
-              # Child image built by .github/workflows/opencode-image.yaml from
-              # the digest-pinned upstream ghcr.io/anomalyco/opencode image:
-              # upstream ships Alpine + the binary + ripgrep only, with no git
-              # (so no snapshots/undo of files) and no non-root user.
-              # Tag is the git revision that built it; the digest is what CI
-              # published for that revision (amd64), verified to resolve to
-              # itself at the registry before this pin was written.
-              repository: ghcr.io/timblakely/opencode-cogito
-              tag: a4ea0a7b1af38eacb90af8e21894b69eea10221d@sha256:786e364f3307c6fcad6483c221a8f88922a69d1038c292483898ddae2a4dd2aa
+            image: *image
             args:
               - serve
-              # 0.0.0.0 is required for a pod IP to accept gateway traffic;
-              # upstream defaults to 127.0.0.1. The server is never reachable
-              # outside the cluster: the Service is ClusterIP and the only
-              # route is envoy-internal behind Pocket ID.
+              # Keep the existing browser dashboard; Paseo uses localhost.
               - --hostname
               - 0.0.0.0
               - --port
@@ -121,7 +126,50 @@ spec:
               # provider packages live under $HOME on the home claim.
               readOnlyRootFilesystem: true
               capabilities: { drop: ["ALL"] }
+          paseo:
+            image: *image
+            # Bypass the CLI's env -S shebang: Alpine ships BusyBox env.
+            command: [node, /usr/local/lib/node_modules/@getpaseo/cli/bin/paseo, daemon, run]
+            env:
+              PASEO_HOME: /home/opencode/.paseo
+              PASEO_LISTEN: 0.0.0.0:6767
+              PASEO_HOSTNAMES: paseo.${DOMAIN_NAME}
+              PASEO_RELAY_ENABLED: "false"
+              PASEO_PASSWORD:
+                secretKeyRef:
+                  name: paseo-server
+                  key: server-password
+              PASEO_OPENCODE_SERVER_PASSWORD:
+                secretKeyRef:
+                  name: opencode-server
+                  key: server-password
+            probes:
+              liveness: &paseo-probes
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket: { port: 6767 }
+                  initialDelaySeconds: 15
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 6
+              readiness: *paseo-probes
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                memory: 2Gi
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
     service:
+      paseo:
+        controller: opencode
+        ports:
+          http:
+            port: 6767
       main:
         controller: opencode
         ports:
@@ -139,6 +187,13 @@ spec:
               - identifier: main
                 port: *port
     persistence:
+      paseo-config:
+        type: configMap
+        name: paseo-config
+        advancedMounts:
+          opencode:
+            configure-paseo:
+              - {path: /etc/paseo/config.json, subPath: config.json, readOnly: true}
       config:
         type: configMap
         name: opencode-config
@@ -154,26 +209,25 @@ spec:
           opencode:
             main:
               - path: /home/opencode
+            paseo:
+              - path: /home/opencode
+            configure-paseo:
+              - path: /home/opencode
       workspace:
         existingClaim: opencode-workspace
         advancedMounts:
           opencode:
             main:
               - path: /workspace
-              # Same claim, second mount point. Paseo drives a reused OpenCode
-              # server with client-side paths on every request (header
-              # x-opencode-directory): the global model catalog is fetched for
-              # ~/.paseo/opencode-home and each agent for its own workspace path.
-              # OpenCode answers 404 LocationNotFoundError for any path the
-              # server cannot see, provider readiness never completes, and the
-              # provider silently never appears in the Paseo UI. Mounting the
-              # repos claim at the laptop's home root makes both resolve to real,
-              # persistent, writable storage. /workspace and /home/tim are one
-              # claim, so nothing is duplicated.
-              - path: /home/tim
+            paseo:
+              - path: /workspace
       tmp:
         type: emptyDir
         advancedMounts:
           opencode:
             main:
               - {path: /tmp, subPath: tmp}
+            paseo:
+              - {path: /tmp, subPath: paseo}
+            configure-paseo:
+              - {path: /tmp, subPath: init}

@@ -1,0 +1,21 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: paseo-config
+data:
+  config.json: |
+    {
+      "$schema": "https://paseo.sh/schemas/paseo.config.v1.json",
+      "version": 1,
+      "daemon": { "relay": { "enabled": false } },
+      "agents": {
+        "providers": {
+          "opencode": {
+            "enabled": true,
+            "env": { "PASEO_OPENCODE_SERVER_URL": "http://127.0.0.1:4096" }
+          },
+          "hermes": { "enabled": false }
+        }
+      }
+    }
