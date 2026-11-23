@@ -1,0 +1,33 @@
+---
+# Application state (sessions, SQLite db, provider packages, plugin cache) and
+# the working area the agent edits. Both are RBD (the default StorageClass):
+# the pod is pinned to kristeva anyway, so nothing is gained by coupling the
+# data to that node's local disk, and RBD survives a kristeva rebuild that a
+# hostpath PV would not.
+#
+# `opencode debug paths` puts the database under $XDG_DATA_HOME (below HOME), so
+# the home claim is the one that holds session history; losing it loses chat
+# history but no repository content, which lives in the workspace claim.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: opencode-home
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: opencode-workspace
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 50Gi

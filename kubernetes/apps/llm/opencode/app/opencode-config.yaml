@@ -1,0 +1,48 @@
+---
+# OpenCode's system configuration. /etc/opencode is OpenCode's managed,
+# machine-wide config directory (Linux), and upstream ranks it ABOVE user and
+# project config: what is set here is what the agent actually runs, and a
+# project checkout cannot override it. That is the right lever for a cluster
+# service — see opencode.ai/docs/config ("Locations" / precedence order).
+#
+# Flux postBuild substitution runs over this file. It deliberately contains no
+# `${...}` token: OpenCode's own variable syntax is `{env:VAR}` (no dollar), and
+# the LiteLLM endpoint is a literal cluster DNS name rather than a template.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opencode-config
+data:
+  opencode.json: |
+    {
+      "$schema": "https://opencode.ai/config.json",
+      "username": "cogito",
+      "update": "disable",
+      "model": "cogito/coder",
+      "providers": {
+        "cogito": {
+          "name": "Cogito LiteLLM",
+          "env": ["COGITO_LITELLM_API_KEY"],
+          "package": "@opencode/ai/providers/openai-compatible",
+          "settings": {
+            "baseURL": "http://litellm.llm.svc.cluster.local:4000/v1"
+          },
+          "models": {
+            "coder": {
+              "name": "Cogito coder (qwen3.8-flash-next)",
+              "limit": { "context": 262144, "output": 16384 }
+            }
+          }
+        }
+      },
+      "permissions": [
+        { "action": "shell", "resource": "*", "effect": "ask" },
+        { "action": "shell", "resource": "git status *", "effect": "allow" },
+        { "action": "shell", "resource": "git diff *", "effect": "allow" },
+        { "action": "shell", "resource": "git log *", "effect": "allow" },
+        { "action": "shell", "resource": "git push *", "effect": "deny" },
+        { "action": "shell", "resource": "kubectl *", "effect": "deny" },
+        { "action": "read", "resource": "*.env", "effect": "deny" },
+        { "action": "read", "resource": "*.pem", "effect": "deny" }
+      ]
+    }

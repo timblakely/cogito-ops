@@ -1,0 +1,24 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: APP-app-vars
+    literals:
+      - APP=opencode
+      - SUBDOMAIN=opencode
+components:
+  - ../../../components/ks/app/subdomain
+patches:
+  # The pod reads litellm-key-opencode, which the litellm-operator only creates
+  # after the LiteLLMVirtualKey in the litellm app has reconciled. Without this
+  # ordering the container starts first and parks in CreateContainerConfigError
+  # until a later retry happens to win — same reason open-webui declares it.
+  - patch: |-
+      - op: add
+        path: /spec/dependsOn/-
+        value:
+          name: litellm
+    target:
+      group: kustomize.toolkit.fluxcd.io
+      kind: Kustomization

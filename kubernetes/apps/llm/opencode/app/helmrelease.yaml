@@ -1,0 +1,168 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/refs/tags/app-template-4.6.0/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: opencode
+spec:
+  interval: 1h
+  maxHistory: 1
+  chartRef:
+    kind: OCIRepository
+    name: app-template
+    namespace: flux-system
+  install:
+    timeout: 5m
+    remediation:
+      retries: 3
+  upgrade:
+    timeout: 5m
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      opencode:
+        annotations:
+          # Both credentials this pod reads can change without the Deployment
+          # template changing: the LiteLLM key is re-issued by the operator and
+          # the server password is regenerated if its ExternalSecret is
+          # recreated. A secretKeyRef is resolved once at container start, so
+          # without Reloader the running pod keeps presenting the old value.
+          reloader.stakater.com/auto: "true"
+        pod:
+          # Pinned per the operator's request: kristeva is the ordinary
+          # high-CPU/high-memory host (40 cores, ~123 GiB allocatable) and is
+          # where the agent gets room to clone, build and test. It is also a
+          # control-plane node, so the requests below stay modest and only the
+          # memory ceiling is high.
+          nodeSelector:
+            kubernetes.io/hostname: kristeva
+          hostUsers: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile: { type: RuntimeDefault }
+        containers:
+          main:
+            image:
+              # Child image built by .github/workflows/opencode-image.yaml from
+              # the digest-pinned upstream ghcr.io/anomalyco/opencode image:
+              # upstream ships Alpine + the binary + ripgrep only, with no git
+              # (so no snapshots/undo of files) and no non-root user.
+              # Tag is the git revision that built it; the digest is what CI
+              # published for that revision (amd64), verified to resolve to
+              # itself at the registry before this pin was written.
+              repository: ghcr.io/timblakely/opencode-cogito
+              tag: d2f796f4ba1dedd012f2708ccc3fd7405eaab8af@sha256:edbe8416cd405f54d8f575f848987996aaab3e6874d873eb1ba5153c50a55a54
+            args:
+              - serve
+              # 0.0.0.0 is required for a pod IP to accept gateway traffic;
+              # upstream defaults to 127.0.0.1. The server is never reachable
+              # outside the cluster: the Service is ClusterIP and the only
+              # route is envoy-internal behind Pocket ID.
+              - --hostname
+              - 0.0.0.0
+              - --port
+              - "4096"
+            env:
+              # OpenCode always protects the server with HTTP basic auth: with
+              # no password configured it generates one at every start, which
+              # is useless across restarts. v2 reads OPENCODE_PASSWORD and
+              # still honours the v1 name, so both are set from one key and the
+              # server cannot come up on a generated secret nobody knows.
+              OPENCODE_PASSWORD:
+                secretKeyRef:
+                  name: opencode-server
+                  key: server-password
+              OPENCODE_SERVER_PASSWORD:
+                secretKeyRef:
+                  name: opencode-server
+                  key: server-password
+              # Username is fixed to `opencode` by the server; spelled out so
+              # the credential shape is obvious next to the password.
+              OPENCODE_SERVER_USERNAME: opencode
+              # The LiteLLM virtual key issued for this app (scope: `coder`).
+              # The operator mints it and a PushSecret files it in 1Password.
+              COGITO_LITELLM_API_KEY:
+                secretKeyRef:
+                  name: litellm-key-opencode
+                  key: api-key
+            probes:
+              # /api/info answers 401 without credentials and every unauthenticated
+              # path is the SPA catch-all, so an HTTP probe would either need the
+              # password in the manifest or prove nothing. TCP is the honest gate:
+              # the listener only exists once the server is up.
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket: { port: &port 4096 }
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 3
+              readiness: *probes
+            resources:
+              requests:
+                cpu: 500m
+                memory: 1Gi
+              limits:
+                # Room for the agent to compile and test inside the workspace on
+                # the 128 GiB host. No CPU limit: the whole point of this node
+                # selection is the core count.
+                memory: 16Gi
+            securityContext:
+              allowPrivilegeEscalation: false
+              # Writable surfaces are the two PVCs plus /tmp; the binary and its
+              # provider packages live under $HOME on the home claim.
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
+    service:
+      main:
+        controller: opencode
+        ports:
+          http:
+            port: *port
+    route:
+      main:
+        hostnames: ["${APP_URL}"]
+        parentRefs:
+          - name: envoy-internal
+            namespace: envoy-system
+            sectionName: https
+        rules:
+          - backendRefs:
+              - identifier: main
+                port: *port
+    persistence:
+      config:
+        type: configMap
+        name: opencode-config
+        advancedMounts:
+          opencode:
+            main:
+              # /etc/opencode is the managed system config directory, which
+              # outranks user and project config.
+              - {path: /etc/opencode/opencode.json, subPath: opencode.json, readOnly: true}
+      home:
+        existingClaim: opencode-home
+        advancedMounts:
+          opencode:
+            main:
+              - path: /home/opencode
+      workspace:
+        existingClaim: opencode-workspace
+        advancedMounts:
+          opencode:
+            main:
+              - path: /workspace
+      tmp:
+        type: emptyDir
+        advancedMounts:
+          opencode:
+            main:
+              - {path: /tmp, subPath: tmp}
