@@ -1,0 +1,19 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomize
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+# Same wiring as ../volsync, for apps that back up several claims: the app's
+# Kustomization pulls in the multi-claim overlay instead of the single-claim one,
+# so no ${APP}-named claim, ReplicationSource or ReplicationDestination appears.
+# Pair it with an app-level kopiur.yaml whose SnapshotPolicy lists one source per
+# claim (see apps/llm/opencode).
+components:
+  - ../volsync/deps
+patches:
+  - patch: |-
+      - op: add
+        path: /spec/components/-
+        value: ../../../../components/volsync-reloaded/overlays/kopia-multi
+    target:
+      group: kustomize.toolkit.fluxcd.io
+      kind: Kustomization

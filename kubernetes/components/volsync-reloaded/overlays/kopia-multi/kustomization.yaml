@@ -1,0 +1,48 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomize
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+# Kopia backup plumbing for apps that own more than one PersistentVolumeClaim.
+#
+# resources/kopia.yaml and resources/common/pvc.yaml are written for the
+# single-claim shape: the claim is named ${APP}, the ReplicationSource backs up
+# ${APP}, and ${APP}-dst restores ${APP}. An app with several claims declares its
+# own PVCs and lists every one of them in its Kopiur SnapshotPolicy `sources`, so
+# adopting that shape here would create an unused ${APP} claim, point a paused
+# ReplicationSource at a claim that does not exist, and allocate a
+# restore-once destination whose single capacity cannot fit either claim.
+#
+# Only the Kopia credentials Secret is kept. Kopiur's SnapshotPolicy owns
+# snapshotting (the native ReplicationSource is paused cluster-wide since the
+# 2026-11-16 migration) and kopiur's own Restore object owns restore, so nothing
+# deleted below is on any live path.
+resources:
+  - ../../resources/kopia.yaml
+patches:
+  # Delete-patched instead of duplicated so resources/kopia.yaml stays the single
+  # source of truth for the shared mover and repository settings.
+  #
+  # Targeted by kind, not by name: ${APP} is substituted post-build, so at
+  # kustomize time these objects are named "" and "-dst" and a name selector is
+  # unreliable. Each kind appears exactly once in the tree (only this overlay
+  # pulls in kopia.yaml), which makes the kind the unambiguous selector.
+  - patch: |-
+      $patch: delete
+      apiVersion: volsync.backube/v1alpha1
+      kind: ReplicationSource
+      metadata:
+        name: unused
+    target:
+      group: volsync.backube
+      version: v1alpha1
+      kind: ReplicationSource
+  - patch: |-
+      $patch: delete
+      apiVersion: volsync.backube/v1alpha1
+      kind: ReplicationDestination
+      metadata:
+        name: unused
+    target:
+      group: volsync.backube
+      version: v1alpha1
+      kind: ReplicationDestination
