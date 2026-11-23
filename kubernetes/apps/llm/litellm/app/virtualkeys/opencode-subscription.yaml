@@ -1,0 +1,73 @@
+---
+# ChatGPT-subscription credential for the cluster OpenCode agent.
+#
+# Why a separate key rather than widening `role-opencode`: every subscription
+# alias is registered with `info.mode: responses`, so it is only servable over
+# LiteLLM's Responses endpoint. OpenCode therefore needs a second provider block
+# whose package speaks Responses, and two provider blocks over one gateway must
+# carry DISJOINT scopes — otherwise LiteLLM's scope-filtered /v1/models hands the
+# same alias to both transports, which is exactly how one alias ends up as two
+# picker rows and how reasoning items get silently dropped on a chat-completions
+# route (see hermes-subscription.yaml, which exists for the same reason).
+#
+# Spend note for the operator: subscription requests are reported by LiteLLM as
+# zero-dollar spend (models/README.md), so `maxBudget` below is NOT a control on
+# this route. The real ceiling on an unattended agent here is
+# `maxParallelRequests`, plus whatever the ChatGPT plan allows. This key is a
+# deliberate departure from the standing note in opencode.yaml ("a coding agent
+# that can reach a paid alias can spend money unattended") — taken knowingly at
+# the operator's request.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: opencode-subscription
+spec:
+  proxyRef: litellm
+  # Aliases are globally unique in LiteLLM; a collision makes /key/generate
+  # return 400 and the resource never reconciles.
+  keyAlias: role-opencode-subscription
+  secretName: litellm-key-opencode-subscription
+  secretKey: api-key
+  maxBudget: "50"
+  budgetDuration: 30d
+  # Same ceiling as the agent's local key: a fan-out of subagents queues at the
+  # proxy with clean per-key 429s instead of stacking timeouts upstream.
+  maxParallelRequests: 4
+  models:
+    # Exactly the eight registered public subscription aliases. The live
+    # catalogue also shows gpt-6.2-sol and gpt-6.2-astra, but they are
+    # UNREGISTERED here (see the `unregistered_models` field of /caps/v1/models),
+    # so scoping them would advertise models the proxy 400s on. Register them
+    # under models/ first, then add them here and to model-caps.yaml.
+    - gpt-6-astra
+    - gpt-6.1-sol
+    - gpt-6.1-terra
+    - gpt-6-luna
+    - gpt-6-sol
+    - gpt-5.6-sol
+    - gpt-5.6-terra
+    - gpt-5.6-luna
+---
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: litellm-key-opencode-subscription
+spec:
+  refreshInterval: 1h
+  secretStoreRefs:
+    - kind: ClusterSecretStore
+      name: onepassword
+  selector:
+    secret:
+      name: litellm-key-opencode-subscription
+  # The proxy's database decides whether a key works, so the vault must track
+  # the key the operator actually issued.
+  updatePolicy: Replace
+  # Deleting this manifest must not destroy the archived key.
+  deletionPolicy: None
+  data:
+    - match:
+        secretKey: api-key
+        remoteRef:
+          remoteKey: litellm
+          property: LITELLM_OPENCODE_SUBSCRIPTION_API_KEY

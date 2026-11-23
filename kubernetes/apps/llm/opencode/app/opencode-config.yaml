@@ -13,23 +13,34 @@
 # though upstream documents examples as .jsonc. OpenCode's own docs call a `#`
 # between two keys a syntax error whose failure is silent in exactly this shape
 # of config (the same trap that made cogito's `model-caps` ConfigMap answer 503
-# while /health kept returning 200). Rationale for the model list therefore
+# while /health kept returning 200). Rationale for the model lists therefore
 # lives here, in YAML comments, not inside the parsed document.
 #
 # WHY EVERY MODEL IS LISTED BY HAND: OpenCode v2 does NOT discover models for a
 # custom openai-compatible provider — discovery exists only for Ollama, LM
 # Studio and vLLM (upstream anomalyco/opencode issue #63330). A provider whose
-# `models` map is empty is dropped outright. So this list, not LiteLLM's
-# /v1/models, is what the picker shows.
+# `models` map is empty is dropped outright. So these maps, not LiteLLM's
+# /v1/models, are what the picker shows.
 #
-# TWO LISTS MUST STAY IN STEP. This map is what OpenCode offers; the
-# `role-opencode` virtual key's scope
-# (kubernetes/apps/llm/litellm/app/virtualkeys/opencode.yaml) is what LiteLLM
-# actually permits. Declared here but missing from the scope → every request
-# 403s with key_model_access_denied; in the scope but missing here → the model
-# simply never appears. That mirrors the workstation Hermes split, where the
-# `hermes` key's scope and Paseo's replacement catalogue (skill
-# paseo-litellm-catalog-sync) are likewise two layers over one gateway.
+# THREE LISTS MUST STAY IN STEP, per provider block:
+#   1. the `models` map of the matching block below — what OpenCode OFFERS,
+#   2. the matching LiteLLMVirtualKey `models` scope — what LiteLLM PERMITS
+#      (litellm/app/virtualkeys/opencode.yaml and .../opencode-subscription.yaml),
+#   3. the alias's own LiteLLMModel file — what the backend actually is.
+# Declared but unscoped 403s with key_model_access_denied; scoped but undeclared
+# is simply invisible. A new subscription alias also needs a file under models/
+# plus that directory's kustomization plus model-caps.yaml, and a /key/update on
+# the already-issued key. That mirrors the workstation Hermes layout, where the
+# key's scope and Paseo's replacement catalogue (skill
+# paseo-litellm-catalog-sync) are likewise separate layers over one gateway.
+#
+# TWO PROVIDER BLOCKS, ONE GATEWAY, DISJOINT KEYS: the ChatGPT subscription
+# aliases are registered with `info.mode: responses`, so they are servable only
+# over LiteLLM's Responses endpoint — hence `cogito-sub` carries the
+# openai-compatible/responses package while `cogito` stays on the chat package.
+# Each block reads its own credential, so the two keys' scopes must not overlap:
+# a shared scope would surface one alias in both blocks and quietly route
+# Responses-only traffic, with its reasoning items, over chat completions.
 #
 # Per model: `modelID` is what goes on the wire and must equal the LiteLLM alias
 # byte-for-byte; `limit` mirrors that alias's maxInputTokens / maxOutputTokens in
@@ -37,22 +48,31 @@
 # supportsFunctionCalling / supportsVision claims proven in those files. The
 # failure mode to avoid is advertising a wider window or a capability the backend
 # refuses — a context limit above the engine's pin gets the prompt refused
-# mid-session, and a reasoning `effort` the chat template rejects is a control
-# that silently does nothing (see litellm/app/models/README.md).
+# mid-session, and a reasoning `effort` the template rejects is a control that
+# silently does nothing (see litellm/app/models/README.md).
 #
-# Reasoning ladders here are MEASURED on `coder`, not copied: `none`, `minimal`,
-# `low`, `medium` and `xhigh` return 200; `high` and `max` 400 out of the chat
-# template with "It takes 'low', 'medium' and 'xhigh'; 'none' and 'minimal' turn
-# thinking off". `coder` carries that ladder because it passes
-# `allowed_openai_params: [reasoning_effort]`; the caps publisher
-# (litellm/app/model-caps.yaml) publishes it for `flashnext-deleuze` but has no
-# `coder` entry at all, so Hermes shows that ladder and OpenCode would not.
+# Where the numbers came from:
+#   - The four local aliases mirror their LiteLLMModel files. Their reasoning
+#     ladder is MEASURED on the wire, not copied: none/minimal/low/medium/xhigh
+#     return 200 while `high` and `max` 400 out of the chat template ("It takes
+#     'low', 'medium' and 'xhigh'; 'none' and 'minimal' turn thinking off").
+#     `glimmer-deleuze` and `heretic-deleuze` get `reasoning.supported` with NO
+#     effort list and no toggle: the radiance fleet publishes no named level for
+#     either entry (their caps `supported_efforts` are empty), so any level
+#     offered there would be a control that does nothing. `google/gemma-4-12b-it`
+#     gets only the Off toggle, its one verified level.
+#   - The eight subscription limits (922000 in / 128000 out) and their vision and
+#     tool support are read from the proxy's own router metadata, not invented.
+#     Their ladders come from the caps publisher, which reflects the live ChatGPT
+#     catalogue: Astra and 6.1 Sol mark reasoning mandatory, so they get no Off
+#     toggle; the other six list `none` and do. `max` is the top level that
+#     catalogue publishes and is sent as-is; cogito documents `ultra` as
+#     multi-agent orchestration rather than a sendable effort, so it is not here.
 #
-# `glimmer-deleuze` and `heretic-deleuze` get `reasoning.supported` with NO
-# effort list and no toggle: the radiance fleet publishes no named level for
-# either entry (their caps `supported_efforts` are empty), so any level offered
-# here would be a lie. `google/gemma-4-12b-it` gets only the Off toggle, which
-# is the single verified level for that lane.
+# `coder` is gone at the operator's request — same served model as
+# `flashnext-deleuze`, so it only doubled a picker row — and `gemma-4-12b` is
+# reachable but preemptible by a game launch on Amnesia. Changing anything in
+# this ConfigMap restarts the pod (Reloader) and drops in-flight agent sessions.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -64,7 +84,7 @@ data:
       "username": "cogito",
       "update": "disable",
       "plugin": ["/home/opencode/.config/opencode/plugins/paseo-opencode-bridge"],
-      "model": "cogito/coder",
+      "model": "cogito/flashnext-deleuze",
       "providers": {
         "cogito": {
           "name": "Cogito LiteLLM",
@@ -76,21 +96,6 @@ data:
             "chunkTimeout": false
           },
           "models": {
-            "coder": {
-              "modelID": "coder",
-              "name": "Cogito coder (qwen3.8-flash-next)",
-              "capabilities": {
-                "tools": true,
-                "input": ["text"],
-                "output": ["text"],
-                "reasoning": {
-                  "supported": true,
-                  "toggle": true,
-                  "effort": ["minimal", "low", "medium", "xhigh"]
-                }
-              },
-              "limit": { "context": 262144, "output": 16384 }
-            },
             "flashnext-deleuze": {
               "modelID": "flashnext-deleuze",
               "name": "FlashNext @deleuze (qwen3.8-flash-next)",
@@ -138,6 +143,136 @@ data:
                 "reasoning": { "supported": true, "toggle": true }
               },
               "limit": { "context": 65536, "output": 8192 }
+            }
+          }
+        },
+        "cogito-sub": {
+          "name": "Cogito LiteLLM (ChatGPT subscription)",
+          "env": ["COGITO_LITELLM_SUBSCRIPTION_API_KEY"],
+          "package": "@opencode/ai/providers/openai-compatible/responses",
+          "settings": {
+            "baseURL": "http://litellm.llm.svc.cluster.local:4000/v1",
+            "headerTimeout": 3600000,
+            "chunkTimeout": false
+          },
+          "models": {
+            "gpt-6.1-sol": {
+              "modelID": "gpt-6.1-sol",
+              "name": "GPT-6.1 Sol (subscription)",
+              "capabilities": {
+                "tools": true,
+                "input": ["text", "image"],
+                "output": ["text"],
+                "reasoning": {
+                  "supported": true,
+                  "effort": ["low", "medium", "high", "xhigh", "max"]
+                }
+              },
+              "limit": { "context": 922000, "output": 128000 }
+            },
+            "gpt-6.1-terra": {
+              "modelID": "gpt-6.1-terra",
+              "name": "GPT-6.1 Terra (subscription)",
+              "capabilities": {
+                "tools": true,
+                "input": ["text", "image"],
+                "output": ["text"],
+                "reasoning": {
+                  "supported": true,
+                  "toggle": true,
+                  "effort": ["low", "medium", "high", "xhigh", "max"]
+                }
+              },
+              "limit": { "context": 922000, "output": 128000 }
+            },
+            "gpt-6-astra": {
+              "modelID": "gpt-6-astra",
+              "name": "GPT-6 Astra (subscription)",
+              "capabilities": {
+                "tools": true,
+                "input": ["text", "image"],
+                "output": ["text"],
+                "reasoning": {
+                  "supported": true,
+                  "effort": ["low", "medium", "high", "xhigh", "max"]
+                }
+              },
+              "limit": { "context": 922000, "output": 128000 }
+            },
+            "gpt-6-luna": {
+              "modelID": "gpt-6-luna",
+              "name": "GPT-6 Luna (subscription)",
+              "capabilities": {
+                "tools": true,
+                "input": ["text", "image"],
+                "output": ["text"],
+                "reasoning": {
+                  "supported": true,
+                  "toggle": true,
+                  "effort": ["low", "medium", "high", "xhigh", "max"]
+                }
+              },
+              "limit": { "context": 922000, "output": 128000 }
+            },
+            "gpt-6-sol": {
+              "modelID": "gpt-6-sol",
+              "name": "GPT-6 Sol (subscription)",
+              "capabilities": {
+                "tools": true,
+                "input": ["text", "image"],
+                "output": ["text"],
+                "reasoning": {
+                  "supported": true,
+                  "toggle": true,
+                  "effort": ["low", "medium", "high", "xhigh", "max"]
+                }
+              },
+              "limit": { "context": 922000, "output": 128000 }
+            },
+            "gpt-5.6-luna": {
+              "modelID": "gpt-5.6-luna",
+              "name": "GPT-5.6 Luna (subscription)",
+              "capabilities": {
+                "tools": true,
+                "input": ["text", "image"],
+                "output": ["text"],
+                "reasoning": {
+                  "supported": true,
+                  "toggle": true,
+                  "effort": ["low", "medium", "high", "xhigh", "max"]
+                }
+              },
+              "limit": { "context": 922000, "output": 128000 }
+            },
+            "gpt-5.6-sol": {
+              "modelID": "gpt-5.6-sol",
+              "name": "GPT-5.6 Sol (subscription)",
+              "capabilities": {
+                "tools": true,
+                "input": ["text", "image"],
+                "output": ["text"],
+                "reasoning": {
+                  "supported": true,
+                  "toggle": true,
+                  "effort": ["low", "medium", "high", "xhigh", "max"]
+                }
+              },
+              "limit": { "context": 922000, "output": 128000 }
+            },
+            "gpt-5.6-terra": {
+              "modelID": "gpt-5.6-terra",
+              "name": "GPT-5.6 Terra (subscription)",
+              "capabilities": {
+                "tools": true,
+                "input": ["text", "image"],
+                "output": ["text"],
+                "reasoning": {
+                  "supported": true,
+                  "toggle": true,
+                  "effort": ["low", "medium", "high", "xhigh", "max"]
+                }
+              },
+              "limit": { "context": 922000, "output": 128000 }
             }
           }
         }

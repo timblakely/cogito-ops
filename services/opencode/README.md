@@ -114,10 +114,34 @@ flux-local tests before publishing through jj. Check for active Paseo turns
 before rolling the pod.
 
 
+## Models
+
+OpenCode v2 does not discover models for a custom `openai-compatible` provider,
+so every usable model is declared by hand in the system ConfigMap
+(`kubernetes/apps/llm/opencode/app/opencode-config.yaml`). Two provider blocks
+share the one LiteLLM gateway and each reads its own virtual key, so the two
+scopes stay disjoint:
+
+| Block | Package (transport) | Key | Scope |
+| --- | --- | --- | --- |
+| `cogito` | `openai-compatible` (chat completions) | `role-opencode` | the four local chat aliases |
+| `cogito-sub` | `openai-compatible/responses` | `role-opencode-subscription` | the eight ChatGPT subscription aliases |
+
+The split is forced by the catalogue, not taste: every subscription alias is
+registered `info.mode: responses`, so a chat-completions route cannot carry it.
+Adding a model therefore means editing the matching `models` map **and** the
+matching `LiteLLMVirtualKey`, and running the admin `/key/update` afterwards —
+the operator does not push an edited scope onto an already-issued key.
+Subscription usage reports as zero-dollar spend, so a key budget does not
+throttle that block; `maxParallelRequests` does.
+
+
 ## Verification
 
 A provider diagnostic alone is insufficient. From the laptop, select the Cogito
-host and start an OpenCode session in a cluster workspace using `cogito/coder`.
+host and start an OpenCode session in a cluster workspace using
+`cogito/flashnext-deleuze`, then repeat the check with a `cogito-sub/*` model so
+the Responses transport is proven and not merely configured.
 Verify a tool reads cluster files and the turn completes through Paseo. Confirm
 native unauthenticated access is rejected, both containers are Ready on kristeva,
 Flux applied the published revision, and local Hermes remains available.

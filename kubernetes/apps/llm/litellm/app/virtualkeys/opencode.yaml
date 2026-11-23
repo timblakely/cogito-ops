@@ -23,23 +23,29 @@ spec:
   # proxy with clean per-key 429s instead of stacking timeouts on the backend.
   maxParallelRequests: 4
   models:
-    # `coder` -> qwen3.8-flash-next on the radiance lane (262k context, function
-    # calling, reasoning). Widening this list is deliberate: a coding agent that
-    # can reach a paid alias can spend money unattended. See the operator gap
-    # note in litellm/app/models/README.md — scope edits are NOT pushed to an
-    # already-issued key; they need the admin API /key/update afterwards.
-    - coder
     # Chat-capable local aliases, mirroring the workstation Hermes `hermes` key
     # so the cluster OpenCode picker offers the same models as the laptop. All
     # four assert zero cost and all four support tool calls, so OpenCode can
-    # drive them; the local runtime aliases are still free, so widening does
-    # not open a paid path. The ChatGPT subscription aliases stay on
-    # `hermes-subscription` on purpose: they are a real subscription spend and
-    # an unattended agent loop must not hold them without a deliberate choice.
+    # drive them.
+    #
+    # `coder` was dropped at the operator's request: it is the same served model
+    # as `flashnext-deleuze` (qwen3.8-flash-next on the radiance fleet), so it
+    # only added a second picker row for one backend. The `coder` alias itself
+    # stays registered and stays on the `hermes` key.
+    #
+    # The ChatGPT subscription aliases are deliberately NOT here. They are
+    # `mode: responses` deployments and live on `opencode-subscription`, because
+    # OpenCode reaches them through a second provider block and overlapping
+    # scopes would surface each alias twice and drop reasoning items on the
+    # wrong transport.
+    #
+    # Scope edits are NOT pushed to an already-issued key: after this lands, the
+    # live `role-opencode` key must be reconciled with the admin API /key/update.
+    # See the operator gap note in litellm/app/models/README.md.
     - flashnext-deleuze
     # glimmer- and heretic-deleuze are entries on the same exclusive radiance
-    # fleet group as `coder`; picking one displaces the agent lane until the
-    # entry ttl frees both R9700s, exactly as it does for Hermes.
+    # fleet group as the agent lane; picking one displaces it until the entry ttl
+    # frees both R9700s, exactly as it does for Hermes.
     - glimmer-deleuze
     - heretic-deleuze
     - google/gemma-4-12b-it

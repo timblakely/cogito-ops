@@ -92,11 +92,22 @@ spec:
               # Username is fixed to `opencode` by the server; spelled out so
               # the credential shape is obvious next to the password.
               OPENCODE_SERVER_USERNAME: opencode
-              # The LiteLLM virtual key issued for this app (scope: `coder`).
-              # The operator mints it and a PushSecret files it in 1Password.
+              # The LiteLLM virtual key issued for this app (scope: the local
+              # chat aliases). The operator mints it and a PushSecret files it in
+              # 1Password.
               COGITO_LITELLM_API_KEY:
                 secretKeyRef:
                   name: litellm-key-opencode
+                  key: api-key
+              # Second credential, second transport: the ChatGPT subscription
+              # aliases are `mode: responses` deployments on their own key, so
+              # OpenCode's `cogito-sub` provider block needs this one and the
+              # `cogito` block never sees it. Disjoint scopes are what keep an
+              # alias from appearing in both provider blocks. See
+              # litellm/app/virtualkeys/opencode-subscription.yaml.
+              COGITO_LITELLM_SUBSCRIPTION_API_KEY:
+                secretKeyRef:
+                  name: litellm-key-opencode-subscription
                   key: api-key
             probes:
               # /api/info answers 401 without credentials and every unauthenticated
