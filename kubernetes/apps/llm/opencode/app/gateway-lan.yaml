@@ -1,0 +1,55 @@
+---
+# A second, machine-facing route for the same OpenCode service.
+#
+# Why this exists: the browser route (opencode.${DOMAIN_NAME}) carries a
+# SecurityPolicy with an OIDC filter, and Envoy answers unauthenticated requests
+# with a 302 to Pocket ID before they ever reach the pod. That is correct for a
+# human with a browser session and impossible for a headless client doing PKCE.
+# Paseo's OpenCode provider drives the OpenCode HTTP API directly
+# (PASEO_OPENCODE_SERVER_URL), so it needs a path that is authenticated the way
+# OpenCode itself authenticates: HTTP Basic, username opencode, password
+# OPENCODE_PASSWORD.
+#
+# Exposure, stated plainly:
+#   - This route attaches to envoy-internal only (status address
+#     192.168.69.121, RFC1918). Nothing on envoy-external serves this hostname,
+#     so there is no internet path to it.
+#   - No OIDC in front of it. The only gate is OpenCode's own basic auth, which
+#     the server enforces unconditionally - it refuses to run without a
+#     password. That password is generated (ExternalSecret opencode-server,
+#     ClusterGenerator-backed, refreshPolicy OnChange) and mirrored to the
+#     1Password "opencode" item.
+#   - Consequence: anyone who is both on the LAN and holds that password can
+#     drive the agent without a second factor. Rotating the generated Secret
+#     plus reloader revokes them; the agent itself cannot git push or kubectl
+#     (permissions deny in the mounted opencode.json).
+#
+# Keep the SecurityPolicy in gateway-auth.yaml pointed at the HTTPRoute named
+# "opencode" only. It targets a route, not the Gateway, so this hostname is
+# deliberately outside its scope - attaching opencode-oidc here would put the
+# 302 back and break the client.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: opencode-lan
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: envoy-internal
+      namespace: envoy-system
+      sectionName: https
+  hostnames:
+    - opencode-lan.${DOMAIN_NAME}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: opencode
+          namespace: llm
+          port: 4096
+          weight: 1
