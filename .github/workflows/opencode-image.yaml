@@ -30,12 +30,22 @@ jobs:
       # image only means "OpenCode X + cogito's tooling", and a bare sha tag
       # hides which agent version a pod runs. The immutable revision tag is
       # pushed too; the cluster manifest pins THAT by digest.
+      #
+      # The version is read out of the Dockerfile's pinned base rather than
+      # duplicated here. A second literal drifts the moment the base is bumped,
+      # and the drift is invisible: the pod would run 2.4.1 under a tag that
+      # claims 2.3.2.
       - name: Build and publish
         env:
           IMAGE: ghcr.io/${{ github.repository_owner }}/opencode-cogito
           REVISION: ${{ github.sha }}
-          OPENCODE_PIN: "2.3.2"
         run: |
+          OPENCODE_PIN=$(grep -oE 'opencode:[0-9]+\.[0-9]+\.[0-9]+' services/opencode/Dockerfile | head -1 | cut -d: -f2)
+          if [ -z "$OPENCODE_PIN" ]; then
+            echo "::error::could not read the OpenCode version from services/opencode/Dockerfile" >&2
+            exit 1
+          fi
+          echo "building against upstream OpenCode $OPENCODE_PIN"
           docker build --pull \
             --label "org.opencontainers.image.revision=$REVISION" \
             --tag "$IMAGE:$REVISION" \

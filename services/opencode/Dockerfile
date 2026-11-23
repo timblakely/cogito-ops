@@ -19,7 +19,7 @@
 # this repo uses for cluster images), so this child image is reproducible and a
 # floating upstream tag can never silently change what the pod runs.
 
-ARG OPENCODE_IMAGE=ghcr.io/anomalyco/opencode:2.3.2@sha256:43d4d0fb1d94fed8db615f865df7661104a39af6ca94dad631c09844b5e3ff22
+ARG OPENCODE_IMAGE=ghcr.io/anomalyco/opencode:2.4.1@sha256:3759026602e055d93cc357dbc59a4d5c8120a4323f99573de130ba3c59fc2d52
 FROM ${OPENCODE_IMAGE}
 
 USER root
