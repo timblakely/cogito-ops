@@ -29,33 +29,41 @@ spec:
   maintenance:
     enabled: false
 ---
+# One SnapshotPolicy + one SnapshotSchedule per claim, NOT one policy with two
+# sources. Measured 2026-11-23: the two-source policy fired on schedule and minted
+# exactly one Snapshot (opencode-20261123210000) with no `sourceIndex` stamped,
+# which resolved to spec.sources[0] = opencode-home. The 50 Gi workspace claim was
+# silently skipped, while the policy reported Ready with retention enforced - the
+# failure is invisible from status alone. `spec.source.sourceIndex` exists for
+# `pvcSelector` expansion; it is not evidence that explicit multi-source lists fan
+# out. One recipe per claim is also what every other backed-up app here runs.
+#
+# The two claims stay distinct inside the shared repository via the default
+# per-source path `/pvc/<name>`, so neither policy sets sourcePathOverride
+# (single-claim apps pin /data, which would collide here).
+#
+# What each claim holds:
+#   opencode-home      - the agent's HOME: model config, session history and the
+#                        Paseo tool-bridge plugin registered under
+#                        ~/.config/opencode. Losing it means re-pinning that
+#                        plugin by hand before Paseo can bind a session again.
+#   opencode-workspace - mounted at both /workspace and /home/tim. The /home/tim
+#                        half is what Paseo sends as x-opencode-directory, so the
+#                        Paseo OpenCode home and every ~/git/<repo> workspace
+#                        live on it.
+---
 # yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kopiur.home-operations.com/snapshotpolicy_v1alpha1.json
 apiVersion: kopiur.home-operations.com/v1alpha1
 kind: SnapshotPolicy
 metadata:
-  name: opencode
+  name: opencode-home
 spec:
   repository:
     kind: Repository
     name: opencode
-  # Two claims, both load-bearing, one consistent group snapshot (kopiur's
-  # default groupBy covers every source in the policy):
-  #   opencode-home     - the agent's HOME: model config, session history, and
-  #                       the Paseo tool-bridge plugin registered under
-  #                       ~/.config/opencode. Losing it means re-pinning the
-  #                       plugin by hand before Paseo can bind a session again.
-  #   opencode-workspace - mounted at both /workspace and /home/tim. The
-  #                       /home/tim half is what Paseo sends as
-  #                       x-opencode-directory, so the Paseo OpenCode home and
-  #                       every ~/git/<repo> workspace live here.
   sources:
     - pvc:
         name: opencode-home
-    - pvc:
-        name: opencode-workspace
-  # No sourcePathOverride: the default records each source as /pvc/<name>, which
-  # keeps the two sources distinct inside the shared repository. Pinning both to
-  # one path (as single-claim apps pin /data) would collide.
   identity:
     username: opencode
     hostname: llm
@@ -82,9 +90,56 @@ spec:
 apiVersion: kopiur.home-operations.com/v1alpha1
 kind: SnapshotSchedule
 metadata:
-  name: opencode
+  name: opencode-home
 spec:
   policyRef:
-    name: opencode
+    name: opencode-home
   schedule:
     cron: "0 * * * *"
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kopiur.home-operations.com/snapshotpolicy_v1alpha1.json
+apiVersion: kopiur.home-operations.com/v1alpha1
+kind: SnapshotPolicy
+metadata:
+  name: opencode-workspace
+spec:
+  repository:
+    kind: Repository
+    name: opencode
+  sources:
+    - pvc:
+        name: opencode-workspace
+  identity:
+    username: opencode
+    hostname: llm
+  copyMethod: Snapshot
+  volumeSnapshotClassName: csi-ceph-blockpool
+  compression:
+    compressor: zstd-fastest
+  upload:
+    maxParallelFileReads: 2
+  mover:
+    cache:
+      mode: Persistent
+      capacity: 2Gi
+      storageClassName: openebs-hostpath
+    podSecurityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+  retention:
+    keepHourly: 24
+    keepDaily: 7
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kopiur.home-operations.com/snapshotschedule_v1alpha1.json
+apiVersion: kopiur.home-operations.com/v1alpha1
+kind: SnapshotSchedule
+metadata:
+  name: opencode-workspace
+spec:
+  policyRef:
+    name: opencode-workspace
+  schedule:
+    # Offset from the top of the hour: thirteen other apps here fire their movers
+    # at :00 against the same Kopia repository, and this is the larger volume.
+    cron: "30 * * * *"
