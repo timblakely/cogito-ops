@@ -4,6 +4,14 @@ kind: ConfigMap
 metadata:
   name: paseo-config
 data:
+  # Paseo treats `enabled` as optional, so a provider the ConfigMap does not
+  # name comes up Enabled with its bundled catalogue. Measured on this host:
+  # claude, codex, copilot, antigravity, pi and muse all reported `Enabled`
+  # while listed nowhere, so the picker showed Paseo's own free-tier models
+  # (labels like "Tidepool") next to the cogito aliases. None of those names
+  # exist in this repo, so they can only be Paseo's. Enumerate every provider
+  # explicitly: the only thing this host should advertise is OpenCode.
+  # Keep this JSON strict -- no comments inside it.
   config.json: |
     {
       "$schema": "https://paseo.sh/schemas/paseo.config.v1.json",
@@ -15,7 +23,14 @@ data:
             "enabled": true,
             "env": { "PASEO_OPENCODE_SERVER_URL": "http://127.0.0.1:4096" }
           },
-          "hermes": { "enabled": false }
+          "hermes": { "enabled": false },
+          "claude": { "enabled": false },
+          "codex": { "enabled": false },
+          "copilot": { "enabled": false },
+          "antigravity": { "enabled": false },
+          "pi": { "enabled": false },
+          "omp": { "enabled": false },
+          "muse": { "enabled": false }
         }
       }
     }
