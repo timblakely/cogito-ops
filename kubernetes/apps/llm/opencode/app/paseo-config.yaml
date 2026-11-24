@@ -5,32 +5,127 @@ metadata:
   name: paseo-config
 data:
   # Paseo treats `enabled` as optional, so a provider the ConfigMap does not
-  # name comes up Enabled with its bundled catalogue. Measured on this host:
-  # claude, codex, copilot, antigravity, pi and muse all reported `Enabled`
-  # while listed nowhere, so the picker showed Paseo's own free-tier models
-  # (labels like "Tidepool") next to the cogito aliases. None of those names
-  # exist in this repo, so they can only be Paseo's. Enumerate every provider
-  # explicitly: the only thing this host should advertise is OpenCode.
+  # name comes up Enabled with its bundled catalogue. Measured here: claude,
+  # codex, copilot, antigravity, pi and muse all reported `Enabled` while
+  # listed nowhere. Enumerate every provider explicitly -- the only thing this
+  # host should offer is OpenCode.
+  #
+  # That alone is not enough. OpenCode ships its own free tier, and the Paseo
+  # bridge advertises it alongside the cogito aliases: ten extra rows named
+  # `opencode/tidepool-alpha-free`, `opencode/iceman-free`,
+  # `opencode/big-pickle` and so on. None of those names exist in this repo.
+  # Declaring `models` REPLACES the advertised set -- `additionalModels` is
+  # the additive one -- so listing the twelve cogito aliases drops the free
+  # tier: measured 22 advertised -> 12, and a session bound to
+  # cogito/flashnext-deleuze still round-trips a Read tool call. Keep this
+  # list equal to the union of the two OpenCode provider blocks in
+  # opencode-config.yaml; ids are `<provider>/<alias>` exactly as OpenCode
+  # reports them.
+  #
   # Keep this JSON strict -- no comments inside it.
   config.json: |
     {
       "$schema": "https://paseo.sh/schemas/paseo.config.v1.json",
       "version": 1,
-      "daemon": { "relay": { "enabled": false } },
+      "daemon": {
+        "relay": {
+          "enabled": false
+        }
+      },
       "agents": {
         "providers": {
           "opencode": {
             "enabled": true,
-            "env": { "PASEO_OPENCODE_SERVER_URL": "http://127.0.0.1:4096" }
+            "env": {
+              "PASEO_OPENCODE_SERVER_URL": "http://127.0.0.1:4096"
+            },
+            "models": [
+              {
+                "id": "cogito/flashnext-deleuze",
+                "label": "flashnext-deleuze",
+                "isDefault": true
+              },
+              {
+                "id": "cogito/glimmer-deleuze",
+                "label": "glimmer-deleuze",
+                "isDefault": false
+              },
+              {
+                "id": "cogito/heretic-deleuze",
+                "label": "heretic-deleuze",
+                "isDefault": false
+              },
+              {
+                "id": "cogito/gemma-4-12b",
+                "label": "gemma-4-12b",
+                "isDefault": false
+              },
+              {
+                "id": "cogito-sub/gpt-6-astra",
+                "label": "gpt-6-astra",
+                "isDefault": false
+              },
+              {
+                "id": "cogito-sub/gpt-6.1-sol",
+                "label": "gpt-6.1-sol",
+                "isDefault": false
+              },
+              {
+                "id": "cogito-sub/gpt-6.1-terra",
+                "label": "gpt-6.1-terra",
+                "isDefault": false
+              },
+              {
+                "id": "cogito-sub/gpt-6-luna",
+                "label": "gpt-6-luna",
+                "isDefault": false
+              },
+              {
+                "id": "cogito-sub/gpt-6-sol",
+                "label": "gpt-6-sol",
+                "isDefault": false
+              },
+              {
+                "id": "cogito-sub/gpt-5.6-sol",
+                "label": "gpt-5.6-sol",
+                "isDefault": false
+              },
+              {
+                "id": "cogito-sub/gpt-5.6-terra",
+                "label": "gpt-5.6-terra",
+                "isDefault": false
+              },
+              {
+                "id": "cogito-sub/gpt-5.6-luna",
+                "label": "gpt-5.6-luna",
+                "isDefault": false
+              }
+            ]
           },
-          "hermes": { "enabled": false },
-          "claude": { "enabled": false },
-          "codex": { "enabled": false },
-          "copilot": { "enabled": false },
-          "antigravity": { "enabled": false },
-          "pi": { "enabled": false },
-          "omp": { "enabled": false },
-          "muse": { "enabled": false }
+          "hermes": {
+            "enabled": false
+          },
+          "claude": {
+            "enabled": false
+          },
+          "codex": {
+            "enabled": false
+          },
+          "copilot": {
+            "enabled": false
+          },
+          "antigravity": {
+            "enabled": false
+          },
+          "pi": {
+            "enabled": false
+          },
+          "omp": {
+            "enabled": false
+          },
+          "muse": {
+            "enabled": false
+          }
         }
       }
     }
