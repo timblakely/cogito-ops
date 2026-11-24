@@ -1,0 +1,13 @@
+---
+apiVersion: toolhive.stacklok.dev/v1beta1
+kind: MCPOIDCConfig
+metadata:
+  name: flux-ops
+  namespace: llm
+spec:
+  type: kubernetesServiceAccount
+  kubernetesServiceAccount:
+    # Issuer is the token's real iss, not the Kubernetes Service DNS name.
+    issuer: https://k8s.internal:6443
+    jwksUrl: https://kubernetes.default.svc/openid/v1/jwks
+    useClusterAuth: true

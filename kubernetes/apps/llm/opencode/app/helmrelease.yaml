@@ -23,6 +23,8 @@ spec:
   values:
     controllers:
       opencode:
+        serviceAccount:
+          name: opencode-reader
         annotations:
           # Both credentials this pod reads can change without the Deployment
           # template changing: the LiteLLM key is re-issued by the operator and
@@ -76,6 +78,7 @@ spec:
               - --port
               - "4096"
             env:
+              KUBECONFIG: /etc/opencode/kube/config
               # OpenCode always protects the server with HTTP basic auth: with
               # no password configured it generates one at every start, which
               # is useless across restarts. v2 reads OPENCODE_PASSWORD and
@@ -200,6 +203,37 @@ spec:
               - identifier: main
                 port: *port
     persistence:
+      flux-mcp-identity:
+        type: custom
+        volumeSpec:
+          projected:
+            defaultMode: 0440
+            sources:
+              - serviceAccountToken:
+                  audience: cogito-flux-mcp
+                  expirationSeconds: 3600
+                  path: token
+        advancedMounts:
+          opencode:
+            main:
+              - path: /var/run/secrets/flux-mcp
+                readOnly: true
+      kubeconfig:
+        type: configMap
+        name: opencode-kubeconfig
+        advancedMounts:
+          opencode:
+            main:
+              - path: /etc/opencode/kube
+                readOnly: true
+      flux-mcp-bridge:
+        type: configMap
+        name: opencode-flux-mcp-bridge
+        advancedMounts:
+          opencode:
+            main:
+              - path: /etc/opencode/mcp
+                readOnly: true
       paseo-config:
         type: configMap
         name: paseo-config

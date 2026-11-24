@@ -10,6 +10,8 @@ done
 env -S true
 opencode --version
 paseo --version
+# The managed Flux relay imports these transports from Paseo's dependency tree.
+node -e 'const r=require("node:module").createRequire("/usr/local/lib/node_modules/@getpaseo/cli/package.json"); for(const p of ["client/streamableHttp.js", "client/stdio.js", "server/stdio.js"]) r.resolve("@modelcontextprotocol/sdk/"+p)'
 mise --version
 kubectl version --client -o json | jq -e '.clientVersion.gitVersion == "v1.34.2"'
 helm version --short

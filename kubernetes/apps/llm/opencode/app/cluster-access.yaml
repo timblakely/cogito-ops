@@ -1,0 +1,54 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: opencode-reader
+  namespace: llm
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: opencode-investigator
+rules:
+  # No Secrets, exec, attach, node proxy, token requests, or resource writes.
+  - apiGroups: [""]
+    resources: [pods, pods/log, services, endpoints, events, namespaces, nodes,
+                configmaps, persistentvolumes, persistentvolumeclaims,
+                replicationcontrollers, resourcequotas, limitranges, serviceaccounts]
+    verbs: [get, list, watch]
+  - apiGroups: [apps, batch, autoscaling, policy, networking.k8s.io,
+                discovery.k8s.io, events.k8s.io, metrics.k8s.io,
+                storage.k8s.io, snapshot.storage.k8s.io, groupsnapshot.storage.k8s.io,
+                scheduling.k8s.io, apiextensions.k8s.io, rbac.authorization.k8s.io,
+                kustomize.toolkit.fluxcd.io, helm.toolkit.fluxcd.io,
+                source.toolkit.fluxcd.io, notification.toolkit.fluxcd.io,
+                image.toolkit.fluxcd.io, fluxcd.controlplane.io,
+                gateway.networking.k8s.io, gateway.networking.x-k8s.io,
+                gateway.envoyproxy.io, monitoring.coreos.com, cilium.io,
+                toolhive.stacklok.dev, kopiur.home-operations.com,
+                postgresql.cnpg.io, ceph.rook.io, cert-manager.io,
+                external-secrets.io, generators.external-secrets.io,
+                inference.llmkube.dev, federation.llmkube.dev, foreman.llmkube.dev,
+                litellm.home-operations.com, pocketid.internal, talos.dev,
+                nfd.k8s-sigs.io, k8s.cni.cncf.io, infra.contrib.fluxcd.io,
+                objectbucket.io, fpga.intel.com]
+    resources: ["*"]
+    verbs: [get, list, watch]
+  # Diagnostic tunnels are an intentional exception to read-only verbs.
+  - apiGroups: [""]
+    resources: [pods/portforward]
+    verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: opencode-investigator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: opencode-investigator
+subjects:
+  - kind: ServiceAccount
+    name: opencode-reader
+    namespace: llm

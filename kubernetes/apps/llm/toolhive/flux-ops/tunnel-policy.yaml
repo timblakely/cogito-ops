@@ -1,0 +1,42 @@
+---
+# NetworkPolicy does not see API-server/kubelet tunnels. Use admission for them.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: opencode-protect-toolhive-tunnels
+spec:
+  failurePolicy: Fail
+  paramKind:
+    apiVersion: v1
+    kind: Pod
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CONNECT]
+        resources: [pods/portforward, pods/exec, pods/attach]
+  matchConditions:
+    - name: opencode-reader-only
+      expression: request.userInfo.username == 'system:serviceaccount:llm:opencode-reader'
+  validations:
+    - expression: request.namespace != params.metadata.namespace || request.name != params.metadata.name
+      message: OpenCode must use the authenticated ToolHive MCP proxy, not tunnel into ToolHive pods.
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: opencode-protect-toolhive-tunnels
+spec:
+  policyName: opencode-protect-toolhive-tunnels
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: llm
+  paramRef:
+    namespace: llm
+    selector:
+      matchLabels:
+        toolhive: "true"
+    # No matching pods means there is no ToolHive pod to protect.
+    parameterNotFoundAction: Allow

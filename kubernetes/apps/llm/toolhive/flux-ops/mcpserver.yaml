@@ -1,0 +1,55 @@
+---
+apiVersion: toolhive.stacklok.dev/v1beta1
+kind: MCPServer
+metadata:
+  name: flux-ops
+  namespace: llm
+spec:
+  # Flux MCP v0.63.1, multiarch index verified against GHCR.
+  image: ghcr.io/controlplaneio-fluxcd/flux-operator-mcp@sha256:556f9fbef8c10c6ded833463dc830708e82043cfe819296ade4fef32f87f8dd2
+  # Flux's strict stdio session cannot multiplex independent OpenCode clients.
+  # Native HTTP is protected by NetworkPolicy AND the tunnel admission policy.
+  args: [serve, --transport=http, --port=8080, --read-only=false, --mask-secrets=true]
+  transport: streamable-http
+  proxyMode: streamable-http
+  proxyPort: 8080
+  mcpPort: 8080
+  replicas: 1
+  backendReplicas: 1
+  serviceAccount: opencode-flux-operator
+  oidcConfigRef:
+    name: flux-ops
+    audience: cogito-flux-mcp
+  authzConfig:
+    type: inline
+    inline:
+      policies:
+        - 'permit(principal == Client::"system:serviceaccount:llm:opencode-reader", action, resource);'
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  podTemplateSpec:
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: kristeva
+      serviceAccountName: opencode-flux-operator
+      automountServiceAccountToken: true
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      containers:
+        - name: mcp
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: '1'
+              memory: 512Mi

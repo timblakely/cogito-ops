@@ -277,13 +277,20 @@ data:
           }
         }
       },
+      "mcp": {
+        "flux": {
+          "type": "local",
+          "command": ["node", "/etc/opencode/mcp/flux-mcp-bridge.mjs"],
+          "enabled": true
+        }
+      },
       "permissions": [
         { "action": "shell", "resource": "*", "effect": "ask" },
         { "action": "shell", "resource": "git status *", "effect": "allow" },
         { "action": "shell", "resource": "git diff *", "effect": "allow" },
         { "action": "shell", "resource": "git log *", "effect": "allow" },
         { "action": "shell", "resource": "git push *", "effect": "deny" },
-        { "action": "shell", "resource": "kubectl *", "effect": "deny" },
+        { "action": "shell", "resource": "kubectl *", "effect": "allow" },
         { "action": "read", "resource": "*.env", "effect": "deny" },
         { "action": "read", "resource": "*.pem", "effect": "deny" }
       ]

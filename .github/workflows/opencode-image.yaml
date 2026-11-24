@@ -27,7 +27,9 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Check source and LAN-only build contract
         run: |
+          python3 -m pip install PyYAML==6.0.3
           node --check services/opencode/materialize-bridge.mjs
+          node --check kubernetes/apps/llm/opencode/app/flux-mcp-bridge.mjs
           sh -n services/opencode/smoke.sh
           sh -n services/opencode/build/build.sh
           kubectl kustomize services/opencode > /dev/null

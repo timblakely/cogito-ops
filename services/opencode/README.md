@@ -114,6 +114,74 @@ flux-local tests before publishing through jj. Check for active Paseo turns
 before rolling the pod.
 
 
+## Cluster operations
+
+The OpenCode pod uses `llm/opencode-reader`, not an administrator kubeconfig.
+Its mounted kubeconfig references the projected service-account `tokenFile`, so
+client-go rereads rotating credentials. `kubectl` can read resources across the
+cluster, read pod logs, watch changes, query metrics, and port-forward. Secret
+contents, exec, node proxy and direct resource mutation are not granted.
+Port-forward deliberately requires `create pods/portforward`; the resulting
+localhost listener is inside the OpenCode pod, not on the laptop.
+
+Managed OpenCode MCP server `flux` connects to ToolHive's internal
+`mcp-flux-ops-proxy.llm.svc.cluster.local:8080/mcp`. A small stdio/HTTP transport
+adapter uses the MCP SDK already in the image and rereads the reader identity
+on each HTTP request; no static token, cached authorization header, new image
+build, or laptop callback is needed. Request failures return JSON-RPC errors
+without killing the relay or blindly replaying potentially completed writes.
+If authentication fails, verify `kubectl get --raw /.well-known/openid-configuration`
+reports the issuer pinned in `toolhive/flux-ops/auth.yaml`. The proxy authenticates Kubernetes JWTs
+and authorizes only the reader subject. NetworkPolicies restrict proxy ingress
+to OpenCode and backend ingress to the proxy. A ValidatingAdmissionPolicy
+additionally denies this reader's port-forward/exec/attach requests into all
+ToolHive-labelled pods: kubelet tunnels bypass NetworkPolicy. Its Pod-parameter
+selector follows generated pod names instead of relying on a StatefulSet ordinal.
+The HTTP transport supports independent clients; Flux's stdio session rejects
+multiple initializes and cannot be used as a shared backend here.
+Neither component has a public route. Port-forward itself is not a read-only
+security primitive: it may reach a target application's privileged localhost
+listeners. The direct mutation restriction refers to Kubernetes API RBAC, not
+the behavior of every application reachable over a tunnel.
+
+The Flux MCP backend alone holds `llm/opencode-flux-operator`. It can
+apply/patch/delete ordinary workloads, ConfigMaps, Services, PVCs, service accounts,
+ingress/network policies, and Flux sources/Kustomizations/HelmReleases. It also
+manages these namespaced application CR instances: ExternalSecret/PushSecret,
+Envoy SecurityPolicy, PocketIDOIDCClient/PocketIDUserGroup, and Kopiur
+Repository/SnapshotPolicy/SnapshotSchedule/Snapshot. Managing CR instances is
+not CRD-definition administration. It supports reconcile and suspend/resume
+through the upstream Flux MCP tools. Direct RBAC, Secret, TokenRequest, node,
+namespace, PV, CRD-definition, cluster credential store and database
+administration are not granted; the direct reader identity is unchanged.
+These are operational credentials, NOT a sandbox: workloads, Flux inputs,
+ExternalSecrets and identity/backup controllers confer substantial indirect
+credential and data authority. MCP is the credential/transport boundary, not
+protection from an authorized agent's misuse. Only use this host for trusted
+projects and instructions.
+
+Operational cleanup must check external identities, not just Kubernetes names.
+Cross-namespace PushSecrets can overwrite the same vault field; verify
+`deletionPolicy: None` before removing a duplicate exporter. Duplicate Pocket ID
+CRs can own the same remote client/group: normal finalization may delete the
+working application's identity. Orphan shared remote objects instead. Before
+removing backup owners, stop their schedules and retain snapshots; deleting a
+Snapshot CR with `deletionPolicy: Delete` can delete the actual backup. Never
+strip storage/identity finalizers merely to make cleanup green.
+
+Persistent changes still belong in the repository and go through `jj` and Flux;
+the MCP path supports operational changes and temporary diagnostic/experiment
+workloads without pretending everything must first be committed. GPU workloads
+remain separate from the interactive pod; do not preempt/delete gaming pods.
+
+Run `python3 -m unittest discover -s services/opencode -p 'test_*.py' -v`
+with PyYAML 6.0.3 installed for static policy/config checks. Live acceptance must
+also exercise reads/logs and a real tunnel, reject direct writes and unauthenticated
+or wrong-subject MCP calls, confirm backend and proxy tunnel requests are
+rejected by admission while normal diagnostic tunnels still work, apply/patch/delete disposable resources through MCP,
+and request and observe a Flux reconcile. Prove tool use through a real Paseo
+session, not just a direct MCP handshake.
+
 ## Models
 
 OpenCode v2 does not discover models for a custom `openai-compatible` provider,
