@@ -6,7 +6,11 @@ configMapGenerator:
   - name: amd-fan-control-script
     files:
       - fanctl.py
+  - name: amd-vram-exporter-script
+    files:
+      - vram-exporter.py
 resources:
   - ./daemonset.yaml
   - ./fan-control.yaml
+  - ./vram-exporter.yaml
   - ./grafanadashboard.yaml
