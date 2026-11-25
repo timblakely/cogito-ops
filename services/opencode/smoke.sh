@@ -35,5 +35,7 @@ printf 'int main(void) { return 0; }\n' > "$tmp/check.c"
 gcc "$tmp/check.c" -o "$tmp/check"
 "$tmp/check"
 [ -s /opt/paseo-bridge/server.js ]
+python3 /opt/paseo-compat/patch-genui.py --check /opt/paseo-genui/node_modules/paseo-plugin-genui
+[ ! -w /opt/paseo-genui/node_modules/paseo-plugin-genui/index.server.ts ]
 [ -s /opt/opencode-apk-packages.txt ]
 printf 'OPENCODE_HOMEOPS_SMOKE_OK\n'

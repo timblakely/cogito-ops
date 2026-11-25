@@ -3,7 +3,9 @@ set -eu
 # Called only inside the bounded BuildKit Job, not as a workstation image build.
 context=/scratch/context
 mkdir -p "$context" /scratch/buildkit
-for file in Dockerfile packages.txt materialize-bridge.mjs smoke.sh; do
+for file in Dockerfile packages.txt materialize-bridge.mjs smoke.sh \
+    genui-package.json genui-package-lock.json patch-genui.py configure-paseo.py \
+    test_genui_compat.mjs test_genui_bootstrap.py; do
     cp "/scripts/$file" "$context/$file"
 done
 # A privileged OCI worker otherwise creates host-root /buildkit cgroups and
@@ -41,7 +43,9 @@ done
 printf '%s\n' "$daemon" > "/sys/fs/cgroup$container_cgroup/cgroup.procs"
 grep -Fx "0::$container_cgroup" "/proc/$daemon/cgroup"
 printf 'BUILD_POD_LIMITS cpu=%s/%s memory=%s parent=%s\n' "$quota" "$period" "$memory" "$pod_cgroup"
-recipe=$(cd /scripts && sha256sum Dockerfile packages.txt materialize-bridge.mjs smoke.sh build.sh buildkitd.toml job.yaml | sha256sum | cut -d " " -f1)
+recipe=$(cd /scripts && sha256sum Dockerfile packages.txt materialize-bridge.mjs smoke.sh \
+    genui-package.json genui-package-lock.json patch-genui.py configure-paseo.py \
+    test_genui_compat.mjs test_genui_bootstrap.py build.sh buildkitd.toml job.yaml | sha256sum | cut -d " " -f1)
 short_recipe=$(printf '%s' "$recipe" | cut -c1-16)
 image="registry.timblakely.com/timblakely/opencode-cogito:homeops-$short_recipe"
 printf '%s\n' "$image" > /scratch/image-ref.txt

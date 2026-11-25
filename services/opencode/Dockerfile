@@ -54,6 +54,19 @@ RUN curl --fail --silent --show-error --location \
 RUN npm install --global --omit=dev @getpaseo/cli@0.17.3 \
     && npm cache clean --force
 
+# GenUI is immutable image content, not a package patched on the home claim.
+# Unexpected upstream changes must fail compatibility checks before publication.
+COPY genui-package.json /opt/paseo-genui/package.json
+COPY genui-package-lock.json /opt/paseo-genui/package-lock.json
+COPY patch-genui.py configure-paseo.py test_genui_compat.mjs test_genui_bootstrap.py /opt/paseo-compat/
+RUN npm ci --prefix /opt/paseo-genui --omit=dev --ignore-scripts --no-audit --no-fund \
+    && python3 /opt/paseo-compat/patch-genui.py /opt/paseo-genui/node_modules/paseo-plugin-genui \
+    && GENUI_PACKAGE_ROOT=/opt/paseo-genui/node_modules/paseo-plugin-genui \
+       node --test /opt/paseo-compat/test_genui_compat.mjs \
+    && GENUI_PACKAGE_ROOT=/opt/paseo-genui/node_modules/paseo-plugin-genui \
+       python3 -m unittest discover -s /opt/paseo-compat -p test_genui_bootstrap.py -v \
+    && npm cache clean --force
+
 # uid/gid 1000 is what the HelmRelease pod securityContext runs as; the PVCs
 # mounted over /home/opencode and /workspace are chowned by fsGroup.
 RUN adduser -D -u 1000 -h /home/opencode opencode \

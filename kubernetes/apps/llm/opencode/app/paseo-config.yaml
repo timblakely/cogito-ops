@@ -34,7 +34,19 @@ data:
     {
       "$schema": "https://paseo.sh/schemas/paseo.config.v1.json",
       "version": 1,
+      "pluginsEnabled": true,
+      "plugins": {
+        "genui": {
+          "source": "directory",
+          "path": "/opt/paseo-genui/node_modules/paseo-plugin-genui",
+          "enabled": true
+        }
+      },
       "daemon": {
+        "mcp": {
+          "enabled": true,
+          "injectIntoAgents": true
+        },
         "relay": {
           "enabled": false
         }

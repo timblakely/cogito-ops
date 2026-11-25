@@ -14,6 +14,16 @@ def embedded_config(filename, key):
 
 
 class PaseoCatalogTests(unittest.TestCase):
+    def test_managed_genui_and_native_tools_are_enabled_at_fresh_boot(self):
+        paseo = embedded_config("paseo-config.yaml", "config.json")
+        self.assertTrue(paseo.get("pluginsEnabled", False))
+        self.assertTrue(paseo["daemon"]["mcp"]["injectIntoAgents"])
+        self.assertEqual(paseo["plugins"]["genui"], {
+            "source": "directory",
+            "path": "/opt/paseo-genui/node_modules/paseo-plugin-genui",
+            "enabled": True,
+        })
+
     def test_replacement_models_preserve_opencode_variants(self):
         opencode = embedded_config("opencode-config.yaml", "opencode.json")
         paseo = embedded_config("paseo-config.yaml", "config.json")

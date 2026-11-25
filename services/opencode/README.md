@@ -61,6 +61,45 @@ records the resolved OS package versions; OS indexes and npm transitive packages
 are not fully locked, so a clean rebuild may have a different digest. Pin the
 published artifact, not a claim of byte-identical rebuilds.
 
+## Managed GenUI and native tools
+
+The image installs `paseo-plugin-genui@0.3.3` with the committed
+`genui-package-lock.json` and applies `patch-genui.py` at build time. The patch
+checks exact upstream source hashes; unexpected source or versions fail the
+build instead of silently dropping compatibility. The uid-1000 smoke test
+verifies the patched hashes and that source is not writable. There is no GenUI
+package download or patch repair at pod startup.
+
+Paseo loads GenUI from `/opt/paseo-genui/node_modules/paseo-plugin-genui`, outside
+the writable home claim. Managed config sets the global `pluginsEnabled: true`
+gate, enables the GenUI entry, and explicitly sets
+`daemon.mcp.injectIntoAgents: true`, exposing native session-bound tools,
+including GenUI's `render_ui`, through the existing OpenCode bridge. This also
+exposes ordinary Paseo agent tools under the configured provider policy; it
+does not add a global MCP server or relax shared-server isolation.
+
+The compatibility hook leaves OpenCode process env untouched. It contributes
+an unchanged `render_ui` definition and puts each chat's absolute storage path
+in `appendSystemPrompt` (an array of strings). Avoid per-chat tool descriptions:
+OpenCode shares definitions and rejects conflicting ones. Other providers
+retain upstream storage env variables. File-backed UI uses shared
+`$HOME/.paseo/genui-storage/<agent-id>`, not either container's private `/tmp`;
+symbolic Load/Snippet/Image storage prefixes still resolve there.
+
+At startup `configure-paseo.py` atomically seeds managed settings with mode
+0600. It preserves user-installed plugin entries such as Better Paseo and
+Progress, but managed GenUI wins over old/disabled PVC installations. It does
+not preserve provider/model overrides or erase sessions, plugin settings, or
+UI data. A deliberate plugin reinstall can repoint runtime config; startup
+reasserts the managed image path. Upgrade GenUI through the image recipe and
+review the patch rather than editing the installed package.
+
+Run hook tests against a patched installation with
+`GENUI_PACKAGE_ROOT=<package-dir> node --test services/opencode/test_genui_compat.mjs`.
+The image build also runs `test_genui_bootstrap.py`. After deployment, create
+two new chats and require actual `render_ui` calls and corresponding GenUI
+timeline entries; an inline block alone does not verify native tools.
+
 ## LAN-only image builds
 
 Images live only at `registry.timblakely.com/timblakely/opencode-cogito`.

@@ -75,15 +75,14 @@ spec:
           configure-paseo:
             image: &image
               repository: registry.timblakely.com/timblakely/opencode-cogito
-              tag: homeops-1dd3256ba14b493a@sha256:0c43d3bab624f901ee7417eb934606c97c6ca6b990bf3c38cb017304bd9703e5
+              tag: homeops-cf7d94f2c75a6755@sha256:e51dff0054fc83f5d504e190558eb25c3480e8b22bf3ca1fae4fe87ec61644c5
             command: [/bin/sh, -ec]
             args:
               - |
                 mkdir -p /home/opencode/.paseo/opencode-home
                 mkdir -p /home/opencode/.config/opencode/plugins/paseo-opencode-bridge
                 cp -R /opt/paseo-bridge/. /home/opencode/.config/opencode/plugins/paseo-opencode-bridge/
-                cp /etc/paseo/config.json /home/opencode/.paseo/config.json
-                chmod 600 /home/opencode/.paseo/config.json
+                python3 /opt/paseo-compat/configure-paseo.py /etc/paseo/config.json /home/opencode/.paseo/config.json
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
