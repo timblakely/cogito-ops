@@ -68,6 +68,24 @@
 #     toggle; the other six list `none` and do. `max` is the top level that
 #     catalogue publishes and is sent as-is; cogito documents `ultra` as
 #     multi-agent orchestration rather than a sendable effort, so it is not here.
+#   - `flashnext-deleuze` gained `input: image` on 2026-11-25, and only after the
+#     fleet entry was given its encoder tower (`mm-max-patches: 4096`,
+#     `vision-tower-placement: vram`, tower placed at 856.68 MiB a rank — see
+#     ../../llmkube/resources/radiance-deleuze.yaml and the LiteLLMModel file,
+#     which carry the same numbers). Before that the entry refused every image
+#     with 501 "image input requires a vision encoder; this model was loaded
+#     without one", and advertising image here would have been the exact failure
+#     mode this header warns about. Measured through this proxy on solid-red
+#     PNGs: it answers "Red", `finish_reason: stop`, and the prompt-token delta
+#     over the same text-only prompt (63) was 66 at 24x24 / 96x96 / 256x256, 258
+#     at 512x512, 512 at 960x540 and 1010 at 1920x1080, every one sub-second,
+#     container restartCount 0. Two surprises in that table: frames smaller than
+#     a 64x64 grid still cost the 66-token floor, so a thumbnail is not cheap,
+#     and anything past the 1048576-pixel pass cap is RESIZED rather than refused
+#     (a native 1080p arrives as 1010 image tokens, not 2040). Third, and it
+#     bites any caller: thinking is mandatory on this entry, so a small
+#     `max_tokens` comes back `content: ""` with the entire budget spent in
+#     `reasoning_content`.
 #
 # `coder` is gone at the operator's request — same served model as
 # `flashnext-deleuze`, so it only doubled a picker row — and `gemma-4-12b` is
@@ -101,7 +119,7 @@ data:
               "name": "FlashNext @deleuze (qwen3.8-flash-next)",
               "capabilities": {
                 "tools": true,
-                "input": ["text"],
+                "input": ["text", "image"],
                 "output": ["text"],
                 "reasoning": {
                   "supported": true,

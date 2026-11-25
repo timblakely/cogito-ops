@@ -1,3 +1,40 @@
+# Backend: the `qwen3.8-flash-next` entry of the Radiance 2.x fleet on Deleuze -
+# the agent lane, one process with muse-glimmer, flux-3-klein and gemma4-heretic,
+# tp 2 on both Radeon AI PRO R9700s. This file carried no vision claim for a
+# reason: until 2026-11-25 the entry ran `mm-max-patches: 0` and refused every
+# image with 501 "image input requires a vision encoder; this model was loaded
+# without one", even though the container always shipped a complete Qwen4-Exp
+# tower. The lane now places it (`placement: encoder towers (856.68 MiB a rank)
+# vram`, measured by rad-info at 856.27 MiB across 333 `v.*` planes; encoders are
+# not sharded, so a whole tower lands on each card) with the media budget capped
+# at 4096 patches, and `media: images and video through 'vision'` in its report.
+#
+# supportsVision: true, MEASURED through this proxy on 2026-11-25, not copied
+# from the container's vision_config. Solid-red PNGs, same text-only prompt as
+# control (63 prompt tokens):
+#
+#   frame         image tokens   answer
+#   24x24 / 96x96 / 256x256   66    "Red" (finish_reason stop, 0.9 s)
+#   512x512                   258
+#   960x540                   512
+#   1920x1080                1010
+#
+# patch 16 with spatial_merge_size 2 makes a token a 32x32 px block, so 512x512
+# is 256 tokens as the config predicts - but two things are NOT what the config
+# predicts, and both matter to a caller. Below a 64x64 grid every frame costs the
+# same 66-token floor, so small images are not cheap; and a frame past the
+# 1048576-pixel pass cap is resized rather than refused, which is why a native
+# 1080p costs 1010 tokens instead of 2040. Everything sub-second, because the
+# tower sits on the cards: unlike routing an image to `heretic-deleuze` (an
+# exclusive-group entry, so ~34 s of load plus a re-prefill of every live
+# conversation), vision here displaces nothing. Container restartCount stayed 0,
+# and the startup FINDINGS after the change are the same 1 warning / 5 notes as
+# before it - the cgroup-limit warning is about host-pinned bytes, not VRAM.
+#
+# One budget note that applies to every request on this alias, vision or not:
+# thinking is mandatory. A one-word answer at max_tokens 16 returns
+# `content: ""` because the whole budget went to `reasoning_content`; at 400 it
+# spent 73 completion tokens to say "Red".
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:
@@ -18,6 +55,7 @@ spec:
     additional:
       timeout: 1800
   info:
+    supportsVision: true
     supportsFunctionCalling: true
     maxInputTokens: 262144
     maxOutputTokens: 8192
