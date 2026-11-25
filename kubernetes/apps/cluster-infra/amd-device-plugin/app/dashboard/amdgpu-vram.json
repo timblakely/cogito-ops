@@ -1,0 +1,235 @@
+{
+  "title": "AMD GPU VRAM (serving nodes)",
+  "uid": "cogito-amdgpu-vram",
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "schemaVersion": 39,
+  "version": 1,
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "regex": "",
+        "refresh": 1
+      },
+      {
+        "name": "pci",
+        "label": "GPU (PCI slot)",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "$datasource" },
+        "query": { "query": "label_values(amdgpu_vram_total_bytes, pci)" },
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "hide": 0,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "text",
+      "title": "Read this before comparing against a serving log",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "**`card=` is sysfs, not the engine's card number, and on Deleuze they are inverted.** The engine logs `card 0 / rank 0` for PCI `0000:0a:00.0`, which `/sys/class/drm` calls **card1**; `rank 1` is `0000:0d:00.0` = **card0**. Always key comparisons on **PCI**, never on the index.\n\n**The driver number below is lower than the serving engine's own `settled at ... GiB free` line**, and that gap is real, not a bug: `radiance_fleet_vram_bytes` is the entry's *claim* (flat at 28.710 GiB a card for six days, then 29.578 after the vision tower) and the engine says outright that anything past its own pools is \"the driver or a kernel plugin's own hipMalloc, which this cannot see\". Measured 2026-11-25: engine 1.78 / 1.86 GiB free vs driver 0.65 / 0.73 GiB. Use this board for the watermark and the claim metric for the plan."
+      }
+    },
+    { "type": "row", "title": "VRAM watermark", "collapsed": false, "panels": [], "gridPos": { "h": 1, "w": 24, "x": 0, "y": 4 } },
+    {
+      "type": "timeseries",
+      "title": "VRAM used (driver view)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 5 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 12, "spanNulls": true, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "amdgpu_vram_used_bytes{pci=~\"$pci\"}", "legendFormat": "{{card}} {{pci}}", "refId": "A" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "VRAM still free (driver view)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 5 },
+      "description": "What a hipMalloc could actually get. The serving engine's headroom already lives in here, so a low value is expected on a node whose cards are claimed - it is not by itself an alarm.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "thresholds": [
+            { "color": "red", "value": null },
+            { "color": "yellow", "value": 536870912 },
+            { "color": "green", "value": 1073741824 }
+          ],
+          "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 12, "spanNulls": true, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "amdgpu_vram_total_bytes{pci=~\"$pci\"} - amdgpu_vram_used_bytes{pci=~\"$pci\"}",
+          "legendFormat": "{{card}} {{pci}}",
+          "refId": "A"
+        }
+      ]
+    },
+    { "type": "row", "title": "Utilisation and clocks", "collapsed": false, "panels": [], "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 } },
+    {
+      "type": "timeseries",
+      "title": "VRAM percent full",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 15 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 90 },
+            { "color": "red", "value": 97 }
+          ],
+          "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 10, "spanNulls": true, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "100 * amdgpu_vram_used_bytes{pci=~\"$pci\"} / amdgpu_vram_total_bytes{pci=~\"$pci\"}",
+          "legendFormat": "{{card}} {{pci}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "GPU busy percent",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 15 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 10, "spanNulls": true, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "amdgpu_busy_percent{pci=~\"$pci\"}", "legendFormat": "{{card}} {{pci}}", "refId": "A" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Graphics clock (sclk)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 15 },
+      "description": "Idle cards drop to sub-GHz; a serving lane that stays pinned low while busy is a thermals or power-limit question, not a scheduler one.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "hertz",
+          "min": 0,
+          "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 10, "spanNulls": true, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "amdgpu_clock_sclk_hertz{pci=~\"$pci\"}", "legendFormat": "{{card}} {{pci}}", "refId": "A" }
+      ]
+    },
+    { "type": "row", "title": "Power, heat, aperture", "collapsed": false, "panels": [], "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 } },
+    {
+      "type": "timeseries",
+      "title": "GPU temperature",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 24 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "min": 0,
+          "max": 100,
+          "thresholds": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 85 },
+            { "color": "red", "value": 93 }
+          ],
+          "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 10, "spanNulls": true, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "amdgpu_temp_celsius{pci=~\"$pci\"}", "legendFormat": "{{card}} {{pci}}", "refId": "A" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "GPU power",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 24 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watt",
+          "min": 0,
+          "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 10, "spanNulls": true, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "amdgpu_power_watts{pci=~\"$pci\"}", "legendFormat": "{{card}} {{pci}}", "refId": "A" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "GTT used (visible aperture)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 24 },
+      "description": "Measured tens of MiB on the Deleuze lane: the engine's pinned host pool does NOT show up here, so host-tier expert residency cannot be tracked from GTT.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 10, "spanNulls": true, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "amdgpu_gtt_used_bytes{pci=~\"$pci\"}", "legendFormat": "{{card}} {{pci}}", "refId": "A" }
+      ]
+    },
+    { "type": "row", "title": "Card identity", "collapsed": false, "panels": [], "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 } },
+    {
+      "type": "table",
+      "title": "card / PCI / driver mapping (join serving logs on PCI)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 5, "w": 24, "x": 0, "y": 33 },
+      "options": { "showHeader": true, "cellHeight": "sm" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "targets": [
+        {
+          "expr": "amdgpu_info{pci=~\"$pci\"}",
+          "instant": true,
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        { "id": "organize", "options": { "excludeByName": { "Time": true, "Value": true, "__name__": true, "container": true, "endpoint": true, "instance": true, "job": true, "namespace": true, "pod": true, "service": true } } }
+      ]
+    }
+  ]
+}

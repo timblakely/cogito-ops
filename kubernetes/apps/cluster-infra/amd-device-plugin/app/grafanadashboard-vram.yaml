@@ -1,0 +1,28 @@
+---
+# VRAM watermark, utilisation, clocks, power and card identity for the AMD
+# serving nodes, from amd-vram-exporter (:9411) sysfs reads. Deliberately a
+# separate board from gpu-thermal-r9700: that one is the fan controller's view of
+# iggy (amd_fanctl_*), this one is the driver's view of whichever nodes carry
+# amd.com/gpu.present, which today is Deleuze.
+#
+# Dashboard JSON lives in dashboard/amdgpu-vram.json (generator in the parent
+# kustomization); the substitute-disabled annotation there keeps Flux's envsubst
+# away from the ${datasource}/$pci Grafana tokens. The panel text spells out the
+# two things this board exists to settle: sysfs cardN is not the engine's rank,
+# and the driver's free VRAM is lower than a serving engine's "settled at ... GiB
+# free" because the engine cannot see driver or kernel-plugin allocations.
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: amdgpu-vram
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      grafana.internal/instance: grafana
+  datasources:
+    - datasourceName: prometheus
+      inputName: DS_PROMETHEUS
+  configMapRef:
+    name: amdgpu-vram-dashboard
+    key: amdgpu-vram.json
