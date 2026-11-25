@@ -24,6 +24,11 @@ spec:
   proxyPort: 8080
   replicas: 1
   backendReplicas: 1
+  # Membership in the group the search gateway aggregates (../vmcp). This only
+  # labels membership: the direct mcp-unifi-mcp-proxy endpoint keeps working
+  # exactly as before, and the gateway adds find_tool/call_tool on top.
+  groupRef:
+    name: agents
   env:
     - name: UNIFI_API_TYPE
       value: local

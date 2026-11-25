@@ -1,0 +1,31 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: toolhive-vmcp
+  namespace: llm
+spec:
+  dependsOn:
+    - name: toolhive
+    # The backend must exist before the gateway indexes it, otherwise the first
+    # reconcile reports an empty group.
+    - name: toolhive-unifi-mcp
+    # The pod consumes litellm-key-toolhive-optimizer, which the litellm-operator
+    # only creates once the LiteLLMVirtualKey has reconciled. Without this
+    # ordering the container starts first and parks in CreateContainerConfigError
+    # (same reason opencode declares it).
+    - name: litellm
+  interval: 30m
+  timeout: 3m
+  path: ./kubernetes/apps/llm/toolhive/vmcp
+  prune: true
+  wait: true
+  targetNamespace: llm
+  # Shared app components rewrite APP_URL on every sibling Kustomization.
+  postBuild:
+    substitute:
+      APP_URL: toolhive.${DOMAIN_NAME}
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system

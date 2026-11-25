@@ -1,0 +1,13 @@
+---
+# Membership list only. An MCPGroup creates no pods or Services; it is the set a
+# VirtualMCPServer discovers backends from, populated by `groupRef` on each
+# MCPServer. `unifi-mcp` joins it; `flux-ops` deliberately stays out (see the
+# app README for the auth-chain reason).
+apiVersion: toolhive.stacklok.dev/v1beta1
+kind: MCPGroup
+metadata:
+  name: agents
+spec:
+  description: >-
+    ToolHive MCP servers that cluster agents reach through the optimizer's
+    find_tool/call_tool search instead of a full tools/list.

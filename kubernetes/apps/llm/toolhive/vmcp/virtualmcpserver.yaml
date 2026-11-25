@@ -1,0 +1,83 @@
+---
+# Tool-search gateway: instead of pushing every backend tool schema into the
+# agent's context, the MCP optimizer exposes only two meta-tools -- `find_tool`
+# (natural-language hybrid keyword + semantic search over the group's tools) and
+# `call_tool` (invoke a discovered tool). The operator names the Service
+# `vmcp-<name>` on its own default port 4483, so clients use
+#   http://vmcp-agents.llm.svc.cluster.local:4483/mcp
+# (cluster-internal only -- see the app README before exposing it).
+#
+# Embeddings come from the cluster's shared `embedder` alias through LiteLLM, so
+# enabling search adds no model workload and no traffic leaves the cluster. The
+# key arrives as OPENAI_API_KEY because the optimizer reads that variable
+# directly: keeping the credential out of the CRD spec keeps it out of the
+# generated ConfigMap (embeddingHeaders cannot carry secrets by design).
+#
+# Caveat worth knowing before debugging "why no tools": enabling the optimizer
+# pins this instance to the MCP 2025-11-25 revision, because the find_tool and
+# call_tool meta-tools are session-scoped and the newer 2026-07-28 revision is
+# negotiated down (stacklok/toolhive#6089).
+apiVersion: toolhive.stacklok.dev/v1beta1
+kind: VirtualMCPServer
+metadata:
+  name: agents
+spec:
+  groupRef:
+    name: agents
+  replicas: 1
+  config:
+    optimizer:
+      # OpenAI wire protocol (POST /embeddings), not the managed TEI flavour:
+      # embeddingServerRef would provision a second embedding model here.
+      embeddingProvider: openai
+      embeddingService: http://litellm.llm.svc.cluster.local:4000/v1
+      embeddingModel: embedder
+      # Indexing every tool at startup is a burst of one call per tool; 15s per
+      # request is generous for the bge-m3 lane and still fails loudly if the
+      # retrieval floor is gone.
+      embeddingServiceTimeout: 15s
+      # Search returns a shortlist, not the whole manifest (max 50).
+      maxToolsToReturn: 8
+    aggregation:
+      # Names reach the agent as <backend>_<tool>, so two backends can both
+      # have a `list_devices`.
+      conflictResolution: prefix
+      conflictResolutionConfig:
+        prefixFormat: "{workload}_"
+    operational:
+      failureHandling:
+        # One backend mid-restart must not turn every find_tool into an error.
+        partialFailureMode: best_effort
+  # Same posture as the unifi-mcp proxy today: cluster-internal, unauthenticated.
+  # No authzConfig, and it is not just tidiness: vMCP refuses to start when an
+  # authorization policy is configured together with the optimizer, because the
+  # meta-tools are absent from its admission layer ("Config.Authz and
+  # Config.OptimizerConfig are mutually exclusive; the optimizer meta-tools
+  # (find_tool, call_tool) are not represented in the core admission seam"), so a
+  # Cedar policy here crash-loops the pod instead of narrowing access. That makes
+  # this endpoint all-or-nothing: add an MCPOIDCConfig + oidcConfigRef before
+  # anything outside this namespace can reach it.
+  incomingAuth:
+    type: anonymous
+  # unifi-mcp carries no externalAuthConfigRef, so discovery finds an
+  # unauthenticated backend -- no credential to manage for this hop.
+  outgoingAuth:
+    source: discovered
+  podTemplateSpec:
+    spec:
+      containers:
+        # 'vmcp' is how the operator identifies the aggregator container.
+        - name: vmcp
+          env:
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-key-toolhive-optimizer
+                  key: api-key
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

@@ -1,0 +1,25 @@
+---
+# Credential for ToolHive's vMCP optimizer
+# (kubernetes/apps/llm/toolhive/vmcp). The gateway calls the shared `embedder`
+# alias for hybrid tool search, so agent-side tool discovery rides the same
+# retrieval floor as RAG instead of getting a dedicated model workload. Scope is
+# `embedder` only: find_tool/call_tool need no chat capacity, so a leaked key can
+# neither spend money nor run inference. The bge-m3 lane prices at zero, so the
+# budget is a tripwire over the scope, not an allowance.
+#
+# No PushSecret here, unlike the keys above: nothing outside the cluster uses
+# this credential (the pod reads litellm-key-toolhive-optimizer in-cluster), so
+# there is no workstation recovery case to protect.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: toolhive-optimizer
+spec:
+  proxyRef: litellm
+  keyAlias: toolhive-optimizer
+  secretName: litellm-key-toolhive-optimizer
+  secretKey: api-key
+  maxBudget: "1"
+  budgetDuration: 30d
+  models:
+    - embedder
