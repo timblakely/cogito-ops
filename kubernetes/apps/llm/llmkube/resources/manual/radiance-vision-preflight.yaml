@@ -27,6 +27,7 @@
 #
 # Memory limit mirrors the lane because 2.x derives the pinned-host cap from the
 # container limit (75%); host-pool-mib: 16384 has to fit under it the same way.
+# Lane limit as of 2026-11-25 is 80Gi, so this job asks for 80Gi too.
 #
 # RADIANCE_API_KEY has to exist, and radiance-21/22-preflight.yaml do not set it -
 # they cannot pass on this engine as written. With `server.api-key-env` in the
@@ -125,4 +126,7 @@ spec:
             cpu: "2"
             memory: 8Gi
           limits:
-            memory: 48Gi
+            # Mirrors the lane's limit, which is 80Gi since 2026-11-25 (was 48Gi
+            # when this harness was written) - see the resources block of
+            # ../radiance-deleuze.yaml for why.
+            memory: 80Gi

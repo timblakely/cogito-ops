@@ -125,9 +125,27 @@ spec:
   - name: radiance-config
     mountPath: /etc/radiance
     readOnly: true
+  # 80Gi, raised from 48Gi on 2026-11-25. Measured that morning: the lane's
+  # working set was 44.75 Gi = 93% of the old 48Gi cgroup
+  # (container_memory_working_set_bytes, 17 samples since the 05:22Z roll, p50
+  # 44.72; the six days before it p50 38.50), and 2.x derives the fleet's
+  # pinned-host budget as 3/4 of this limit, so the cap was 36Gi. The boot
+  # trims itself to it: "checkpoint slots: auto: 68 linear-state snapshot(s) of
+  # 112.73 MiB in pinned host memory (7.49 GiB) ... 80 wanted, held to what the
+  # host can pin: the memory cgroup at /sys/fs/cgroup, which leaves 19.57 GiB,
+  # less 8.04 GiB still to be allocated and 4.00 GiB to spare" (05:26:17Z) - 12
+  # of the 80 wanted snapshots refused before a single request landed.
+  # Scheduling is safe: Deleuze has 125.69 Gi total / 70.40 Gi available, its
+  # allocatable is 123.10 Gi, and total pod requests here were 50.62 Gi, so
+  # this moves the node to 82.62 Gi requested with ~40 Gi of slack.
+  # What this does NOT do: change any VRAM claim. That is card-bound
+  # (radiance_fleet_vram_bytes reads 29.578 Gi a card, was 28.710 before the
+  # vision tower), and the cards' 1.64/1.72 Gi of settled free is already the
+  # mover's lendable pool ("filled as it lends them"). Whether the raise
+  # recovers all 80 checkpoint slots is a boot-log question, not a promise.
   resources:
     cpu: '8'
-    memory: 48Gi
+    memory: 80Gi
     gpu: 2
   endpoint:
     port: 8080
@@ -281,10 +299,11 @@ data:
         # pairing rule under gemma4-heretic).
         mm-max-patches: 0
         # Host tier for finished conversations, sized small on purpose: the
-        # container cgroup is 48 Gi and the fleet's pinned-host budget is
-        # min(3/4 of the host, 3/4 of the cgroup) = 36 Gi (6.5), of which
-        # flashnext already reserves 16 Gi of expert pool + 8 Gi of its own
-        # prefix tier. Anything larger gets the copy refused under pressure.
+        # container cgroup is 80 Gi and the fleet's pinned-host budget is
+        # min(3/4 of the host, 3/4 of the cgroup) = 60 Gi (6.5) - it was 36 Gi
+        # while the limit was 48 Gi - of which flashnext already reserves 16 Gi
+        # of expert pool + 8 Gi of its own prefix tier. Anything larger gets the
+        # copy refused under pressure.
         prefix-cache-mib: 4096
         # Hand the cards back to the agent lane once idle. A swap costs whoever
         # gets parked a full re-prefill, so the model that is NOT in use should
@@ -364,8 +383,13 @@ data:
         # Cost, from the same engine rule the ram check uses: encoders are NOT
         # sharded, so tp 2 loads a WHOLE tower per rank - 1.07 GiB on EACH card,
         # not 0.53 each. The reason to prefer vram here is host RAM: the fleet's
-        # pinned budget is 36 Gi and this node is short of it (flashnext reserves
-        # 24 Gi, Muse 4), and `ram` would take 2 x 1.07 Gi out of that pool.
+        # pinned budget is 60 Gi (3/4 of the 80 Gi limit; 36 Gi until
+        # 2026-11-25) and it was tight enough that `ram` would have taken 2 x
+        # 1.07 Gi out of a pool flashnext already fills with 24 Gi and Muse with
+        # 4. The raise loosens that pressure without changing this decision:
+        # KV does not need the VRAM at max-model-len 65536, vram is the engine
+        # default anyway, and a fresh boot measurement would be required before
+        # revisiting `ram`.
         #
         # mm-max-patches is UNSET, which is `auto`: 16384 patches for a container
         # that carries a vision tower, i.e. the card's own tested media budget.
@@ -397,10 +421,10 @@ data:
         # validates keys and container formats without building the server plan.
         # The lane's warm-up lines are the gate.
         vision-tower-placement: vram
-        # 36 Gi is the fleet's pinned-host budget (3/4 of the 48 Gi container
-        # limit): flashnext reserves 24 Gi of it, Muse takes 4. 4 Gi keeps this
-        # entry under the cap instead of having its host copies refused under
-        # pressure.
+        # 60 Gi is the fleet's pinned-host budget (3/4 of the 80 Gi container
+        # limit; 36 Gi before 2026-11-25): flashnext reserves 24 Gi of it, Muse
+        # takes 4. 4 Gi keeps this entry under the cap instead of having its
+        # host copies refused under pressure.
         prefix-cache-mib: 4096
         # Hand the cards back when idle: this entry is not the one an agent
         # session lives on, and a swap re-prefills whoever gets displaced.
