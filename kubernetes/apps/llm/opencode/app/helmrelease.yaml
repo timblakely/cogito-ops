@@ -52,6 +52,26 @@ spec:
             fsGroupChangePolicy: OnRootMismatch
             seccompProfile: { type: RuntimeDefault }
         initContainers:
+          install-camofox-mcp:
+            image:
+              repository: registry.timblakely.com/timblakely/opencode-cogito
+              tag: homeops-1dd3256ba14b493a@sha256:0c43d3bab624f901ee7417eb934606c97c6ca6b990bf3c38cb017304bd9703e5
+            command: [npm]
+            args:
+              - install
+              - --prefix=/opt/camofox-mcp
+              - --cache=/tmp/npm-cache
+              - --omit=dev
+              - --ignore-scripts
+              - --no-audit
+              - --no-fund
+              - --package-lock=false
+              # This adapter's core tool set matches the existing 1.8.0 REST API.
+              - '@askjo/camofox-browser-mcp@1.13.0'
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
           configure-paseo:
             image: &image
               repository: registry.timblakely.com/timblakely/opencode-cogito
@@ -80,6 +100,14 @@ spec:
               - "4096"
             env:
               KUBECONFIG: /etc/opencode/kube/config
+              CAMOFOX_ACCESS_KEY:
+                secretKeyRef:
+                  name: camofox-secrets
+                  key: CAMOFOX_ACCESS_KEY
+              CAMOFOX_API_KEY:
+                secretKeyRef:
+                  name: camofox-secrets
+                  key: CAMOFOX_API_KEY
               # OpenCode always protects the server with HTTP basic auth: with
               # no password configured it generates one at every start, which
               # is useless across restarts. v2 reads OPENCODE_PASSWORD and
@@ -225,6 +253,15 @@ spec:
               # Directory projection preserves kubelet's atomic rotation.
               - path: /var/run/secrets/github
                 readOnly: true
+      camofox-mcp:
+        type: emptyDir
+        advancedMounts:
+          opencode:
+            install-camofox-mcp:
+              - path: /opt/camofox-mcp
+            main:
+              - path: /opt/camofox-mcp
+                readOnly: true
       flux-mcp-identity:
         type: custom
         volumeSpec:
@@ -300,3 +337,5 @@ spec:
               - {path: /tmp, subPath: paseo}
             configure-paseo:
               - {path: /tmp, subPath: init}
+            install-camofox-mcp:
+              - {path: /tmp, subPath: camofox-install}

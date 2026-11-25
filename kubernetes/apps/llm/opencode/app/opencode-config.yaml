@@ -278,10 +278,22 @@ data:
         }
       },
       "mcp": {
-        "flux": {
-          "type": "local",
-          "command": ["node", "/etc/opencode/mcp/flux-mcp-bridge.mjs"],
-          "enabled": true
+        "servers": {
+          "flux": {
+            "type": "local",
+            "command": ["node", "/etc/opencode/mcp/flux-mcp-bridge.mjs"]
+          },
+          "camofox": {
+            "type": "local",
+            "command": ["node", "/opt/camofox-mcp/node_modules/@askjo/camofox-browser-mcp/server.mjs"],
+            "environment": {
+              "CAMOFOX_BASE_URL": "http://camofox.llm.svc.cluster.local:9377",
+              "CAMOFOX_USER_ID": "tim",
+              "CAMOFOX_SESSION_KEY": "opencode",
+              "CAMOFOX_ACCESS_KEY": "{env:CAMOFOX_ACCESS_KEY}",
+              "CAMOFOX_API_KEY": "{env:CAMOFOX_API_KEY}"
+            }
+          }
         }
       },
       "permissions": [
