@@ -262,6 +262,23 @@ the operator does not push an edited scope onto an already-issued key.
 Subscription usage reports as zero-dollar spend, so a key budget does not
 throttle that block; `maxParallelRequests` does.
 
+Paseo's `models` replacement list in `paseo-config.yaml` filters out OpenCode's
+built-in free catalogue, but also replaces discovered thinking metadata. Each
+entry must explicitly mirror OpenCode's named variants in `thinkingOptions`;
+otherwise the model is visible with no thinking selector. OpenCode v2 generates
+those variants from `capabilities.reasoning.effort`, not `reasoning.toggle`.
+Do not invent Off/none variants or the non-wire Ultra product tier. Models with
+no named variants retain an empty list. `test_paseo_catalog.py` checks membership
+and effort parity across both ConfigMaps.
+
+For a non-disruptive catalogue probe, back up the runtime
+`/home/opencode/.paseo/config.json`, update only the OpenCode model metadata,
+and run `paseo reload` in the Paseo container. Read back
+`paseo provider models opencode --json` and verify a real `paseo run --thinking`
+turn plus its native OpenCode session's `model.variant`. A hot reload does not
+make the change persistent: init restores the managed ConfigMap on pod start.
+Publish the matching repository change only when a Reloader rollout will not
+interrupt an active turn. Reopen an already-open client picker to refresh it.
 
 ## Verification
 

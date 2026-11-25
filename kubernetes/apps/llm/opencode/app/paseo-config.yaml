@@ -22,6 +22,13 @@ data:
   # opencode-config.yaml; ids are `<provider>/<alias>` exactly as OpenCode
   # reports them.
   #
+  # Replacement models also replace thinking metadata; they do not inherit
+  # OpenCode's discovered variants. Mirror each model's reasoning.effort list
+  # as thinkingOptions so the picker exposes real, sendable variant ids.
+  # OpenCode v2 does not generate variants from reasoning.toggle, so do not
+  # invent Off/none options. Keep models without named variants empty.
+  # services/opencode/test_paseo_catalog.py guards this projection.
+  #
   # Keep this JSON strict -- no comments inside it.
   config.json: |
     {
@@ -43,62 +50,127 @@ data:
               {
                 "id": "cogito/flashnext-deleuze",
                 "label": "flashnext-deleuze",
-                "isDefault": true
+                "isDefault": true,
+                "thinkingOptions": [
+                  { "id": "minimal", "label": "Minimal" },
+                  { "id": "low", "label": "Low" },
+                  { "id": "medium", "label": "Medium" },
+                  { "id": "xhigh", "label": "Extra High" }
+                ]
               },
               {
                 "id": "cogito/glimmer-deleuze",
                 "label": "glimmer-deleuze",
-                "isDefault": false
+                "isDefault": false,
+                "thinkingOptions": []
               },
               {
                 "id": "cogito/heretic-deleuze",
                 "label": "heretic-deleuze",
-                "isDefault": false
+                "isDefault": false,
+                "thinkingOptions": []
               },
               {
                 "id": "cogito/gemma-4-12b",
                 "label": "gemma-4-12b",
-                "isDefault": false
+                "isDefault": false,
+                "thinkingOptions": []
               },
               {
                 "id": "cogito-sub/gpt-6-astra",
                 "label": "gpt-6-astra",
-                "isDefault": false
+                "isDefault": false,
+                "thinkingOptions": [
+                  { "id": "low", "label": "Low" },
+                  { "id": "medium", "label": "Medium" },
+                  { "id": "high", "label": "High" },
+                  { "id": "xhigh", "label": "Extra High" },
+                  { "id": "max", "label": "Maximum" }
+                ]
               },
               {
                 "id": "cogito-sub/gpt-6.1-sol",
                 "label": "gpt-6.1-sol",
-                "isDefault": false
+                "isDefault": false,
+                "thinkingOptions": [
+                  { "id": "low", "label": "Low" },
+                  { "id": "medium", "label": "Medium" },
+                  { "id": "high", "label": "High" },
+                  { "id": "xhigh", "label": "Extra High" },
+                  { "id": "max", "label": "Maximum" }
+                ]
               },
               {
                 "id": "cogito-sub/gpt-6.1-terra",
                 "label": "gpt-6.1-terra",
-                "isDefault": false
+                "isDefault": false,
+                "thinkingOptions": [
+                  { "id": "low", "label": "Low" },
+                  { "id": "medium", "label": "Medium" },
+                  { "id": "high", "label": "High" },
+                  { "id": "xhigh", "label": "Extra High" },
+                  { "id": "max", "label": "Maximum" }
+                ]
               },
               {
                 "id": "cogito-sub/gpt-6-luna",
                 "label": "gpt-6-luna",
-                "isDefault": false
+                "isDefault": false,
+                "thinkingOptions": [
+                  { "id": "low", "label": "Low" },
+                  { "id": "medium", "label": "Medium" },
+                  { "id": "high", "label": "High" },
+                  { "id": "xhigh", "label": "Extra High" },
+                  { "id": "max", "label": "Maximum" }
+                ]
               },
               {
                 "id": "cogito-sub/gpt-6-sol",
                 "label": "gpt-6-sol",
-                "isDefault": false
+                "isDefault": false,
+                "thinkingOptions": [
+                  { "id": "low", "label": "Low" },
+                  { "id": "medium", "label": "Medium" },
+                  { "id": "high", "label": "High" },
+                  { "id": "xhigh", "label": "Extra High" },
+                  { "id": "max", "label": "Maximum" }
+                ]
               },
               {
                 "id": "cogito-sub/gpt-5.6-sol",
                 "label": "gpt-5.6-sol",
-                "isDefault": false
+                "isDefault": false,
+                "thinkingOptions": [
+                  { "id": "low", "label": "Low" },
+                  { "id": "medium", "label": "Medium" },
+                  { "id": "high", "label": "High" },
+                  { "id": "xhigh", "label": "Extra High" },
+                  { "id": "max", "label": "Maximum" }
+                ]
               },
               {
                 "id": "cogito-sub/gpt-5.6-terra",
                 "label": "gpt-5.6-terra",
-                "isDefault": false
+                "isDefault": false,
+                "thinkingOptions": [
+                  { "id": "low", "label": "Low" },
+                  { "id": "medium", "label": "Medium" },
+                  { "id": "high", "label": "High" },
+                  { "id": "xhigh", "label": "Extra High" },
+                  { "id": "max", "label": "Maximum" }
+                ]
               },
               {
                 "id": "cogito-sub/gpt-5.6-luna",
                 "label": "gpt-5.6-luna",
-                "isDefault": false
+                "isDefault": false,
+                "thinkingOptions": [
+                  { "id": "low", "label": "Low" },
+                  { "id": "medium", "label": "Medium" },
+                  { "id": "high", "label": "High" },
+                  { "id": "xhigh", "label": "Extra High" },
+                  { "id": "max", "label": "Maximum" }
+                ]
               }
             ]
           },
