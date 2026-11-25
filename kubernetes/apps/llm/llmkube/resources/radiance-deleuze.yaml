@@ -1,4 +1,5 @@
-# Radiance on Deleuze: exact TP2, disk n-grams, measured prefill span and host tier.
+# Radiance on Deleuze: exact TP2, disk n-grams, measured prefill span, host tier,
+# and a capped vision tower on the agent lane (see mm-max-patches below).
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -197,7 +198,41 @@ data:
         kv-cache-dtype: i8
         num-speculative-tokens: 3
         max-num-batched-tokens: 4096
-        mm-max-patches: 0
+        # Vision is ON, tower ON THE CARD. The container carries a complete
+        # Qwen4-Exp ViT (rad-info --meta: depth 27, hidden 1152, num_heads 16 ->
+        # head_dim 72, intermediate 4304, patch 16, spatial merge 2, temporal 2,
+        # out_hidden_size 2560 == text hidden) and image_token_id/video_token_id.
+        # `rad-info --planes '*'` sums its 333 `v.*` planes to 897,862,112 B =
+        # 856.27 MiB = 0.836 GiB: 27 blocks x 54 planes + v.patch(2) +
+        # v.merger.fc1/fc2/norm(6) + v.pos(1), where fc1 is 4608x4608 and fc2 is
+        # 4608x2560 bf16, and v.pos is num_position_embeddings (2304) x 1152.
+        # Encoders are NOT sharded, so tp 2 loads a WHOLE tower per rank - 0.84
+        # GiB on EACH card. The cards reported 1.47 / 1.55 GiB free of 31.9, so
+        # card 0 keeps ~0.63 GiB after the tower, ~0.47 GiB once
+        # memory.gpu-headroom-mib: 160 is respected. That remainder is encoder
+        # activation scratch, which is why the media budget is CAPPED here rather
+        # than left at auto (16384 patches): at patch 16 / merge 2 a token covers
+        # 32x32 px, so 4096 patches = 1024 image tokens, enough for a downscaled
+        # browser frame; a native 1920x1080 would ask for 8160 patches and 2040
+        # tokens, and num_position_embeddings caps at 2304 tokens anyway.
+        # The kernel already exists for this GPU and this shape: libr4d.so ships
+        # r4d_vit_bf16.hip and r4d_attn_vit_h72_bf16.hip for gfx1201, and that h72
+        # is this tower's head_dim - the same family gemma4-heretic's images ran
+        # through on 2026-11-20 with restartCount 0. Muse's 2026-11-19 segfault
+        # (exit 139) is NOT evidence against it: that assert needs non-causal
+        # attention over the vision prefix, heretic asks for it
+        # (text_config.use_bidirectional_attention: vision) and survives, Muse's
+        # windowed layer_types is what died, and this container declares neither.
+        # What this comment cannot prove is warm-up: it loads weights and sizes
+        # pools but never runs the encoder, so the first real image is the proof.
+        mm-max-patches: 4096
+        # Stated though it is the engine default, as on gemma4-heretic: the VRAM
+        # goes to the tower on purpose rather than to KV, because max-model-len
+        # is pinned at 262144 and sizes that KV pool by need, not by leftover
+        # card. gemma4-heretic's settlement is the precedent - a 1.03 GiB/rank
+        # tower moved its free VRAM 11.24/11.31 -> 10.49/10.50 with the KV
+        # ceiling unchanged at 12.12 GiB a card.
+        vision-tower-placement: vram
         embedding-placement: ram
         draft-window: fixed
         prefill-span: 2
@@ -235,10 +270,15 @@ data:
         # ViT/multimodal path, and the container card already warned that
         # pictures were "not checked". The whole fleet is one process, so that
         # segfault took qwen3.8-flash-next down with it: an image sent to Muse
-        # is an availability hit on the agent lane. This is the same key
-        # flashnext uses above, so the engine refuses images with a 400 naming
-        # what the model serves instead of dying. Delete this line to retest
-        # once upstream validates the windowed ViT on gfx1201.
+        # is an availability hit on the agent lane. It kept mm-max-patches: 0 -
+        # the key qwen3.8-flash-next also carried until 2026-11-25, which made
+        # the engine refuse images with a 501 naming what the model serves
+        # instead of dying - so the refusal still stands here; only flashnext
+        # now declares a tower, and it declares a CAUSAL Qwen vision prefix,
+        # which is the case this crash class does not cover. Delete this line to
+        # retest once upstream validates the windowed ViT on gfx1201, and note
+        # that pairing a placement key with 0 is fatal at startup (see the
+        # pairing rule under gemma4-heretic).
         mm-max-patches: 0
         # Host tier for finished conversations, sized small on purpose: the
         # container cgroup is 48 Gi and the fleet's pinned-host budget is

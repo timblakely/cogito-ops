@@ -1,0 +1,128 @@
+# NOT in the Flux kustomization (same convention as radiance-21/22-preflight.yaml):
+# one-shot pre-flight for giving the agent lane its vision tower, applied
+# out-of-band while the lane keeps serving, BEFORE the fleet ConfigMap is pushed.
+#
+# Why --check gates the push: an unknown key or an illegal pairing is FATAL at
+# startup, and llmkube owns this Deployment with rolloutPolicy.waitForIdle: false,
+# so a bad fleet file crashloops the lane this agent session runs on rather than
+# being refused by a reload. `radiance --check` validates every key against the
+# engine's schema and every weight path against the PVC, CPU-only, so it never
+# contends for the two amd.com/gpu cards the lane holds.
+#
+# What it can't catch, recorded so the next reader doesn't trust it too much:
+# --check does not build the server plan, so it does not see the
+# placement-key/mm-max-patches pairing rule (engine_bringup.cpp) and never runs
+# the encoder. The lane's warm-up report and the first real image are the gates.
+#
+# It checks TWO files: the live ConfigMap as a control (proves the harness and the
+# baseline), then that same file with the two-key flashnext delta applied in place
+# (`mm-max-patches: 0` -> `4096`, plus `vision-tower-placement: vram`). The delta is
+# the first exact `    mm-max-patches: 0` key line, which is flashnext's - Muse's is
+# the second, and every other mention in the file is a comment. The transformed
+# bytes are hashed; they must match the rendered ConfigMap of the change being
+# pushed, which is what makes "pre-flight validated exactly what ships" true:
+#
+#   baseline 36db7af3c895c576882d89fa4883d752c31d5aafa3485f30c0a0d4e9cb0ba177 (12519 B)
+#   proposed 815743bf2294819b87d743f9782e2c45ab73e355a141b7e571fd6b84b640f108 (12555 B)
+#
+# Memory limit mirrors the lane because 2.x derives the pinned-host cap from the
+# container limit (75%); host-pool-mib: 16384 has to fit under it the same way.
+#
+# RADIANCE_API_KEY has to exist, and radiance-21/22-preflight.yaml do not set it -
+# they cannot pass on this engine as written. With `server.api-key-env` in the
+# fleet file, --check refuses to plan at all: "E --api-key-env: RADIANCE_API_KEY is
+# unset or empty; refusing to serve keyless under a guarded-looking command line",
+# and it then blames the model entry that follows ("models.qwen3.8-flash-next
+# refused by the line above"), which reads like a config fault and is not one. The
+# check only requires the variable to be non-empty and never serves, so this
+# projects a throwaway value rather than the lane's real Secret.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: radiance-vision-preflight
+  namespace: llm
+  labels:
+    app: radiance-vision-preflight
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 3600
+  ttlSecondsAfterFinished: 7200
+  template:
+    metadata:
+      labels:
+        app: radiance-vision-preflight
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      nodeSelector:
+        kubernetes.io/hostname: deleuze
+      tolerations:
+      - key: workload.cogito/dedicated
+        operator: Equal
+        value: ml
+        effect: NoSchedule
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+      volumes:
+      - name: weights
+        persistentVolumeClaim:
+          claimName: radiance-deleuze
+      - name: config-live
+        configMap:
+          name: radiance-fleet-config
+          defaultMode: 420
+      - name: config-work
+        emptyDir: {}
+      containers:
+      - name: check
+        image: docker.io/stilldeadcode/radiance:2.2.0@sha256:167466f5556fdb3a4e0efbb42820fae10cfd9b3a98c786f46a51263bfd6fe53f # amd64 child of index sha256:a7000897
+        env:
+        # Non-empty only: --check plans and never serves. See the header.
+        - name: RADIANCE_API_KEY
+          value: preflight-check-only-not-a-secret
+        command: [/bin/sh, -c]
+        args:
+        - |
+          set -eu
+          R=/opt/radiance/bin/radiance
+          echo "##### baseline (live radiance-fleet-config)"
+          sha256sum /config-live/radiance.yaml
+          echo "##### control: --check on the live file"
+          if "$R" --config /config-live/radiance.yaml --check >/tmp/control.log 2>&1; then
+            echo control_rc=0
+          else
+            echo control_rc=$?
+          fi
+          tail -20 /tmp/control.log
+          echo "##### proposed: live file + the two-key flashnext delta"
+          awk 'BEGIN{done=0}
+            !done && $0=="    mm-max-patches: 0" {
+              print "    mm-max-patches: 4096"; print "    vision-tower-placement: vram"; done=1; next }
+            { print }' /config-live/radiance.yaml > /config-work/radiance.yaml
+          sha256sum /config-work/radiance.yaml
+          echo "##### the delta itself"
+          diff -u /config-live/radiance.yaml /config-work/radiance.yaml || true
+          echo "##### proposed: --check"
+          if "$R" --config /config-work/radiance.yaml --check >/tmp/proposed.log 2>&1; then
+            echo proposed_rc=0
+          else
+            echo proposed_rc=$?
+          fi
+          tail -30 /tmp/proposed.log
+        volumeMounts:
+        - name: weights
+          mountPath: /models
+          readOnly: true
+        - name: config-live
+          mountPath: /config-live
+          readOnly: true
+        - name: config-work
+          mountPath: /config-work
+        resources:
+          requests:
+            cpu: "2"
+            memory: 8Gi
+          limits:
+            memory: 48Gi
