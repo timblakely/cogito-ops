@@ -26,11 +26,12 @@ spec:
         serviceAccount:
           name: opencode-reader
         annotations:
-          # Both credentials this pod reads can change without the Deployment
-          # template changing: the LiteLLM key is re-issued by the operator and
+          # Startup-only credentials can change without the Deployment
+          # template changing: LiteLLM keys are re-issued by the operator and
           # the server password is regenerated if its ExternalSecret is
           # recreated. A secretKeyRef is resolved once at container start, so
           # without Reloader the running pod keeps presenting the old value.
+          # The file-read GitHub token Secret separately opts out of Reloader.
           reloader.stakater.com/auto: "true"
         pod:
           # Pinned per the operator's request: kristeva is the ordinary
@@ -203,6 +204,27 @@ spec:
               - identifier: main
                 port: *port
     persistence:
+      github-config:
+        type: configMap
+        name: opencode-github
+        advancedMounts:
+          opencode:
+            main:
+              - path: /etc/opencode/github
+                readOnly: true
+              - path: /etc/gitconfig
+                subPath: github.gitconfig
+                readOnly: true
+      github-token:
+        type: secret
+        name: opencode-github-token
+        defaultMode: 0440
+        advancedMounts:
+          opencode:
+            main:
+              # Directory projection preserves kubelet's atomic rotation.
+              - path: /var/run/secrets/github
+                readOnly: true
       flux-mcp-identity:
         type: custom
         volumeSpec:

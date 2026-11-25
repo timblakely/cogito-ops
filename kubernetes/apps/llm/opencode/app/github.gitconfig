@@ -1,0 +1,10 @@
+# Managed system gitconfig for OpenCode: enables per-URL repository paths so
+# the scoped credential helper can pin HTTPS credentials to one repository,
+# resets earlier helpers in this file, and adds the scoped helper. Global or
+# repository config is read later and can override these defaults.
+# Secrets live in the projected files the helper reads; no credentials belong
+# in this file.
+[credential]
+	useHttpPath = true
+	helper =
+	helper = !python3 /etc/opencode/github/github-credential-helper.py

@@ -6,6 +6,7 @@ resources:
   - ./cluster-access.yaml
   - ./kubeconfig.yaml
   - ./externalsecret.yaml
+  - ./github-app.yaml
   - ./gateway-auth.yaml
   - ./paseo-gateway.yaml
   - ./paseo-config.yaml
@@ -16,6 +17,14 @@ resources:
   - ./opencode-config.yaml
   - ./pvc.yaml
 configMapGenerator:
+  - name: opencode-github
+    files:
+      - github.gitconfig
+      - github-credential-helper.py
+    options:
+      disableNameSuffixHash: true
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
   - name: opencode-flux-mcp-bridge
     files:
       - flux-mcp-bridge.mjs

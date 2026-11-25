@@ -114,6 +114,65 @@ flux-local tests before publishing through jj. Check for active Paseo turns
 before rolling the pod.
 
 
+## GitHub repository authentication
+
+The managed Git HTTPS helper authenticates only
+`https://github.com/timblakely/cogito-ops` (with or without `.git`). External
+Secrets issues a dedicated GitHub App installation token for `cogito-ops` with
+only `contents: write`, refreshing it every 30 minutes. The existing App key is
+sourced from `matrix-github-app/private-key` in 1Password into a separate
+`opencode-github-app-auth` Secret for the generator. That private key is never
+mounted into OpenCode; neither is Foreman's broader token.
+
+Only the main container mounts `opencode-github-token`, read-only at
+`/var/run/secrets/github/token`, with a directory mount rather than `subPath`.
+The system `/etc/gitconfig` enables `credential.useHttpPath` and invokes the
+managed Python helper, which reopens the projected token on each authentication
+request and ignores credential store/erase operations. It rejects other hosts,
+protocols, repository paths and conflicting usernames. A missing or malformed
+token fails closed without printing its contents. No token is baked into the
+image, copied into the persistent home/workspace, or supplied through `GH_TOKEN`
+or other environment variables. `gh` API authentication is not configured by
+this helper. Use the HTTPS origin, not an SSH remote.
+
+Global/repository config takes precedence over this system default. A later
+empty `credential.helper` reset or `credential.useHttpPath=false` can disable
+the scoped helper. Verify the effective helper list and path setting in the
+actual checkout, not just the mounted system file.
+
+The installed jj 0.42 uses Git subprocesses for remote transport, so
+`jj git fetch` and `jj git push` use the same helper without a separate jj
+credential setting. Credential scope is not a sandbox: the trusted agent's
+shell can read the mounted token. GitHub enforces the token's repository and
+permission scope; it does not enforce branch-specific publishing approval.
+Issues, pull requests, Actions and workflow-file changes are not granted.
+
+The generated token Secret carries `reloader.stakater.com/ignore: "true"`.
+This is essential: OpenCode otherwise auto-reloads for mounted Secret changes,
+interrupting active turns every 30 minutes. Kubelet projects the rotated file
+without a restart (not instantaneously); all other credential/config reloads
+remain enabled. Expired tokens or failed generator refreshes still fail auth;
+do not work around them by persisting a token in a checkout.
+
+Before the first rollout, render and server-dry-run the app. From an already
+authenticated workstation, bootstrap just the two GitHub ExternalSecrets and
+their generator from that render, then wait for both ExternalSecrets to become
+Ready and the token Secret to be nonempty. Only then publish the mount change
+through jj/Flux; a single ungated push can roll the consumer before its Secret
+exists. Check for active Paseo turns before changing the pod's mounts. After rollout,
+verify the final pod's mount permissions as uid 1000, no token environment
+variable or private-key mount, and the Secret's Reloader ignore annotation.
+Prove write authentication without changing refs by fetching the repository's
+HTTPS `info/refs?service=git-receive-pack` advertisement with credentials from
+the helper held only in process memory; compare authenticated success against
+unauthenticated rejection. Also run `jj git fetch` in an appropriate checkout.
+`jj git push --dry-run` only displays a local plan and does not test remote
+authentication. If jj author identity is unset, configure the intended
+`user.name`/`user.email` before authoring changes; authentication does not set
+commit attribution. A real push to `main` deploys Cogito and needs the normal
+task authorization. Observe a subsequent token refresh and unchanged pod UID
+to verify rotation without a session restart.
+
 ## Cluster operations
 
 The OpenCode pod uses `llm/opencode-reader`, not an administrator kubeconfig.
@@ -215,5 +274,5 @@ native unauthenticated access is rejected, both containers are Ready on kristeva
 Flux applied the published revision, and local Hermes remains available.
 
 Repository checkouts are cluster-owned. Public repositories can be cloned with
-`jj git clone`; private fetch/push credentials are a separate explicit setup.
+`jj git clone`; the managed GitHub credential applies only to `cogito-ops`.
 Agent permission rules are approval policy, not an OS security boundary.

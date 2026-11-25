@@ -1,0 +1,62 @@
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: opencode-github-app-auth
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: onepassword
+  target:
+    name: opencode-github-app-auth
+    creationPolicy: Owner
+    deletionPolicy: Retain
+  data:
+    - secretKey: private-key.pem
+      remoteRef:
+        key: matrix-github-app
+        property: private-key
+---
+apiVersion: generators.external-secrets.io/v1alpha1
+kind: GithubAccessToken
+metadata:
+  name: opencode
+spec:
+  appID: "4906005"
+  installID: "160792836"
+  auth:
+    privateKey:
+      secretRef:
+        name: opencode-github-app-auth
+        key: private-key.pem
+  repositories:
+    - cogito-ops
+  permissions:
+    contents: write
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: opencode-github-token
+spec:
+  refreshInterval: 30m
+  target:
+    name: opencode-github-token
+    creationPolicy: Owner
+    deletionPolicy: Delete
+    template:
+      engineVersion: v2
+      type: Opaque
+      metadata:
+        annotations:
+          # The helper rereads the projected file; rotation must not kill turns.
+          reloader.stakater.com/ignore: "true"
+      data:
+        token: "{{ .token }}"
+  dataFrom:
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: GithubAccessToken
+          name: opencode
