@@ -35,42 +35,33 @@ data:
   # keys are written down. Pinning them means a code-default change in a Paseo
   # upgrade cannot silently start or stop injecting the catalog.
   #
-  # TWO PROVIDER ENTRIES ON PURPOSE. `opencode-worker` is `extends: "opencode"`
-  # with every Paseo tool named in `paseoTools.disabledTools`, which is how a
-  # worker stops receiving Paseo's raw catalog: the policy is read per provider
-  # id (agent/paseo-tool-policy.js -> providerSettings[providerId].paseoTools)
-  # and `isPaseoToolEnabled` skips any name in `disabledTools`, so nothing is
-  # registered for the model. A profile cannot carry this switch instead: agent
-  # profiles have no paseoTools field, so "lead gets the catalog, workers do
-  # not" has to be a provider split.
+  # KNOWN BROKEN, KEPT DELIBERATELY. `opencode-worker` cannot launch on this host
+  # and no `paseoTools` shape fixes it. MEASURED TWICE on 26 Nov, once per shape:
+  # `create_agent` with that provider fails before a session starts -- "Custom
+  # OpenCode MCP servers or process environment require an isolated server and
+  # cannot be used with a shared OpenCode service." The gate is
+  # agent/providers/opencode/v2/configuration.js requiresDedicatedV2Server(),
+  # which demands a dedicated OpenCode server whenever a launch carries anything
+  # beyond `mcpServers` and the three session env keys
+  # (PASEO_AGENT_ID/PASEO_AGENT_CWD/PASEO_WORKSPACE_ID), and the check that
+  # follows it throws rather than downgrading. A DERIVED provider trips it; the
+  # built-in `opencode` provider does not, which is why every session on this
+  # host carries the full catalog. Both shapes were deployed and confirmed live,
+  # daemon and gateway healthy, same error verbatim: `enabled: false`, and
+  # `enabled: true` with all 43 tool names in `disabledTools` (43b8700c, live
+  # 17:51-20:12Z, reverted by the commit that rewrote this paragraph). Profiles
+  # cannot carry the switch instead -- agent profiles have no paseoTools field --
+  # so "lead gets the catalog, workers do not" is not reachable through this
+  # config at all. Deleting this provider and its profile is the honest end
+  # state; it is kept only so a future attempt starts from a working file, and
+  # nothing here may advertise it as usable. See
+  # kubernetes/apps/llm/toolhive/README.md, "The worker split has never actually run".
   #
-  # USE `disabledTools`, NEVER `enabled: false`. MEASURED: with
-  # `paseoTools: {enabled: false}` the first `create_agent` failed before a
-  # session started -- "Custom OpenCode MCP servers or process environment
-  # require an isolated server and cannot be used with a shared OpenCode
-  # service." `isPaseoToolPolicyEnabled` is `policy?.enabled !== false`, so a
-  # disabled policy falls off the native-tools path, and Paseo strips its own
-  # internal `paseo` MCP server from a launch only on that path
-  # (agent-manager.js: `launchContext.paseoTools ?
-  # stripInternalPaseoMcpServer(merged) : merged`). What is left asks
-  # `requiresDedicatedV2Server` for a server of its own, and on this host the
-  # OpenCode service is shared, so the daemon throws instead of downgrading.
-  # With `enabled: true` plus a full `disabledTools` list the policy still reads
-  # as enabled, the launch stays on the shared service, and every tool is
-  # filtered out anyway. Do not reach for the global knobs either:
-  # `daemon.mcp.enabled: false` unmounts `/mcp/agents`, the endpoint the vMCP
-  # gateway dials.
-  #
-  # TWO KNOWN GAPS IN THIS LIST, both deliberate. `isPaseoToolEnabled` returns
-  # true for `speak` before consulting the policy, so the voice tool cannot be
-  # switched off this way. And a name is only blocked because it is named: a
-  # Paseo upgrade that adds a tool injects it into workers until someone adds it
-  # here. services/opencode/test_paseo_catalog.py asserts the shape; the live
-  # catalog is compared by hand (or with the gateway's tools/list) when Paseo is
-  # upgraded. STATUS: this shape is reasoned from the code quoted above and has
-  # NOT been launched yet -- testing it needs a restart of the pod Reloader
-  # watches. See kubernetes/apps/llm/toolhive/README.md, "The worker split has
-  # never actually run", for the fallback if a worker still fails to start.
+  # What the shape below still has to get right, for as long as it exists: the
+  # policy is read per provider id (agent/paseo-tool-policy.js ->
+  # providerSettings[providerId].paseoTools), so it is inert for every other
+  # provider, and `enabled: false` does keep the tools off any session that ever
+  # does start on it.
   #
   # `extends` inherits command, env and disallowedTools (mergeRuntimeSettings)
   # but NOT the model list and NOT paseoTools -- provider-registry.js gives a
@@ -90,7 +81,8 @@ data:
   # `list_profiles`. MEASURED: `create_agent` does accept the combined form
   # `provider: "opencode-worker/cogito/flashnext-deleuze"` -- it splits on the
   # FIRST slash (agent/tools/paseo-tools.js resolveProviderModel), leaving the
-  # model id its own slash -- so the notes can name one string.
+  # model id its own slash. That parse succeeds and the launch still fails, per
+  # the paragraph above: a successful parse is not evidence a provider is usable.
   #
   # WHAT KEEPS THIS CATALOG ON THIS MACHINE: `relay.enabled: false` plus zero
   # destination hosts registered (`list_hosts` -> hosts_count: 0, self only).
@@ -127,14 +119,14 @@ data:
             "name": "Lead",
             "provider": "opencode",
             "model": "cogito/flashnext-deleuze",
-            "notes": "Full Paseo catalog for orchestrating work. Launch workers with provider \"opencode-worker/cogito/flashnext-deleuze\": every Paseo tool is named in that provider's paseoTools.disabledTools, so a worker gets no Paseo tools and reaches everything through the agents gateway (find_tool/call_tool). The gateway registers only find_tool and call_tool, so a worker must search before it can act -- say in the prompt which host it is on and what it must not touch. A launched worker cannot be relied on to read its own profile notes, so copy the find_tool phrasing rules from the worker profile into the prompt you launch it with. If create_agent refuses that provider with an isolated-server error, the disabledTools shape has stopped working: report that instead of relaunching as opencode, which hands the worker the whole catalog."
+            "notes": "Full Paseo catalog (42 tools) for orchestrating work. Do NOT launch the worker provider \"opencode-worker/cogito/flashnext-deleuze\": measured broken on this host, create_agent refuses it before a session starts with an isolated-server error, for either paseoTools shape. Launch workers on this provider and accept that they carry the same catalog you do. The agents gateway (find_tool/call_tool) remains available for backends that are not injected into agents and for clients outside this pod. A launched worker cannot be relied on to read its own profile notes, so copy into its prompt anything it cannot be assumed to know."
           },
           {
             "id": "worker",
             "name": "Worker",
             "provider": "opencode-worker",
             "model": "cogito/flashnext-deleuze",
-            "notes": "No Paseo tools by design: every tool name is in this provider's paseoTools.disabledTools, so the daemon registers none of them for you and strips its own internal paseo MCP server. Your only route to other tools is the agents gateway: discover with find_tool, run with call_tool, at http://vmcp-agents.llm.svc.cluster.local:4483/mcp. Measured there: recall@8 is 0.97 but top-1 only 0.57, so a shortlist usually holds two to six plausible tools and the right one is often second or third -- read every name before calling. Write tool_description as a capability sentence in the tool's own register ('creates an isolated workspace and starts a coding agent in it'), not as a user request, because the semantic arm matches descriptions. Pass tool_keywords as a JSON array of two to four discriminative nouns; a comma-joined string is rejected. Keywords barely move ranking, but they rescue tools the semantic arm misses completely, so name the noun a description would not use (hosts, vouchers, cron). If a shortlist looks wrong, re-query with different capability wording rather than repeating the same words. One search costs 730-990 tokens and stays in your transcript, so reuse a tool name you already found instead of searching again. Do not launch this profile as a lead."
+            "notes": "DOES NOT LAUNCH on this host: provider opencode-worker is refused before a session starts with an isolated-server error under either paseoTools shape, because a derived provider cannot share the host's single OpenCode service. Everything below is what a tools-off agent would need if that ever becomes possible, and is still an accurate description of the gateway itself. Discover tools with find_tool and run them with call_tool on http://vmcp-agents.llm.svc.cluster.local:4483/mcp. Measured there: recall@8 is 0.97 but top-1 only 0.57, so a shortlist usually holds two to six plausible tools and the right one is often second or third -- read every name before calling. Write tool_description as a capability sentence in the tool's own register ('creates an isolated workspace and starts a coding agent in it'), not as a user request, because the semantic arm matches descriptions. Pass tool_keywords as a JSON array of two to four discriminative nouns; a comma-joined string is rejected. Keywords barely move ranking, but they rescue tools the semantic arm misses completely, so name the noun a description would not use (hosts, vouchers, cron). If a shortlist looks wrong, re-query with different capability wording rather than repeating the same words. One search costs 730-990 tokens and stays in your transcript, so reuse a tool name you already found instead of searching again. Do not launch this profile as a lead."
           }
         ]
       },
@@ -272,31 +264,11 @@ data:
                 ]
               }
             ]
-          },
-          "opencode-worker": {
+          },          "opencode-worker": {
             "enabled": true,
             "extends": "opencode",
             "label": "OpenCode (worker)",
-            "paseoTools": {
-              "enabled": true,
-              "disabledTools": [
-                "archive_agent", "archive_workspace", "cancel_agent",
-                "capture_terminal", "create_agent", "create_heartbeat",
-                "create_schedule", "create_terminal", "create_workspace",
-                "delete_heartbeat", "delete_schedule", "get_agent_activity",
-                "get_agent_status", "inspect_provider", "inspect_schedule",
-                "kill_agent", "kill_terminal", "list_agents",
-                "list_hosts", "list_models", "list_pending_permissions",
-                "list_profiles", "list_providers", "list_schedules",
-                "list_terminals", "list_workspace_scripts", "list_workspaces",
-                "pause_schedule", "rename_workspace", "respond_to_permission",
-                "resume_schedule", "run_schedule_once", "schedule_logs",
-                "send_agent_prompt", "send_terminal_keys", "set_agent_mode",
-                "start_workspace_script", "stop_workspace_script", "subscribe_change_request",
-                "unsubscribe_change_request", "update_agent", "update_schedule",
-                "speak"
-              ]
-            },
+            "paseoTools": { "enabled": false },
             "models": [
               {
                 "id": "cogito/flashnext-deleuze",

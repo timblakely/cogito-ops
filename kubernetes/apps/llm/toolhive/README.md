@@ -389,9 +389,11 @@ What to tell an agent that only has the two meta-tools:
    Reuse a name already found; `call_tool` needs no fresh `find_tool`.
 
 The short form lives in the worker profile's `notes` in
-`kubernetes/apps/llm/opencode/app/paseo-config.yaml`, surfaced by `list_profiles`.
-Whether a launched worker sees its own profile notes is unverified, so the lead
-profile's notes tell the orchestrator to copy them into the worker's first prompt.
+`kubernetes/apps/llm/opencode/app/paseo-config.yaml`, surfaced by `list_profiles`,
+but it is reference material right now: that provider does not launch on this host
+(next section), so any agent started today is injected and holds these tools
+natively. Whether a launched agent reads its own profile notes at all is unverified,
+so anything an agent must obey belongs in the prompt you launch it with.
 
 ### The worker split has never actually run
 
@@ -412,28 +414,35 @@ per-session (`agent/providers/opencode/v2/configuration.js`, where
 any launch env beyond `PASEO_AGENT_ID`/`PASEO_AGENT_CWD`/`PASEO_WORKSPACE_ID`),
 and the check that follows it throws rather than downgrading.
 
-What the worker provider set was `paseoTools: {enabled: false}`. That switch is
-correct about *what* it removes and wrong about *where* it lands: Paseo strips
-the internal `paseo` MCP server from a launch only on the native-tools path
-(`agent-manager.js`, `return launchContext.paseoTools ?
-stripInternalPaseoMcpServer(merged) : merged`), and `enabled: false` is not the
-native-tools path — `isPaseoToolPolicyEnabled` is `policy?.enabled !== false`,
-so a disabled policy skips that branch and leaves the launch asking for a server
-of its own. Do not reach for the global knobs either: `daemon.mcp.enabled:
-false` unmounts `/mcp/agents`, which is the endpoint this gateway dials.
+What the worker provider set first was `paseoTools: {enabled: false}`, and the
+explanation offered here for the failure was that Paseo strips its internal
+`paseo` MCP server from a launch only on the native-tools path (`agent-manager.js`,
+`return launchContext.paseoTools ? stripInternalPaseoMcpServer(merged) : merged`),
+so a disabled policy leaves the launch asking for a server of its own. **That
+explanation was wrong, and what disproved it ran on a live pod.** The alternative
+shape — `paseoTools: {enabled: true, disabledTools: […all 43 tool names…]}`, which
+is exactly what the same policy reader supports (`isPaseoToolPolicyEnabled` is
+`policy?.enabled !== false`, and `disabledTools` is a declared key in
+`ProviderPaseoToolsPolicySchema`) — was deployed as `43b8700c`, confirmed present in
+both the mounted config and the live ConfigMap, with the daemon booting without a
+config-validation trace and the gateway still discovering two backends.
+`create_agent` on the worker provider answered with the error above, verbatim.
+Do not reach for the global knobs either: `daemon.mcp.enabled: false` unmounts
+`/mcp/agents`, which is the endpoint this gateway dials.
 
-The mechanism that stays on the working side of the gate is the per-tool list
-the same policy reader supports — `paseoTools: {enabled: true, disabledTools:
-[…every tool name]}`, which keeps `isPaseoToolPolicyEnabled` true (so native
-tools are in use and the internal server is stripped) while `isPaseoToolEnabled`
-returns false for every name. `kubernetes/apps/llm/opencode/app/paseo-config.yaml`
-carries that shape. It is **reasoned from the code above and not yet measured**:
-that ConfigMap is the one Reloader watches, so testing it costs a rollout and
-every live session. If a launched worker still fails to start, the fallback is
-to delete the worker provider and profile and leave every agent injected, which
-costs context and nothing else. Until a worker has been launched and its context
-counted, treat "workers get no Paseo catalog" as intended behaviour, not as a
-property of this deployment.
+Both shapes were therefore live and both failed, which says the gate never looked
+at the tool policy: a *derived* provider inherits its parent's `env`, and any
+per-launch custom environment is enough for `requiresDedicatedV2Server` to ask for a
+dedicated OpenCode server that a shared service refuses. No configuration in this
+repository can produce a tools-off agent on a host that shares one OpenCode service,
+and profiles cannot carry the switch either — `daemon.agentProfiles` has no
+`paseoTools` field. So `43b8700c` is reverted, the worker provider and profile remain
+in place marked **known broken** so a future attempt starts from a working file, and
+the honest end state is to delete both and let every agent carry the catalog. That
+costs context and nothing else: 10,671 tokens to carry all 64 tools in this group,
+against 419 for the gateway's two meta-tools plus 1.0k–1.6k per search — which is
+still the right shape for any backend that is *not* injected into agents, and for any
+client outside this pod.
 
 ## Exposure, and why the narrowing steps are load-bearing
 
