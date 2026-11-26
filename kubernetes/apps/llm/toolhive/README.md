@@ -125,6 +125,19 @@ agents, create workspaces, read terminals, manage schedules.
 > advertises exactly `find_tool` and `call_tool`. The daemon side shows no `401`
 > for the gateway and answers a real tool call through it
 > (`paseo_list_hosts` → `hosts_count=0`, `self.label=opencode-…`).
+>
+> One log line you will see forever, and should not chase: the daemon logs a
+> level-50 `Agent MCP transport error: Bad Request: Unsupported protocol
+> version: 2026-07-28` about once per ~30 s, with bursts of 3–4 on (re)connect —
+> 29 in 12 minutes measured. The cause is precise: `initialize` negotiates down
+> cleanly (an `initialize` offering `2026-07-28` answers `200` with
+> `2025-11-25`), but the gateway's health prober then POSTs with the
+> `Mcp-Protocol-Version: 2026-07-28` **header**, and the MCP SDK's
+> `validateProtocolVersion` 400s any non-initialize request whose header names
+> an unsupported version (measured both: header `2026-07-28` → 400, header
+> `2025-11-25` → 202). The prober gives up on the newest version and the backend
+> stays `Healthy`. Annoying but harmless — except that it keeps the daemon's
+> error counter busy, so alert on `401`, not on transport errors.
 
 **The URL is not the Service DNS name, and that is the daemon's rule.** Paseo
 applies a Vite-style Host allowlist (its `hostnames.js`): `localhost`,
@@ -212,8 +225,11 @@ Three things to know before debugging:
 
 - Enabling the optimizer pins this instance to MCP protocol `2025-11-25`; the
   meta-tools are session-scoped, so newer-capable clients are negotiated down
-  (upstream stacklok/toolhive#6089). Measured: offering `2026-07-28` to either
-  this gateway or the Paseo daemon returns `2025-11-25`.
+  (upstream stacklok/toolhive#6089). Measured: offering `2026-07-28` in
+  `initialize` to either this gateway or the Paseo daemon returns `2025-11-25`.
+  The negotiation only covers `initialize` though — later requests carry the
+  `Mcp-Protocol-Version` header, and a header naming an unsupported version is a
+  hard 400 on both (see the Paseo member's health-probe note above).
 - An `incomingAuth.authzConfig` Cedar policy cannot be configured here: vMCP
   exits at startup because "Config.Authz and Config.OptimizerConfig are mutually
   exclusive" (the meta-tools are not in its admission layer). Access to this
