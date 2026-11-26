@@ -15,9 +15,10 @@ search gateway below instead of carrying every backend schema.
   backend that the ToolHive proxy exposes as Streamable HTTP. Local UniFi OS
   console API at `192.168.1.1` with a locally generated Network API key,
   `UNIFI_READ_ONLY=true` so no mutating tool is ever registered.
-- `paseo/` — `MCPServerEntry` + `MCPExternalAuthConfig`: the agent host's own
-  agent-control MCP endpoint, registered as a group member with no new pods and
-  no new credential. Details below.
+- `paseo/` — `MCPServerEntry` + `MCPExternalAuthConfig` + a derived
+  `ExternalSecret`: the agent host's own agent-control MCP endpoint, registered as
+  a group member with no new pods and no new secret *material* (one derived
+  Secret holds the same password with its `Bearer ` prefix). Details below.
 - `vmcp/` — `MCPGroup` + `VirtualMCPServer` with ToolHive's **MCP optimizer**
   enabled, so an agent searches for the tool it needs instead of receiving every
   backend tool schema in its context (see "Tool search" below).
@@ -36,14 +37,20 @@ Credentials: two, both already existing elsewhere.
   server's own bearer-token requirement; this cluster's external-secrets
   v0.20.4 removed `backfill`, so a cluster-generated token would rotate on every
   refresh — stdio avoids that whole problem.)
-- Paseo: Secret `paseo-server`, key `server-password` — **the same key the
-  `paseo` container already reads** (`../opencode/app/helmrelease.yaml`).
-  Nothing here creates a Secret, adds an ExternalSecret, or pushes a new field
-  to 1Password. The gateway's own ServiceAccount Role (created by the operator
-  for the `agents` vMCP) already grants `get`/`list`/`watch` on secrets in this
-  namespace, so no RBAC is added for the hop either — though note that the
-  gateway cannot use a bearer token at all today (see "The Paseo member"), so
-  the credential is currently consumed by nothing.
+- Paseo: the daemon password, in Secret `paseo-server`, key `server-password` —
+  the key the `paseo` container reads (`../opencode/app/helmrelease.yaml`). The
+  gateway cannot use that key directly: its only usable static strategy is a header
+  whose value is injected verbatim, and the daemon wants `Authorization: Bearer
+  <password>`. So `paseo/externalsecret.yaml` derives Secret `paseo-gateway-auth`
+  (key `authorization`, value `"Bearer " + password`) from the same 1Password field
+  the PushSecret writes. That is one more Secret holding the same bytes, and the
+  trade-off is deliberate: a second key on `paseo-server` would change a Secret the
+  agent host pod references, and Reloader hashes referenced Secrets into the pod
+  template — so a header prefix would restart every live agent session. No
+  PushSecret exists for `paseo-gateway-auth` and nothing writes it to 1Password. No
+  RBAC is added either: the operator's `Role/agents-vmcp` already grants
+  `get`/`list`/`watch` on secrets in this namespace, and the derived value reaches
+  the gateway through the aggregator rather than as a pod env var.
 
 ## Access (cluster-internal only)
 
@@ -69,10 +76,14 @@ dials the URL directly, so this adds no Deployment, no Service, and no proxy hop
 Its 42 tools are the agent-control plane of this pod — launch and message
 agents, create workspaces, read terminals, manage schedules.
 
-> **Status as deployed (measured 2026-11-26, revision `ee60f8b9`): the entry is
-> live but the gateway refuses it, so Paseo contributes nothing yet.** The
-> aggregator converts each discovered backend's auth config and this build has no
-> bearer-token strategy; the entry is skipped and its tool filter is inert.
+> **Outgoing-auth verdict, measured on v0.58.0.** The gateway authenticates to this
+> backend with `MCPExternalAuthConfig type: headerInjection`, `headerName:
+> Authorization`, and a Secret whose value is the whole `Bearer <token>` string —
+> the value is injected **verbatim**, so the prefix has to be in the credential
+> (`paseo/externalsecret.yaml` derives it). It is not `type: bearerToken`, even
+> though that is the field you would reach for: `spec.type` enumerates
+> `bearerToken` and admission reports `Valid=True`, but the runtime has no
+> converter for it, and the failure is invisible until you look for the tools:
 >
 > ```
 > ERROR failed to discover auth config for MCPServerEntry entry=paseo
@@ -81,21 +92,39 @@ agents, create workspaces, read terminals, manage schedules.
 > WARN  aggregation.tools entry matches no backend in the group; its filter/overrides are not applied workload=paseo
 > ```
 >
-> `VirtualMCPServer agents` still reports `Ready` with `backendCount: 1`
-> (`unifi-mcp` only) and the gateway still advertises exactly `find_tool` and
-> `call_tool`, so no existing client changed behaviour; the cost of leaving this
-> in is a `False` condition (`DiscoveredAuthConfig-paseo`) and two log lines per
-> reconcile. Not a version skew: the aggregator reports `v0.58.0`, the same
-> release as the CRDs, and its own config surface enumerates its outgoing
-> strategies as `unauthenticated`, `header_injection`, `token_exchange`,
-> `upstream_inject`, `aws_sts`, `obo`, `xaa` — there is no bearer type to point at.
-> `MCPExternalAuthConfig type: bearerToken` is accepted by the API and honoured
-> only by the operator's proxy runner (`MCPServer`/`MCPRemoteProxy`), never by the
-> gateway's dial-out. The fix is one of: gateway-side `header_injection` (the
-> daemon accepts only `Authorization: Bearer <password>` — a bare token, a
-> lowercase scheme and no header all measure `401`), or an `MCPRemoteProxy`, whose
-> runner does implement bearer. See `mcpexternalauthconfig.yaml` for why the
-> bearer form is kept in the tree.
+> That is not a version skew (the aggregator reports `v0.58.0`, the same release as
+> the CRDs). The strategies the dial-out actually implements are `unauthenticated`,
+> `header_injection`, `token_exchange`, `upstream_inject`, `aws_sts`, `obo`, `xaa`;
+> `bearerToken` exists only in the operator's proxy runner, which turns it into
+> `--bearer-token <secret>,target=bearer_token` on `MCPServer`/`MCPRemoteProxy`
+> pods. So an `MCPServerEntry` can carry a static header or nothing at all.
+>
+> Corollary worth remembering when someone next wants per-caller behaviour:
+> `headerForward` on an `MCPServerEntry` is a dead end too — it is defined in the
+> CRD and accepted at admission but never sent on outbound requests when the entry
+> is consumed as a vMCP static backend (upstream stacklok/toolhive#4996); only
+> `MCPRemoteProxy` wires it. `paseo/mcpserverentry.yaml` leaves the field absent on
+> purpose.
+>
+> Two rules the vendor documents and this cluster now depends on: the header value
+> must come from a Secret (plaintext inline is refused at the CRD layer), and
+> **rotating the credential requires restarting the vMCP pods**, because the
+> aggregator resolves it at process start. Rotation is doubly indirect here: Secret
+> `paseo-server` is *generated* in-cluster by `ClusterGenerator
+> cnpg-pass-generator` and PushSecret-copied **into** 1Password (item `paseo`, field
+> `server-password`), so the vault is the backup and `paseo-gateway-auth` is a
+> derived copy that only catches up after the PushSecret (1h) plus its own refresh
+> (1h) — and then needs the gateway restarted. After any daemon-password rotation,
+> verify with `call_tool paseo_list_hosts` rather than assuming.
+>
+> Verified after this change (`f5da6d87`): `ExternalSecret paseo-gateway-auth`
+> `Ready=True/SecretSynced`; on the VirtualMCPServer,
+> `DiscoveredAuthConfig-paseo=True (ConversionSucceeded)` and
+> `BackendsDiscovered=True — Discovered 2 backends`, with the paseo backend
+> `status=ready message=Healthy mcpRevision=2025-11-25`; the gateway still
+> advertises exactly `find_tool` and `call_tool`. The daemon side shows no `401`
+> for the gateway and answers a real tool call through it
+> (`paseo_list_hosts` → `hosts_count=0`, `self.label=opencode-…`).
 
 **The URL is not the Service DNS name, and that is the daemon's rule.** Paseo
 applies a Vite-style Host allowlist (its `hostnames.js`): `localhost`,
@@ -104,8 +133,20 @@ applies a Vite-style Host allowlist (its `hostnames.js`): `localhost`,
 `Host: 127.0.0.1:6767` answer 200 with the 42-tool catalog;
 `Host: opencode-paseo.llm.svc.cluster.local:6767` (and `.svc`, and the bare
 service name, and the pod name) answer `403 {"error":"Invalid Host header"}`.
-`headerForward` cannot repair this: Go's transport takes the Host from
-`Request.Host` and ignores a `Host` entry in the request's Header map.
+`headerForward` cannot repair this either: Go's transport takes the Host from
+`Request.Host` and ignores a `Host` entry set on the request's Header map (and on
+an entry that field is never sent at all, per #4996 above).
+
+**Test the allowlist by dialing the Service, because the obvious test lies.** The
+daemon's `403 {"error":"Invalid Host header"}` only appears on a direct
+`http://opencode-paseo.llm.svc.cluster.local:6767/mcp/agents` with an explicit
+`Host` header. Sent through the public URL instead, a rejected `Host` is a **404
+from envoy** (unknown virtual host), which reads like a routing fault and is not
+one. Measured against the Service on 6767: every cluster DNS name 403s, with or
+without the port; `paseo.timblakely.com`, `paseo.timblakely.com:6767` and
+`PASEO.TIMBLAKELY.COM` all return 200 with the 42-tool catalog. So the matcher
+compares a port-stripped, case-folded host against the list — which is what makes
+a plain hostname entry in `PASEO_HOSTNAMES` sufficient rather than hopeful.
 
 So the live `remoteUrl` is `https://paseo.timblakely.com/mcp/agents`, which the
 allowlist admits. What that costs while it stands:
@@ -121,9 +162,13 @@ allowlist admits. What that costs while it stands:
 
 **`remoteUrl` and `PASEO_HOSTNAMES` are one switch.** The in-cluster variant is
 `http://opencode-paseo.llm.svc.cluster.local:6767/mcp/agents`, and it works only
-once `PASEO_HOSTNAMES` (`../opencode/app/helmrelease.yaml`) lists that hostname —
-the daemon matches a leading-dot pattern as a suffix, so `.cluster.local` covers
-the whole namespace family. Half a flip is a permanent 403, and the symptom is
+once `PASEO_HOSTNAMES` (`../opencode/app/helmrelease.yaml`) lists that hostname.
+The staged change names the exact hostname, which is enough: the matcher compares
+the port-stripped, case-folded host against the list (measured, above). A
+leading-dot pattern such as `.cluster.local` is the alternative that covers the
+whole namespace family in one entry — accepted by the same matcher, but not
+exercised here, so it is not what the file ships. Half a flip is a permanent 403,
+and the symptom is
 not an error page: the backend simply never becomes ready, so `find_tool` stops
 returning Paseo tools. Both halves live in the same (deliberately unpushed,
 because it restarts the agent host) change as the OpenCode gateway entry, and
@@ -147,10 +192,11 @@ would otherwise carry every backend schema pays for a shortlist
 (`maxToolsToReturn: 8`) per search instead. Measured with `cl100k_base` over the
 `tools[]` array each backend returns from `tools/list`: Paseo's 42 tools are
 **5,456 tokens** (the 38 this group advertises, 4,927), the UniFi 26 are
-**4,757**, and the two meta-tools a client actually loads are **419**. A real
-shortlist of UniFi hits measured 1,285 tokens. So a worker that searches twice
-pays roughly a third of what carrying Paseo's catalog costs, and a worker that
-searches nothing pays almost nothing.
+**4,757**, and the two meta-tools a client actually loads are **419**. What a
+search costs back is in "Retrieval, measured" below: **729 tokens** average for a
+Paseo shortlist, because hits arrive with full `inputSchema`s. A worker that
+searches once and calls what it found pays 419 + 729 where two tool groups alone
+would have cost it 10,213; a worker that searches nothing pays 419.
 
 Embeddings come from the cluster's shared embedder rather than a dedicated model:
 `embeddingProvider: openai` against `http://litellm.llm.svc.cluster.local:4000/v1`
@@ -186,18 +232,21 @@ permissions — and none of them is a search-and-call task. `unifi-mcp` has no
 entry and `defaultToolVisibility` stays at its `allow` default on purpose:
 setting `deny` would silently hide UniFi's 26 tools too.
 
-Two limits that are easy to forget:
+Two things that are easy to get wrong, one of them measured differently than the
+docs read:
 
-- `filter` gates **advertising**. A hidden tool stays in the gateway's routing
-  table, exactly as the CRD documents it, so this is presentation, not a control
-  boundary. Not yet demonstrated on this gateway: while the Paseo backend is
-  absent every `call_tool paseo_*` answers `{"isError":true,"text":"tool not
-  found: paseo_create_terminal"}` regardless of the filter (measured), so the
-  routability of the four hidden tools can only be probed once the backend
-  registers.
+- **Measured on this build, the filter is stricter than the CRD text suggests.**
+  The docs describe `filter` as gating *advertising* while the tool stays in the
+  routing table. Through the optimizer's meta-tools it is gone instead:
+  `call_tool paseo_create_terminal` returns
+  `{"isError":true,"text":"tool not found: paseo_create_terminal"}`, and in 4
+  queries written to hit exactly the withheld tools, none of them appeared (0/4).
+  Inside the gateway, then, this is enforcement, not presentation. What it is
+  **not** is a boundary against anything holding the daemon credential: a caller
+  that dials `/mcp/agents` directly still sees and calls all 42 tools.
 - MCP has no per-caller tool policy. Anyone who can reach 4483 gets whatever the
   gateway advertises, and behind that the gateway holds credentials (the Paseo
-  bearer token, the UniFi read-only key) that those callers do not have
+  bearer header, the UniFi read-only key) that those callers do not have
   individually.
 
 Two things this change measured about the mechanism itself, because both are easy
@@ -222,19 +271,32 @@ Numbers below come from the live optimizer with `embedder` behind LiteLLM, not
 from a simulation. Shortlists come back shorter than the 8 slots allowed because
 `find_tool` prunes weak hits (`semanticDistanceThreshold` defaults to 1.0).
 
-UniFi's 26 tools alone (the state before this change, and still the state after
-it, because the Paseo backend does not register — see "The Paseo member"): a
-47-query harness against the gateway measured UniFi **recall@8 1.000** (3/3),
-recall@1 0.333, mean shortlist 5.67 of 8 slots.
+With Paseo in the group (38 queries, one per advertised tool, against the live
+gateway): **recall@8 0.974**, **recall@1 0.816**, mean shortlist **5.89 of 8**
+slots. One miss: *"see which agent sessions are running on this host right now"*
+wanted `paseo_list_agents` and got `paseo_set_agent_mode`, `paseo_kill_agent`,
+`paseo_get_agent_status` — the semantic neighbourhood is right, the exact tool
+lost. UniFi's 3 controls are **unchanged** by adding a 38-tool workload
+(recall@8 1.000, recall@1 0.333, mean 5.67), which is the guard that the new
+filter and the new member did not swallow the existing group. The 4 queries
+written for the withheld tools hit them 0/4, while all 4 of those shortlists still
+contained *other* Paseo tools — the filter removes tools, not the workload. The
+2 controls aimed at `find_tool`/`call_tool` themselves never match: the meta-tools
+are what the client already holds, so they are not in the index.
 
-What Paseo's 38 advertised tools do to those numbers, and what Paseo recall looks
-like, **cannot be measured until the backend registers**. One observation is
-already available and worth knowing: with Paseo absent, agent-shaped queries do
-not come back empty — `find_tool("create a git worktree workspace for a coding
-task", [workspace, worktree, create])` returns four UniFi tools
-(`list_site_internal_ap_neighbors_v2` first). A group member that is configured
-but not reachable still costs a caller in misleading hits, which is the concrete
-argument for fixing the auth gap rather than leaving the entry half-deployed.
+**What a search costs, measured** (`cl100k_base` over the JSON a client actually
+reads): a Paseo shortlist averages **729 tokens** (3,215 characters, max 1,382 in
+this run) because `find_tool` returns full `inputSchema`s for its hits, not names.
+The catalog a client would otherwise carry is 4,927 tokens for the same 38 tools,
+and the two meta-tools cost 419. So one search plus the meta-tools is 1,148
+tokens (23% of carrying the catalog), two searches 1,877 (38%), and it only breaks
+even past ~11 searches — the argument for the gateway is not raw token arithmetic
+on a single turn but that a worker with 5 unused tool groups pays 419 tokens plus
+what it searches, instead of every group's catalog.
+
+Shortlists are shorter than the 8 allowed because `find_tool` prunes weak hits
+(`semanticDistanceThreshold` defaults to 1.0), and this build returns `score: null`
+for every hit, so ranking can only be inferred from order.
 
 To reproduce, from anywhere that can reach `vmcp-agents:4483`: initialize a
 Streamable HTTP session, then call `find_tool` once per query and read the
@@ -253,26 +315,38 @@ curl -s -X POST http://localhost:4483/mcp \
 recall@8 is then just "was the tool the query describes inside the returned
 `tools[]`", averaged over the queries. The 47-query harness used for the numbers
 above is not vendored in this repo; it was assembled in a scratch directory for
-this measurement (40 queries for the tools this filter advertises, 4 for the
-hidden ones — where a hit would be a bug — and 3 UniFi controls to prove the new
-filter did not swallow the group).
+this measurement: 38 queries for the tools this filter advertises, 4 for the
+withheld ones (where a hit would be a bug), 2 aimed at the gateway's own
+meta-tools (which must miss), and 3 UniFi controls to prove the new member did not
+swallow the existing group. Two caveats found while using it, both of which will
+bite whoever writes the next one: the shortlist arrives as JSON inside
+`result.content[0].text`, not as `structuredContent`, and every hit's `score` is
+`null` on this build.
 
 ## Exposure, and why the narrowing steps are load-bearing
 
-**The `agents` gateway is unauthenticated inside the cluster and it now fronts
-this pod's agent control plane.** That posture was chosen deliberately, not
-inherited by accident, and it is worth stating plainly: any pod in this cluster
-that can reach `vmcp-agents:4483` can launch agents, create workspaces and read
-terminals on this host, without a credential of its own.
+**The `agents` gateway is unauthenticated inside the cluster and it now holds a
+working credential for this pod's agent control plane.** That posture was chosen
+deliberately, not inherited by accident, and it is worth stating plainly: any pod
+in this cluster that can reach `vmcp-agents:4483` can launch agents, create
+workspaces and read terminals on this host without a credential of its own. That
+is not hypothetical — during verification an unauthenticated Streamable HTTP
+session (no token, no client certificate, just cluster routing) called
+`paseo_list_hosts` through the gateway and got a real answer
+(`hosts_count=0, self.label=opencode-…`). The gateway paid for it with the
+`paseo-gateway-auth` header, which is exactly the aggregate credential the ladder
+below is about.
 
 The steps below are not nice-to-have hygiene, because the usual mitigations do
 not apply here:
 
 - **MCP has no per-caller tool policy**, so the gateway cannot answer "which
   tools may *this* caller use". There is no caller identity to ask about.
-- **ToolHive's `filter` only gates advertising.** Hidden tools stay in the
-  routing table, so the four excluded tools are excluded from the menu, not from
-  the reach of anyone who guesses the name.
+- **`filter` does gate advertising, and on this build it also blocks the
+  meta-tool path** — `call_tool` answers `tool not found` for a withheld tool. But
+  that is a property of the optimizer, not a security boundary: anything holding
+  the daemon credential can dial `/mcp/agents` directly and see all 42 tools,
+  filtered or not.
 - **`PASEO_PASSWORD` is already in every agent terminal environment in this
   pod.** It is set on the `paseo` container (`helmrelease.yaml:182`) and Paseo
   injects it into the terminals it hands agents; pid 1 of the `main` container
