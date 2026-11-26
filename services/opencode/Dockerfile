@@ -62,6 +62,7 @@ COPY patch-genui.py configure-paseo.py test_genui_compat.mjs test_genui_bootstra
 RUN npm ci --prefix /opt/paseo-genui --omit=dev --ignore-scripts --no-audit --no-fund \
     && python3 /opt/paseo-compat/patch-genui.py /opt/paseo-genui/node_modules/paseo-plugin-genui \
     && GENUI_PACKAGE_ROOT=/opt/paseo-genui/node_modules/paseo-plugin-genui \
+       PASEO_AGENT_ROOT=/usr/local/lib/node_modules/@getpaseo/cli/node_modules/@getpaseo/server/dist/server/server/agent \
        node --test /opt/paseo-compat/test_genui_compat.mjs \
     && GENUI_PACKAGE_ROOT=/opt/paseo-genui/node_modules/paseo-plugin-genui \
        python3 -m unittest discover -s /opt/paseo-compat -p test_genui_bootstrap.py -v \

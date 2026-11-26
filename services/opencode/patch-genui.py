@@ -11,7 +11,7 @@ ORIGINAL_HASHES = {
     "server/data-source.ts": "a37ea04bd2962b488f0ae81f5a6c6a4dd9c2555816a6c3ee628ef6073dd2a652",
 }
 PATCHED_HASHES = {
-    "index.server.ts": "a79c90099d3ac3f9a8f63cdf5f99dfe96fb48332bd644946a86de10f64482ca1",
+    "index.server.ts": "8ff9579c3d9ad26152111847d1294709b2dc06581a09e00c9eb0f320bc94049c",
     "server/data-source.ts": "768b60a0360942d7c0bfdbc08337b5bd7c056ba1a8f8bbd9bdda5a99d3221f44",
 }
 
@@ -40,7 +40,16 @@ def patch(root, check=False):
         PASEO_THREAD_STORAGE: storageDir,
       },
     };'''
-    after = '''    const sharedStorage = request.provider === "opencode";
+    after = '''    let provider = request.provider;
+    if (provider !== "opencode") {
+      const { config } = await paseo.config.get();
+      const seen = new Set();
+      while (provider && provider !== "opencode" && !seen.has(provider)) {
+        seen.add(provider);
+        provider = config.providers[provider]?.extends ?? "";
+      }
+    }
+    const sharedStorage = provider === "opencode";
     return {
       ...request,
       // Tool definitions are shared by OpenCode: put per-chat paths in the prompt.
@@ -61,6 +70,11 @@ def patch(root, check=False):
     };'''
     if sources["index.server.ts"].count(before) != 1:
         raise ValueError("Expected exactly one GenUI session-open hook")
+    sources["index.server.ts"] = sources["index.server.ts"].replace(before, after)
+    before = 'server.before("agent.session_open", async ({ request }) => {'
+    after = 'server.before("agent.session_open", async ({ request }, { paseo }) => {'
+    if sources["index.server.ts"].count(before) != 1:
+        raise ValueError("Expected exactly one GenUI session-open registration")
     sources["index.server.ts"] = sources["index.server.ts"].replace(before, after)
     before = 'return path.join("/tmp/opencode/genui-storage", safeId);'
     after = 'return path.join(os.homedir(), ".paseo", "genui-storage", safeId);'

@@ -78,7 +78,9 @@ including GenUI's `render_ui`, through the existing OpenCode bridge. This also
 exposes ordinary Paseo agent tools under the configured provider policy; it
 does not add a global MCP server or relax shared-server isolation.
 
-The compatibility hook leaves OpenCode process env untouched. It contributes
+The compatibility hook follows `config.providers[id].extends` to recognize
+OpenCode-derived providers as well as the built-in `opencode` ID, with cycle
+protection. It leaves their process env untouched. It contributes
 an unchanged `render_ui` definition and puts each chat's absolute storage path
 in `appendSystemPrompt` (an array of strings). Avoid per-chat tool descriptions:
 OpenCode shares definitions and rejects conflicting ones. Other providers
@@ -99,6 +101,21 @@ Run hook tests against a patched installation with
 The image build also runs `test_genui_bootstrap.py`. After deployment, create
 two new chats and require actual `render_ui` calls and corresponding GenUI
 timeline entries; an inline block alone does not verify native tools.
+
+The image also sets `PASEO_AGENT_ROOT` for the hook tests, exercising the installed
+Paseo shared-server isolation gates. The old literal-ID check injected
+`BB_THREAD_STORAGE` and `PASEO_THREAD_STORAGE` into `opencode-worker` launches;
+those keys, not the inherited connection URL, required an isolated server. The
+test reproduces that failure and checks the corrected launch without weakening
+the gate for genuine custom environment or MCP servers. The deployed image
+`homeops-2eafd55c73fbcc97` was also verified with real sessions: a worker launched
+on the shared service and called `paseo_list_hosts` through the gateway; a lead
+called native `paseo_list_hosts` and `paseo_render_ui`, producing GenUI timeline
+entries. A temporary location-scoped OpenCode context hook independently captured
+54 native Paseo/plugin tools in a lead's outgoing request and zero in a worker's
+on the same shared service. The audit recorded tool names only and did not modify
+the tool sets. A passing hook test alone is not a successful live worker launch;
+retain these behavioral checks when upgrading either Paseo or GenUI.
 
 ## LAN-only image builds
 

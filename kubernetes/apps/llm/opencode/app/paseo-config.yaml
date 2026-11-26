@@ -35,33 +35,36 @@ data:
   # keys are written down. Pinning them means a code-default change in a Paseo
   # upgrade cannot silently start or stop injecting the catalog.
   #
-  # KNOWN BROKEN, KEPT DELIBERATELY. `opencode-worker` cannot launch on this host
-  # and no `paseoTools` shape fixes it. MEASURED TWICE on 26 Nov, once per shape:
-  # `create_agent` with that provider fails before a session starts -- "Custom
+  # SHARED-SERVICE WORKER SPLIT, VERIFIED on 26 Nov after fixing GenUI. The
+  # original worker launches failed under both policy shapes with:
+  # `create_agent` failed before a session started -- "Custom
   # OpenCode MCP servers or process environment require an isolated server and
   # cannot be used with a shared OpenCode service." The gate is
   # agent/providers/opencode/v2/configuration.js requiresDedicatedV2Server(),
-  # which demands a dedicated OpenCode server whenever a launch carries anything
-  # beyond `mcpServers` and the three session env keys
-  # (PASEO_AGENT_ID/PASEO_AGENT_CWD/PASEO_WORKSPACE_ID), and the check that
-  # follows it throws rather than downgrading. A DERIVED provider trips it; the
-  # built-in `opencode` provider does not, which is why every session on this
-  # host carries the full catalog. Both shapes were deployed and confirmed live,
+  # which requires isolation for custom `mcpServers` or launch env beyond the
+  # three session keys (PASEO_AGENT_ID/PASEO_AGENT_CWD/PASEO_WORKSPACE_ID).
+  # The check that
+  # follows it throws rather than downgrading. Both failing shapes were live:
   # daemon and gateway healthy, same error verbatim: `enabled: false`, and
   # `enabled: true` with all 43 tool names in `disabledTools` (43b8700c, live
-  # 17:51-20:12Z, reverted by the commit that rewrote this paragraph). Profiles
-  # cannot carry the switch instead -- agent profiles have no paseoTools field --
-  # so "lead gets the catalog, workers do not" is not reachable through this
-  # config at all. Deleting this provider and its profile is the honest end
-  # state; it is kept only so a future attempt starts from a working file, and
-  # nothing here may advertise it as usable. See
-  # kubernetes/apps/llm/toolhive/README.md, "The worker split has never actually run".
+  # 17:51-20:12Z, reverted at 5a7444e7). Profiles
+  # cannot carry the switch instead -- agent profiles have no paseoTools field.
   #
-  # What the shape below still has to get right, for as long as it exists: the
-  # policy is read per provider id (agent/paseo-tool-policy.js ->
+  # The concrete trigger was OUR GenUI patch, not provider inheritance: its old
+  # literal provider === "opencode" check injected storage env for the worker.
+  # BB_THREAD_STORAGE/PASEO_THREAD_STORAGE require isolation. The inherited runtime
+  # PASEO_OPENCODE_SERVER_URL is explicitly allowed by assertSharedConfiguration.
+  # The corrected patch follows provider ancestry. Image homeops-2eafd55c73fbcc97
+  # passed real worker gateway and lead native list_hosts/render_ui calls. An
+  # isolated OpenCode context hook captured 54 native Paseo/plugin tools for the
+  # lead and zero for the worker on the SAME shared service; this is not an
+  # inference from a provider's config or an agent's self-reported inventory.
+  # See kubernetes/apps/llm/toolhive/README.md, "Shared-service worker split".
+  #
+  # The policy is read per provider id (agent/paseo-tool-policy.js ->
   # providerSettings[providerId].paseoTools), so it is inert for every other
-  # provider, and `enabled: false` does keep the tools off any session that ever
-  # does start on it.
+  # provider. `enabled: false` also suppresses the fallback internal MCP server,
+  # so the worker requests neither a native catalog nor a custom MCP server.
   #
   # `extends` inherits command, env and disallowedTools (mergeRuntimeSettings)
   # but NOT the model list and NOT paseoTools -- provider-registry.js gives a
@@ -81,8 +84,8 @@ data:
   # `list_profiles`. MEASURED: `create_agent` does accept the combined form
   # `provider: "opencode-worker/cogito/flashnext-deleuze"` -- it splits on the
   # FIRST slash (agent/tools/paseo-tools.js resolveProviderModel), leaving the
-  # model id its own slash. That parse succeeds and the launch still fails, per
-  # the paragraph above: a successful parse is not evidence a provider is usable.
+  # model id its own slash. Real launches now pass as well, after the GenUI fix;
+  # a successful parse alone would not establish provider usability.
   #
   # WHAT KEEPS THIS CATALOG ON THIS MACHINE: `relay.enabled: false` plus zero
   # destination hosts registered (`list_hosts` -> hosts_count: 0, self only).
@@ -119,14 +122,14 @@ data:
             "name": "Lead",
             "provider": "opencode",
             "model": "cogito/flashnext-deleuze",
-            "notes": "Full Paseo catalog (42 tools) for orchestrating work. Do NOT launch the worker provider \"opencode-worker/cogito/flashnext-deleuze\": measured broken on this host, create_agent refuses it before a session starts with an isolated-server error, for either paseoTools shape. Launch workers on this provider and accept that they carry the same catalog you do. The agents gateway (find_tool/call_tool) remains available for backends that are not injected into agents and for clients outside this pod. A launched worker cannot be relied on to read its own profile notes, so copy into its prompt anything it cannot be assumed to know."
+            "notes": "Native Paseo catalog for orchestration, including GenUI render_ui. Launch routine workers with provider \"opencode-worker/cogito/flashnext-deleuze\" and settings.modeId \"build\": the worker shares this host's OpenCode service but omits native Paseo schemas. Copy the worker profile's gateway guidance into initialPrompt; do not assume a launched agent receives its own profile notes. Keep direct GenUI and Progress tool calls on this lead profile."
           },
           {
             "id": "worker",
             "name": "Worker",
             "provider": "opencode-worker",
             "model": "cogito/flashnext-deleuze",
-            "notes": "DOES NOT LAUNCH on this host: provider opencode-worker is refused before a session starts with an isolated-server error under either paseoTools shape, because a derived provider cannot share the host's single OpenCode service. Everything below is what a tools-off agent would need if that ever becomes possible, and is still an accurate description of the gateway itself. Discover tools with find_tool and run them with call_tool on http://vmcp-agents.llm.svc.cluster.local:4483/mcp. Measured there: recall@8 is 0.97 but top-1 only 0.57, so a shortlist usually holds two to six plausible tools and the right one is often second or third -- read every name before calling. Write tool_description as a capability sentence in the tool's own register ('creates an isolated workspace and starts a coding agent in it'), not as a user request, because the semantic arm matches descriptions. Pass tool_keywords as a JSON array of two to four discriminative nouns; a comma-joined string is rejected. Keywords barely move ranking, but they rescue tools the semantic arm misses completely, so name the noun a description would not use (hosts, vouchers, cron). If a shortlist looks wrong, re-query with different capability wording rather than repeating the same words. One search costs 730-990 tokens and stays in your transcript, so reuse a tool name you already found instead of searching again. Do not launch this profile as a lead."
+            "notes": "Verified on this host: this provider launches on the same shared OpenCode service as the lead, with no native Paseo, GenUI or Progress tools in the outgoing model tool set. Discover tools with agents.find_tool and run them with agents.call_tool through Code Mode execute; use search to locate those gateway methods if needed. The MCP endpoint is http://vmcp-agents.llm.svc.cluster.local:4483/mcp. Retrieval measurements: recall@8 is about 0.97 but task-intent top-1 only 0.57, so read every candidate name before calling. Write tool_description as a capability sentence in the tool's register, not as a user request. Pass tool_keywords as a JSON array of two to four discriminative nouns, never a comma-joined string. If a shortlist looks wrong, re-query with different capability wording. Reuse tool names already discovered rather than searching again; shortlist schemas stay in the transcript and a live two-backend search costs roughly 1.0k-1.6k tokens. Keep orchestration and native GenUI/Progress work on the lead profile. This is context reduction, not a sandbox: the pod remains one trust domain."
           }
         ]
       },
@@ -264,7 +267,8 @@ data:
                 ]
               }
             ]
-          },          "opencode-worker": {
+          },
+          "opencode-worker": {
             "enabled": true,
             "extends": "opencode",
             "label": "OpenCode (worker)",

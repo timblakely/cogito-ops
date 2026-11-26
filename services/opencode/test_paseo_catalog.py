@@ -64,16 +64,14 @@ class PaseoCatalogTests(unittest.TestCase):
                         self.assertTrue(all(option["label"].strip() for option in options))
 
     def test_worker_entry_is_the_one_that_drops_the_paseo_catalog(self):
-        """Guards the shape of a provider that is KNOWN BROKEN, not a working split.
+        """Only workers drop the native catalog; runtime probes verify the split.
 
-        Measured on this host: `create_agent` on `opencode-worker` is refused
-        before a session starts, with `paseoTools: {enabled: false}` and with
-        `{enabled: true, disabledTools: [...]}` alike -- a derived provider cannot
-        share the host's single OpenCode service. So this test keeps a broken
-        entry honest and inert (only the worker turns tools off; the lead never
-        does); it does not prove any agent can launch on that provider. See
-        kubernetes/apps/llm/toolhive/README.md, "The worker split has never
-        actually run".
+        The deployed ancestry-aware GenUI hook fixes the storage-env isolation
+        error for derived OpenCode providers. A real worker has launched and
+        called list_hosts through the gateway; a lead has called native
+        list_hosts and render_ui. This test guards configuration, not those live
+        behaviors. See kubernetes/apps/llm/toolhive/README.md,
+        "Shared-service worker split".
         """
         paseo = embedded_config("paseo-config.yaml", "config.json")
         providers = paseo["agents"]["providers"]
@@ -103,10 +101,16 @@ class PaseoCatalogTests(unittest.TestCase):
         profiles = paseo["daemon"]["agentProfiles"]
         providers = paseo["agents"]["providers"]
         self.assertEqual([profile["id"] for profile in profiles], ["lead", "worker"])
+        self.assertIn("opencode-worker/cogito/flashnext-deleuze", profiles[0]["notes"])
+        self.assertIn("agents.find_tool", profiles[1]["notes"])
+        self.assertIn("agents.call_tool", profiles[1]["notes"])
+        self.assertIn("initialPrompt", profiles[0]["notes"])
         for profile in profiles:
             with self.subTest(profile=profile["id"]):
                 for key in ("id", "name", "provider", "notes"):
                     self.assertTrue(profile[key].strip(), key)
+                self.assertNotIn("DOES NOT LAUNCH", profile["notes"])
+                self.assertNotIn("measured broken", profile["notes"])
                 self.assertNotIn("extends", profile)
                 self.assertIn(profile["provider"], providers)
                 self.assertTrue(providers[profile["provider"]]["enabled"])

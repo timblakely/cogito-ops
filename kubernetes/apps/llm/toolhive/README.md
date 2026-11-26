@@ -390,16 +390,16 @@ What to tell an agent that only has the two meta-tools:
 
 The short form lives in the worker profile's `notes` in
 `kubernetes/apps/llm/opencode/app/paseo-config.yaml`, surfaced by `list_profiles`,
-but it is reference material right now: that provider does not launch on this host
-(next section), so any agent started today is injected and holds these tools
-natively. Whether a launched agent reads its own profile notes at all is unverified,
-so anything an agent must obey belongs in the prompt you launch it with.
+and the worker now launches on the shared service (next section). Whether a
+launched agent reads its own profile notes at all is unverified, so anything an
+agent must obey belongs in the prompt you launch it with. In particular, copy
+the gateway guidance into `initialPrompt` when using the worker profile.
 
-### The worker split has never actually run
+### Shared-service worker split
 
 The intent was that only a lead carries Paseo's catalog and every launched
 worker reaches tools through this gateway instead. `list_profiles` shows both
-profiles, the config validates, and the unit tests pass — and the first real
+profiles, the config validated, and the unit tests passed — and the first real
 `create_agent` on the worker provider failed before a session started:
 
 ```
@@ -430,19 +430,48 @@ config-validation trace and the gateway still discovering two backends.
 Do not reach for the global knobs either: `daemon.mcp.enabled: false` unmounts
 `/mcp/agents`, which is the endpoint this gateway dials.
 
-Both shapes were therefore live and both failed, which says the gate never looked
-at the tool policy: a *derived* provider inherits its parent's `env`, and any
-per-launch custom environment is enough for `requiresDedicatedV2Server` to ask for a
-dedicated OpenCode server that a shared service refuses. No configuration in this
-repository can produce a tools-off agent on a host that shares one OpenCode service,
-and profiles cannot carry the switch either — `daemon.agentProfiles` has no
-`paseoTools` field. So `43b8700c` is reverted, the worker provider and profile remain
-in place marked **known broken** so a future attempt starts from a working file, and
-the honest end state is to delete both and let every agent carry the catalog. That
-costs context and nothing else: 10,671 tokens to carry all 64 tools in this group,
-against 419 for the gateway's two meta-tools plus 1.0k–1.6k per search — which is
-still the right shape for any backend that is *not* injected into agents, and for any
-client outside this pod.
+Both shapes were live and both failed, but that does **not** establish that derived
+providers cannot share the service. Review found a more specific cause in our own
+`services/opencode/patch-genui.py`: its compatibility hook recognizes only the
+literal provider ID `opencode`. For `opencode-worker`, GenUI instead injects
+`BB_THREAD_STORAGE` and `PASEO_THREAD_STORAGE` into the launch environment. Those
+keys trigger `requiresDedicatedV2Server`. The inherited
+`PASEO_OPENCODE_SERVER_URL` is a runtime connection setting, explicitly allowed by
+`V2Runtime.assertSharedConfiguration`; inheritance itself is not forbidden.
+
+The corrected patch follows `config.providers[id].extends`, with cycle protection,
+and gives derived OpenCode providers the same prompt-based storage handling as the
+built-in provider. `test_genui_compat.mjs` reproduces the old failure with the
+installed Paseo isolation functions and checks that the corrected hook passes
+them, while genuine custom process env and MCP servers still require isolation.
+With `paseoTools: {enabled: false}`, `prepareSessionConfig` does not inject the
+fallback Paseo MCP server at all; retaining native tools and enumerating all
+disabled tool names is unnecessary for this fix.
+
+The fix is now **deployed and behaviorally verified** in image
+`homeops-2eafd55c73fbcc97` (manifest digest
+`sha256:f14c025c7082d9b19d692eee87eba394162ed1e15d5a9f9778b30b646196e23b`).
+On 26 Nov, worker `bf8b744b-b29b-454f-a0e9-a6614aaf2c7e` launched on
+`opencode-worker/cogito/flashnext-deleuze`, searched through `agents.find_tool`,
+and called `paseo_list_hosts` through `agents.call_tool`, returning the current
+pod and zero registered destination hosts. Lead
+`34a9eeb7-8cca-4c5e-8fa7-3b4a30899347` called native `paseo_list_hosts` and
+`paseo_render_ui`; the latter produced actual GenUI timeline entries.
+
+The catalog split was measured independently of the agents' inventory claims.
+A temporary, location-scoped OpenCode `session.hook("context")` ran after the
+global bridge hook in an isolated shared-volume test workspace and recorded only
+outgoing tool names, without changing them or recording prompts/credentials.
+Lead `193da5cb-98c9-4706-bf37-aff5f588dbfd` had **54 native Paseo/plugin tools**;
+worker `5060a143-3022-41b7-b403-4703d716015a` had **zero**, on the same shared
+OpenCode service. The 54 include locally installed GenUI/Progress tools in
+addition to the daemon's core catalog; they are not the gateway's 38 tools.
+
+The simple `paseoTools: {enabled: false}` worker policy is sufficient. No global
+MCP switch, dedicated OpenCode service, or weakened isolation gate is needed.
+This policy also removes native GenUI and Progress tools from workers; use the
+lead for those operations. Keep real lead/worker launches, gateway calls,
+native GenUI events and outgoing-catalog checks in upgrade acceptance tests.
 
 ## Exposure, and why the narrowing steps are load-bearing
 
