@@ -38,11 +38,12 @@ Credentials: two, both already existing elsewhere.
   refresh — stdio avoids that whole problem.)
 - Paseo: Secret `paseo-server`, key `server-password` — **the same key the
   `paseo` container already reads** (`../opencode/app/helmrelease.yaml`).
-  `paseo/mcpexternalauthconfig.yaml` points at it with `type: bearerToken`;
-  nothing here creates a Secret, adds an ExternalSecret, or pushes a new field
+  Nothing here creates a Secret, adds an ExternalSecret, or pushes a new field
   to 1Password. The gateway's own ServiceAccount Role (created by the operator
-  for the `agents` vMCP) already allows `get` on secrets in this namespace, so
-  the hop needs no new RBAC.
+  for the `agents` vMCP) already grants `get`/`list`/`watch` on secrets in this
+  namespace, so no RBAC is added for the hop either — though note that the
+  gateway cannot use a bearer token at all today (see "The Paseo member"), so
+  the credential is currently consumed by nothing.
 
 ## Access (cluster-internal only)
 
@@ -67,6 +68,34 @@ Paseo daemon. An `MCPServerEntry` is a registration, not a workload: the gateway
 dials the URL directly, so this adds no Deployment, no Service, and no proxy hop.
 Its 42 tools are the agent-control plane of this pod — launch and message
 agents, create workspaces, read terminals, manage schedules.
+
+> **Status as deployed (measured 2026-11-26, revision `ee60f8b9`): the entry is
+> live but the gateway refuses it, so Paseo contributes nothing yet.** The
+> aggregator converts each discovered backend's auth config and this build has no
+> bearer-token strategy; the entry is skipped and its tool filter is inert.
+>
+> ```
+> ERROR failed to discover auth config for MCPServerEntry entry=paseo
+>       error="failed to get converter for auth type bearerToken: unsupported auth type: bearerToken"
+> WARN  skipping server entry due to conversion failure entry=paseo
+> WARN  aggregation.tools entry matches no backend in the group; its filter/overrides are not applied workload=paseo
+> ```
+>
+> `VirtualMCPServer agents` still reports `Ready` with `backendCount: 1`
+> (`unifi-mcp` only) and the gateway still advertises exactly `find_tool` and
+> `call_tool`, so no existing client changed behaviour; the cost of leaving this
+> in is a `False` condition (`DiscoveredAuthConfig-paseo`) and two log lines per
+> reconcile. Not a version skew: the aggregator reports `v0.58.0`, the same
+> release as the CRDs, and its own config surface enumerates its outgoing
+> strategies as `unauthenticated`, `header_injection`, `token_exchange`,
+> `upstream_inject`, `aws_sts`, `obo`, `xaa` — there is no bearer type to point at.
+> `MCPExternalAuthConfig type: bearerToken` is accepted by the API and honoured
+> only by the operator's proxy runner (`MCPServer`/`MCPRemoteProxy`), never by the
+> gateway's dial-out. The fix is one of: gateway-side `header_injection` (the
+> daemon accepts only `Authorization: Bearer <password>` — a bare token, a
+> lowercase scheme and no header all measure `401`), or an `MCPRemoteProxy`, whose
+> runner does implement bearer. See `mcpexternalauthconfig.yaml` for why the
+> bearer form is kept in the tree.
 
 **The URL is not the Service DNS name, and that is the daemon's rule.** Paseo
 applies a Vite-style Host allowlist (its `hostnames.js`): `localhost`,
@@ -161,24 +190,72 @@ Two limits that are easy to forget:
 
 - `filter` gates **advertising**. A hidden tool stays in the gateway's routing
   table, exactly as the CRD documents it, so this is presentation, not a control
-  boundary.
+  boundary. Not yet demonstrated on this gateway: while the Paseo backend is
+  absent every `call_tool paseo_*` answers `{"isError":true,"text":"tool not
+  found: paseo_create_terminal"}` regardless of the filter (measured), so the
+  routability of the four hidden tools can only be probed once the backend
+  registers.
 - MCP has no per-caller tool policy. Anyone who can reach 4483 gets whatever the
   gateway advertises, and behind that the gateway holds credentials (the Paseo
   bearer token, the UniFi read-only key) that those callers do not have
   individually.
 
+Two things this change measured about the mechanism itself, because both are easy
+to get wrong:
+
+- The filter lives at `spec.config.aggregation.tools` (**not** `spec.aggregation`,
+  which is not a field of this CRD and would be pruned by the API server without
+  a word). The live object after deploy holds exactly one entry,
+  `{workload: paseo, filter: [...38]}`, `conflictResolution: prefix`,
+  `prefixFormat: "{workload}_"`, and the 38 names are the daemon's 42-tool
+  `tools/list` minus precisely `create_terminal`, `send_terminal_keys`,
+  `kill_terminal`, `respond_to_permission` — no typos, nothing extra.
+- The workload key is the backend's resource **name**, and an unmatched key is
+  **not** silent: the aggregator logs
+  `WARN aggregation.tools entry matches no backend in the group; its filter/overrides are not applied workload=paseo`.
+  So a renamed backend shows up in the gateway log rather than quietly
+  un-filtering a workload.
+
 ### Retrieval, measured
 
-Numbers below are from the live optimizer with `embedder` behind LiteLLM, not
+Numbers below come from the live optimizer with `embedder` behind LiteLLM, not
 from a simulation. Shortlists come back shorter than the 8 slots allowed because
 `find_tool` prunes weak hits (`semanticDistanceThreshold` defaults to 1.0).
 
-Before Paseo joined the group (UniFi's 26 tools only), a 47-query harness
-against the gateway measured UniFi recall@8 **1.000** (3/3), recall@1 0.333, and
-a mean shortlist of 5.67 of 8 slots.
+UniFi's 26 tools alone (the state before this change, and still the state after
+it, because the Paseo backend does not register — see "The Paseo member"): a
+47-query harness against the gateway measured UniFi **recall@8 1.000** (3/3),
+recall@1 0.333, mean shortlist 5.67 of 8 slots.
 
-With Paseo in the group, over its 38 advertised tools: _(filled in after the
-reconcile that delivers this change; see the commit that touches this file)_.
+What Paseo's 38 advertised tools do to those numbers, and what Paseo recall looks
+like, **cannot be measured until the backend registers**. One observation is
+already available and worth knowing: with Paseo absent, agent-shaped queries do
+not come back empty — `find_tool("create a git worktree workspace for a coding
+task", [workspace, worktree, create])` returns four UniFi tools
+(`list_site_internal_ap_neighbors_v2` first). A group member that is configured
+but not reachable still costs a caller in misleading hits, which is the concrete
+argument for fixing the auth gap rather than leaving the entry half-deployed.
+
+To reproduce, from anywhere that can reach `vmcp-agents:4483`: initialize a
+Streamable HTTP session, then call `find_tool` once per query and read the
+shortlist out of `result.content[0].text` (it is a JSON document inside text
+content, not `structuredContent`):
+
+```sh
+curl -s -X POST http://localhost:4483/mcp \
+  -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+  -H "Mcp-Session-Id: $SESSION" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","name":"find_tool",
+       "arguments":{"tool_description":"list the clients currently connected to the wifi network",
+                    "tool_keywords":["wifi","clients","connected"]}}'
+```
+
+recall@8 is then just "was the tool the query describes inside the returned
+`tools[]`", averaged over the queries. The 47-query harness used for the numbers
+above is not vendored in this repo; it was assembled in a scratch directory for
+this measurement (40 queries for the tools this filter advertises, 4 for the
+hidden ones — where a hit would be a bug — and 3 UniFi controls to prove the new
+filter did not swallow the group).
 
 ## Exposure, and why the narrowing steps are load-bearing
 

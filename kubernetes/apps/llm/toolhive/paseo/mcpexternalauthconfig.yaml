@@ -1,7 +1,20 @@
 ---
-# The gateway authenticates to Paseo with the daemon password. `paseo` serves
-# /mcp/agents outside its global bearer middleware but still requires a bearer
-# token equal to that password, so this is the only credential the hop needs.
+# Intended: the gateway authenticates to Paseo with the daemon password. `paseo`
+# serves /mcp/agents outside its global bearer middleware but still requires a
+# bearer token equal to that password, so this is the only credential the hop
+# needs.
+#
+# NOT CONSUMED YET (measured 2026-11-26 on ToolHive v0.58.0): the vMCP runtime
+# refuses this config -- "failed to get converter for auth type bearerToken:
+# unsupported auth type: bearerToken" -- because its outgoing-auth strategies are
+# unauthenticated / header_injection / token_exchange / upstream_inject / aws_sts
+# / obo / xaa. bearerToken exists in the API and is implemented only for the
+# operator's proxy runners (MCPServer, MCPRemoteProxy), which pass it to the
+# proxy as `--bearer-token <secret>,target=bearer_token`. The consequence for the
+# entry next to this file: the aggregator skips the backend entirely, so Paseo
+# contributes no tools. The app README's "The Paseo member" section carries the
+# log lines and the two shapes that do work (gateway-side header_injection, or an
+# MCPRemoteProxy whose runner implements bearer).
 #
 # REUSED, NOT COPIED: the target is Secret `paseo-server`, key `server-password`
 # -- the same key the `paseo` container reads (helmrelease.yaml:182). That Secret
@@ -10,14 +23,10 @@
 # re-publishes a value, and no new ExternalSecret or 1Password field is added.
 #
 # Reading it needs no new RBAC either: the operator's own Role for the gateway's
-# ServiceAccount (`agents-vmcp`) already grants get/list/watch on secrets in this
-# namespace, which is how the bearer token reaches the aggregator at runtime.
-#
-# Whether a rotation takes effect live or on the next gateway restart depends on
-# how the operator hands the token to the aggregator (mounted file vs per-request
-# API read); check the `agents` pod spec after a reconcile rather than assume it.
-# Either way the window is a stale bearer, which fails loudly as a 401 from the
-# daemon and shows up as a non-ready backend, not as a silent misroute.
+# ServiceAccount (`Role/agents-vmcp`, read directly) grants get/list/watch on
+# secrets and configmaps in this namespace plus the toolhive kinds it discovers.
+# No Secret value was read or printed anywhere in this change: this pod's own
+# identity (SA `opencode-reader`) is Forbidden on secrets in `llm`.
 apiVersion: toolhive.stacklok.dev/v1beta1
 kind: MCPExternalAuthConfig
 metadata:
