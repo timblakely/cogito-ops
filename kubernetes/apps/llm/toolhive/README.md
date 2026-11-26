@@ -211,6 +211,14 @@ Paseo shortlist, because hits arrive with full `inputSchema`s. A worker that
 searches once and calls what it found pays 419 + 729 where two tool groups alone
 would have cost it 10,213; a worker that searches nothing pays 419.
 
+Those numbers are per-member, measured with Paseo as the group's only backend.
+With both members live the same client registers `tools.agents.find_tool` and
+`tools.agents.call_tool` and the gateway's own `tools/list` baseline is
+**10,671 tokens** — that is what carrying all 64 tools would cost — and the
+shortlists measured through the live gateway come back at **1,039–1,596** tokens
+rather than 729–988. Restated against the live figure, the gateway is cheaper
+than carrying the catalog below roughly **eight** searches a session, not five.
+
 Embeddings come from the cluster's shared embedder rather than a dedicated model:
 `embeddingProvider: openai` against `http://litellm.llm.svc.cluster.local:4000/v1`
 with model `embedder` (the always-on bge-m3 lane that Open WebUI's RAG also
@@ -375,14 +383,57 @@ What to tell an agent that only has the two meta-tools:
    `create_schedule` and `schedule_logs`.
 4. If a shortlist looks wrong, re-query with different capability wording rather
    than repeating the same words.
-5. One search costs 730–990 tokens (cl100k, the two harnesses' means) and stays
-   in the transcript for the rest of the session — nothing reclaims a tool
-   result. Reuse a name already found; `call_tool` needs no fresh `find_tool`.
+5. One search costs **730–990** tokens against a Paseo-only group and
+   **1,039–1,596** through the live two-member gateway (cl100k), and it stays in
+   the transcript for the rest of the session — nothing reclaims a tool result.
+   Reuse a name already found; `call_tool` needs no fresh `find_tool`.
 
 The short form lives in the worker profile's `notes` in
 `kubernetes/apps/llm/opencode/app/paseo-config.yaml`, surfaced by `list_profiles`.
 Whether a launched worker sees its own profile notes is unverified, so the lead
 profile's notes tell the orchestrator to copy them into the worker's first prompt.
+
+### The worker split has never actually run
+
+The intent was that only a lead carries Paseo's catalog and every launched
+worker reaches tools through this gateway instead. `list_profiles` shows both
+profiles, the config validates, and the unit tests pass — and the first real
+`create_agent` on the worker provider failed before a session started:
+
+```
+Custom OpenCode MCP servers or process environment require an isolated server
+and cannot be used with a shared OpenCode service.
+```
+
+That is the daemon's own gate, not a misconfiguration of this gateway. A session
+joins the shared OpenCode service only when its launch config asks for nothing
+per-session (`agent/providers/opencode/v2/configuration.js`, where
+`requiresDedicatedV2Server` returns true for any non-empty `mcpServers` and for
+any launch env beyond `PASEO_AGENT_ID`/`PASEO_AGENT_CWD`/`PASEO_WORKSPACE_ID`),
+and the check that follows it throws rather than downgrading.
+
+What the worker provider set was `paseoTools: {enabled: false}`. That switch is
+correct about *what* it removes and wrong about *where* it lands: Paseo strips
+the internal `paseo` MCP server from a launch only on the native-tools path
+(`agent-manager.js`, `return launchContext.paseoTools ?
+stripInternalPaseoMcpServer(merged) : merged`), and `enabled: false` is not the
+native-tools path — `isPaseoToolPolicyEnabled` is `policy?.enabled !== false`,
+so a disabled policy skips that branch and leaves the launch asking for a server
+of its own. Do not reach for the global knobs either: `daemon.mcp.enabled:
+false` unmounts `/mcp/agents`, which is the endpoint this gateway dials.
+
+The mechanism that stays on the working side of the gate is the per-tool list
+the same policy reader supports — `paseoTools: {enabled: true, disabledTools:
+[…every tool name]}`, which keeps `isPaseoToolPolicyEnabled` true (so native
+tools are in use and the internal server is stripped) while `isPaseoToolEnabled`
+returns false for every name. `kubernetes/apps/llm/opencode/app/paseo-config.yaml`
+carries that shape. It is **reasoned from the code above and not yet measured**:
+that ConfigMap is the one Reloader watches, so testing it costs a rollout and
+every live session. If a launched worker still fails to start, the fallback is
+to delete the worker provider and profile and leave every agent injected, which
+costs context and nothing else. Until a worker has been launched and its context
+counted, treat "workers get no Paseo catalog" as intended behaviour, not as a
+property of this deployment.
 
 ## Exposure, and why the narrowing steps are load-bearing
 
