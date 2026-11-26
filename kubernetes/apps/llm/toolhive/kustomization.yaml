@@ -9,6 +9,10 @@ configMapGenerator:
       - RESOURCES=unifi-mcp
 resources:
   - ./flux-ops-ks.yaml
+  # Hand-written like ./flux-ops-ks.yaml rather than generated from RESOURCES:
+  # the app-resources component expands one resource name into one sibling
+  # Kustomization, and RESOURCES still names unifi-mcp.
+  - ./paseo-ks.yaml
   - ./vmcp-ks.yaml
 components:
   - ../../../components/ks/app-resources

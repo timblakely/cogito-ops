@@ -1,7 +1,9 @@
 # toolhive
 
-Toy [ToolHive](https://github.com/stacklok/toolhive) deployment for trying
-out managed MCP servers before wiring anything into LiteLLM/Hermes.
+[ToolHive](https://github.com/stacklok/toolhive) deployment for trying managed
+MCP servers before wiring anything into LiteLLM/Hermes. It has grown one real
+consumer: the agent host in `../opencode`, which reaches tools through the
+search gateway below instead of carrying every backend schema.
 
 - `app/` — Stacklok operator v0.58.0 via the two official OCI
   charts (`toolhive-operator-crds` then `toolhive-operator`), RBAC scoped to
@@ -13,18 +15,34 @@ out managed MCP servers before wiring anything into LiteLLM/Hermes.
   backend that the ToolHive proxy exposes as Streamable HTTP. Local UniFi OS
   console API at `192.168.1.1` with a locally generated Network API key,
   `UNIFI_READ_ONLY=true` so no mutating tool is ever registered.
+- `paseo/` — `MCPServerEntry` + `MCPExternalAuthConfig`: the agent host's own
+  agent-control MCP endpoint, registered as a group member with no new pods and
+  no new credential. Details below.
 - `vmcp/` — `MCPGroup` + `VirtualMCPServer` with ToolHive's **MCP optimizer**
   enabled, so an agent searches for the tool it needs instead of receiving every
   backend tool schema in its context (see "Tool search" below).
 
-Credentials: the single secret is the UniFi Network API key, stored in the
-1Password `unifi-mcp` item (vault `kubernetes`, field `UNIFI_API_KEY`) and
-synced by ExternalSecret into Secret `unifi-mcp`. (The `unifi` item's own
-`UNIFI_API_KEY` field is an unrelated older key and must stay unwired.
-Running the backend over stdio removes the server's own bearer-token
-requirement; this cluster's external-secrets v0.20.4 removed `backfill`, so
-a cluster-generated token would rotate on every refresh — stdio avoids that
-whole problem.)
+`flux-ops` is intentionally **not** in this group: it sits behind its own OIDC
+and Cedar policy, so fronting it here would need a second credential chain
+(gateway→backend token, audience `cogito-flux-mcp`) plus a policy change to admit
+the gateway identity. Its client keeps the existing direct, authenticated path.
+
+Credentials: two, both already existing elsewhere.
+
+- UniFi: the Network API key, in the 1Password `unifi-mcp` item (vault
+  `kubernetes`, field `UNIFI_API_KEY`) synced by ExternalSecret into Secret
+  `unifi-mcp`. (The `unifi` item's own `UNIFI_API_KEY` field is an unrelated
+  older key and must stay unwired. Running the backend over stdio removes the
+  server's own bearer-token requirement; this cluster's external-secrets
+  v0.20.4 removed `backfill`, so a cluster-generated token would rotate on every
+  refresh — stdio avoids that whole problem.)
+- Paseo: Secret `paseo-server`, key `server-password` — **the same key the
+  `paseo` container already reads** (`../opencode/app/helmrelease.yaml`).
+  `paseo/mcpexternalauthconfig.yaml` points at it with `type: bearerToken`;
+  nothing here creates a Secret, adds an ExternalSecret, or pushes a new field
+  to 1Password. The gateway's own ServiceAccount Role (created by the operator
+  for the `agents` vMCP) already allows `get` on secrets in this namespace, so
+  the hop needs no new RBAC.
 
 ## Access (cluster-internal only)
 
@@ -42,6 +60,49 @@ curl -s -X POST http://localhost:8080/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
+## The Paseo member
+
+`paseo/mcpserverentry.yaml` registers `POST /mcp/agents` on the agent host's
+Paseo daemon. An `MCPServerEntry` is a registration, not a workload: the gateway
+dials the URL directly, so this adds no Deployment, no Service, and no proxy hop.
+Its 42 tools are the agent-control plane of this pod — launch and message
+agents, create workspaces, read terminals, manage schedules.
+
+**The URL is not the Service DNS name, and that is the daemon's rule.** Paseo
+applies a Vite-style Host allowlist (its `hostnames.js`): `localhost`,
+`*.localhost`, any IP literal, and the names in `PASEO_HOSTNAMES`. Measured
+2026-11-26 from two separate containers: `Host: paseo.timblakely.com` and
+`Host: 127.0.0.1:6767` answer 200 with the 42-tool catalog;
+`Host: opencode-paseo.llm.svc.cluster.local:6767` (and `.svc`, and the bare
+service name, and the pod name) answer `403 {"error":"Invalid Host header"}`.
+`headerForward` cannot repair this: Go's transport takes the Host from
+`Request.Host` and ignores a `Host` entry in the request's Header map.
+
+So the live `remoteUrl` is `https://paseo.timblakely.com/mcp/agents`, which the
+allowlist admits. What that costs while it stands:
+
+- The tool path leaves the pod, hairpins through the LAN VIP and the
+  envoy-internal gateway (`../opencode/app/paseo-gateway.yaml`, no OIDC there
+  because Paseo authenticates itself), and comes back. Cluster-internal traffic
+  takes a public-ish route, so the "never leaves the namespace" intuition does
+  not hold for this hop.
+- The certificate is a real public-CA cert for `*.timblakely.com`, so no
+  `caBundleRef` is needed today; if the gateway's trust store ever disagrees,
+  mount a CA bundle rather than disabling verification.
+
+**`remoteUrl` and `PASEO_HOSTNAMES` are one switch.** The in-cluster variant is
+`http://opencode-paseo.llm.svc.cluster.local:6767/mcp/agents`, and it works only
+once `PASEO_HOSTNAMES` (`../opencode/app/helmrelease.yaml`) lists that hostname —
+the daemon matches a leading-dot pattern as a suffix, so `.cluster.local` covers
+the whole namespace family. Half a flip is a permanent 403, and the symptom is
+not an error page: the backend simply never becomes ready, so `find_tool` stops
+returning Paseo tools. Both halves live in the same (deliberately unpushed,
+because it restarts the agent host) change as the OpenCode gateway entry, and
+that change also carries this pair's rollback line. Expect a brief 403 window
+when it lands: `toolhive-paseo` and the opencode app are intentionally not
+ordered, so the gateway may dial the new hostname seconds before the restarted
+daemon accepts it, and `best_effort` absorbs that.
+
 ## Tool search (the optimizer)
 
 `http://vmcp-agents.llm.svc.cluster.local:4483/mcp` — a `VirtualMCPServer` in
@@ -54,10 +115,13 @@ exactly two meta-tools:
 
 The full tool manifests stay on the gateway, which is the point: a client that
 would otherwise carry every backend schema pays for a shortlist
-(`maxToolsToReturn: 8`) per search instead. Adding another server to the group
-therefore costs nothing in agent context, and
-`aggregation.conflictResolution: prefix` keeps same-named tools from different
-backends distinct (`unifi-mcp_…`).
+(`maxToolsToReturn: 8`) per search instead. Measured with `cl100k_base` over the
+`tools[]` array each backend returns from `tools/list`: Paseo's 42 tools are
+**5,456 tokens** (the 38 this group advertises, 4,927), the UniFi 26 are
+**4,757**, and the two meta-tools a client actually loads are **419**. A real
+shortlist of UniFi hits measured 1,285 tokens. So a worker that searches twice
+pays roughly a third of what carrying Paseo's catalog costs, and a worker that
+searches nothing pays almost nothing.
 
 Embeddings come from the cluster's shared embedder rather than a dedicated model:
 `embeddingProvider: openai` against `http://litellm.llm.svc.cluster.local:4000/v1`
@@ -73,19 +137,100 @@ Three things to know before debugging:
 
 - Enabling the optimizer pins this instance to MCP protocol `2025-11-25`; the
   meta-tools are session-scoped, so newer-capable clients are negotiated down
-  (upstream stacklok/toolhive#6089).
+  (upstream stacklok/toolhive#6089). Measured: offering `2026-07-28` to either
+  this gateway or the Paseo daemon returns `2025-11-25`.
 - An `incomingAuth.authzConfig` Cedar policy cannot be configured here: vMCP
   exits at startup because "Config.Authz and Config.OptimizerConfig are mutually
   exclusive" (the meta-tools are not in its admission layer). Access to this
   gateway is therefore all-or-nothing, and today it is "all" to anyone in the
   cluster.
-- `toolhive-unifi-mcp` must be Ready before the gateway indexes anything: with an
-  empty group `find_tool` answers "no results" rather than an error.
+- Every backend must be Ready before the gateway indexes it: with an empty group
+  `find_tool` answers "no results" rather than an error.
 
-`flux-ops` is intentionally **not** in this group: it sits behind its own OIDC
-and Cedar policy, so fronting it here would need a second credential chain
-(gateway→backend token, audience `cogito-flux-mcp`) plus a policy change to admit
-the gateway identity. Its client keeps the existing direct, authenticated path.
+### Tool filtering, and what it does not do
+
+`vmcp/virtualmcpserver.yaml` lists 38 of Paseo's 42 tools and hides four:
+`create_terminal`, `send_terminal_keys`, `kill_terminal`,
+`respond_to_permission`. Those are the interactive surfaces of a session a human
+owns — raw keystrokes into a shell, and approvals on another agent's pending
+permissions — and none of them is a search-and-call task. `unifi-mcp` has no
+entry and `defaultToolVisibility` stays at its `allow` default on purpose:
+setting `deny` would silently hide UniFi's 26 tools too.
+
+Two limits that are easy to forget:
+
+- `filter` gates **advertising**. A hidden tool stays in the gateway's routing
+  table, exactly as the CRD documents it, so this is presentation, not a control
+  boundary.
+- MCP has no per-caller tool policy. Anyone who can reach 4483 gets whatever the
+  gateway advertises, and behind that the gateway holds credentials (the Paseo
+  bearer token, the UniFi read-only key) that those callers do not have
+  individually.
+
+### Retrieval, measured
+
+Numbers below are from the live optimizer with `embedder` behind LiteLLM, not
+from a simulation. Shortlists come back shorter than the 8 slots allowed because
+`find_tool` prunes weak hits (`semanticDistanceThreshold` defaults to 1.0).
+
+Before Paseo joined the group (UniFi's 26 tools only), a 47-query harness
+against the gateway measured UniFi recall@8 **1.000** (3/3), recall@1 0.333, and
+a mean shortlist of 5.67 of 8 slots.
+
+With Paseo in the group, over its 38 advertised tools: _(filled in after the
+reconcile that delivers this change; see the commit that touches this file)_.
+
+## Exposure, and why the narrowing steps are load-bearing
+
+**The `agents` gateway is unauthenticated inside the cluster and it now fronts
+this pod's agent control plane.** That posture was chosen deliberately, not
+inherited by accident, and it is worth stating plainly: any pod in this cluster
+that can reach `vmcp-agents:4483` can launch agents, create workspaces and read
+terminals on this host, without a credential of its own.
+
+The steps below are not nice-to-have hygiene, because the usual mitigations do
+not apply here:
+
+- **MCP has no per-caller tool policy**, so the gateway cannot answer "which
+  tools may *this* caller use". There is no caller identity to ask about.
+- **ToolHive's `filter` only gates advertising.** Hidden tools stay in the
+  routing table, so the four excluded tools are excluded from the menu, not from
+  the reach of anyone who guesses the name.
+- **`PASEO_PASSWORD` is already in every agent terminal environment in this
+  pod.** It is set on the `paseo` container (`helmrelease.yaml:182`) and Paseo
+  injects it into the terminals it hands agents; pid 1 of the `main` container
+  has no such variable, so it arrives through the agent path, not through the
+  container's own environment. Measured: a shell in this pod can call
+  `/mcp/agents` with that bearer token and get the full 42-tool catalog today,
+  with no gateway and no filter involved.
+- **The gateway is anonymous**, so it cannot tell a request from that agent from
+  a request from anything else in the namespace.
+
+In other words: this pod is **one trust domain**. Everything running in it can
+already do everything the gateway can do, and the gateway adds no capability
+that a determined in-pod process lacks. What the gateway does is expose that
+capability to a wider audience — the rest of the namespace, then the rest of the
+cluster. Narrowing it is therefore about who *outside* this pod can reach it:
+
+1. **First: a NetworkPolicy limiting 4483 to the opencode pods.** This is the
+   step that actually matters, because it converts "any pod in the cluster" into
+   "the agent host", which is the only consumer and already the trust domain
+   that holds the credential. The `flux-ops` pair in this directory is the
+   working pattern: a backend policy admitting only the proxy, and a proxy
+   policy admitting only `app.kubernetes.io/name=opencode`.
+2. **Then: a policy on 6767 admitting only the vmcp pod plus the envoy-internal
+   gateway.** That trims the blast radius around the Paseo bearer token. While
+   `remoteUrl` is the public hostname this is only partly meaningful (the
+   envoy-internal path is still there), and it becomes fully meaningful once the
+   in-cluster pair above is applied.
+3. **`incomingAuth.type: oidc` on the vMCP if it ever leaves the namespace.**
+   Until then there is no caller identity at all. `authzConfig` (Cedar) is not an
+   option at any point: the optimizer refuses to start with it
+   (stacklok/toolhive#6089), so a policy here crash-loops the gateway instead of
+   narrowing it.
+
+No NetworkPolicy ships with this change: the anonymous cluster-internal posture
+was explicitly accepted by the operator for now. Step 1 is the next one to take.
 
 Manual test (cluster-internal):
 
@@ -95,8 +240,9 @@ curl -s -X POST http://localhost:4483/mcp \
   -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 # expect only find_tool and call_tool, then
-# {"name":"find_tool","arguments":{"tool_description":"list wifi clients","tool_keywords":"clients,wifi"}}
-# (the arguments are tool_description and tool_keywords; a bare "query" is rejected)
+# {"name":"find_tool","arguments":{"tool_description":"list wifi clients","tool_keywords":["clients","wifi"]}}
+# (the arguments are tool_description and tool_keywords; tool_keywords is a LIST
+# of strings, and a bare "query" is rejected)
 ```
 
 Known loosening for toy phase: `UNIFI_LOCAL_VERIFY_SSL=false` (self-signed

@@ -1,0 +1,62 @@
+---
+# Paseo's own MCP endpoint, registered as a member of the `agents` group so the
+# search gateway (../vmcp) can index its 42 agent-control tools and hand agents
+# a shortlist instead of the whole catalog.
+#
+# WHY AN ENTRY AND NOT AN MCPSERVER: an MCPServer runs a container with a
+# ToolHive proxy in front of it. Paseo already speaks Streamable HTTP, so there
+# is nothing to run -- an MCPServerEntry is a registration the vMCP runtime dials
+# directly (its operator-created Role grants get/list/watch on mcpserverentries
+# and mcpexternalauthconfigs, which is how discovery and the bearer token work).
+# The alternative is MCPRemoteProxy, which does run a proxy Deployment and is the
+# kind to reach for only if this hop ever needs its own incoming OIDC/Cedar: an
+# entry carries no incoming auth, so the gateway is the only caller.
+apiVersion: toolhive.stacklok.dev/v1beta1
+kind: MCPServerEntry
+metadata:
+  name: paseo
+spec:
+  # The workload key the gateway prefixes with is this name: tools are advertised
+  # as paseo_<tool>, which is what ../vmcp/virtualmcpserver.yaml's filter keys on.
+  # MEASURED 2026-11-26: the daemon's Vite-style Host allowlist (server/server/
+  # hostnames.js) admits localhost, *.localhost, every IP literal, and the
+  # names in PASEO_HOSTNAMES -- here paseo.timblakely.com (helmrelease.yaml:180).
+  # Every cluster DNS name for the Service is refused with
+  #   403 {"error":"Invalid Host header"}
+  # including opencode-paseo.llm.svc.cluster.local:6767, so the in-cluster URL
+  # cannot be used while that allowlist stands. headerForward cannot patch it
+  # either: Go's transport ignores a Host header set on the request's Header
+  # map (it is taken from Request.Host, which no CRD field sets).
+  #
+  # THIS URL AND PASEO_HOSTNAMES ARE ONE SWITCH, NOT TWO. The cluster-internal
+  # alternative is
+  #   remoteUrl: http://opencode-paseo.llm.svc.cluster.local:6767/mcp/agents
+  # and it works only together with PASEO_HOSTNAMES gaining `.cluster.local`
+  # (hostnames.js treats a leading-dot pattern as a suffix match). Flipping one
+  # without the other is a 403 and an empty backend. Both halves move together in
+  # the local, restart-gated change that also adds the OpenCode gateway entry --
+  # PASEO_HOSTNAMES lives in the pod template, so applying it restarts the agent
+  # host and ends every live session. See the app README.
+  #
+  # What the public URL costs while it is live: the tool path leaves the pod and
+  # re-enters through the envoy-internal gateway (LAN VIP, no OIDC on this
+  # HTTPRoute -- Paseo authenticates itself), instead of pod-to-pod on 6767.
+  remoteUrl: https://paseo.timblakely.com/mcp/agents
+  # Streamable HTTP, and stateless in practice: the daemon issues no
+  # Mcp-Session-Id, so a gateway that reconnects per call still works.
+  transport: streamable-http
+  groupRef:
+    name: agents
+  # The Service-name variant needs this (hostnames ending in cluster.local are
+  # blocked otherwise); kept true deliberately because the RFC 1918 VIP behind
+  # the public hostname is an in-cluster endpoint in all but name. Loopback and
+  # kubernetes.default stay blocked regardless.
+  allowPrivateEndpoint: true
+  # Bearer token == the daemon password. Reused, not copied: the same Secret the
+  # paseo container reads. No new ExternalSecret, nothing pushed to 1Password.
+  externalAuthConfigRef:
+    name: paseo
+  # No caBundleRef: the certificate is issued for *.timblakely.com by a public CA
+  # and verifies against a stock trust store (measured from this pod). If the
+  # gateway's trust store ever disagrees, mount a ConfigMap CA bundle here rather
+  # than disabling verification.

@@ -44,6 +44,84 @@ spec:
       conflictResolution: prefix
       conflictResolutionConfig:
         prefixFormat: "{workload}_"
+      # Per-workload allow-lists. Names here are the BACKEND's own tool names;
+      # the `{workload}_` prefix is applied on top, so `create_agent` below is
+      # advertised as `paseo_create_agent`. `paseo` must match the workload key
+      # the gateway assigns the MCPServerEntry -- an unmatched workload key makes
+      # this whole block a silent no-op (the entry is then advertised in full
+      # under defaultToolVisibility: allow), so verify it against
+      # `status.discoveredBackends[].name` before trusting the exclusions.
+      #
+      # 38 of Paseo's 42 tools are listed (measured against a live tools/list).
+      # The four that are not -- create_terminal, send_terminal_keys,
+      # kill_terminal, respond_to_permission -- are the interactive surfaces of
+      # a session a human owns: raw keystrokes into a shell, and approvals on
+      # another agent's pending permissions. They are not search-and-call work,
+      # and their results are PTY escapes and prompts that mean nothing outside
+      # the session that opened them.
+      #
+      # This is an advertising decision, NOT a control boundary: a filtered tool
+      # stays in the gateway's routing table (CRD doc: "Tools NOT in this list
+      # are hidden from clients ... but remain available in the routing table"),
+      # and MCP carries no per-caller tool policy. See the app README for what
+      # actually narrows access.
+      #
+      # defaultToolVisibility is deliberately left at its `allow` default even
+      # though `paseo` is now enumerated: `deny` would also hide every tool of
+      # `unifi-mcp`, which has no entry here, and it gates tools only -- an
+      # unlisted backend's resources and prompts would still be advertised.
+      #
+      # The `paseo` entry reaches the daemon over its public hostname, not the
+      # Service DNS name, because the daemon refuses cluster DNS Host headers;
+      # see ../paseo/mcpserverentry.yaml. That hostname and PASEO_HOSTNAMES are
+      # one switch -- a half flip is a 403 and this workload key silently stops
+      # resolving to anything.
+      tools:
+        - workload: paseo
+          filter:
+            # Agent and session control.
+            - list_agents
+            - get_agent_status
+            - get_agent_activity
+            - create_agent
+            - send_agent_prompt
+            - cancel_agent
+            - kill_agent
+            - archive_agent
+            - update_agent
+            - set_agent_mode
+            - list_pending_permissions
+            # Provider and model discovery (the launch preflight).
+            - list_providers
+            - inspect_provider
+            - list_models
+            - list_profiles
+            # Workspaces, scripts and terminals as a fleet, read-only.
+            - create_workspace
+            - archive_workspace
+            - rename_workspace
+            - list_workspaces
+            - list_workspace_scripts
+            - start_workspace_script
+            - stop_workspace_script
+            - list_terminals
+            - capture_terminal
+            - list_hosts
+            # Schedules and heartbeats.
+            - list_schedules
+            - inspect_schedule
+            - create_schedule
+            - update_schedule
+            - delete_schedule
+            - run_schedule_once
+            - pause_schedule
+            - resume_schedule
+            - schedule_logs
+            - create_heartbeat
+            - delete_heartbeat
+            # Pull-request watch.
+            - subscribe_change_request
+            - unsubscribe_change_request
     operational:
       failureHandling:
         # One backend mid-restart must not turn every find_tool into an error.
@@ -59,8 +137,12 @@ spec:
   # anything outside this namespace can reach it.
   incomingAuth:
     type: anonymous
-  # unifi-mcp carries no externalAuthConfigRef, so discovery finds an
-  # unauthenticated backend -- no credential to manage for this hop.
+  # Each backend authenticates however discovery finds it: unifi-mcp carries no
+  # externalAuthConfigRef, so it is an unauthenticated backend (no credential to
+  # manage for that hop), while `paseo` carries a bearerToken
+  # MCPExternalAuthConfig whose value comes from the existing Secret
+  # paseo-server/server-password (../paseo/). Neither credential is duplicated
+  # here; `discovered` is what keeps this CR free of a second copy to drift.
   outgoingAuth:
     source: discovered
   podTemplateSpec:

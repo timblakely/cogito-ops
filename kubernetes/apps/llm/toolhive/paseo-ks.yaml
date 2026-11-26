@@ -1,0 +1,28 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: toolhive-paseo
+  namespace: llm
+spec:
+  dependsOn:
+    - name: toolhive
+  # Deliberately nothing between this app and the opencode app, in either
+  # direction. The gateway's failureHandling is best_effort, so a missing Paseo
+  # backend costs search hits and nothing else; making the agent host depend on
+  # this Kustomization (or the reverse) would let a broken ToolHive app block the
+  # pod that runs every agent session.
+  interval: 30m
+  timeout: 3m
+  path: ./kubernetes/apps/llm/toolhive/paseo
+  prune: true
+  wait: true
+  targetNamespace: llm
+  # Shared app components rewrite APP_URL on every sibling Kustomization.
+  postBuild:
+    substitute:
+      APP_URL: toolhive.${DOMAIN_NAME}
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
