@@ -5,7 +5,9 @@ own tools) and `opencode-worker` (the worker entry, whose whole point is that it
 carries none). `models` is not inherited through `extends`, so a worker that
 launched with an incomplete list would silently advertise OpenCode's bundled
 free tier -- model names that exist nowhere in this repo -- which is the guard
-this file exists to hold.
+this file exists to hold. The catalog is withheld from the worker by naming every
+tool in `paseoTools.disabledTools` rather than switching `enabled` off, for the
+reason recorded on the test below.
 """
 import json
 from pathlib import Path
@@ -19,6 +21,25 @@ APP = ROOT / "kubernetes/apps/llm/opencode/app"
 # Every agents.providers entry that can launch a session: the lead entry and
 # the worker entry derived from it.
 CATALOG_PROVIDERS = ("opencode", "opencode-worker")
+
+# The part of Paseo's catalog a worker must never hold directly: fleet control
+# (launching agents, workspaces and scheduled work elsewhere on this host) and
+# the shell (terminals and approving another agent's permissions). The config
+# blocks the full catalog; this list pins the names whose absence matters most.
+WITHHELD_FROM_WORKERS = (
+    "create_agent",
+    "send_agent_prompt",
+    "cancel_agent",
+    "kill_agent",
+    "archive_agent",
+    "create_workspace",
+    "create_terminal",
+    "send_terminal_keys",
+    "kill_terminal",
+    "respond_to_permission",
+    "create_schedule",
+    "create_heartbeat",
+)
 
 
 def embedded_config(filename, key):
@@ -64,21 +85,61 @@ class PaseoCatalogTests(unittest.TestCase):
                         self.assertTrue(all(option["label"].strip() for option in options))
 
     def test_worker_entry_is_the_one_that_drops_the_paseo_catalog(self):
-        """paseoTools is read per provider id, so only a provider split works."""
+        """paseoTools is read per provider id, so only a provider split works.
+
+        The switch has to be ``disabledTools``, never ``enabled: false``. Paseo
+        strips its internal ``paseo`` MCP server from a launch only while native
+        tools are in use, and ``isPaseoToolPolicyEnabled`` is
+        ``policy?.enabled !== false``, so a disabled policy leaves the launch
+        asking for a dedicated OpenCode server. Measured on this host, where the
+        OpenCode service is shared, create_agent then fails before a session
+        starts: "Custom OpenCode MCP servers or process environment require an
+        isolated server and cannot be used with a shared OpenCode service."
+        """
         paseo = embedded_config("paseo-config.yaml", "config.json")
         providers = paseo["agents"]["providers"]
         worker = providers["opencode-worker"]
         self.assertEqual(worker["extends"], "opencode")
         # ProviderOverridesSchema rejects a custom provider without a label.
         self.assertTrue(worker["label"].strip())
-        self.assertFalse(worker["paseoTools"]["enabled"])
-        # The lead keeps Paseo's tools: absent means enabled, so assert the
-        # worker is the only entry that turns them off rather than asserting an
-        # explicit `true` the schema never needs.
+        policy = worker["paseoTools"]
+        self.assertIsNot(policy.get("enabled", True), False)
+        blocked = policy["disabledTools"]
+        self.assertEqual(len(blocked), len(set(blocked)))
+        self.assertTrue(all(isinstance(name, str) and name.strip() for name in blocked))
+        # A name is only blocked because it is named, so the list has to cover
+        # the live catalog; pin the parts that must never reach a worker and a
+        # floor so a careless trim fails here. Paseo upgrades add tools, so
+        # re-check this against the daemon's tools/list when bumping the image.
+        self.assertGreaterEqual(len(blocked), 40)
+        for name in WITHHELD_FROM_WORKERS:
+            self.assertIn(name, blocked)
+        # The lead keeps Paseo's tools: absent means enabled, so the worker must
+        # be the only entry that names a blocked tool.
         for provider_id in CATALOG_PROVIDERS:
             with self.subTest(provider=provider_id):
-                enabled = providers[provider_id].get("paseoTools", {}).get("enabled", True)
-                self.assertEqual(enabled, provider_id != "opencode-worker")
+                tools = providers[provider_id].get("paseoTools", {})
+                self.assertEqual(
+                    bool(tools.get("disabledTools")), provider_id == "opencode-worker"
+                )
+
+    def test_worker_profile_launches_the_provider_that_blocks_the_catalog(self):
+        """A profile pointing at the wrong provider would silently re-inject."""
+        paseo = embedded_config("paseo-config.yaml", "config.json")
+        providers = paseo["agents"]["providers"]
+        profiles = {p["id"]: p for p in paseo["daemon"]["agentProfiles"]}
+        blocked = [
+            pid
+            for pid, provider in providers.items()
+            if provider.get("paseoTools", {}).get("disabledTools")
+        ]
+        self.assertEqual(profiles["worker"]["provider"], "opencode-worker")
+        self.assertEqual(blocked, [profiles["worker"]["provider"]])
+        self.assertFalse(
+            providers[profiles["lead"]["provider"]].get("paseoTools", {}).get(
+                "disabledTools"
+            )
+        )
 
     def test_agent_profiles_launch_from_declared_providers_and_models(self):
         """Profiles are advisory, so their provider/model must be real strings.
@@ -102,10 +163,15 @@ class PaseoCatalogTests(unittest.TestCase):
                 self.assertTrue(providers[profile["provider"]]["enabled"])
                 advertised = {model["id"] for model in providers[profile["provider"]]["models"]}
                 self.assertIn(profile["model"], advertised)
-                # Only the worker entry disables Paseo's tools.
-                disabled = providers[profile["provider"]].get(
-                    "paseoTools", {}).get("enabled", True) is False
-                self.assertEqual(disabled, profile["id"] == "worker")
+                # Only the worker entry blocks Paseo's tools -- and it blocks
+                # them by name, because `enabled: false` moves the launch off
+                # the native-tools path onto a dedicated OpenCode server this
+                # shared service refuses to start.
+                policy = providers[profile["provider"]].get("paseoTools", {})
+                self.assertIsNot(policy.get("enabled", True), False)
+                self.assertEqual(
+                    bool(policy.get("disabledTools")), profile["id"] == "worker"
+                )
 
     def test_worker_stays_on_this_host(self):
         """The MCP catalog can only reach this pod while the relay is off.
