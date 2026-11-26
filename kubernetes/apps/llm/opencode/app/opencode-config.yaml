@@ -91,6 +91,20 @@
 # `flashnext-deleuze`, so it only doubled a picker row — and `gemma-4-12b` is
 # reachable but preemptible by a game launch on Amnesia. Changing anything in
 # this ConfigMap restarts the pod (Reloader) and drops in-flight agent sessions.
+#
+# `agents` in mcp.servers is the ToolHive search gateway (VirtualMCPServer
+# `agents`, kubernetes/apps/llm/toolhive/vmcp/): it answers with exactly two
+# meta-tools, `find_tool` and `call_tool`, which is the whole point — the 42
+# Paseo tools and the UniFi tools behind them are never loaded into context; a
+# search returns a shortlist of at most 8 instead (measured: 2 meta-tools,
+# protocol 2025-03-26, and a Mcp-Session-Id is required). `oauth: false` because
+# the gateway is anonymous in-cluster and OpenCode must not go probing for an
+# authorization server there. It is deliberately NOT named `paseo`: the daemon
+# injects its own internal MCP server under that name and strips a saved server
+# of the same name off the agent config. Read
+# kubernetes/apps/llm/toolhive/README.md before exposing this beyond the
+# namespace: the gateway carries no caller identity, so everything it can reach
+# is reachable by everything that can reach it.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -311,6 +325,11 @@ data:
               "CAMOFOX_ACCESS_KEY": "{env:CAMOFOX_ACCESS_KEY}",
               "CAMOFOX_API_KEY": "{env:CAMOFOX_API_KEY}"
             }
+          },
+          "agents": {
+            "type": "remote",
+            "url": "http://vmcp-agents.llm.svc.cluster.local:4483/mcp",
+            "oauth": false
           }
         }
       },

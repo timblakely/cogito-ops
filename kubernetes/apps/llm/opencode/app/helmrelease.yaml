@@ -177,7 +177,18 @@ spec:
             env:
               PASEO_HOME: /home/opencode/.paseo
               PASEO_LISTEN: 0.0.0.0:6767
-              PASEO_HOSTNAMES: paseo.${DOMAIN_NAME}
+              # Vite-style Host allowlist (see the daemon's hostnames.js): always
+              # localhost, *.localhost and every IP literal, plus these names.
+              # The second entry exists so the ToolHive gateway can dial the
+              # Service instead of hairpinning through envoy-internal; it is the
+              # other half of the pair described in
+              # ../toolhive/paseo/mcpserverentry.yaml, and applying it is a pod
+              # restart (env on the paseo container) that ends every live agent
+              # session. Widening this list admits any client that can spoof that
+              # Host header, which in practice means anything inside the cluster
+              # that can reach 6767 -- the same clients the Service already
+              # routes, so this adds no new caller, only a new hostname.
+              PASEO_HOSTNAMES: paseo.${DOMAIN_NAME},opencode-paseo.llm.svc.cluster.local
               PASEO_RELAY_ENABLED: "false"
               PASEO_PASSWORD:
                 secretKeyRef:

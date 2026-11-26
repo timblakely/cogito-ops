@@ -39,19 +39,29 @@ spec:
   # PASEO_HOSTNAMES lives in the pod template, so applying it restarts the agent
   # host and ends every live session. See the app README.
   #
-  # What the public URL costs while it is live: the tool path leaves the pod and
-  # re-enters through the envoy-internal gateway (LAN VIP, no OIDC on this
-  # HTTPRoute -- Paseo authenticates itself), instead of pod-to-pod on 6767.
-  remoteUrl: https://paseo.timblakely.com/mcp/agents
+  # remoteUrl AND the daemon's PASEO_HOSTNAMES are one switch, applied together
+  # or not at all. This value is accepted by the daemon's Host allowlist; the
+  # Service DNS name below is refused until PASEO_HOSTNAMES
+  # (kubernetes/apps/llm/opencode/app/helmrelease.yaml) lists it. Half a flip is
+  # a permanent 403 {"error":"Invalid Host header"} and this workload silently
+  # disappears from find_tool.
+  #
+  # Rollback, in case the in-cluster hop ever has to be undone:
+  # remoteUrl: https://paseo.timblakely.com/mcp/agents
+  #
+  # Applied here as the Service name, paired with the PASEO_HOSTNAMES entry in
+  # the same change. Expect a short 403 window during that rollout: the
+  # toolhive-paseo and opencode Kustomizations are deliberately not ordered, so
+  # the gateway may dial the new name a few seconds before the restarted daemon
+  # starts accepting it. best_effort absorbs it and discovery recovers.
+  remoteUrl: http://opencode-paseo.llm.svc.cluster.local:6767/mcp/agents
   # Streamable HTTP, and stateless in practice: the daemon issues no
   # Mcp-Session-Id, so a gateway that reconnects per call still works.
   transport: streamable-http
   groupRef:
     name: agents
-  # The Service-name variant needs this (hostnames ending in cluster.local are
-  # blocked otherwise); kept true deliberately because the RFC 1918 VIP behind
-  # the public hostname is an in-cluster endpoint in all but name. Loopback and
-  # kubernetes.default stay blocked regardless.
+  # Needed for either value: RFC 1918 addresses and *.cluster.local hostnames are
+  # blocked without it. Loopback and kubernetes.default stay blocked regardless.
   allowPrivateEndpoint: true
   # The daemon password, sent as `Authorization: Bearer <password>` by the
   # gateway. See ./mcpexternalauthconfig.yaml for why the credential is a
