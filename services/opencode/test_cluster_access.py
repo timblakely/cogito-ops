@@ -144,9 +144,9 @@ class ClusterAccessTests(unittest.TestCase):
 
     def test_managed_mcp_does_not_embed_cached_credentials(self):
         config = json.loads(documents(APP / "opencode-config.yaml")[0]["data"]["opencode.json"])
-        self.assertEqual(config["mcp"]["flux"]["command"],
+        self.assertEqual(config["mcp"]["servers"]["flux"]["command"],
                          ["node", "/etc/opencode/mcp/flux-mcp-bridge.mjs"])
-        self.assertNotIn("headers", config["mcp"]["flux"])
+        self.assertNotIn("headers", config["mcp"]["servers"]["flux"])
         rule = next(r for r in config["permissions"]
                     if r.get("resource") == "kubectl *")
         self.assertEqual(rule["effect"], "allow")
