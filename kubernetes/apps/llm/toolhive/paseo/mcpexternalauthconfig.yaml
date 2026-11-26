@@ -1,39 +1,48 @@
 ---
-# Intended: the gateway authenticates to Paseo with the daemon password. `paseo`
-# serves /mcp/agents outside its global bearer middleware but still requires a
-# bearer token equal to that password, so this is the only credential the hop
-# needs.
+# How the agents gateway authenticates to the agent host's MCP endpoint.
 #
-# NOT CONSUMED YET (measured 2026-11-26 on ToolHive v0.58.0): the vMCP runtime
-# refuses this config -- "failed to get converter for auth type bearerToken:
-# unsupported auth type: bearerToken" -- because its outgoing-auth strategies are
-# unauthenticated / header_injection / token_exchange / upstream_inject / aws_sts
-# / obo / xaa. bearerToken exists in the API and is implemented only for the
-# operator's proxy runners (MCPServer, MCPRemoteProxy), which pass it to the
-# proxy as `--bearer-token <secret>,target=bearer_token`. The consequence for the
-# entry next to this file: the aggregator skips the backend entirely, so Paseo
-# contributes no tools. The app README's "The Paseo member" section carries the
-# log lines and the two shapes that do work (gateway-side header_injection, or an
-# MCPRemoteProxy whose runner implements bearer).
+# WHAT THIS IS NOT: `type: bearerToken` looks like the right field and the CRD
+# advertises it (`spec.type` enumerates bearerToken, and
+# bearerToken.tokenSecretRef{key,name} is a required pair), so admission accepted
+# ours and reported Valid=True. The runtime never had a handler for it. Measured on
+# v0.58.0:
 #
-# REUSED, NOT COPIED: the target is Secret `paseo-server`, key `server-password`
-# -- the same key the `paseo` container reads (helmrelease.yaml:182). That Secret
-# is generated in-cluster by ExternalSecret and PushSecret-backed to 1Password
-# (../opencode/app/paseo-externalsecret.yaml); nothing here creates, reads or
-# re-publishes a value, and no new ExternalSecret or 1Password field is added.
+#   ERROR failed to discover auth config for MCPServerEntry entry=paseo
+#         error="failed to get converter for auth type bearerToken: unsupported auth type: bearerToken"
+#   WARN  skipping server entry due to conversion failure entry=paseo
 #
-# Reading it needs no new RBAC either: the operator's own Role for the gateway's
-# ServiceAccount (`Role/agents-vmcp`, read directly) grants get/list/watch on
-# secrets and configmaps in this namespace plus the toolhive kinds it discovers.
-# No Secret value was read or printed anywhere in this change: this pod's own
-# identity (SA `opencode-reader`) is Forbidden on secrets in `llm`.
+# The API/runtime mismatch is the trap: nothing fails until the gateway quietly
+# drops the backend, so the symptom is a missing tool set rather than an error.
+# bearerToken is implemented only in the operator's proxy runner (it becomes
+# --bearer-token <secret>,target=bearer_token on MCPServer/MCPRemoteProxy pods),
+# not in the aggregator's dial-out, whose strategy set is unauthenticated,
+# header_injection, token_exchange, upstream_inject, aws_sts, obo, xaa.
+#
+# WHAT THIS IS: the documented static-bearer path. headerInjection sends
+# `headerName: Authorization` with the Secret's value **verbatim**, which is why
+# the value in ./externalsecret.yaml already contains the `Bearer ` prefix -- the
+# daemon rejects a bare token, a lowercase scheme and a missing header alike (all
+# measured 401). The value must come from a Secret; an inline plaintext value is
+# refused at the CRD layer. Rotating the credential needs the vMCP pods restarted,
+# because the aggregator resolves it at process start.
+#
+# Both wirings of a backend credential are supported: this one, attached to the
+# backend's own externalAuthConfigRef with the gateway's outgoingAuth.source left
+# at `discovered`, or an inline `outgoingAuth.backends.<name>` override on the
+# VirtualMCPServer. Discovered is used here so the credential stays next to the
+# backend it belongs to and the gateway CR keeps no copy to drift.
 apiVersion: toolhive.stacklok.dev/v1beta1
 kind: MCPExternalAuthConfig
 metadata:
   name: paseo
 spec:
-  type: bearerToken
-  bearerToken:
-    tokenSecretRef:
-      name: paseo-server
-      key: server-password
+  type: headerInjection
+  headerInjection:
+    headerName: Authorization
+    valueSecretRef:
+      # Derived Secret (./externalsecret.yaml): "Bearer " + the daemon password,
+      # which is paseo-server/server-password by another route. Deliberately not a
+      # key on paseo-server itself -- see the comment there for the Reloader
+      # reason.
+      name: paseo-gateway-auth
+      key: authorization

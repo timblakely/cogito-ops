@@ -5,3 +5,8 @@ kind: Kustomization
 resources:
   - ./mcpserverentry.yaml
   - ./mcpexternalauthconfig.yaml
+  # Derives the Authorization header value the auth config above points at. It is
+  # a sibling of the entry, not part of the opencode app, because the gateway is
+  # its only consumer -- the ClusterSecretStore is cluster-scoped, so the store
+  # reference resolves from this namespace the same as there.
+  - ./externalsecret.yaml

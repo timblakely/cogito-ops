@@ -7,7 +7,8 @@
 # ToolHive proxy in front of it. Paseo already speaks Streamable HTTP, so there
 # is nothing to run -- an MCPServerEntry is a registration the vMCP runtime dials
 # directly (its operator-created Role grants get/list/watch on mcpserverentries
-# and mcpexternalauthconfigs, which is how discovery and the bearer token work).
+# and mcpexternalauthconfigs, which is how discovery and the backend credential
+# reach it).
 # The alternative is MCPRemoteProxy, which does run a proxy Deployment and is the
 # kind to reach for only if this hop ever needs its own incoming OIDC/Cedar: an
 # entry carries no incoming auth, so the gateway is the only caller.
@@ -52,8 +53,16 @@ spec:
   # the public hostname is an in-cluster endpoint in all but name. Loopback and
   # kubernetes.default stay blocked regardless.
   allowPrivateEndpoint: true
-  # Bearer token == the daemon password. Reused, not copied: the same Secret the
-  # paseo container reads. No new ExternalSecret, nothing pushed to 1Password.
+  # The daemon password, sent as `Authorization: Bearer <password>` by the
+  # gateway. See ./mcpexternalauthconfig.yaml for why the credential is a
+  # headerInjection rather than the bearerToken the CRD appears to offer, and
+  # ./externalsecret.yaml for where the prefixed value comes from.
+  #
+  # headerForward is deliberately absent: on an MCPServerEntry consumed as a vMCP
+  # static backend it is defined in the CRD and accepted at admission but never
+  # sent on outbound requests (upstream stacklok/toolhive#4996); only
+  # MCPRemoteProxy wires it. So "let the caller bring its own credential" is not a
+  # shape this resource can express.
   externalAuthConfigRef:
     name: paseo
   # No caBundleRef: the certificate is issued for *.timblakely.com by a public CA
