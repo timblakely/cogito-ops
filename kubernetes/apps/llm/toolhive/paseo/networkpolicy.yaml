@@ -1,0 +1,56 @@
+---
+# The agents gateway answers with no credential at all (`incomingAuth: anonymous`),
+# so on the network side the only thing that says who may drive it is this policy.
+# OpenCode is its sole consumer: the `agents` MCP server in
+# kubernetes/apps/llm/opencode/app/opencode-config.yaml is the only client in the
+# repo, and no HTTPRoute or Ingress anywhere has a backendRef to a
+# virtualmcpserver Service. The Paseo app's own route (HTTPRoute paseo, parent
+# envoy-system/envoy-internal) points at opencode-paseo:6767, so remote clients
+# reach the daemon directly and never pass through the pod selected here; that was
+# checked before applying, by fingerprinting the live public endpoint (both / and
+# /mcp/agents answer from the daemon, `x-powered-by: Express`, 401 on the MCP path)
+# and by listing every pod the selector below matches (exactly one, the gateway).
+# Before it landed the gateway answered 406 in 5 ms from an unrelated pod.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: paseo-gateway
+  namespace: llm
+spec:
+  podSelector:
+    matchLabels:
+      app: virtualmcpserver
+      toolhive-name: agents
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: opencode
+              app.kubernetes.io/instance: opencode
+      ports:
+        - protocol: TCP
+          port: 4483
+---
+# Deliberately absent, so that adding them later is a decision and not an accident:
+#
+# No rule for kubelet probes, and none is needed. This pod is probed over httpGet
+# /readyz and /health on the very port restricted above, from the node address.
+# The same shape has run for days on `flux-ops-backend`, whose pod is admitted only
+# from its proxy yet keeps httpGet readiness, liveness and startup probes passing
+# with ready=True and zero restarts -- so node-sourced probe traffic is admitted
+# here too. Re-check that reading before reusing this file on a cluster whose CNI
+# enforces differently.
+#
+# No rule for metrics. No ServiceMonitor or PodMonitor selects a
+# `app=virtualmcpserver` pod, so nothing is scraped on 4483 and no monitor breaks.
+#
+# No rule for the gateway operator: it reconciles CRs and does not call the proxy.
+#
+# What this still does NOT contain: a process inside the opencode pod can dial the
+# daemon on 127.0.0.1:6767 with `PASEO_PASSWORD` and see all 42 tools, filtered or
+# not. Confining 6767 needs a second policy on the opencode pod, which default-denies
+# that pod's other port 4096 as well -- a port HTTPRoute opencode publishes to the
+# same envoy gateway -- plus a decision on kubelet probe sources. See
+# kubernetes/apps/llm/toolhive/README.md, "Exposure, and why the narrowing steps are
+# load-bearing".

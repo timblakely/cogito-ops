@@ -439,9 +439,10 @@ property of this deployment.
 
 **The `agents` gateway is unauthenticated inside the cluster and it now holds a
 working credential for this pod's agent control plane.** That posture was chosen
-deliberately, not inherited by accident, and it is worth stating plainly: any pod
-in this cluster that can reach `vmcp-agents:4483` can launch agents, create
-workspaces and read terminals on this host without a credential of its own. That
+deliberately, not inherited by accident, and it is worth stating plainly: whoever
+reaches `vmcp-agents:4483` can launch agents, create workspaces and read terminals
+on this host without a credential of their own -- for a while that meant every pod
+in the cluster, which is what step 1 below exists to have narrowed. That
 is not hypothetical — during verification an unauthenticated Streamable HTTP
 session (no token, no client certificate, just cluster routing) called
 `paseo_list_hosts` through the gateway and got a real answer
@@ -475,25 +476,39 @@ that a determined in-pod process lacks. What the gateway does is expose that
 capability to a wider audience — the rest of the namespace, then the rest of the
 cluster. Narrowing it is therefore about who *outside* this pod can reach it:
 
-1. **First: a NetworkPolicy limiting 4483 to the opencode pods.** This is the
-   step that actually matters, because it converts "any pod in the cluster" into
-   "the agent host", which is the only consumer and already the trust domain
-   that holds the credential. The `flux-ops` pair in this directory is the
-   working pattern: a backend policy admitting only the proxy, and a proxy
-   policy admitting only `app.kubernetes.io/name=opencode`.
+1. **Done: `paseo/networkpolicy.yaml` limits 4483 to the opencode pods.** It
+   follows the `flux-ops` pair in this directory -- a backend policy admitting only
+   the proxy, a proxy policy admitting only `app.kubernetes.io/name=opencode` --
+   with the gateway's own labels (`app=virtualmcpserver, toolhive-name=agents`) and
+   its real port, which is 4483 rather than the 8080 the older members use. What
+   was checked before applying it: the selector matches exactly one pod
+   cluster-wide; the only client of the gateway in the repo is the `agents` MCP
+   server in the opencode config; no HTTPRoute or Ingress anywhere has a
+   virtualmcpserver backendRef, so remote Paseo clients reach the daemon on 6767
+   through envoy-internal and never traverse this pod; no monitor scrapes it; and
+   the same policy shape has kept an httpGet-probed pod ready for days under
+   `flux-ops-backend`, which is why no probe rule is included. What it does not do:
+   confine anything inside the opencode pod.
 2. **Then: a policy on 6767 admitting only the vmcp pod plus the envoy-internal
-   gateway.** That trims the blast radius around the Paseo bearer token. While
-   `remoteUrl` is the public hostname this is only partly meaningful (the
-   envoy-internal path is still there), and it becomes fully meaningful once the
-   in-cluster pair above is applied.
+   gateway.** That trims the blast radius around the Paseo bearer token, but it is
+   not just another YAML: selecting the opencode pod default-denies *every* ingress
+   port on it, and 4096 is published to the same envoy gateway by HTTPRoute
+   `opencode`, so the allow-list has to carry 6767 and 4096 from
+   `envoy-system`/`envoy`/`owning-gateway-name=envoy-internal`, the gateway pod,
+   and a decision about kubelet-sourced `tcpSocket` probes from the node addresses.
+   Loopback stays outside any policy's reach either way.
 3. **`incomingAuth.type: oidc` on the vMCP if it ever leaves the namespace.**
    Until then there is no caller identity at all. `authzConfig` (Cedar) is not an
    option at any point: the optimizer refuses to start with it
    (stacklok/toolhive#6089), so a policy here crash-loops the gateway instead of
    narrowing it.
 
-No NetworkPolicy ships with this change: the anonymous cluster-internal posture
-was explicitly accepted by the operator for now. Step 1 is the next one to take.
+The audience is now the agent pod and nothing else, by
+`kubernetes/apps/llm/toolhive/paseo/networkpolicy.yaml` (step 1 below). The
+anonymous posture inside that audience was accepted deliberately and is still true
+in every other respect: the gateway holds a working credential, it authenticates
+nobody who is allowed to reach it, and nothing inside the opencode pod is bound by
+any of this. Step 2 is the next one to take.
 
 Manual test (cluster-internal):
 

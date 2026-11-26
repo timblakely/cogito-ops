@@ -10,3 +10,6 @@ resources:
   # its only consumer -- the ClusterSecretStore is cluster-scoped, so the store
   # reference resolves from this namespace the same as there.
   - ./externalsecret.yaml
+  # That same credential is why the gateway's audience is narrowed in the network
+  # layer: it authenticates nobody, so only reachability says who may use it.
+  - ./networkpolicy.yaml
