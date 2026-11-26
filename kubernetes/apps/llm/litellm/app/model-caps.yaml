@@ -80,10 +80,10 @@ data:
   # Probe evidence for the remaining values (Oct 2026, fixed prompt/temperature,
   # reasoning_content length compared per variant). Retired 2026-11-20 with the
   # Iggy lanes (records kept in git history): Muse-Glimmer-30B (llama.cpp
-  # server-cuda, always-on thinking, no named ladder) and Maya-M (Nov 16,
-  # pinned Maya 1.1.64: Off/Low/High/Max canonical choices, medium/xhigh
-  # aliases; probe passed Off chat, High reasoning/SSE, streamed tool calls, a
-  # tool-result round trip and image ingestion (+393 prompt tokens)).
+  # server-cuda, always-on thinking, no named ladder) and Maya-M (Nov 16, pinned
+  # Maya 1.1.64: Off/Low/High/Max canonical choices, medium/xhigh aliases; probe
+  # passed Off chat, High reasoning/SSE, streamed tool calls, a tool-result round
+  # trip and image ingestion (+393 prompt tokens)).
   #
   # flashnext-deleuze (Radiance 1.10.0 on Deleuze, Oct 21 2026): /server_info
   # advertises none/minimal/low/medium/xhigh. Live /apply-template probes verify
@@ -101,43 +101,61 @@ data:
   # heretic-deleuze (Gemma 4 31B heretic-ara i8g, same radiance 2.2.0 fleet, read
   # live 2026-11-20): reasoning true with reasoning_efforts null, so the ladder is
   # empty and thinking is mandatory. A one-word answer put 35 of 37 completion
-  # tokens into reasoning_content - same omission rule as glimmer-deleuze
-  # below it.
+  # tokens into reasoning_content - same omission rule as glimmer-deleuze below it.
   #
-  # glimmer-deleuze (Muse Glimmer 30B IQ8R + DFlash, radiance 2.2.0 fleet entry
-  # on Deleuze, read live 2026-11-19): the engine itself publishes
-  # `reasoning: true` with `reasoning_efforts: null` for that entry on both
-  # /v1/models and /admin/fleet, and `image: false` (the fleet pins
-  # mm-max-patches: 0 after the gfx1201 ViT segfault). null means no named level
-  # exists, so the ladder is empty and thinking is mandatory - omit reasoning
-  # fields, same honest wire as the other always-on reasoners. Do NOT give it a
-  # Hermes reasoning_override: there is no level to select, and a request that
-  # names one is the kind of thing a template then ignores silently.
+  # glimmer-deleuze (Muse Glimmer 30B IQ8R + DFlash, radiance 2.2.0 fleet entry on
+  # Deleuze, read live 2026-11-19): the engine itself publishes `reasoning: true`
+  # with `reasoning_efforts: null` for that entry on both /v1/models and
+  # /admin/fleet, and `image: false` (the fleet pins mm-max-patches: 0 after the
+  # gfx1201 ViT segfault). null means no named level exists, so the ladder is empty
+  # and thinking is mandatory - omit reasoning fields, same honest wire as the
+  # other always-on reasoners. Do NOT give it a Hermes reasoning_override: there is
+  # no level to select, and a request that names one is the kind of thing a
+  # template then ignores silently.
   #
-  # google/gemma-4-12b-it: same shape - none -> 0 chars, xhigh ~ omitted. -> ["none"].
+  # google/gemma-4-12b-it: same shape - none -> 0 chars, xhigh ~ omitted. ->
+  # ["none"].
   #
-  # ChatGPT subscription aliases (Oct 26 2026, POST to the Codex /responses
-  # backend with the subscription token, which is authoritative because LiteLLM
-  # gates reasoning_effort against its own built-in map): a bogus effort returns
-  # the generic list `none, minimal, low, medium, high, xhigh, max`, and the
-  # per-model rejections below are what actually holds. `ultra` appears in
-  # /models metadata as a multi-agent mode and is never a wire effort.
-  #   gpt-6-astra, gpt-6.1-sol -> `none` 400s ("not supported with the ... model.
-  #     Supported values are: low, medium, high, xhigh, max") and `minimal` 400s,
-  #     so thinking is mandatory and the ladder starts at low.
-  #   gpt-6-luna, gpt-6.1-terra -> `none` 200s with 0 reasoning tokens and
-  #     `minimal` 400s, so the off switch is real and the ladder starts at none.
-  #     `max` measured 24 reasoning tokens on a one-word prompt vs 0 at low.
+  # inkling-deleuze (Thinking Machines' Inkling 2 Mini, IQR-V4 + DFlash2, the
+  # radiance 2.3.0 fleet entry `inkling-2-mini`) is DELIBERATELY ABSENT from the
+  # JSON above, and that absence is the honest answer rather than an oversight:
+  # every local entry here is derived from live probes of the backing runtime, and
+  # nobody has read this entry's /v1/models or /admin/fleet banner yet, or sent it
+  # a reasoning_effort. What is expected, from the container card and the arch's
+  # chat template (which carries a thinking channel), is `"supported_efforts": [],
+  # "mandatory": true` - the same wire as glimmer-deleuze and heretic-deleuze above
+  # - but an unprobed ladder is a control that silently does nothing, and adding a
+  # model to this document publishes it to every capability consumer through
+  # /caps/v1/models. Add it in a change that carries the probe: read /v1/models
+  # while the entry is resident (reasoning true? reasoning_efforts null or a
+  # list?), then send one request per level the engine names and compare
+  # reasoning_content length, as the glimmer-deleuze note above documents.
   #
-  # Nov 15 subscription-key Responses probes (message-array input, streaming):
-  # max completed on all eight public models. none completed with 0 reasoning
-  # tokens on Luna/Terra, gpt-6-sol, and all three gpt-5.6 models; Astra and
-  # gpt-6.1-sol explicitly rejected none. This verifies wire acceptance/off,
-  # not graded reasoning behavior on the trivial one-word probe.
+  # A brand-new alias also needs the model-caps pod restarted AFTER the proxy is
+  # serving it (see the caps publisher's held snapshot): it merges this file into a
+  # cached copy of /v1/models and stays short one model if it restarted first.
+  #
+  # ChatGPT subscription aliases (Oct 26 2026, POST to the Codex /responses backend
+  # with the subscription token, which is authoritative because LiteLLM gates
+  # reasoning_effort against its own built-in map): a bogus effort returns the
+  # generic list `none, minimal, low, medium, high, xhigh, max`, and the per-model
+  # rejections below are what actually holds. `ultra` appears in /models metadata
+  # as a multi-agent mode and is never a wire effort. gpt-6-astra, gpt-6.1-sol ->
+  # `none` 400s ("not supported with the ... model. Supported values are: low,
+  # medium, high, xhigh, max") and `minimal` 400s, so thinking is mandatory and the
+  # ladder starts at low. gpt-6-luna, gpt-6.1-terra -> `none` 200s with 0 reasoning
+  # tokens and `minimal` 400s, so the off switch is real and the ladder starts at
+  # none. `max` measured 24 reasoning tokens on a one-word prompt vs 0 at low.
+  #
+  # Nov 15 subscription-key Responses probes (message-array input, streaming): max
+  # completed on all eight public models. none completed with 0 reasoning tokens on
+  # Luna/Terra, gpt-6-sol, and all three gpt-5.6 models; Astra and gpt-6.1-sol
+  # explicitly rejected none. This verifies wire acceptance/off, not graded
+  # reasoning behavior on the trivial one-word probe.
   #
   # Retired 2026-11-20: Qwen/Qwen3.8-27B-INT8-W8A16 (and the muse-glimmer-30b /
-  # maya-m backends) left the catalogue with the Iggy lanes, so their caps
-  # entries are gone too (Qwen had never been probed: unknown stayed unknown).
+  # maya-m backends) left the catalogue with the Iggy lanes, so their caps entries
+  # are gone too (Qwen had never been probed: unknown stayed unknown).
   server.py: |
     #!/usr/bin/env python3
     """Serve the LiteLLM model catalogue annotated with reasoning caps.

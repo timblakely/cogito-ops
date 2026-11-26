@@ -1,0 +1,470 @@
+--- kubernetes/apps/llm/llmkube/resources Kustomization: llm/llmkube-resources InferenceService: llm/radiance
+
++++ kubernetes/apps/llm/llmkube/resources Kustomization: llm/llmkube-resources InferenceService: llm/radiance
+
+@@ -36,13 +36,13 @@
+
+     persistentVolumeClaim:
+       claimName: radiance-deleuze
+   - configMap:
+       defaultMode: 420
+       name: radiance-fleet-config
+     name: radiance-config
+-  image: docker.io/stilldeadcode/radiance:2.2.0@sha256:167466f5556fdb3a4e0efbb42820fae10cfd9b3a98c786f46a51263bfd6fe53f
++  image: docker.io/stilldeadcode/radiance:2.3.0@sha256:1e0fe6a2c310e483e9e66e8446ba274ee767f06044f6761ababd593d7517af12
+   modelRef: flashnext-deleuze-radiance
+   nodeSelector:
+     amd.com/gpu.present: 'true'
+     kubernetes.io/hostname: deleuze
+   podSecurityContext:
+     seccompProfile:
+--- kubernetes/apps/llm/llmkube/resources Kustomization: llm/llmkube-resources ConfigMap: llm/radiance-fleet-config
+
++++ kubernetes/apps/llm/llmkube/resources Kustomization: llm/llmkube-resources ConfigMap: llm/radiance-fleet-config
+
+@@ -1,27 +1,29 @@
+
+ ---
+ apiVersion: v1
+ data:
+-  radiance.yaml: "# Radiance 2.1.0 fleet config for the deleuze lane. Translated from\
+-    \ the\n# 1.16.0 CLI flags per docs/MULTIMODEL.md \xA74.1 (tag v2.1.0): every former\n\
+-    # flag is a same-named YAML key at its level; unknown keys are fatal. The\n# entry\
+-    \ name is the model id (served-model-name is gone, \xA74.3), so LiteLLM's\n# openai/qwen3.8-flash-next\
+-    \ keeps resolving. kv-cache-dtype: fp8 no longer\n# exists outside GLM-5.3-Flash\
+-    \ -> i8 (GUIDE key table). The bearer key\n# comes from 1Password via radiance-api-key;\
+-    \ OIDC still guards the edge.\nserver:\n  host: \"0.0.0.0\"\n  port: 8080\n  api-key-env:\
+-    \ RADIANCE_API_KEY\nmemory:\n  gpu-headroom-mib: 160\nscheduler:\n  stuck-exit:\
+-    \ 60s\n  # Explicit: 2.x /health is process liveness, so a cold load exposes a\n\
+-    \  # 503+Retry-After window bounded by this; upstream's own tp2 fleet sets\n \
+-    \ # 600s and distrusts the undocumented default.\n  load-timeout: 600s\nmodels:\n\
+-    \  qwen3.8-flash-next:\n    model: /models/radiance/qwen3.8-next-flash-fp8-iq4r-moe.rad\n\
+-    \    tp: 2\n    tp-wire: exact\n    max-num-seqs: 8\n    max-model-len: 262144\n\
+-    \    placement: expert_tiered\n    # 1.x pinned host-pool-mib per rank (v1.17.0\
+-    \ GUIDE: \"pinned on every\n    # card\"); 2.x is the total split equally across\
+-    \ ranks (upstream\n    # tp2.radiance.yaml: 16384 = \"8 GiB a rank\"), so 8192/rank\
+-    \ x 2 = 16384.\n    host-pool-mib: 16384\n    ngram-placement: disk\n    kv-cache-dtype:\
+-    \ i8\n    num-speculative-tokens: 3\n    max-num-batched-tokens: 4096\n    # Vision\
++  radiance.yaml: "# Radiance fleet config for the deleuze lane: five entries in one\
++    \ process,\n# mounted by InferenceService/radiance at engine 2.3.0. The key names\
++    \ come\n# from the 1.16.0 -> 2.1.0 translation per docs/MULTIMODEL.md \xA74.1\
++    \ (tag\n# v2.1.0): every former flag is a same-named YAML key at its level; unknown\n\
++    # keys are fatal. The\n# entry name is the model id (served-model-name is gone,\
++    \ \xA74.3), so LiteLLM's\n# openai/qwen3.8-flash-next keeps resolving. kv-cache-dtype:\
++    \ fp8 no longer\n# exists outside GLM-5.3-Flash -> i8 (GUIDE key table). The bearer\
++    \ key\n# comes from 1Password via radiance-api-key; OIDC still guards the edge.\n\
++    server:\n  host: \"0.0.0.0\"\n  port: 8080\n  api-key-env: RADIANCE_API_KEY\n\
++    memory:\n  gpu-headroom-mib: 160\nscheduler:\n  stuck-exit: 60s\n  # Explicit:\
++    \ 2.x /health is process liveness, so a cold load exposes a\n  # 503+Retry-After\
++    \ window bounded by this; upstream's own tp2 fleet sets\n  # 600s and distrusts\
++    \ the undocumented default.\n  load-timeout: 600s\nmodels:\n  qwen3.8-flash-next:\n\
++    \    model: /models/radiance/qwen3.8-next-flash-fp8-iq4r-moe.rad\n    tp: 2\n\
++    \    tp-wire: exact\n    max-num-seqs: 8\n    max-model-len: 262144\n    placement:\
++    \ expert_tiered\n    # 1.x pinned host-pool-mib per rank (v1.17.0 GUIDE: \"pinned\
++    \ on every\n    # card\"); 2.x is the total split equally across ranks (upstream\n\
++    \    # tp2.radiance.yaml: 16384 = \"8 GiB a rank\"), so 8192/rank x 2 = 16384.\n\
++    \    host-pool-mib: 16384\n    ngram-placement: disk\n    kv-cache-dtype: i8\n\
++    \    num-speculative-tokens: 3\n    max-num-batched-tokens: 4096\n    # Vision\
+     \ is ON, tower ON THE CARD. The container carries a complete\n    # Qwen4-Exp\
+     \ ViT (rad-info --meta: depth 27, hidden 1152, num_heads 16 ->\n    # head_dim\
+     \ 72, intermediate 4304, patch 16, spatial merge 2, temporal 2,\n    # out_hidden_size\
+     \ 2560 == text hidden) and image_token_id/video_token_id.\n    # `rad-info --planes\
+     \ '*'` sums its 333 `v.*` planes to 897,862,112 B =\n    # 856.27 MiB = 0.836\
+     \ GiB: 27 blocks x 54 planes + v.patch(2) +\n    # v.merger.fc1/fc2/norm(6) +\
+@@ -116,13 +118,13 @@
+
+     \    aliases: [flux]\n    tp: 1\n    max-model-len: 20480\n    ttl: 15m\n  gemma4-heretic:\n\
+     \    # Gemma 4 31B-it heretic-ara (refusals removed) at int8: keptn's i8a8\n \
+     \   # container - every trunk linear int8 with a bf16 scale per 128 weights,\n\
+     \    # int8 activations, int8 lm_heads, Google's bf16 assistant drafter and\n\
+     \    # the bf16 vision tower. 35,835,154,432 B (33.37 GiB), staged by\n    # manual/radiance-deleuze-stage-gemma-heretic.yaml\
+     \ and sha256-gated on\n    # 405dd2a8f71a16af578c7e8cb1645fa49573bd2f52554b7d94d2d0f75fa9243c.\n\
+-    \    # Its card: radiance >= 2.0.0 (this lane is 2.2.0), \"does not fit one\n\
++    \    # Its card: radiance >= 2.0.0 (this lane is on 2.3.0), \"does not fit one\n\
+     \    # card\", tested on two AND four Radeon AI PRO R9700. Quality against the\n\
+     \    # bf16 original over 42,283 MT-Bench answer tokens: mean KL 0.00249,\n  \
+     \  # 98.7% same top token, perplexity x1.006 - twenty times closer than the\n\
+     \    # a4/int4 build of the same model (0.0529, 94.4%), which is why this\n  \
+     \  # file was chosen despite costing 13 GiB more. Behaviour: OR-Bench-Hard\n \
+     \   # rejections 0.6% against the original's 33.5%, XSTest 0 refusals.\n    #\n\
+@@ -176,35 +178,155 @@
+
+     \ 'vision'`; the measured price was the\n    # per-card settlement moving 11.24/11.31\
+     \ -> 10.49/10.50 GiB free with the\n    # KV ceiling unchanged at 12.12 GiB a\
+     \ card (527,552 tokens).\n    #\n    # The pairing rule that already cost one\
+     \ push: a placement key is INVALID\n    # when mm-max-patches is 0 - \"--vision-tower-placement\
+     \ ram:\n    # --mm-max-patches 0 asked for no media, so this server declares no\n\
+     \    # encoder tower to place\" (engine_bringup.cpp: Ram && tower_max == 0 ->\n\
+-    \    # RAD_E_INVAL). `radiance --check` does not catch it, because --check\n \
+-    \   # validates keys and container formats without building the server plan.\n\
+-    \    # The lane's warm-up lines are the gate.\n    vision-tower-placement: vram\n\
+-    \    # 60 Gi is the fleet's pinned-host budget (3/4 of the 80 Gi container\n \
+-    \   # limit; 36 Gi before 2026-11-25): flashnext reserves 24 Gi of it, Muse\n\
+-    \    # takes 4. 4 Gi keeps this entry under the cap instead of having its\n  \
+-    \  # host copies refused under pressure.\n    prefix-cache-mib: 4096\n    # Hand\
+-    \ the cards back when idle: this entry is not the one an agent\n    # session\
+-    \ lives on, and a swap re-prefills whoever gets displaced.\n    ttl: 15m\ngroups:\n\
+-    \  # Measured, not guessed: /admin/fleet reports qwen3.8-flash-next at\n  # 33487111208\
+-    \ B = 31.19 GiB PER CARD against the 31.3 GiB each R9700\n  # actually exposes\
+-    \ (device-reported beats the 32 GB label), so nothing\n  # co-resides with it.\
+-    \ Muse alone wants ~25 GiB a card (17.8 GiB weights\n  # across tp 2 + 7.4 GiB\
+-    \ KV), so it and flashnext are mutually exclusive by\n  # arithmetic. Saying so\
+-    \ explicitly is what makes the planner park to make\n  # room instead of waiting\
+-    \ out load-timeout for room that does not exist.\n  # Revisit if flashnext's claim\
+-    \ is ever shrunk (max-model-len/max-num-seqs).\n  # flux-3-klein is tp 1 and only\
+-    \ wants ~11 GiB on ONE card, but flashnext\n  # holds both cards outright, so\
+-    \ it is in the exclusive set too: nothing\n  # of ours is co-resident with the\
+-    \ agent lane on this node. gemma4-heretic\n  # is the same story at tp 2 (~16.7\
+-    \ GiB of weights a card before its KV\n  # pool), so it displaces the agent lane\
+-    \ and is displaced by it.\n  one-at-a-time:\n    exclusive: [qwen3.8-flash-next,\
+-    \ muse-glimmer, flux-3-klein, gemma4-heretic]\n"
++    \    # RAD_E_INVAL). `radiance --check` does not catch it: at 2.3.0 it stops\n\
++    \    # after key acceptance and the entry list, so it builds no server plan and\n\
++    \    # opens no container (core/main.cpp). The lane's warm-up lines are the gate.\n\
++    \    vision-tower-placement: vram\n    # 60 Gi is the fleet's pinned-host budget\
++    \ (3/4 of the 80 Gi container\n    # limit; 36 Gi before 2026-11-25): flashnext\
++    \ reserves 24 Gi of it, Muse\n    # takes 4. 4 Gi keeps this entry under the cap\
++    \ instead of having its\n    # host copies refused under pressure.\n    prefix-cache-mib:\
++    \ 4096\n    # Hand the cards back when idle: this entry is not the one an agent\n\
++    \    # session lives on, and a swap re-prefills whoever gets displaced.\n    ttl:\
++    \ 15m\n  inkling-2-mini:\n    # Thinking Machines' Inkling 2 Mini (thinkingmachines/Inkling-2-Mini),\
++    \ in\n    # the only container radiance 2.3.0 serves for it:\n    # StillDeadcode/inkling-2-mini-iq4r-v4,\
++    \ file inkling-2-mini-iq4r-v4.rad,\n    # 15,496,360,448 B = 14.43 GiB, sha256\n\
++    \    # 1522e6d7e0432cd8308ba0478a969d678648d0245983d05e964caecb4b03dcc9 (the LFS\n\
++    \    # OID Hugging Face publishes, read from\n    # /api/models/.../tree/main?blobs=true\
++    \ on 2026-11-26), Apache-2.0 with\n    # TML's acceptable-use policy; drafter\
++    \ is incoai's DFlash2. Staged by\n    # manual/radiance-deleuze-stage-inkling.yaml,\
++    \ which refuses the file unless\n    # that digest matches - STAGE IT BEFORE THIS\
++    \ CONFIG LANDS: skipModelInit:\n    # true means the operator stages nothing,\
++    \ and an unstaged weight keeps this\n    # entry cold forever (`warm-up: inkling-2-mini\
++    \ stays cold: ...`) rather\n    # than failing loudly.\n    #\n    # WHY IT NEEDS\
++    \ THE ENGINE BUMP: arch/inkling2 is new in 2.3.0 and the\n    # container card\
++    \ says \"Needs: radiance 2.3.0 or later\". The container is\n    # also the ONLY\
++    \ served form - the release's own DSpark drafter, and\n    # NVFP4/int8/4-bit\
++    \ experts, are refused by name (release notes for v2.3.0;\n    # arch/inkling2/inkling2.cpp\
++    \ refuses draft.model_type inkling2_dspark and a\n    # checkpoint whose layer\
++    \ count is not 24). That last rule is also why\n    # Inkling 2 Small is a different\
++    \ model here: it is model_type inkling2 at\n    # 48 layers / hidden 4608, not\
++    \ the inkling2_loop 24 / 2304 this plugin\n    # declares, and upstream ships\
++    \ no container for it.\n    #\n    # GEOMETRY: 24 physical layers run as 48 layer\
++    \ applications (prelude 0-5,\n    # core 6-17 three passes, coda 18-23), hidden\
++    \ 2304, 24 query / 8 KV heads\n    # at head_dim 128, sliding window 1024 on 40\
++    \ applications and full\n    # attention on 8, 128 sigmoid-routed SiTU experts\
++    \ at top-8 (intermediate\n    # 1152), untied int8 head over 201,024 rows, bf16\
++    \ 23-block vision tower. tp\n    # must divide 24 and 8, so 1 or 2 here; tp 2\
++    \ is what the container card\n    # measures on two R9700s: 190 / 427 / 658 tok/s\
++    \ at 1 / 4 / 8 streams\n    # (essays), 240 / 550 / 790 (code), mean KL 0.0066\
++    \ against the release's\n    # weights.\n    #\n    # THE KEYS ARE THE CARD'S\
++    \ OWN, not improvised: tp 2, max-model-len 200000\n    # (the container was converted\
++    \ with --max-ctx 200000), max-num-seqs 8, int8\n    # KV, num-speculative-tokens\
++    \ 7 (DFlash2 drafts a block of seven),\n    # draft-window adaptive. Nothing tiered:\
++    \ at 14.43 GiB the whole container\n    # is smaller than one card's claim for\
++    \ flashnext (31.19 GiB), so it needs\n    # no host expert pool and no n-gram\
++    \ placement. It is the smallest text\n    # entry on this lane by 2.3x (heretic\
++    \ is 33.37 GiB) and the only one whose\n    # published numbers were measured\
++    \ on this exact card pair.\n    #\n    # WHAT IT COSTS THE LANE, stated as arithmetic\
++    \ rather than promise: it is\n    # in `one-at-a-time` below, so a request here\
++    \ displaces qwen3.8-flash-next\n    # and the next flashnext request pays a reload\
++    \ plus a re-prefill of every\n    # live conversation - the same deliberate lane\
++    \ switch muse- and\n    # heretic-deleuze are. It takes no extra GPU and no extra\
++    \ host reservation\n    # beyond 4 Gi of prefix tier: the fleet's pinned-host\
++    \ reservations go 32\n    # -> 36 Gi, still under the 60 Gi ledger (docs MULTIMODEL\
++    \ 6.5: one budget\n    # covers parked weight copies, the KV host tier, expert\
++    \ pools and transit\n    # buffers). That 32 is flashnext's 24 - its `host-pool-mib:\
++    \ 16384` is the\n    # 2.x TOTAL, 8 GiB a rank, plus its own 8 GiB prefix tier\
++    \ - plus muse 4\n    # and heretic 4. Inkling keeps linear/convolution state per\
++    \ application,\n    # so the boot line `checkpoint slots` sizes its snapshot tier\
++    \ from what the\n    # cgroup leaves; read it on the first roll. `checkpoint-draft-window:\
++    \ true`\n    # (new in 2.3.0) would restore the drafter's window on a prefix hit\
++    \ instead\n    # of recomputing it, at one drafter window of PINNED host per slot\
++    \ -\n    # deliberately left off until that cost is measured here, since prefix\
++    \ hits\n    # on this model end one drafter window early and still answer the\
++    \ same\n    # (docs GUIDE, \"Inkling 2's drafter cache\").\n    #\n    # Vision\
++    \ is ON and the tower goes ON THE CARD, matching gemma4-heretic's\n    # measured\
++    \ choice: `vram` is the engine default and the alternative (`ram`)\n    # would\
++    \ take two whole towers out of the pinned ledger, because encoders\n    # are\
++    \ not sharded. mm-max-patches is UNSET (auto = 16384 patches, the\n    # card's\
++    \ own tested media budget), and that is also what keeps the pairing\n    # rule\
++    \ out of reach: a placement key beside mm-max-patches: 0 is fatal at\n    # startup.\
++    \ WHAT THIS CANNOT PROVE, and it is the one real risk on a shared\n    # process:\
++    \ warm-up loads weights and sizes pools but never runs the\n    # encoder, so\
++    \ the first real image is the only evidence the tower works on\n    # gfx1201\
++    \ - the Muse exit-139 segfault of 2026-11-19 took this fleet's\n    # agent entry\
++    \ down with it. Until an image is sent through this entry on\n    # purpose and\
++    \ survives (restartCount 0, correct answer, image soft tokens\n    # counted),\
++    \ the LiteLLM alias advertises supportsVision: false even though\n    # the container\
++    \ ships a tower.\n    model: /models/radiance/inkling-2-mini-iq4r-v4.rad\n   \
++    \ aliases: [inkling]\n    tp: 2\n    max-model-len: 200000\n    max-num-seqs:\
++    \ 8\n    kv-cache-dtype: i8\n    num-speculative-tokens: 7\n    draft-window:\
++    \ adaptive\n    vision-tower-placement: vram\n    prefix-cache-mib: 4096\n   \
++    \ ttl: 15m\n    # GLM-5.3-Flash, the other model asked for in this change, is\
++    \ NOT added\n    # here and this is where the reason lives, so the next reader\
++    \ does not\n    # retry it blind. It has exactly one published container -\n \
++    \   # animusnull/glm-5.3-flash-iqr-v4, glm53-flash-iqr-v4.rad, 170,662,334,464\n\
++    \    # B = 158.95 GiB, sha256\n    # 1e20c4bc2f7ea7022f7bae9dd1ffa9873c2031b242d41e85d1ac0a5016342687\
++    \ - and\n    # its author's own card is \"four cards with the experts tiered to\
++    \ host\n    # memory\": tp 4, host-pool-mib 65536, prefix-cache-mib 32768, and\
++    \ the\n    # upstream fleet file (deploy/compose/tp4.radiance.yaml at v2.3.0)\
++    \ says the\n    # three together need \"151 GiB of memory free\" on the host,\
++    \ measured on\n    # four R9700s and a 512 GB box. The arithmetic on Deleuze does\
++    \ not close,\n    # and it does not need estimating to say so: the geometry (288\
++    \ routed\n    # experts of 2048, MoE on layers 3-44, IQR-V4 four-bit codes) is\
++    \ 288 x 42 x\n    # 12 MiB = 141.75 GiB of experts - 89% of the container, which\
++    \ is the\n    # cross-check that the remaining ~17 GiB is the IQ8R trunk, the\
++    \ bf16\n    # KDA/kv_b/embedding/lm_head and the tower. Radiance refuses to serve\
++    \ a\n    # routed expert from the file tier (docs GUIDE diagnose table: \"A routed\n\
++    \    # expert cannot be served from the file tier, so it has nowhere else to go\"\
++    \n    # -> DID NOT FIT), so at tp 2 the pinned host pool must hold everything\
++    \ the\n    # two cards cannot: 141.75 GiB less AT MOST all 62.6 GiB of card memory,\n\
++    \    # i.e. >= 79 GiB, with nothing left for the 17 GiB of trunk, the KV pool\
++    \ or\n    # the activation headroom. This fleet's whole pinned ledger is 60 Gi\
++    \ (3/4\n    # of the 80 Gi cgroup) and 36 Gi of that is already committed to the\
++    \ four\n    # entries this change leaves in place, so 24 Gi is all a fifth entry\
++    \ gets\n    # to ask for. The node's allocatable memory is 123.1 Gi with flashnext\n\
++    \    # holding its own 24 Gi resident. The card's own failure mode is exactly\n\
++    \    # that: a load that logs \"waiting for N of host memory to pin\" and gives\n\
++    \    # up. In the engine's own units the card asks for host-pool-mib 65536 +\n\
++    \    # prefix-cache-mib 32768 = 96 GiB of pinned host at tp 4 - four times the\n\
++    \    # 24 Gi this lane has left, on two cards more than this node has.\n    #\n\
++    \    # Two more blockers, independent of memory. server.kernels is FLEET-wide\n\
++    \    # and GLM's int8 latent cache requires `glm,libr4d,libavx,libref` in that\n\
++    \    # order (plugin/glm's attention must win op selection over libr4d's bf16\n\
++    \    # MLA rows), so adding it re-orders kernel selection for every other entry\n\
++    \    # in this process, including the one this agent runs on. There is also\n\
++    \    # nowhere else to put it: the cluster has no second AMD box and no\n    #\
++    \ four-card node (README hardware table: iggy 2x RTX 3090, amnesia 1x RTX\n  \
++    \  # 5070 Ti, kristeva Intel A380, Deleuze the only R9700 pair), while\n    #\
++    \ radiance ships device kernels for AMD only (RDNA4 libr4d, RDNA3 libr3d,\n  \
++    \  # Strix Halo libhalo) - \"another card needs a kernel library for it\". The\n\
++    \    # engine support itself is no longer the blocker (the glm5next + plugin/glm\n\
++    \    # series landed in 2.3.0, so the author's\n    # animusnull/radiance:glm5.3-55d870e\
++    \ workaround image is not needed);\n    # capacity is. Adding it needs a 4x RDNA4\
++    \ node with >= 151 GiB free host\n    # RAM, or an explicitly smaller container,\
++    \ decided as its own change.\ngroups:\n  # Measured, not guessed: /admin/fleet\
++    \ reports qwen3.8-flash-next at\n  # 33487111208 B = 31.19 GiB PER CARD against\
++    \ the 31.3 GiB each R9700\n  # actually exposes (device-reported beats the 32\
++    \ GB label), so nothing\n  # co-resides with it. Muse alone wants ~25 GiB a card\
++    \ (17.8 GiB weights\n  # across tp 2 + 7.4 GiB KV), so it and flashnext are mutually\
++    \ exclusive by\n  # arithmetic. Saying so explicitly is what makes the planner\
++    \ park to make\n  # room instead of waiting out load-timeout for room that does\
++    \ not exist.\n  # Revisit if flashnext's claim is ever shrunk (max-model-len/max-num-seqs).\n\
++    \  # flux-3-klein is tp 1 and only wants ~11 GiB on ONE card, but flashnext\n\
++    \  # holds both cards outright, so it is in the exclusive set too: nothing\n \
++    \ # of ours is co-resident with the agent lane on this node. gemma4-heretic\n\
++    \  # is the same story at tp 2 (~16.7 GiB of weights a card before its KV\n  #\
++    \ pool), so it displaces the agent lane and is displaced by it.\n  # inkling-2-mini\
++    \ joins the set for the same reason, not a smaller one: it is\n  # tp 2 and it\
++    \ is the only entry whose weights are cheap (14.43 GiB in all),\n  # but the agent\
++    \ entry still charges 31.19 GiB a card, so the two cannot be\n  # resident together\
++    \ and declaring it is what makes the planner park one\n  # instead of waiting\
++    \ out load-timeout for room that does not exist. If\n  # flashnext's claim is\
++    \ ever shrunk, this is the line to revisit - inkling is\n  # the candidate that\
++    \ could then share the cards.\n  one-at-a-time:\n    exclusive: [qwen3.8-flash-next,\
++    \ muse-glimmer, flux-3-klein, gemma4-heretic,\n                inkling-2-mini]\n"
+ kind: ConfigMap
+ metadata:
+   labels:
+     app.kubernetes.io/name: llmkube
+     app.kubernetes.io/namespace: llm
+     kustomize.toolkit.fluxcd.io/name: llmkube-resources
+--- kubernetes/apps/llm/litellm/app Kustomization: llm/litellm LiteLLMVirtualKey: llm/hermes
+
++++ kubernetes/apps/llm/litellm/app Kustomization: llm/litellm LiteLLMVirtualKey: llm/hermes
+
+@@ -14,12 +14,13 @@
+
+   keyAlias: Hermes
+   maxBudget: '50'
+   models:
+   - flashnext-deleuze
+   - glimmer-deleuze
+   - heretic-deleuze
++  - inkling-deleuze
+   - google/gemma-4-12b-it
+   - coder
+   - embedder
+   - reranker
+   - worker
+   proxyRef: litellm
+--- kubernetes/apps/llm/litellm/app Kustomization: llm/litellm LiteLLMVirtualKey: llm/opencode
+
++++ kubernetes/apps/llm/litellm/app Kustomization: llm/litellm LiteLLMVirtualKey: llm/opencode
+
+@@ -15,11 +15,12 @@
+
+   maxBudget: '1'
+   maxParallelRequests: 4
+   models:
+   - flashnext-deleuze
+   - glimmer-deleuze
+   - heretic-deleuze
++  - inkling-deleuze
+   - google/gemma-4-12b-it
+   proxyRef: litellm
+   secretKey: api-key
+   secretName: litellm-key-opencode
+ 
+--- kubernetes/apps/llm/litellm/app Kustomization: llm/litellm LiteLLMModel: llm/inkling-deleuze
+
++++ kubernetes/apps/llm/litellm/app Kustomization: llm/litellm LiteLLMModel: llm/inkling-deleuze
+
+@@ -0,0 +1,31 @@
+
++---
++apiVersion: litellm.home-operations.com/v1alpha1
++kind: LiteLLMModel
++metadata:
++  labels:
++    app.kubernetes.io/name: litellm
++    app.kubernetes.io/namespace: llm
++    kustomize.toolkit.fluxcd.io/name: litellm
++    kustomize.toolkit.fluxcd.io/namespace: llm
++  name: inkling-deleuze
++  namespace: llm
++spec:
++  info:
++    extra:
++      deleuze_profile: radiance
++      input_cost_per_token: 0
++      output_cost_per_token: 0
++      supports_reasoning: true
++    maxInputTokens: 200000
++    maxOutputTokens: 16384
++    supportsFunctionCalling: true
++    supportsVision: false
++  modelName: inkling-deleuze
++  params:
++    additional:
++      timeout: 1800
++    apiBase: http://radiance.llm.svc.cluster.local:8080/v1
++    apiKey: os.environ/RADIANCE_API_KEY
++    model: openai/inkling-2-mini
++  proxyRef: litellm
++
+--- kubernetes/apps/llm/opencode/app Kustomization: llm/opencode ConfigMap: llm/paseo-config
+
++++ kubernetes/apps/llm/opencode/app Kustomization: llm/opencode ConfigMap: llm/paseo-config
+
+@@ -67,12 +67,18 @@
+
+                 "id": "cogito/heretic-deleuze",
+                 "label": "heretic-deleuze",
+                 "isDefault": false,
+                 "thinkingOptions": []
+               },
+               {
++                "id": "cogito/inkling-deleuze",
++                "label": "inkling-deleuze",
++                "isDefault": false,
++                "thinkingOptions": []
++              },
++              {
+                 "id": "cogito/gemma-4-12b",
+                 "label": "gemma-4-12b",
+                 "isDefault": false,
+                 "thinkingOptions": []
+               },
+               {
+@@ -196,12 +202,18 @@
+
+                 "isDefault": false,
+                 "thinkingOptions": []
+               },
+               {
+                 "id": "cogito/heretic-deleuze",
+                 "label": "heretic-deleuze",
++                "isDefault": false,
++                "thinkingOptions": []
++              },
++              {
++                "id": "cogito/inkling-deleuze",
++                "label": "inkling-deleuze",
+                 "isDefault": false,
+                 "thinkingOptions": []
+               },
+               {
+                 "id": "cogito/gemma-4-12b",
+                 "label": "gemma-4-12b",
+--- kubernetes/apps/llm/opencode/app Kustomization: llm/opencode ConfigMap: llm/opencode-config
+
++++ kubernetes/apps/llm/opencode/app Kustomization: llm/opencode ConfigMap: llm/opencode-config
+
+@@ -52,12 +52,23 @@
+
+                 "tools": true,
+                 "input": ["text", "image"],
+                 "output": ["text"],
+                 "reasoning": { "supported": true }
+               },
+               "limit": { "context": 65536, "output": 16384 }
++            },
++            "inkling-deleuze": {
++              "modelID": "inkling-deleuze",
++              "name": "Inkling 2 Mini @deleuze",
++              "capabilities": {
++                "tools": true,
++                "input": ["text"],
++                "output": ["text"],
++                "reasoning": { "supported": true }
++              },
++              "limit": { "context": 200000, "output": 16384 }
+             },
+             "gemma-4-12b": {
+               "modelID": "google/gemma-4-12b-it",
+               "name": "Gemma 4 12B @amnesia (vision, preemptible)",
+               "capabilities": {
+                 "tools": true,
+--- kubernetes/apps/llm/hermes/app Kustomization: llm/hermes HelmRelease: llm/hermes
+
++++ kubernetes/apps/llm/hermes/app Kustomization: llm/hermes HelmRelease: llm/hermes
+
+@@ -117,13 +117,13 @@
+
+               capabilities:
+                 drop:
+                 - ALL
+               readOnlyRootFilesystem: true
+         pod:
+           annotations:
+-            hermes.home-operations.com/bundle-sha256: 5e536d24d22e1d0a49cec0d1da73491003c009fdb15e86b1d000e18b4248bdaf35f9cd84ce61a03f8a03da87bf5ff76815b65774f8d5fb7a783842672ac6dc2a
++            hermes.home-operations.com/bundle-sha256: 5e536d24d22e1d0a49cec0d1da73491003c009fdb15e86b1d000e18b4248bdaf7816249a85ce23031652cb86221e943fa17fd17916d877dfb6c9cf881b3c98d9
+           automountServiceAccountToken: false
+           securityContext:
+             fsGroup: 1000
+             fsGroupChangePolicy: OnRootMismatch
+             seccompProfile:
+               type: RuntimeDefault
+--- kubernetes/apps/llm/hermes/app Kustomization: llm/hermes ConfigMap: llm/hermes-provider-bootstrap
+
++++ kubernetes/apps/llm/hermes/app Kustomization: llm/hermes ConfigMap: llm/hermes-provider-bootstrap
+
+@@ -105,12 +105,28 @@
+
+     \ stayed 0), which is\n        # why `auxiliary.vision` is pinned here below -\
+     \ the accepted cost is\n        # that each vision call lands on this fleet entry\
+     \ and displaces\n        # flashnext until the ttl frees the cards.\n        #\
+     \ No reasoning_override: thinking is mandatory and the engine publishes\n    \
+     \    # no effort ladder.\n        \"heretic\": {\n            \"model\": \"heretic-deleuze\"\
+     ,\n            \"provider\": \"custom:litellm-chat\",\n            \"base_url\"\
++    : LITELLM_API,\n        },\n        # Inkling 2 Mini (IQR-V4 + DFlash2) on the\
++    \ same Deleuze radiance\n        # process, fifth member of the same exclusive\
++    \ fleet group: picking it\n        # displaces the agent lane off both R9700s\
++    \ and it only loads at all on\n        # the fleet's 2.3.0 image (arch/inkling2\
++    \ is new there). Its swap is\n        # the cheapest on the lane - 14.43 GiB to\
++    \ read, against heretic's\n        # 33.37 GiB - and its own published numbers\
++    \ were measured on this\n        # exact card pair (190/427/658 tok/s at 1/4/8\
++    \ streams). No\n        # reasoning_override: the container's chat format carries\
++    \ a thinking\n        # channel and publishes no named effort level, so naming\
++    \ one on the\n        # wire is a control that does nothing (and its model-caps\
++    \ entry is\n        # deliberately absent until someone probes it - see\n    \
++    \    # ../../litellm/app/model-caps.yaml). No vision wiring either:\n        #\
++    \ supportsVision is false on the alias until an image probe through\n        #\
++    \ this entry survives, exactly as heretic-deleuze's 2026-11-20 probe\n       \
++    \ # did.\n        \"inkling\": {\n            \"model\": \"inkling-deleuze\",\n\
++    \            \"provider\": \"custom:litellm-chat\",\n            \"base_url\"\
+     : LITELLM_API,\n        },\n    }\n)\n\n# ---------------------------------------------------------------------------\n\
+     # 3. Agent behavior + auxiliary model map (mirrors the workstation profile)\n\
+     # ---------------------------------------------------------------------------\n\
+     \nCHAT = \"litellm-chat\"\n\nagent = config.setdefault(\"agent\", {})\nif not\
+     \ isinstance(agent, dict):\n    agent = {}\n    config[\"agent\"] = agent\nagent.update(\n\
+     \    {\n        \"max_turns\": 500,\n        \"fast_auto_seconds\": 60,\n    \

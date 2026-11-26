@@ -61,6 +61,22 @@
 #     either entry (their caps `supported_efforts` are empty), so any level
 #     offered there would be a control that does nothing. `google/gemma-4-12b-it`
 #     gets only the Off toggle, its one verified level.
+#   - `inkling-deleuze` (added 2026-11-26 with the fleet's 2.3.0 bump) is the one
+#     local row whose claims are NOT yet measured on the wire: `tools` and
+#     `reasoning.supported` are what Thinking Machines' container card states for
+#     its server ("with tool calls, reasoning and image_url parts", and a thinking
+#     channel in the chat format), and no named effort level is claimed for it by
+#     anything we can read, so it gets no effort list and no toggle - the same
+#     wire shape as glimmer- and heretic-deleuze, whose caps ladders are empty for
+#     the same reason. `input` is text-only even though the container ships a
+#     vision tower, mirroring supportsVision: false on the LiteLLMModel file:
+#     warm-up loads weights without ever running the encoder, so no image has been
+#     through this arch on gfx1201 yet, and this file's own rule is that an
+#     advertised capability the backend refuses is the failure mode to avoid. Its
+#     limits mirror the LiteLLMModel file: 200000 is the fleet pin `max-model-len`
+#     (the container's own --max-ctx), not an assumed window. Prove tools,
+#     reasoning and image on this row with one probe each before tightening or
+#     widening anything here.
 #   - The eight subscription limits (922000 in / 128000 out) and their vision and
 #     tool support are read from the proxy's own router metadata, not invented.
 #     Their ladders come from the caps publisher, which reflects the live ChatGPT
@@ -164,6 +180,17 @@ data:
                 "reasoning": { "supported": true }
               },
               "limit": { "context": 65536, "output": 16384 }
+            },
+            "inkling-deleuze": {
+              "modelID": "inkling-deleuze",
+              "name": "Inkling 2 Mini @deleuze",
+              "capabilities": {
+                "tools": true,
+                "input": ["text"],
+                "output": ["text"],
+                "reasoning": { "supported": true }
+              },
+              "limit": { "context": 200000, "output": 16384 }
             },
             "gemma-4-12b": {
               "modelID": "google/gemma-4-12b-it",

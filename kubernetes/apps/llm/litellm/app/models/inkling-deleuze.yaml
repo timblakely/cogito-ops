@@ -1,0 +1,89 @@
+---
+# Backend: the `inkling-2-mini` entry of the Radiance 2.x fleet on Deleuze
+# (InferenceService/radiance, runtime generic, one process serving five entries
+# on one port, tp 2 on both Radeon AI PRO R9700s) - Thinking Machines' Inkling 2
+# Mini in the only container that engine serves:
+# /models/radiance/inkling-2-mini-iq4r-v4.rad (14.43 GiB, IQR-V4 four-bit routed
+# experts, rotated int8 attention/head/embedding, incoai's DFlash2 drafter, bf16
+# vision tower; sha256
+# 1522e6d7e0432cd8308ba0478a969d678648d0245983d05e964caecb4b03dcc9).
+# It needs the fleet's 2.3.0 image: arch/inkling2 does not exist before it.
+#
+# apiBase is the SAME Service as flashnext-, glimmer- and heretic-deleuze, and
+# the same consequence applies: this entry is in the fleet's `one-at-a-time`
+# exclusive group, so a request here displaces qwen3.8-flash-next - the agent
+# lane - and the next flashnext request pays a reload plus a re-prefill of every
+# live conversation. It is a deliberate, visible lane switch, not a free extra
+# model, and it takes no GPU that is not already claimed. It is the cheapest
+# switch of its kind on this lane (14.43 GiB to read, against heretic's 33.37),
+# and the only one whose published throughput was measured on this exact card
+# pair: 190 / 427 / 658 tok/s at 1 / 4 / 8 streams on essays, 240 / 550 / 790 on
+# code, 358 / 811 / 1116 on step-by-step arithmetic, with `draft-window:
+# adaptive` and int8 KV. `ttl: 15m` on the entry hands the cards back when idle.
+#
+# maxInputTokens mirrors the FLEET PIN `max-model-len: 200000`, which is itself
+# the container's own converted context (--max-ctx 200000), not a number chosen
+# here. Like its siblings this mirror is hand-carried: llmkube's generic runtime
+# exposes no contextSize/vllmConfig, so scripts/validate-llm-catalogue.py cannot
+# see a backend value to compare. Correct that script or this file if the entry
+# is ever re-pinned.
+#
+# WHAT IS AND IS NOT MEASURED HERE, because this lane has been taken down by an
+# assumed capability before (Muse's first image, 2026-11-19: exit 139 in the ViT
+# path, and one shared process meant flashnext went with it):
+#   - supportsVision is FALSE although the container ships the tower. The engine
+#     loads it (`vision-tower-placement: vram`, whole tower per rank because
+#     encoders are not sharded) but warm-up only loads weights and sizes pools -
+#     it never runs the encoder - so no image has ever been through this arch on
+#     gfx1201 from this fleet. Flip it to true only after a probe on this entry
+#     answers correctly from image soft tokens with restartCount 0, as
+#     heretic-deleuze's 2026-11-20 probe did.
+#   - supportsFunctionCalling and supports_reasoning are the container card's
+#     claims (its own words: "The server speaks the OpenAI API ..., with tool
+#     calls, reasoning and image_url parts"; the arch's chat format carries a
+#     thinking channel), NOT measurements through this proxy. Prove them with one
+#     tool-call round trip and one `reasoning_content` observation on
+#     `inkling-deleuze` before agents rely on them.
+#   - model-caps is deliberately left uncurated for this name: the caps document
+#     states which reasoning_effort levels a model accepts, and nobody has
+#     probed what Inkling does with them. Unlisted means "unknown", which is the
+#     honest answer until a probe says otherwise.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: inkling-deleuze
+spec:
+  modelName: inkling-deleuze
+  proxyRef: litellm
+  params:
+    # The fleet entry name IS the served model id in radiance 2.x
+    # (served-model-name is gone), so this must match `inkling-2-mini` in
+    # radiance-fleet-config byte for byte or the backend 404s. `inkling` is also
+    # registered lane-side as an alias; ask for the canonical id, as the other
+    # three routes on this lane do.
+    model: openai/inkling-2-mini
+    apiBase: http://radiance.llm.svc.cluster.local:8080/v1
+    # Same bearer, same os.environ/ indirection as the other three entries on
+    # this process: one radiance fleet, one key. The value lives in 1Password
+    # (kubernetes/Radiance, field API_KEY) and reaches the proxy as
+    # RADIANCE_API_KEY from the radiance-api-key Secret; nothing here stores it.
+    apiKey: os.environ/RADIANCE_API_KEY
+    additional:
+      # Matches the siblings on this lane. A cold load has to finish inside the
+      # fleet's `load-timeout: 600s`, and this request is the one that triggers
+      # it: the entry is cold until someone asks, and it displaces the agent
+      # lane on the way in.
+      timeout: 1800
+  info:
+    supportsVision: false
+    supportsFunctionCalling: true
+    maxInputTokens: 200000
+    # Generous, not tight: Inkling has a thinking channel, and a small budget
+    # buys `content: ""` with the answer left in reasoning_content (the same trap
+    # both siblings document for their models).
+    maxOutputTokens: 16384
+    extra:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+      supports_reasoning: true
+      deleuze_profile: radiance

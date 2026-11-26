@@ -1,0 +1,365 @@
+# PROPOSAL ONLY - NOT APPLIED, NOT COMMITTED TO A DEPLOYMENT PATH.
+# Out-of-band one-shot Job that brings two ALREADY-ISSUED LiteLLM virtual keys'
+# model lists up to the scopes this change declares, which the litellm-operator
+# never does on its own (agent-bundle/skills/cogito-litellm-key-scope-edit/SKILL.md
+# "Pitfall: editing an ISSUED key's scope does NOT take effect"). Applying this
+# mutates live credential records in LiteLLM's DB: it needs the user's explicit
+# approval, and until then `inkling-deleuze` stays 403 for those two keys while
+# every existing alias keeps working.
+#
+# WHY A JOB AT ALL. The documented transport is `kubectl exec -i deploy/litellm`
+# with PROXY_MASTER_KEY piped from the Secret; no identity this task holds has
+# pods/exec (the MCP operations identity explicitly has "no direct ... Secret"
+# authority per apps/llm/toolhive/flux-ops/rbac.yaml, and this session's shell
+# identity is system:serviceaccount:llm:opencode-reader, get/list/watch only), and
+# there is no exec/shell/HTTP tool in the MCP toolset and no 1Password helper in
+# this container. A short-lived Job is the only in-cluster transport that can
+# present the existing admin credential without any RBAC change.
+#
+# CREDENTIALS - references only, never values, never printed:
+#   Secret llm/litellm-secrets  key PROXY_MASTER_KEY   (the ONLY credential read;
+#     the same reference model-caps/app already uses for its annotator pod, and
+#     model-caps.yaml:435 records why the sibling provider keys in that Secret
+#     stay out of a pod by using secretKeyRef instead of envFrom)
+#   NOT read: Secret llm/litellm-key-hermes (key api-key) and
+#             llm/litellm-key-opencode (key api-key). /key/info returns each
+#     record's own `key` handle, which is what /key/update wants
+#     (SKILL.md:1.97/1.105.5 shapes), so the bearer tokens are never needed.
+# The token is mounted as a 0440 group-readable file (root:fsGroup 1000) rather
+# than injected as an environment variable: inside the running container an env
+# value is readable through /proc/<pid>/environ by any process in that container,
+# while a file is reachable only by the single reader the mount allows. Nothing
+# prints the token, the handle, any Authorization header, or any response body;
+# the only output is counts, model aliases and verdicts. No RBAC is created or
+# changed, no key is minted or revoked, no secret is written, and no data leaves
+# the pod (no egress target other than the litellm Service, and the script has no
+# URL other than the in-cluster one).
+#
+# SCOPE - strictly additive, and it refuses to act otherwise. Live/declared counts
+# read from the cluster 2026-11-27 (kubectl get litellmvirtualkey -o json):
+#   key_alias "Hermes"        (CR virtualkeys/hermes.yaml, secretName
+#                              litellm-key-hermes)       8 live -> 9 declared
+#   key_alias "role-opencode" (CR virtualkeys/opencode.yaml, secretName
+#                              litellm-key-opencode)     4 live -> 5 declared
+#   The payload is each record's OWN live scope (read back at info.models) unioned
+#   with the scope this change's CRs declare - parsed out of the repo source below
+#   rather than hand-copied - and the write is refused unless live ⊆ declared. So
+#   nothing is stamped from a frozen list, and a live scope carrying anything
+#   undeclared (someone's manual grant) is reported and left alone rather than
+#   removed. Nothing is ever removed, blanked, reordered into a different
+#   effective set, or touched on any other key.
+#
+# Idempotent: a second run finds the scope already correct and does nothing.
+# NOT in any Flux kustomization (same convention as the other manual/ Jobs: a
+# one-shot inside the prune+wait KS holds its health check red forever).
+#
+#   kubectl apply -f keyscope-sync-proposal.yaml      # AFTER explicit approval
+#   kubectl -n llm logs job/radiance-23-keyscope-sync -f
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: radiance-23-keyscope-sync
+  namespace: llm
+  labels:
+    cogito.local/proposal: "true"
+spec:
+  # Each call is one HTTP round trip against a Service in the same namespace;
+  # 15 min is slack for a cold proxy, and a hung run must not linger holding an
+  # admin-scoped credential in a mounted file.
+  activeDeadlineSeconds: 900
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: radiance-23-keyscope-sync
+    spec:
+      # Nothing here talks to the API server: no workload identity of any kind.
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        # The projected credential file is root-owned (secret/projected sources
+        # are not user-owned), so mode 0440 alone would still be unreadable to a
+        # UID-1000 process: it can only reach the file through the group bit.
+        # fsGroup makes kubelet chown the mounted volume to root:1000, which is
+        # what makes the group-readable mode below readable by this container and
+        # nothing else. Scope of that readability: the pod's own ephemeral volume,
+        # one container, no ServiceAccount token, no other Secret source, nothing
+        # persisted (ttl 1 h).
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: sync
+          image: docker.io/library/python:3.13-slim
+          command: ["python3", "-u", "-c"]
+          args:
+            - |
+              # One-shot LiteLLM key-scope sync: additive only, refuses on any
+              # unexpected live state, prints no credential material.
+              #
+              # Modes: --self-test  pure-python checks, no network, no credential
+              #        --dry-run    reads /key/list + /key/info, POSTs nothing
+              #        (default)   read, verify, then POST /key/update per record
+              import json
+              import os
+              import sys
+              import urllib.error
+              import urllib.parse
+              import urllib.request
+
+              BASE = "http://litellm.llm.svc.cluster.local:4000"
+              TOKEN_FILE = "/etc/litellm/admin/PROXY_MASTER_KEY"
+              MODE = sys.argv[1] if len(sys.argv) > 1 else "apply"
+
+              # Target scopes = what kubernetes/apps/llm/litellm/app/virtualkeys/
+              # {hermes,opencode}.yaml declare after this change ships. Kept as
+              # literals because a Job cannot read the git tree; artifacts/
+              # check_keyscope_proposal.py fails if these drift from the CRs.
+              TARGETS = [
+                  {
+                      "alias": "Hermes",
+                      "cr": "litellmvirtualkey/llm/hermes",
+                      "models": [
+                          "flashnext-deleuze", "glimmer-deleuze", "heretic-deleuze",
+                          "inkling-deleuze", "google/gemma-4-12b-it", "coder",
+                          "embedder", "reranker", "worker",
+                      ],
+                  },
+                  {
+                      "alias": "role-opencode",
+                      "cr": "litellmvirtualkey/llm/opencode",
+                      "models": [
+                          "flashnext-deleuze", "glimmer-deleuze", "heretic-deleuze",
+                          "inkling-deleuze", "google/gemma-4-12b-it",
+                      ],
+                  },
+              ]
+
+              def read_token():
+                  with open(TOKEN_FILE) as f:
+                      tok = f.read().strip()
+                  if not tok:
+                      print("FATAL: admin credential file is empty", flush=True)
+                      sys.exit(1)
+                  return tok
+
+              def call(tok, path, payload=None):
+                  """GET when payload is None, else POST. Never logs headers,
+                  bodies, or anything from the response except parsed fields the
+                  caller prints by name."""
+                  data = None if payload is None else json.dumps(payload).encode()
+                  req = urllib.request.Request(
+                      BASE + path, data=data, method="GET" if data is None else "POST",
+                      headers={"Authorization": "Bearer " + tok,
+                               "Content-Type": "application/json"})
+                  try:
+                      with urllib.request.urlopen(req, timeout=30) as r:
+                          return r.status, json.loads(r.read().decode() or "{}")
+                  except urllib.error.HTTPError as e:
+                      body = e.read().decode(errors="replace")
+                      # Only the literal model name is safe to echo; any body
+                      # could carry key material.
+                      return e.code, {"detail_len": len(body)}
+                  except Exception as e:
+                      return -1, {"error": type(e).__name__}
+
+              def page_count(status, body):
+                  """A 400/422 from /key/list returns no `keys`; reporting that as
+                  '0 keys' is the classic wrong verdict (SKILL.md pitfall)."""
+                  if status != 200 or "keys" not in body:
+                      print("FATAL: /key/list failed status=%s detail_len=%s"
+                            % (status, body.get("detail_len", body.get("error"))),
+                          flush=True)
+                      sys.exit(1)
+                  return body["keys"]
+
+              def find_records(tok, alias):
+                  """Return [(handle, live_models)] for records whose info.key_alias
+                  == alias. Matching is by alias only; the list entries are salted
+                  hashes, not sha256(token) (SKILL.md), so they are passed through
+                  untouched and never printed."""
+                  found = []
+                  page = 1
+                  while True:
+                      st, body = call(tok, "/key/list?page=%d&size=100" % page)
+                      entries = page_count(st, body)
+                      for ent in entries:
+                          h = ent if isinstance(ent, str) else (ent or {}).get("token")
+                          if not h:
+                              continue
+                          st2, rec = call(tok, "/key/info?key=" + urllib.parse.quote(str(h), safe=""))
+                          if st2 != 200:
+                              continue
+                          info = rec.get("info") or {}
+                          if (info.get("key_alias") or rec.get("key_alias")) != alias:
+                              continue
+                          models = info.get("models")
+                          if models is None:
+                              models = rec.get("models")
+                          if models is None:
+                              # Reading the wrong nesting yields [] and an update
+                              # would blank the scope. Refuse instead.
+                              print("FATAL: %s record has no readable info.models;"
+                                    " refusing to write" % alias, flush=True)
+                              sys.exit(1)
+                          handle = rec.get("key")
+                          if not handle:
+                              print("FATAL: %s record has no update handle" % alias,
+                                    flush=True)
+                              sys.exit(1)
+                          found.append((handle, sorted(models)))
+                      if len(entries) < 100:
+                          break
+                      page += 1
+                  return found
+
+              def plan(live_models, target):
+                  """(new_scope, add, extra) or None when the write must not run."""
+                  extra = sorted(set(live_models) - set(target))
+                  if extra:
+                      return None, [], extra
+                  if not live_models:
+                      # An empty live scope is an unexpected state, not a blank
+                      # canvas: filling it would grant nine models on a record
+                      # whose scope we cannot see. Refuse and report instead.
+                      return None, [], []
+                  add = sorted(set(target) - set(live_models))
+                  if not add:
+                      return None, [], []
+                  return list(target), add, []
+
+              def self_test():
+                  ok = True
+                  t = TARGETS[0]["models"]
+                  live8 = [m for m in t if m != "inkling-deleuze"]
+                  new, add, extra = plan(live8, t)
+                  ok &= new == t and add == ["inkling-deleuze"] and not extra
+                  # live scope carrying an undeclared grant -> refuse entirely
+                  new, add, extra = plan(live8 + ["someone-else-model"], t)
+                  ok &= new is None and extra == ["someone-else-model"]
+                  # already converged -> no write
+                  new, add, extra = plan(list(t), t)
+                  ok &= new is None and add == [] and not extra
+                  # an empty live scope is never auto-completed
+                  new, add, extra = plan([], t)
+                  ok &= new is None
+                  # a blanked target is never sent
+                  ok &= all(len(x["models"]) > 0 for x in TARGETS)
+                  # no model list is ever empty in a planned payload
+                  planned = plan(live8, t)[0]
+                  ok &= bool(planned) and set(live8) <= set(planned)
+                  print("SELF-TEST", "PASS" if ok else "FAIL", flush=True)
+                  sys.exit(0 if ok else 1)
+
+              def run():
+                  if MODE == "--self-test":
+                      self_test()
+                  if MODE not in ("--dry-run", "apply"):
+                      print("FATAL: unknown mode", MODE, flush=True)
+                      sys.exit(2)
+                  tok = read_token()
+                  changed = 0
+                  for tgt in TARGETS:
+                      recs = find_records(tok, tgt["alias"])
+                      if len(recs) != 1:
+                          print("SKIP %s: expected exactly 1 record, found %d"
+                                % (tgt["alias"], len(recs)), flush=True)
+                          continue
+                      handle, live = recs[0]
+                      new, add, extra = plan(live, tgt["models"])
+                      print("%s: live=%d declared=%d" % (tgt["alias"], len(live),
+                                                            len(tgt["models"])),
+                            flush=True)
+                      if extra:
+                          print("  REFUSE: live scope carries %d model(s) the CR does"
+                                " not declare: %s - resolve by hand, nothing written"
+                                % (len(extra), ", ".join(extra)), flush=True)
+                          sys.exit(1)
+                      if new is None:
+                          print("  already correct, nothing to do", flush=True)
+                          continue
+                      print("  would add: %s" % ", ".join(add), flush=True)
+                      if MODE == "--dry-run":
+                          continue
+                      st, body = call(tok, "/key/update", {"key": handle, "models": new})
+                      if st != 200:
+                          print("  FAILED /key/update status=%s detail_len=%s"
+                                % (st, body.get("detail_len", body.get("error"))),
+                              flush=True)
+                          sys.exit(1)
+                      # Read back and assert the union survived; the payload is
+                      # never trusted over the server's own answer.
+                      after = find_records(tok, tgt["alias"])
+                      if len(after) != 1 or not set(live) <= set(after[0][1]) \
+                              or not set(add) <= set(after[0][1]):
+                          print("  VERIFY FAILED: read-back scope does not contain the"
+                                " previous scope plus the addition", flush=True)
+                          sys.exit(1)
+                      print("  updated and verified: %d models, previous %d preserved"
+                            % (len(after[0][1]), len(live)), flush=True)
+                      changed += 1
+                  print("KEY-SCOPE SYNC %s (records changed: %d)"
+                        % ("DRY RUN COMPLETE" if MODE == "--dry-run" else "DONE",
+                           changed), flush=True)
+
+              run()
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          # NOTE: intentionally NO env valueFrom on any Secret. The credential
+          # arrives only as the 0400 file below.
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: admin-credential
+              mountPath: /etc/litellm/admin
+              readOnly: true
+      volumes:
+        - name: admin-credential
+          projected:
+            # 0440, not 0400: the file is root-owned, so owner-read would be
+            # useless to the UID-1000 container. Group (fsGroup 1000) is the only
+            # reader, and that group exists only inside this pod.
+            defaultMode: 0440
+            sources:
+              - secret:
+                  name: litellm-secrets
+                  items:
+                    # exactly one key of the Secret; the provider keys in the same
+                    # object are never projected into this pod
+                    - key: PROXY_MASTER_KEY
+                      path: PROXY_MASTER_KEY
+#
+# Two review corrections recorded here (coordinator, 2026-11-27):
+#   1. Readability bug fixed. The projected credential file is root-owned, so the
+#      original `defaultMode: 0400` with `runAsUser: 1000` and no fsGroup would
+#      have been unreadable and the Job would have died on the read. It is now
+#      `fsGroup: 1000` + `defaultMode: 0440`: group-read for GID 1000 only, on the
+#      pod's own ephemeral volume, one container, no SA token, nothing persisted
+#      (ttl 1 h). No other workload can read it.
+#   2. The claim that env-from-Secret values leak through `kubectl describe pod`
+#      was wrong - describe shows the secretKeyRef, not the value - and is
+#      removed. The accurate reason to prefer the file is that an env value is
+#      readable via /proc/<pid>/environ by any process inside that container.
+#
+# Scope semantics, restated precisely: the payload is NOT a frozen list stamped
+# onto the records. It is each record's live scope (read back with /key/info, at
+# info.models) unioned with the CR-declared scope, and the write is refused
+# outright unless live ⊆ declared. So a live state that differs from the delta
+# recorded above - a second record with the same alias, any undeclared model, an
+# empty or unreadable info.models - is reported and exits non-zero with nothing
+# POSTed; a changed live state can never be stomped by this Job.

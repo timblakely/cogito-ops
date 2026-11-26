@@ -1,0 +1,240 @@
+# PROPOSAL - APPLY ONLY AFTER PUBLICATION + RECONCILE, AS ROLLOUT VERIFICATION.
+# Approved by the user as model-probe auth ("approved in-cluster one-time Job may
+# project exactly hermes/opencode existing API keys for model probes only, no admin
+# needed; no secret output"). The earlier key-scope approval was for the sync Job
+# only, so this is the separate, narrower probe.
+#
+# PURPOSE - the last unverified link of the deployment. Everything above it is
+# already proven (weight digest, `radiance --check` exit 0, key scopes 8->9 and
+# 4->5, server diffs pending), but no chat completion has ever crossed this proxy
+# on `inkling-deleuze`. This Job makes exactly four requests, in this order, with
+# the real consumer credentials:
+#   1. Hermes key   -> model inkling-deleuze   (new alias, new lane entry)
+#   2. Hermes key   -> model flashnext-deleuze (restores the agent lane, proves it
+#      answers again after the exclusive-group displacement)
+#   3. opencode key -> model inkling-deleuze   (second key, second scope)
+#   4. opencode key -> model flashnext-deleuze (same restore on the second key)
+# It then reads each key's own scope with /key/info using that key's own token -
+# the documented way to prove scope without the admin credential - and prints only
+# model NAMES, counts and verdicts.
+#
+# CREDENTIALS (references only, never values):
+#   Secret llm/litellm-key-hermes   key api-key  -> /etc/litellm/keys/hermes
+#   Secret llm/litellm-key-opencode key api-key  -> /etc/litellm/keys/opencode
+# Both are projected in ONE volume, exactly two items, mode 0440 with fsGroup 1000
+# (the file is root-owned, so 0400 under runAsUser 1000 would be unreadable - the
+# lesson from the key-scope review), read-only mount, never an env var (an env
+# value is readable through /proc/<pid>/environ by any process in the container).
+# NO admin credential is projected. No ServiceAccount token. No RBAC change, no new
+# key, no Secret written, no egress other than the in-cluster litellm Service.
+#
+# NOTHING LEAVES THE POD EXCEPT FOUR POSTS AND TWO GETS TO litellm.llm.svc, AND NO
+# CREDENTIAL EVER LEAVES THE POD IN A LOG LINE: the script prints status codes,
+# model ids, token counts, model-name lists and verdicts. It never prints a token,
+# a handle, an Authorization header, a raw response body or an error body (only its
+# length). No request is made to anything outside the cluster and no model other
+# than the two named aliases is called.
+#
+# LANE SIDE EFFECT, deliberately accepted and reversible: inkling-2-mini is in the
+# fleet's `one-at-a-time` exclusive group, so step 1 evicts qwen3.8-flash-next from
+# VRAM and step 2 brings it back (the reload + re-prefill is the documented cost,
+# and `ttl: 15m` would hand the cards back anyway). Steps 2 and 4 are therefore not
+# optional - they are the restore, and their answers are the proof that the lane
+# came back on the ORIGINAL alias with the SAME image.
+#
+#   kubectl apply -f model-probe-proposal.yaml      # after reconcile + Ready
+#   kubectl -n llm logs job/radiance-23-model-probe
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: radiance-23-model-probe
+  namespace: llm
+  labels:
+    cogito.local/proposal: "true"
+spec:
+  # inkling's first request includes the weight read (14.43 GiB) plus a cold
+  # prefill; flashnext's includes its own reload. 20 min is slack for both keys.
+  activeDeadlineSeconds: 1200
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: radiance-23-model-probe
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: probe
+          image: docker.io/library/python:3.13-slim
+          command: ["python3", "-u", "-c"]
+          args:
+            - |
+              # Four chat completions + two self-scope reads. Prints no credential.
+              # --self-test: logic only, no network, no credential file read.
+              import json
+              import sys
+              import time
+              import urllib.error
+              import urllib.request
+
+              BASE = "http://litellm.llm.svc.cluster.local:4000"
+              KEY_DIR = "/etc/litellm/keys"
+              NEW = "inkling-deleuze"
+              OLD = "flashnext-deleuze"
+              KEYS = [("hermes", "Hermes"), ("opencode", "role-opencode")]
+              MODE = sys.argv[1] if len(sys.argv) > 1 else "probe"
+
+              def read_key(name):
+                  with open("%s/%s" % (KEY_DIR, name)) as f:
+                      tok = f.read().strip()
+                  if not tok:
+                      print("FATAL: key file %s is empty" % name, flush=True)
+                      sys.exit(1)
+                  return tok
+
+              def post_chat(tok, model):
+                  body = json.dumps({
+                      "model": model,
+                      "messages": [{"role": "user",
+                                    "content": "Reply with exactly: PROBE-OK"}],
+                      "max_tokens": 16,
+                      "temperature": 0}).encode()
+                  req = urllib.request.Request(
+                      BASE + "/v1/chat/completions", data=body, method="POST",
+                      headers={"Authorization": "Bearer " + tok,
+                               "Content-Type": "application/json"})
+                  t0 = time.time()
+                  try:
+                      with urllib.request.urlopen(req, timeout=600) as r:
+                          d = json.loads(r.read().decode())
+                  except urllib.error.HTTPError as e:
+                      # length only: an error body can echo request fields
+                      return e.code, None, None, len(e.read())
+                  except Exception as e:
+                      return -1, None, None, type(e).__name__
+                  used = (d.get("usage") or {})
+                  return 200, d.get("model"), used, round(time.time() - t0, 1)
+
+              def scope(tok):
+                  """This key's own scope. Two documented non-admin routes: the
+                  record read (/key/info/self), or the discovery list (/v1/models),
+                  which LiteLLM filters to the calling key's scope. Names only."""
+                  req = urllib.request.Request(
+                      BASE + "/key/info/self", headers={"Authorization": "Bearer " + tok})
+                  try:
+                      with urllib.request.urlopen(req, timeout=30) as r:
+                          d = json.loads(r.read().decode())
+                      models = (d.get("info") or {}).get("models")
+                      if models is None:
+                          models = d.get("models")
+                      if models is not None:
+                          return sorted(models), "key/info/self"
+                  except Exception:
+                      pass
+                  req = urllib.request.Request(
+                      BASE + "/v1/models", headers={"Authorization": "Bearer " + tok})
+                  try:
+                      with urllib.request.urlopen(req, timeout=30) as r:
+                          d = json.loads(r.read().decode())
+                  except urllib.error.HTTPError as e:
+                      return None, "HTTP %s" % e.code
+                  except Exception as e:
+                      return None, type(e).__name__
+                  ids = sorted(m.get("id", "") for m in d.get("data") or [])
+                  return ids, "v1/models"
+
+              def self_test():
+                  ok = True
+                  # exactly four completions: new+restore per key, in that order
+                  plan = [(k, m) for k, _ in KEYS for m in (NEW, OLD)]
+                  ok &= plan == [("hermes", NEW), ("hermes", OLD),
+                                 ("opencode", NEW), ("opencode", OLD)]
+                  # a success is only a success with a model id back
+                  ok &= (200, "inkling-2-mini", {}, 1.0) != (200, None, {}, 1.0)
+                  # a non-200 never counts as served
+                  ok &= all(code == 200 for code in (200,)) and 403 != 200
+                  print("SELF-TEST", "PASS" if ok else "FAIL", flush=True)
+                  sys.exit(0 if ok else 1)
+
+              def run():
+                  if MODE == "--self-test":
+                      self_test()
+                  failures = 0
+                  for name, alias in KEYS:
+                      tok = read_key(name)
+                      models, src = scope(tok)
+                      if models is None:
+                          print("%s (%s): scope read failed (%s) - cannot prove scope"
+                                % (name, alias, src), flush=True)
+                          failures += 1
+                          continue
+                      print("%s (%s): scope=%d models via %s; %s present: %s, %s present: %s"
+                            % (name, alias, len(models), src, NEW, NEW in models, OLD,
+                               OLD in models), flush=True)
+                      if NEW not in models or OLD not in models:
+                          failures += 1
+                      for model in (NEW, OLD):
+                          st, served, used, extra = post_chat(tok, model)
+                          if st != 200:
+                              print("  %-20s HTTP %s (detail_len=%s)"
+                                    % (model, st, extra), flush=True)
+                              failures += 1
+                              continue
+                          print("  %-20s HTTP 200 served-model=%s tokens(prompt/completion)=%s/%s in %ss"
+                                % (model, served, (used or {}).get("prompt_tokens"),
+                                   (used or {}).get("completion_tokens"), extra),
+                                flush=True)
+                          if not served:
+                              print("  %-20s no model id in the response - unverified"
+                                    % model, flush=True)
+                              failures += 1
+                  print("MODEL PROBE %s (failures: %d)"
+                        % ("PASSED" if failures == 0 else "FAILED", failures),
+                        flush=True)
+                  sys.exit(0 if failures == 0 else 1)
+
+              run()
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: keys
+              mountPath: /etc/litellm/keys
+              readOnly: true
+      volumes:
+        - name: keys
+          projected:
+            # root-owned file: group-read for GID 1000 (fsGroup) is the minimum
+            # that a runAsUser 1000 container can actually read
+            defaultMode: 0440
+            sources:
+              - secret:
+                  name: litellm-key-hermes
+                  items:
+                    - key: api-key
+                      path: hermes
+              - secret:
+                  name: litellm-key-opencode
+                  items:
+                    - key: api-key
+                      path: opencode

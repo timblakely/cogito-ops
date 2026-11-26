@@ -37,36 +37,61 @@ metadata:
 spec:
   modelRef: flashnext-deleuze-radiance
   runtime: generic
-  image: docker.io/stilldeadcode/radiance:2.2.0@sha256:167466f5556fdb3a4e0efbb42820fae10cfd9b3a98c786f46a51263bfd6fe53f # amd64 child of index sha256:a7000897
-  # 2.2.0 (2026-11-19) is an engine-only bump for this lane: RAD_FORMAT_VER is
-  # still 2, so all three containers load byte-unchanged, and RAD_ABI_VERSION
-  # 40 -> 43 is container-internal (the arch plugins ship inside the image and
-  # cogito carries no out-of-tree plugin). No fleet key was removed from 2.1 to
-  # 2.2 (core/fleet/config.cpp key sets diff clean; new ones are
-  # memory.card-headroom-mib and models.NAME.cards), and the radiance-fleet-config
-  # below is deliberately byte-identical - `radiance --check` on the 2.2.0 image
-  # ran against those exact bytes (manual/radiance-22-preflight.yaml, Complete in
-  # 8 s, three entries accepted, no refusal). Its "2.1.0" comment stamps which
-  # tag the flag translation came from; it is provenance, not a version claim.
-  #
-  # What reaches this lane without being asked for:
-  #  - Code000's qwen4exp decode series (#485-#519, #544-#546): acquire-free
-  #    chained launches, doorbell flush + scalar-cache emptying, register-form
-  #    fused all-reduce, QSA score/select skips, hc_read's 48-row tile. Upstream
-  #    measures Flash-Next TP2 on two R9700s at 11.2 ms a decode step at one
-  #    stream (12.4 on 2.1.0), 15.0 at two, 21.4 at four, cold prefill 2-3% up.
-  #  - prefill-tail-snapshot now defaults ON (core/rad_core.h
-  #    prefill_tail_snapshot = true). It is documented as touching exactly what
-  #    this lane runs - a lone spanned prefill, Flash-Next at two ranks - so
-  #    prefill reduction order and prefix-resume boundaries move versus 2.1.0.
-  #    Pin `prefill-tail-snapshot: off` on the entry to hold the 2.1 geometry;
-  #    upstream recommends the default, so the default ships here.
-  #  - scheduler.stuck-exit no longer fires while the first engine is still
-  #    loading (5c66eecc8e), which matters because this fleet warm-loads three
-  #    entries at boot under a 60s watchdog.
-  #  - rkcth's fleet fixes: model discovery no longer restarts idle TTLs (this
-  #    fleet's muse/flux entries run ttl: 15m), host room reserved atomically
-  #    for loads, yielded expert cache capacity restored while idle.
+  image: docker.io/stilldeadcode/radiance:2.3.0@sha256:1e0fe6a2c310e483e9e66e8446ba274ee767f06044f6761ababd593d7517af12 # amd64 child of index sha256:7d18847e
+  # 2.3.0 (published 2026-11-26T15:17:16Z, upstream tag v2.3.0 = commit
+  # 3b13fd32663ef52252a7f0be255523480aa22ffe; amd64 child digest read from
+  # Docker Hub's tag object, the same two-digest convention as every pin in this
+  # file) is a REQUIRED engine bump, not a routine one: the `inkling-2-mini`
+  # entry added below is served by `arch/inkling2`, which does not exist before
+  # 2.3.0, and its container card says "Needs: radiance 2.3.0 or later". The
+  # 2.1.0 -> 2.2.0 notes this replaced are in jj history and in
+  # plans/llm/radiance-deleuze-benchmark-2026-10-21.md; what still holds:
+  #  - RAD_FORMAT_VER is still 2 (abi/rad_format.h, both tags), so the four
+  #    containers already on the PVC load byte-unchanged - including the served
+  #    Flash-Next container at model revision 8267a6738458.
+  #    RAD_ABI_VERSION 43 -> 44 is the plugin ABI (abi/rad_abi.h): arch and
+  #    kernel plugins ship inside the image and cogito carries no out-of-tree
+  #    plugin, so nothing here has to be rebuilt.
+  #  - The fleet schema is a strict superset of 2.2's, which is what lets the
+  #    ConfigMap below keep every existing byte. Diffing what the parser accepts
+  #    over v2.2.0..v2.3.0: core/fleet/config.cpp adds exactly two keys, both
+  #    under memory (queue-reserve #589, pinned-numa-node #580) and removes
+  #    none; core/config.cpp's model option table adds twelve (draft-max-lanes,
+  #    draft-min-accept, draft-window-ckpt, dspark-walk, expert-split, ...) and
+  #    removes none. Gate that claim before the push with
+  #    manual/radiance-23-preflight.yaml: `radiance --check` on the 2.3.0 image
+  #    against the exact rendered bytes of the ConfigMap below, on the new
+  #    five-entry file. Its "2.1.0" header comment stamps which tag the flag
+  #    translation came from; it is provenance, not a version claim.
+  #    `--check` proves key acceptance only: read at v2.3.0 (core/main.cpp,
+  #    byte-identical at v2.2.0) it parses, refuses unknown and not-yet-acted-on
+  #    keys, prints one line per entry and returns - it never opens a container
+  #    and never builds the placement plan. Weight presence, container format and
+  #    the mm-max-patches/placement pairing rule stay gated by the startup report.
+  #  - Two new fleet knobs are deliberately UNSET here, so nothing about this
+  #    lane's memory arithmetic moves. memory.queue-reserve (#589) defaults to
+  #    the 8 hardware queues a card keeps ready (~328 MiB) that 2.2 behaved as
+  #    if it had; its own commit says "a file that says nothing behaves exactly
+  #    as it did", and the failure it fixes is an entry claiming a whole card
+  #    through gpu-memory-mib, which no entry here does - but it is now the knob
+  #    to argue with if a park/restore ever comes back short on a full card.
+  #    memory.card-headroom-mib on single-model TP budgets (#624) is the
+  #    one-model fleet path (a one-model fleet skips the load broker); this fleet
+  #    has several models, so its VRAM split is untouched.
+  #  - prefill-tail-snapshot still defaults ON (core/rad_core.h at both tags), so
+  #    the 2.2 note stands: it touches exactly what this lane runs - a lone
+  #    spanned prefill at two ranks - and `prefill-tail-snapshot: off` on the
+  #    entry is the pin that would hold the older reduction order.
+  #  - `draft-window: adaptive` changed under this lane's nose (#608: each
+  #    sequence's drafts now verify only up to the first one unlikely to be kept)
+  #    and the Inkling-attention verify-shape landed. qwen3.8-flash-next pins
+  #    `draft-window: fixed`, so the agent entry is not on that path; the new
+  #    entry below is, because that is what its card measures.
+  #  - Also in this range and aimed at what this lane serves: misaligned loads in
+  #    the windowed paged attention over an int8 cache fixed (#540) - this fleet
+  #    runs kv-cache-dtype: i8 everywhere; parked weights rebuilt on the CPU and
+  #    memory ownership kept across a failed handoff (#557-#561); a warm load may
+  #    now unload a parked model (#592).
   replicas: 1
   suspend: false
   skipModelInit: true
@@ -90,17 +115,42 @@ spec:
   # out-of-band inside the container; through Flux there is no in-place reload
   # window to hit.
   #
-  # Two consequences for whoever edits this file next:
-  #  - Every push is a lane restart, and warm-up reloads EVERY entry first, in
-  #    file order, each one displaced by the next: Muse re-reads 33.15 GiB in
-  #    6.2 s at 5.7 GB/s, FLUX 9.35 GiB, and flashnext lands last - so boot
-  #    cost grows with each entry added and only the last one stays resident.
+  # Three consequences for whoever edits this file next:
+  #  - Every push is a lane restart, and boot cost grows with each entry added:
+  #    no entry here sets `pin`, so nothing loads before the listener opens
+  #    (core/fleet/fleet.cpp Fleet::run: preload is `e.pin || one-model` only),
+  #    and `scheduler.warm-up` (default true) then loads the rest in the
+  #    background, LOWEST priority first and LATER-IN-FILE FIRST among equals
+  #    (Fleet::run's warm_ ordering, 2.3.0). Two live consequences, both checked
+  #    2026-11-26 against the running lane: the FIRST entry of this file is the
+  #    one left resident (Deleuze's /health reads qwen3.8-flash-next "resident",
+  #    muse-glimmer "parked", flux-3-klein and gemma4-heretic "cold"), and the
+  #    warm-up does NOT load everything - §8.6 stops it once a load would have
+  #    nowhere to put what it displaces, or once a warm load made something
+  #    unload. So: append new entries at the END of `models:` so the agent lane
+  #    stays the last-loaded and the new one is warm-loaded first (or skipped),
+  #    and never before qwen3.8-flash-next. Warm-up reads each container it does
+  #    reach off the PVC (Muse: 33.15 GiB in 6.2 s at 5.7 GB/s), so a new entry
+  #    lengthens the Ready window; the startup probe allows 180 x 10 s.
   #    Schedule pushes when the cards are free: waitForIdle: false means the
   #    restart lands mid-conversation.
   #  - `radiance --check` has to gate the PUSH, not the reload. An unknown key
-  #    is fatal at startup, so a bad file here crashloops the lane that serves
-  #    this agent instead of being refused by reload. Validate against the
-  #    rendered ConfigMap with manual/radiance-21-preflight.yaml first.
+  #    is fatal at startup (core/main.cpp returns 2 before run()), so a bad file
+  #    here crashloops the lane that serves this agent instead of being refused
+  #    by reload. Validate against the rendered ConfigMap with
+  #    manual/radiance-23-preflight.yaml first - it mounts its own copy of the
+  #    new bytes, so it gates a config change the live-ConfigMap preflight could
+  #    not (applying new fleet bytes out-of-band to gate them would itself roll
+  #    the lane). What it does NOT cover: an entry whose weight file is missing
+  #    or whose format this build refuses is not fatal to the process - no entry
+  #    is preloaded here, so it shows up as `warm-up: NAME stays cold: ...`, and
+  #    a request to that alias then fails. Stage first anyway: an entry that
+  #    never loads is a model that was not added. A tp larger than the node's
+  #    usable cards IS fatal (Fleet::run refuses before serving), which is why
+  #    every text entry here is tp 2 on Deleuze's two cards.
+  #  - Placement failures are per-entry, and the pairing rule below is one of
+  #    them: `radiance --check` does not build the server plan, so the lane's
+  #    startup report is the only gate for those. Read it after every push.
   args:
   - --config
   - /etc/radiance/radiance.yaml
@@ -168,22 +218,31 @@ spec:
     seccompProfile:
       type: Unconfined
 ---
-# Radiance 2.1.0 fleet config for the deleuze lane (engine bump 1.16.0 ->
-# 2.1.0, staged before the InferenceService change). Consumed first by
-# manual/radiance-21-preflight.yaml (applied out-of-band, NOT Flux-managed),
-# which runs `radiance --check`; then mounted by the InferenceService. A
-# format refusal at load names the offending weight; the primary fallback if
-# the CPU-only check is inconclusive is doc evidence (GUIDE.md benchmarks
-# this exact container type on v2.1.0) plus a fast jj revert.
+# The Deleuze lane's radiance fleet file: five entries in one process (engine
+# 2.3.0). Its origin is the 1.16.0 -> 2.1.0 translation, staged before the
+# InferenceService change, and the header inside the YAML still stamps 2.1.0 for
+# that reason - provenance for where the flag-to-key translation came from, not a
+# claim about the image. Gate every edit with manual/radiance-23-preflight.yaml
+# (applied out-of-band, NOT Flux-managed), which runs `radiance --check` on the
+# image the InferenceService pins against ITS OWN COPY of these bytes: an unknown
+# key exits 2 at startup, so a bad file here crashloops the lane instead of being
+# refused by reload. That Job's copy is checked for byte equality by
+# scripts/validate-llm-catalogue.py (check 10), so it cannot drift silently. The
+# Job also probes the weight the new entry names (exact size + published sha256)
+# because --check never opens a container. A format refusal at load names the
+# offending weight; the fallback if the gates are inconclusive is doc evidence
+# (GUIDE.md benchmarks this container class) plus a fast jj revert.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: radiance-fleet-config
 data:
   radiance.yaml: |
-    # Radiance 2.1.0 fleet config for the deleuze lane. Translated from the
-    # 1.16.0 CLI flags per docs/MULTIMODEL.md §4.1 (tag v2.1.0): every former
-    # flag is a same-named YAML key at its level; unknown keys are fatal. The
+    # Radiance fleet config for the deleuze lane: five entries in one process,
+    # mounted by InferenceService/radiance at engine 2.3.0. The key names come
+    # from the 1.16.0 -> 2.1.0 translation per docs/MULTIMODEL.md §4.1 (tag
+    # v2.1.0): every former flag is a same-named YAML key at its level; unknown
+    # keys are fatal. The
     # entry name is the model id (served-model-name is gone, §4.3), so LiteLLM's
     # openai/qwen3.8-flash-next keeps resolving. kv-cache-dtype: fp8 no longer
     # exists outside GLM-5.3-Flash -> i8 (GUIDE key table). The bearer key
@@ -343,7 +402,7 @@ data:
         # the bf16 vision tower. 35,835,154,432 B (33.37 GiB), staged by
         # manual/radiance-deleuze-stage-gemma-heretic.yaml and sha256-gated on
         # 405dd2a8f71a16af578c7e8cb1645fa49573bd2f52554b7d94d2d0f75fa9243c.
-        # Its card: radiance >= 2.0.0 (this lane is 2.2.0), "does not fit one
+        # Its card: radiance >= 2.0.0 (this lane is on 2.3.0), "does not fit one
         # card", tested on two AND four Radeon AI PRO R9700. Quality against the
         # bf16 original over 42,283 MT-Bench answer tokens: mean KL 0.00249,
         # 98.7% same top token, perplexity x1.006 - twenty times closer than the
@@ -417,9 +476,9 @@ data:
         # when mm-max-patches is 0 - "--vision-tower-placement ram:
         # --mm-max-patches 0 asked for no media, so this server declares no
         # encoder tower to place" (engine_bringup.cpp: Ram && tower_max == 0 ->
-        # RAD_E_INVAL). `radiance --check` does not catch it, because --check
-        # validates keys and container formats without building the server plan.
-        # The lane's warm-up lines are the gate.
+        # RAD_E_INVAL). `radiance --check` does not catch it: at 2.3.0 it stops
+        # after key acceptance and the entry list, so it builds no server plan and
+        # opens no container (core/main.cpp). The lane's warm-up lines are the gate.
         vision-tower-placement: vram
         # 60 Gi is the fleet's pinned-host budget (3/4 of the 80 Gi container
         # limit; 36 Gi before 2026-11-25): flashnext reserves 24 Gi of it, Muse
@@ -429,6 +488,140 @@ data:
         # Hand the cards back when idle: this entry is not the one an agent
         # session lives on, and a swap re-prefills whoever gets displaced.
         ttl: 15m
+      inkling-2-mini:
+        # Thinking Machines' Inkling 2 Mini (thinkingmachines/Inkling-2-Mini), in
+        # the only container radiance 2.3.0 serves for it:
+        # StillDeadcode/inkling-2-mini-iq4r-v4, file inkling-2-mini-iq4r-v4.rad,
+        # 15,496,360,448 B = 14.43 GiB, sha256
+        # 1522e6d7e0432cd8308ba0478a969d678648d0245983d05e964caecb4b03dcc9 (the LFS
+        # OID Hugging Face publishes, read from
+        # /api/models/.../tree/main?blobs=true on 2026-11-26), Apache-2.0 with
+        # TML's acceptable-use policy; drafter is incoai's DFlash2. Staged by
+        # manual/radiance-deleuze-stage-inkling.yaml, which refuses the file unless
+        # that digest matches - STAGE IT BEFORE THIS CONFIG LANDS: skipModelInit:
+        # true means the operator stages nothing, and an unstaged weight keeps this
+        # entry cold forever (`warm-up: inkling-2-mini stays cold: ...`) rather
+        # than failing loudly.
+        #
+        # WHY IT NEEDS THE ENGINE BUMP: arch/inkling2 is new in 2.3.0 and the
+        # container card says "Needs: radiance 2.3.0 or later". The container is
+        # also the ONLY served form - the release's own DSpark drafter, and
+        # NVFP4/int8/4-bit experts, are refused by name (release notes for v2.3.0;
+        # arch/inkling2/inkling2.cpp refuses draft.model_type inkling2_dspark and a
+        # checkpoint whose layer count is not 24). That last rule is also why
+        # Inkling 2 Small is a different model here: it is model_type inkling2 at
+        # 48 layers / hidden 4608, not the inkling2_loop 24 / 2304 this plugin
+        # declares, and upstream ships no container for it.
+        #
+        # GEOMETRY: 24 physical layers run as 48 layer applications (prelude 0-5,
+        # core 6-17 three passes, coda 18-23), hidden 2304, 24 query / 8 KV heads
+        # at head_dim 128, sliding window 1024 on 40 applications and full
+        # attention on 8, 128 sigmoid-routed SiTU experts at top-8 (intermediate
+        # 1152), untied int8 head over 201,024 rows, bf16 23-block vision tower. tp
+        # must divide 24 and 8, so 1 or 2 here; tp 2 is what the container card
+        # measures on two R9700s: 190 / 427 / 658 tok/s at 1 / 4 / 8 streams
+        # (essays), 240 / 550 / 790 (code), mean KL 0.0066 against the release's
+        # weights.
+        #
+        # THE KEYS ARE THE CARD'S OWN, not improvised: tp 2, max-model-len 200000
+        # (the container was converted with --max-ctx 200000), max-num-seqs 8, int8
+        # KV, num-speculative-tokens 7 (DFlash2 drafts a block of seven),
+        # draft-window adaptive. Nothing tiered: at 14.43 GiB the whole container
+        # is smaller than one card's claim for flashnext (31.19 GiB), so it needs
+        # no host expert pool and no n-gram placement. It is the smallest text
+        # entry on this lane by 2.3x (heretic is 33.37 GiB) and the only one whose
+        # published numbers were measured on this exact card pair.
+        #
+        # WHAT IT COSTS THE LANE, stated as arithmetic rather than promise: it is
+        # in `one-at-a-time` below, so a request here displaces qwen3.8-flash-next
+        # and the next flashnext request pays a reload plus a re-prefill of every
+        # live conversation - the same deliberate lane switch muse- and
+        # heretic-deleuze are. It takes no extra GPU and no extra host reservation
+        # beyond 4 Gi of prefix tier: the fleet's pinned-host reservations go 32
+        # -> 36 Gi, still under the 60 Gi ledger (docs MULTIMODEL 6.5: one budget
+        # covers parked weight copies, the KV host tier, expert pools and transit
+        # buffers). That 32 is flashnext's 24 - its `host-pool-mib: 16384` is the
+        # 2.x TOTAL, 8 GiB a rank, plus its own 8 GiB prefix tier - plus muse 4
+        # and heretic 4. Inkling keeps linear/convolution state per application,
+        # so the boot line `checkpoint slots` sizes its snapshot tier from what the
+        # cgroup leaves; read it on the first roll. `checkpoint-draft-window: true`
+        # (new in 2.3.0) would restore the drafter's window on a prefix hit instead
+        # of recomputing it, at one drafter window of PINNED host per slot -
+        # deliberately left off until that cost is measured here, since prefix hits
+        # on this model end one drafter window early and still answer the same
+        # (docs GUIDE, "Inkling 2's drafter cache").
+        #
+        # Vision is ON and the tower goes ON THE CARD, matching gemma4-heretic's
+        # measured choice: `vram` is the engine default and the alternative (`ram`)
+        # would take two whole towers out of the pinned ledger, because encoders
+        # are not sharded. mm-max-patches is UNSET (auto = 16384 patches, the
+        # card's own tested media budget), and that is also what keeps the pairing
+        # rule out of reach: a placement key beside mm-max-patches: 0 is fatal at
+        # startup. WHAT THIS CANNOT PROVE, and it is the one real risk on a shared
+        # process: warm-up loads weights and sizes pools but never runs the
+        # encoder, so the first real image is the only evidence the tower works on
+        # gfx1201 - the Muse exit-139 segfault of 2026-11-19 took this fleet's
+        # agent entry down with it. Until an image is sent through this entry on
+        # purpose and survives (restartCount 0, correct answer, image soft tokens
+        # counted), the LiteLLM alias advertises supportsVision: false even though
+        # the container ships a tower.
+        model: /models/radiance/inkling-2-mini-iq4r-v4.rad
+        aliases: [inkling]
+        tp: 2
+        max-model-len: 200000
+        max-num-seqs: 8
+        kv-cache-dtype: i8
+        num-speculative-tokens: 7
+        draft-window: adaptive
+        vision-tower-placement: vram
+        prefix-cache-mib: 4096
+        ttl: 15m
+        # GLM-5.3-Flash, the other model asked for in this change, is NOT added
+        # here and this is where the reason lives, so the next reader does not
+        # retry it blind. It has exactly one published container -
+        # animusnull/glm-5.3-flash-iqr-v4, glm53-flash-iqr-v4.rad, 170,662,334,464
+        # B = 158.95 GiB, sha256
+        # 1e20c4bc2f7ea7022f7bae9dd1ffa9873c2031b242d41e85d1ac0a5016342687 - and
+        # its author's own card is "four cards with the experts tiered to host
+        # memory": tp 4, host-pool-mib 65536, prefix-cache-mib 32768, and the
+        # upstream fleet file (deploy/compose/tp4.radiance.yaml at v2.3.0) says the
+        # three together need "151 GiB of memory free" on the host, measured on
+        # four R9700s and a 512 GB box. The arithmetic on Deleuze does not close,
+        # and it does not need estimating to say so: the geometry (288 routed
+        # experts of 2048, MoE on layers 3-44, IQR-V4 four-bit codes) is 288 x 42 x
+        # 12 MiB = 141.75 GiB of experts - 89% of the container, which is the
+        # cross-check that the remaining ~17 GiB is the IQ8R trunk, the bf16
+        # KDA/kv_b/embedding/lm_head and the tower. Radiance refuses to serve a
+        # routed expert from the file tier (docs GUIDE diagnose table: "A routed
+        # expert cannot be served from the file tier, so it has nowhere else to go"
+        # -> DID NOT FIT), so at tp 2 the pinned host pool must hold everything the
+        # two cards cannot: 141.75 GiB less AT MOST all 62.6 GiB of card memory,
+        # i.e. >= 79 GiB, with nothing left for the 17 GiB of trunk, the KV pool or
+        # the activation headroom. This fleet's whole pinned ledger is 60 Gi (3/4
+        # of the 80 Gi cgroup) and 36 Gi of that is already committed to the four
+        # entries this change leaves in place, so 24 Gi is all a fifth entry gets
+        # to ask for. The node's allocatable memory is 123.1 Gi with flashnext
+        # holding its own 24 Gi resident. The card's own failure mode is exactly
+        # that: a load that logs "waiting for N of host memory to pin" and gives
+        # up. In the engine's own units the card asks for host-pool-mib 65536 +
+        # prefix-cache-mib 32768 = 96 GiB of pinned host at tp 4 - four times the
+        # 24 Gi this lane has left, on two cards more than this node has.
+        #
+        # Two more blockers, independent of memory. server.kernels is FLEET-wide
+        # and GLM's int8 latent cache requires `glm,libr4d,libavx,libref` in that
+        # order (plugin/glm's attention must win op selection over libr4d's bf16
+        # MLA rows), so adding it re-orders kernel selection for every other entry
+        # in this process, including the one this agent runs on. There is also
+        # nowhere else to put it: the cluster has no second AMD box and no
+        # four-card node (README hardware table: iggy 2x RTX 3090, amnesia 1x RTX
+        # 5070 Ti, kristeva Intel A380, Deleuze the only R9700 pair), while
+        # radiance ships device kernels for AMD only (RDNA4 libr4d, RDNA3 libr3d,
+        # Strix Halo libhalo) - "another card needs a kernel library for it". The
+        # engine support itself is no longer the blocker (the glm5next + plugin/glm
+        # series landed in 2.3.0, so the author's
+        # animusnull/radiance:glm5.3-55d870e workaround image is not needed);
+        # capacity is. Adding it needs a 4x RDNA4 node with >= 151 GiB free host
+        # RAM, or an explicitly smaller container, decided as its own change.
     groups:
       # Measured, not guessed: /admin/fleet reports qwen3.8-flash-next at
       # 33487111208 B = 31.19 GiB PER CARD against the 31.3 GiB each R9700
@@ -443,6 +636,14 @@ data:
       # of ours is co-resident with the agent lane on this node. gemma4-heretic
       # is the same story at tp 2 (~16.7 GiB of weights a card before its KV
       # pool), so it displaces the agent lane and is displaced by it.
+      # inkling-2-mini joins the set for the same reason, not a smaller one: it is
+      # tp 2 and it is the only entry whose weights are cheap (14.43 GiB in all),
+      # but the agent entry still charges 31.19 GiB a card, so the two cannot be
+      # resident together and declaring it is what makes the planner park one
+      # instead of waiting out load-timeout for room that does not exist. If
+      # flashnext's claim is ever shrunk, this is the line to revisit - inkling is
+      # the candidate that could then share the cards.
       one-at-a-time:
-        exclusive: [qwen3.8-flash-next, muse-glimmer, flux-3-klein, gemma4-heretic]
+        exclusive: [qwen3.8-flash-next, muse-glimmer, flux-3-klein, gemma4-heretic,
+                    inkling-2-mini]
 

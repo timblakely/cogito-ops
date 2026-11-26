@@ -1,0 +1,78 @@
+### gen_preflight --check
+kubernetes/apps/llm/llmkube/resources/manual/radiance-23-preflight.yaml is current: fleet 25275 B sha256 3cbc1313c0244363; probes models.inkling-2-mini -> inkling-2-mini-iq4r-v4.rad 15496360448 B sha256 1522e6d7e0432cd8...
+
+### validate-llm-catalogue --self-test
+self-test: broken scope correctly detected
+self-test: no rotated role key present to exercise the role index
+self-test: absent role key 'coder' correctly detected
+self-test: over-declared context correctly detected
+self-test: unannotated under-declaration correctly detected
+self-test: drifted preflight copy correctly detected (1 file(s))
+17 modelNames, 9 keys, 5 backends, 0 fallback edges
+RESULT: catalogue valid
+
+### check_manual_manifests
+PASS: staging Job embedded python compiles (8442 bytes)
+PASS: staging Job carries the statvfs space gate
+PASS: HF size for StillDeadcode/inkling-2-mini-iq4r-v4/inkling-2-mini-iq4r-v4.rad = 15496360448 (manifest says 15496360448)
+PASS: HF LFS OID = 1522e6d7e0432cd8308ba0478a969d678648d0245983d05e964caecb4b03dcc9 (manifest says 1522e6d7e0432cd8308ba0478a969d678648d0245983d05e964caecb4b03dcc9)
+PASS: repo StillDeadcode/inkling-2-mini-iq4r-v4 gated=False private=False (header claims ungated)
+fleet ConfigMap bytes: 25275, sha256 3cbc1313c0244363a5d1d57f084307671f35f6f5dafb079214fd054b713ba173
+PASS: preflight ConfigMap is byte-identical to radiance-fleet-config (25275 B)
+PASS: preflight image == InferenceService image: docker.io/stilldeadcode/radiance:2.3.0@sha256:1e0fe6a2c310e483e9e66e8446ba274ee767f06044f6761ababd593d7517af12
+PASS: preflight weight probe pins the same digest+size as the stager
+PASS: fleet config declares models.inkling-2-mini
+PASS: model order keeps qwen3.8-flash-next FIRST and inkling LAST (warm-up loads later-in-file first, so the agent lane stays resident): ['qwen3.8-flash-next', 'muse-glimmer', 'flux-3-klein', 'gemma4-heretic', 'inkling-2-mini']
+PASS: inkling-2-mini is in the one-at-a-time exclusive group: ['qwen3.8-flash-next', 'muse-glimmer', 'flux-3-klein', 'gemma4-heretic', 'inkling-2-mini']
+RESULT: all manual-manifest checks pass
+
+### check_fleet_keys
+new lane file: 25275 B, sha256 3cbc1313c0244363a5d1d57f084307671f35f6f5dafb079214fd054b713ba173
+old (main) fleet bytes: 15734 B, sha256 990640aa9027a3a744892735db3a3e852e737b5326d5bed2c2d1d7afa4f49118
+
+== v2.2.0: 166 flag names, 6 memory keys (card-headroom-mib, disk-tier, gpu-headroom-mib, gpu-memory-mib, host-headroom-mib, host-mib), 20 server keys, 7 model-fleet keys ==
+
+== v2.3.0: 178 flag names, 8 memory keys (card-headroom-mib, disk-tier, gpu-headroom-mib, gpu-memory-mib, host-headroom-mib, host-mib, pinned-numa-node, queue-reserve), 20 server keys, 7 model-fleet keys ==
+PASS: new five-entry file: every key is one v2.3.0 accepts (groups, memory, models, scheduler, server)
+PASS: live four-entry bytes: every key is one v2.2.0 accepts (groups, memory, models, scheduler, server)
+PASS: live four-entry bytes: every key is one v2.3.0 accepts (groups, memory, models, scheduler, server)
+PASS: no fleet-schema key present at 2.2.0 is absent at 2.3.0 (server/memory/scheduler/model all supersets)
+PASS: 2.3.0 adds exactly memory.pinned-numa-node and memory.queue-reserve
+PASS: neither new memory knob is set in this file, so the lane's pinned-host arithmetic is unchanged
+INFO: model-level keys added by 2.3.0 (12): checkpoint-draft-window, draft-depth0, draft-hybrid, draft-hybrid-match, draft-max-lanes, draft-min-accept, draft-probe, draft-probe-backoff, dspark-walk, expert-split, long-prefill-token-threshold, weight-sidecar
+PASS: inkling-2-mini keys all accepted at v2.3.0: ['aliases', 'draft-window', 'kv-cache-dtype', 'max-model-len', 'max-num-seqs', 'model', 'num-speculative-tokens', 'prefix-cache-mib', 'tp', 'ttl', 'vision-tower-placement']
+PASS: inkling-2-mini.tp = 2 (container card says 2)
+PASS: inkling-2-mini.max-model-len = 200000 (container card says 200000)
+PASS: inkling-2-mini.max-num-seqs = 8 (container card says 8)
+PASS: inkling-2-mini.num-speculative-tokens = 7 (container card says 7)
+PASS: inkling-2-mini.draft-window = 'adaptive' (container card says 'adaptive')
+PASS: inkling-2-mini.kv-cache-dtype = 'i8' (container card says 'i8')
+PASS: inkling-2-mini.ttl = '15m' (container card says '15m')
+PASS: inkling-2-mini.prefix-cache-mib = 4096 (container card says 4096)
+PASS: inkling-2-mini.vision-tower-placement = 'vram' (container card says 'vram')
+PASS: inkling-2-mini leaves mm-max-patches unset (auto), so the placement/pairing refusal cannot fire
+PASS: inkling-2-mini.model names a .rad container: /models/radiance/inkling-2-mini-iq4r-v4.rad
+PASS: arch/inkling2 exists at v2.3.0 and not at v2.2.0 -> the engine bump is required, not cosmetic
+PASS: arch/inkling2 declares model_type inkling2_loop and gates on n_layer
+INFO: arch/inkling2 n_layer comparisons at v2.3.0: []
+PASS: groups.one-at-a-time exclusive over 5 declared entries: ['qwen3.8-flash-next', 'muse-glimmer', 'flux-3-klein', 'gemma4-heretic', 'inkling-2-mini']
+PASS: every multi-card text entry is in the exclusive group (['gemma4-heretic', 'inkling-2-mini', 'muse-glimmer', 'qwen3.8-flash-next'])
+PASS: entry order keeps qwen3.8-flash-next FIRST (the entry warm-up leaves resident) and the new one LAST
+PASS: no entry sets pin:, so nothing loads before the listener opens
+
+RESULT: fleet file is accepted by v2.3.0
+
+### check_consumers
+PASS: 17 LiteLLMModel aliases, 9 virtual keys, 12 curated caps entries
+PASS: hermes configure.py compiles (13847 B)
+PASS: provider-bootstrap.yaml is gen-bundle.py's render of configure.py, byte for byte
+PASS: helmrelease hermes.home-operations.com/bundle-sha256 second half == sha256(configure.py): 5e536d24d22e...4ccb0431a904
+PASS: hermes aliases glimmer->glimmer-deleuze, heretic->heretic-deleuze, inkling->inkling-deleuze all resolve to scoped LiteLLMModel aliases
+PASS: no reasoning_override for the always-thinking radiance entries ['glimmer-deleuze', 'heretic-deleuze', 'inkling-deleuze'] (they publish no level)
+PASS: auxiliary.vision pins heretic-deleuze, whose supportsVision is True
+PASS: opencode-config cogito models ['flashnext-deleuze', 'gemma-4-12b', 'glimmer-deleuze', 'heretic-deleuze', 'inkling-deleuze']: modelIDs resolve, limits mirror maxInput/OutputTokens, image matches supportsVision, efforts stay inside curated caps
+PASS: the `opencode` key scope and opencode-config's cogito block offer the same 5 models
+PASS: paseo-config provider model rows {'opencode': 13, 'opencode-worker': 13} all resolve to aliases on the `opencode` key
+PASS: the opencode and opencode-worker model lists are identical (worker extends opencode)
+
+RESULT: consumer files agree with the catalogue

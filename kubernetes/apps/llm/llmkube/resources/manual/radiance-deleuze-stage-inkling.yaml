@@ -1,0 +1,341 @@
+# NOT in the Flux kustomization (same convention as the other manual/ Jobs): a
+# one-shot weight stager applied out-of-band with kubectl. A Job that ends
+# Failed inside the prune+wait llmkube-resources KS stalls that KS's health
+# check forever, so nothing one-shot lives in resources/.
+#
+# Stages StillDeadcode/inkling-2-mini-iq4r-v4 (Thinking Machines' Inkling 2
+# Mini, IQR-V4 four-bit routed experts + incoai's DFlash2 drafter + bf16 vision
+# tower) for the deleuze radiance fleet entry `inkling-2-mini`.
+#
+# The digest is the LFS OID Hugging Face publishes for the object, so the digest
+# is the contract: 15,496,360,448 bytes = 14.43 GiB,
+# sha256 1522e6d7e0432cd8308ba0478a969d678648d0245983d05e964caecb4b03dcc9
+# (read 2026-11-26 from
+# https://huggingface.co/api/models/StillDeadcode/inkling-2-mini-iq4r-v4/tree/main?blobs=true
+# - size and lfs.oid agree there, and the container card states 14.43 GiB).
+#
+#   kubectl apply -f manual/radiance-deleuze-stage-inkling.yaml
+#   kubectl -n llm logs job/radiance-deleuze-stage-inkling -f
+#
+# ORDER THAT MATTERS: this must finish BEFORE the fleet ConfigMap that names
+# /models/radiance/inkling-2-mini-iq4r-v4.rad lands, because
+# InferenceService/radiance sets skipModelInit: true - the operator stages
+# nothing, and a fleet entry whose weight file is absent is not fatal to the
+# process (no entry here is preloaded, so it reads `warm-up: inkling-2-mini
+# stays cold: ...`) but it is a model that silently never serves. Gate the push
+# with manual/radiance-23-preflight.yaml, whose initContainer re-verifies this
+# digest on the PVC.
+#
+# SPACE, stated before anyone starts a download: the claim is
+# PersistentVolumeClaim/radiance-deleuze, 256 Gi, openebs-hostpath-retain. The
+# four containers already on it, by the sizes this repo records for each, are
+# 113.59 GiB (qwen3.8-next-flash-fp8-iq4r-moe.rad) + 35.66 (muse) + 9.35 (flux)
+# + 33.37 (heretic) = 191.97 GiB, so this file takes the claim to ~206.4 GiB,
+# ~49.6 GiB short of the claim. That is arithmetic on recorded artifact sizes,
+# NOT a measurement: this session cannot read the filesystem (no pods/exec for
+# the reader credential, and staging is a live change), so the Job itself prints
+# `df` and REFUSES TO START if the filesystem's own free space is under
+# "bytes still missing + 2 GiB". Read its first lines before believing the
+# number above.
+#
+# WHY THIS SHAPE - all measured on 2026-11-20 from pods on deleuze:
+#   * One anonymous connection to huggingface.co bursts ~7-9 MB/s and then
+#     settles at 2.1 MB/s. HF throttles PER CONNECTION by volume, not by host:
+#     six long-lived Range connections settled at 12.8-13.4 MB/s aggregate,
+#     which is 6 x that same ~2.2 MB/s.
+#   * Short bursts on fresh connections stay fast: 6 connections that each read
+#     8 MiB measured 42-50 MB/s, repeatedly, while the throttled job was running.
+#   * The node's disk and pipe are not the limit.
+# So the file is cut into SEG-sized pieces and every piece is fetched on a NEW
+# connection, which keeps each connection inside its fast window. Workers only
+# exist to hold connections open briefly; a finished piece is recorded in one
+# sidecar, so a restarted pod resumes at piece granularity and re-downloads
+# nothing it already has.
+#
+# HOW LONG: budget between ~20 min (if the per-connection measurements above
+# hold at 59 pieces) and ~2 h (the rate this same stager actually achieved on
+# the 33.37 GiB heretic container, 4.6 h there). activeDeadlineSeconds below is
+# the heretic job's 6 h ceiling, generous either way, and a restarted Job
+# resumes from its piece map.
+#
+# Everything is written into one preallocated .partial with os.pwrite at absolute
+# offsets - no seeking, no truncating, so N workers cannot corrupt each other -
+# and the final sha256 over the whole object is the acceptance test: a wrong or
+# missing byte anywhere fails the digest and the piece map is cleared.
+#
+# The repo is UNGATED (checked 2026-11-26 via the model API: gated=False,
+# private=False, Apache-2.0), so no token is needed - and no credential is
+# handled here. Delete the completed Job when the run is over: a Finished Job
+# left in the kustomization inventory makes llmkube-resources report "failed
+# early due to stalled resources" for every later sync.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: radiance-deleuze-stage-inkling
+  namespace: llm
+spec:
+  # Same 6 h ceiling the heretic stager used; this file's own budget above needs
+  # at most ~2 h, so it is slack for the download and the final sha256 over
+  # 14.43 GiB, not a bound derived from it.
+  activeDeadlineSeconds: 21600
+  backoffLimit: 3
+  template:
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: deleuze
+      # deleuze is a dedicated-ML node: taint
+      # workload.cogito/dedicated=ml:NoSchedule.
+      tolerations:
+        - key: workload.cogito/dedicated
+          operator: Equal
+          value: ml
+          effect: NoSchedule
+      containers:
+        - name: stage
+          image: docker.io/library/python:3.12-slim
+          command: ["python3", "-u", "-c"]
+          args:
+            - |
+              import hashlib, json, os, queue, sys, threading, time, urllib.error, urllib.request
+
+              DEST_DIR = "/models/radiance"
+              WORKERS = 8
+              SEG = 256 << 20          # 256 MiB: a fresh connection per piece
+              FILES = [
+                  # Inkling 2 Mini IQ4R-V4 + DFlash2 (radiance >= 2.3.0,
+                  # arch/inkling2): mean KL 0.0066 and 97.6% top-1 agreement
+                  # against the release's weights, 190 / 427 / 658 tok/s at 1 / 4 /
+                  # 8 streams on TWO R9700 at tp 2 with draft-window: adaptive. The
+                  # smallest text container this lane carries - 14.43 GiB against
+                  # heretic's 33.37 GiB - so the claim headroom question is about
+                  # the filesystem, not the cards.
+                  {
+                      "url": ("https://huggingface.co/StillDeadcode/inkling-2-mini-iq4r-v4"
+                              "/resolve/main/inkling-2-mini-iq4r-v4.rad"),
+                      "name": "inkling-2-mini-iq4r-v4.rad",
+                      "sha256": "1522e6d7e0432cd8308ba0478a969d678648d0245983d05e964caecb4b03dcc9",
+                      "size": 15496360448,
+                  },
+              ]
+
+              def sha256_of(path):
+                  h = hashlib.sha256()
+                  with open(path, "rb") as f:
+                      for chunk in iter(lambda: f.read(1 << 24), b""):
+                          h.update(chunk)
+                  return h.hexdigest()
+
+              def fetch(spec):
+                  dst = os.path.join(DEST_DIR, spec["name"])
+                  part = dst + ".partial"
+                  side = os.path.join(DEST_DIR, ".%s.pieces" % spec["name"])
+                  size = spec["size"]
+
+                  if os.path.exists(dst):
+                      got = sha256_of(dst)
+                      if got == spec["sha256"]:
+                          print("present, digest verified:", dst, flush=True)
+                          return
+                      print("existing file has wrong digest, refetching:", dst, flush=True)
+                      os.remove(dst)
+
+                  # progress[i] = bytes of piece i on disk; a piece at SEG is done.
+                  npieces = -(-size // SEG)
+                  progress = {}
+                  if os.path.exists(side):
+                      try:
+                          with open(side) as f:
+                              progress = {int(k): int(v) for k, v in json.load(f).items()}
+                      except Exception:
+                          progress = {}
+                          print("piece map unreadable, starting clean", flush=True)
+                  progress = {k: v for k, v in progress.items()
+                              if 0 <= k < npieces and 0 <= v <= min(SEG, size - k * SEG)}
+                  done_now = sum(progress.values())
+                  if done_now:
+                      print("resuming: %.2f / %.2f GiB already on disk"
+                            % (done_now / 2**30, size / 2**30), flush=True)
+
+                  # Preallocate so every worker can pwrite at its own absolute
+                  # offset. Extending never disturbs bytes that are already there.
+                  with open(part, "ab+") as f:
+                      f.truncate(size)
+                  fd = os.open(part, os.O_RDWR)
+
+                  lock = threading.Lock()
+                  work = queue.Queue()
+                  for i in range(npieces):
+                      if progress.get(i, 0) < min(SEG, size - i * SEG):
+                          work.put(i)
+                  err = []
+                  inflight = {}
+
+                  def save():
+                      # One small file, rewritten whole. It is the only thing
+                      # that says what may be trusted, so write it through.
+                      tmp = side + ".tmp"
+                      with open(tmp, "w") as f:
+                          json.dump({str(k): v for k, v in progress.items()}, f)
+                          f.flush()
+                          os.fsync(f.fileno())
+                      os.replace(tmp, side)
+
+                  def worker():
+                      while True:
+                          try:
+                              i = work.get_nowait()
+                          except queue.Empty:
+                              return
+                          lo = i * SEG
+                          hi = min(size, lo + SEG) - 1
+                          span = hi - lo + 1
+                          got = progress.get(i, 0)
+                          try:
+                              while got < span:
+                                  # A NEW connection per attempt: the throttle is
+                                  # per connection by volume, so a short-lived one
+                                  # is a fast one.
+                                  h = {"User-Agent": "cogito-weight-stager",
+                                       "Range": "bytes=%d-%d" % (lo + got, hi)}
+                                  resp = urllib.request.urlopen(
+                                      urllib.request.Request(spec["url"], headers=h),
+                                      timeout=180)
+                                  if resp.status != 206:
+                                      resp.close()
+                                      raise RuntimeError(
+                                          "CDN ignored Range (status %d) on piece %d"
+                                          % (resp.status, i))
+                                  last_save = got
+                                  with resp:
+                                      while got < span:
+                                          c = resp.read(1 << 22)
+                                          if not c:
+                                              break
+                                          os.pwrite(fd, c, lo + got)
+                                          got += len(c)
+                                          if got - last_save >= (32 << 20):
+                                              with lock:
+                                                  progress[i] = got
+                                                  save()
+                                              last_save = got
+                                  with lock:
+                                      progress[i] = got
+                                      if got >= span:
+                                          inflight.pop(i, None)
+                                          save()
+                                  if got < span:
+                                      # Connection ended early (throttle or CDN):
+                                      # put it back and take a fresh one later.
+                                      with lock:
+                                          inflight[i] = got
+                                      time.sleep(0.2)
+                          except Exception as e:
+                              with lock:
+                                  progress[i] = got
+                                  save()
+                              err.append("piece %d: %s" % (i, e))
+                              return
+
+              # Workers are deliberately more numerous than pieces-per-second
+                  # needs; queue.Empty is the only exit condition.
+                  threads = [threading.Thread(target=worker, daemon=True)
+                             for _ in range(WORKERS)]
+                  base = sum(progress.values())
+                  for t in threads:
+                      t.start()
+                  t0 = time.time()
+                  last = base
+                  while any(t.is_alive() for t in threads):
+                      for t in threads:
+                          t.join(timeout=5)
+                      with lock:
+                          have = sum(progress.values())
+                      if have - last >= (2 << 30):
+                          dt = max(1e-9, time.time() - t0)
+                          print("  %.2f / %.2f GiB (%.1f MB/s)"
+                                % (have / 2**30, size / 2**30, (have - last) / dt / 1e6),
+                                flush=True)
+                          t0 = time.time()
+                          last = have
+                  for t in threads:
+                      t.join()
+                  with lock:
+                      have = sum(progress.values())
+                  if err or have != size:
+                      print("INCOMPLETE (%.2f / %.2f GiB): %s"
+                            % (have / 2**30, size / 2**30,
+                               "; ".join(err[:4]) if err else "pieces outstanding"),
+                            flush=True)
+                      print("piece map kept - reapply the Job to resume", flush=True)
+                      sys.exit(1)
+
+                  os.fsync(fd)
+                  os.close(fd)
+                  got = sha256_of(part)
+                  if got != spec["sha256"]:
+                      print("DIGEST MISMATCH", spec["name"], "got", got,
+                            "- deleting .partial and the piece map", flush=True)
+                      os.remove(part)
+                      if os.path.exists(side):
+                          os.remove(side)
+                      sys.exit(1)
+                  os.replace(part, dst)
+                  if os.path.exists(side):
+                      os.remove(side)
+                  os.sync()
+                  print("staged:", dst, "%.2f GiB" % (size / 2**30), "digest verified",
+                        flush=True)
+
+              os.makedirs(DEST_DIR, exist_ok=True)
+
+              # Space gate, stated before any byte moves. This session cannot read
+              # the claim's filesystem, so the Job measures it instead of trusting
+              # the arithmetic in the header: `statvfs` on the mount, against the
+              # bytes still missing plus a 2 GiB margin. A file already present is
+              # counted as free (fetch() verifies its digest next; a wrong digest is
+              # deleted before its .partial is preallocated, so it never needs room
+              # twice). Refusing here costs one pod; discovering ENOSPC 90% into a
+              # 14 GiB download costs the piece map's worth of trust.
+              missing = [s for s in FILES
+                         if not os.path.exists(os.path.join(DEST_DIR, s["name"]))]
+              need = sum(s["size"] for s in missing) + (2 << 30)
+              st = os.statvfs(DEST_DIR)
+              free = st.f_bavail * st.f_frsize
+              print("space: %.2f GiB free under %s; %.2f GiB needed (%d file(s) to "
+                    "fetch + 2 GiB margin)"
+                    % (free / 2**30, DEST_DIR, need / 2**30, len(missing)), flush=True)
+              if free < need:
+                  print("REFUSING: not enough room on the radiance-deleuze claim. Free "
+                        "space is a claim-level fact, so either grow the PVC or free a "
+                        "retired container from /models/radiance first - do not delete "
+                        "anything a live fleet entry still names.", flush=True)
+                  sys.exit(1)
+
+              for spec in FILES:
+                  fetch(spec)
+              print("ALL FILES STAGED", flush=True)
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            # The limit is dirty-page headroom, not a scheduling claim: page
+            # cache written through a hostpath volume is charged to this cgroup,
+            # and 8 streams landing on NVMe dirty pages faster than the 4 Gi
+            # default would let writeback throttling become the bottleneck.
+            # Requests stay small because deleuze is at 85% of its memory
+            # requests with the serving lane running.
+            limits:
+              cpu: "3"
+              memory: 8Gi
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: weights
+              mountPath: /models
+      volumes:
+        - name: weights
+          persistentVolumeClaim:
+            claimName: radiance-deleuze

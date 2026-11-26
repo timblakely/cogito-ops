@@ -21,6 +21,10 @@ that fail silently at runtime (plans/llm/plan.md T0.2):
      (LiteLLM does not re-check key scope on the fallback path)
   8. consumer env vars naming models resolve
   9. workflow role keys have exact, least-privilege model scopes
+ 10. every manual radiance preflight Job that embeds its own copy of the fleet
+     file checks the bytes the lane will actually mount (a preflight that has
+     drifted gates a file nobody will load, and the crashloop it exists to
+     prevent arrives with the push instead)
 
 Run from the repo root: scripts/validate-llm-catalogue.py
 Exits non-zero on any failure. --self-test additionally verifies the checks
@@ -275,12 +279,63 @@ def check(state):
     return errors, warnings
 
 
+# Check 10. manual/ one-shot pre-flight Jobs, and the fleet file they must gate.
+PREFLIGHT_GLOB = "kubernetes/apps/llm/llmkube/resources/manual/radiance-*-preflight.yaml"
+FLEET_CONFIGMAP = "radiance-fleet-config"
+
+
+def check_preflight_copies(root, docs):
+    """A pre-flight that drifted from the lane's bytes gates a file nobody loads.
+
+    `radiance --check` is the only gate that runs before the push - an unknown
+    fleet key exits 2 at startup and crashloops the lane this repo's own agents
+    run on - and Jobs under manual/ are deliberately outside every kustomization,
+    so nothing else notices when the copy they carry stops matching the
+    ConfigMap in radiance-deleuze.yaml. Compare the bytes, name the line.
+    """
+    errors, warnings = [], []
+    fleet = next(((d.get("data") or {}).get("radiance.yaml") for d in docs
+                  if d.get("kind") == "ConfigMap"
+                  and (d.get("metadata") or {}).get("name") == FLEET_CONFIGMAP), None)
+    if fleet is None:
+        return errors, [f"no ConfigMap '{FLEET_CONFIGMAP}' in the rendered output: "
+                        "check 10 had nothing to compare the preflights against"]
+    for f in sorted(root.glob(PREFLIGHT_GLOB)):
+        try:
+            pdocs = [d for d in yaml.safe_load_all(f.read_text()) if d]
+        except yaml.YAMLError as e:
+            errors.append(f"{f.relative_to(root)}: does not parse ({e})")
+            continue
+        for d in pdocs:
+            if d.get("kind") != "ConfigMap":
+                continue
+            copy = (d.get("data") or {}).get("radiance.yaml")
+            if copy is None:
+                continue  # mounts the live ConfigMap instead (the 2.1/2.2 shape)
+            if copy == fleet:
+                continue
+            a, b = fleet.splitlines(), copy.splitlines()
+            at = next((i for i, (x, y) in enumerate(zip(a, b)) if x != y),
+                      min(len(a), len(b)))
+            errors.append(
+                f"{f.relative_to(root)}: ConfigMap "
+                f"'{(d.get('metadata') or {}).get('name')}' is not the lane's fleet "
+                f"bytes ({len(copy)} B vs {len(fleet)} B); first difference at line "
+                f"{at + 1}: lane {(a[at] if at < len(a) else '<eof>')!r} vs preflight "
+                f"{(b[at] if at < len(b) else '<eof>')!r} - regenerate it from "
+                f"kubernetes/apps/llm/llmkube/resources/radiance-deleuze.yaml")
+    return errors, warnings
+
+
 def main():
     root = Path(__file__).resolve().parent.parent
     docs = render([str(root / p) for p in RENDER_PATHS])
     docs += parse_raw([str(root / p) for p in RAW_PATHS])
     state = collect(docs)
     errors, warnings = check(state)
+    p_err, p_warn = check_preflight_copies(root, docs)
+    errors += p_err
+    warnings += p_warn
 
     for w in warnings:
         print(f"WARN: {w}")
@@ -358,6 +413,27 @@ def main():
                 errors.append("self-test")
             else:
                 print(f"self-test: {label} correctly detected")
+
+        # Check 10 is a byte comparison across two files, so its interesting
+        # failure is silence: a preflight that quietly stopped matching the lane
+        # would still "pass". Assert the drift is caught, and that a preflight
+        # which mounts the live ConfigMap instead of embedding a copy is not
+        # reported at all.
+        broken_docs = deepcopy(docs)
+        hit = 0
+        for d in broken_docs:
+            if (d.get("kind") == "ConfigMap"
+                    and (d.get("metadata") or {}).get("name") == FLEET_CONFIGMAP):
+                d["data"]["radiance.yaml"] = d["data"]["radiance.yaml"].replace(
+                    "ttl: 15m", "ttl: 20m")
+                hit += 1
+        b_err, _ = check_preflight_copies(root, broken_docs) if hit else ([], [])
+        if not any("is not the lane's fleet bytes" in e for e in b_err):
+            print("FAIL: self-test - drifted preflight copy not detected")
+            errors.append("self-test")
+        else:
+            print(f"self-test: drifted preflight copy correctly detected "
+                  f"({len(b_err)} file(s))")
 
     print(f"{len(state['models'])} modelNames, {len(state['keys'])} keys, "
           f"{len(state['backends'])} backends, "
