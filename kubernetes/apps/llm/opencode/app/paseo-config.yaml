@@ -29,6 +29,52 @@ data:
   # invent Off/none options. Keep models without named variants empty.
   # services/opencode/test_paseo_catalog.py guards this projection.
   #
+  # `daemon.mcp` is spelled out instead of omitted: config.js resolves it as
+  # `persisted.daemon?.mcp?.injectIntoAgents ?? false` at boot while the store
+  # default is `!== false`, so the two layers only agree by accident unless the
+  # keys are written down. Pinning them means a code-default change in a Paseo
+  # upgrade cannot silently start or stop injecting the catalog.
+  #
+  # TWO PROVIDER ENTRIES ON PURPOSE, ONE ENFORCEMENT POINT. `opencode-worker`
+  # is `extends: "opencode"` with `paseoTools: {enabled: false}`, which is how a
+  # worker stops receiving Paseo's raw catalog: the policy is read per provider
+  # id (agent/paseo-tool-policy.js -> providerSettings[providerId].paseoTools),
+  # and with it off the daemon injects NEITHER the native tool catalog NOR the
+  # internal `paseo` MCP server (agent-manager.js prepareSessionConfig passes
+  # mcpBaseUrl: null). A profile cannot carry this switch instead: agent
+  # profiles have no paseoTools field, so "lead gets the catalog, workers do
+  # not" has to be a provider split.
+  #
+  # `extends` inherits command, env and disallowedTools (mergeRuntimeSettings)
+  # but NOT the model list and NOT paseoTools -- provider-registry.js gives a
+  # derived provider `profileModels: override.models ?? []`. MEASURED, and it is
+  # the reason the twelve aliases are repeated verbatim below rather than
+  # inherited: an empty models list means "no replacement catalogue", so OpenCode
+  # would advertise its own free tier (tidepool-alpha-free, iceman-free,
+  # big-pickle...) and those ids exist nowhere in this repo. Both entries are
+  # therefore asserted by services/opencode/test_paseo_catalog.py.
+  #
+  # `daemon.agentProfiles` (NOT agents.agentProfiles -- the key lives under
+  # daemon in the config schema) holds the two launch bundles. Shape is an ARRAY
+  # of {id, name, provider, model, notes}; there is no `extends` on a profile and
+  # the schema is passthrough, so an `extends` key would be dropped silently.
+  # Profiles are advisory for agents: `create_agent` has no `profile` parameter,
+  # so an orchestrator copies provider/model/modeId/options out of
+  # `list_profiles`. MEASURED: `create_agent` does accept the combined form
+  # `provider: "opencode-worker/cogito/flashnext-deleuze"` -- it splits on the
+  # FIRST slash (agent/tools/paseo-tools.js resolveProviderModel), leaving the
+  # model id its own slash -- so the notes can name one string. Before this
+  # provider existed that exact call answered "Provider opencode-worker is not
+  # configured", which is what proves the split rather than a parse rejection.
+  #
+  # WHAT KEEPS THIS CATALOG ON THIS MACHINE: `relay.enabled: false` plus zero
+  # destination hosts registered (`list_hosts` -> hosts_count: 0, self only).
+  # The MCP endpoint drives the same daemon the UI drives, so anything that can
+  # reach it can create agents and workspaces -- but with the relay off and no
+  # hosts, every one of them lands in THIS pod. Enabling the relay or running
+  # `paseo host add` would let a catalog call start work on another machine; do
+  # not do either without re-reading this block and kubernetes/apps/llm/toolhive/README.md.
+  #
   # Keep this JSON strict -- no comments inside it.
   config.json: |
     {
@@ -49,7 +95,23 @@ data:
         },
         "relay": {
           "enabled": false
-        }
+        },
+        "agentProfiles": [
+          {
+            "id": "lead",
+            "name": "Lead",
+            "provider": "opencode",
+            "model": "cogito/flashnext-deleuze",
+            "notes": "Full Paseo catalog (42 tools) for orchestrating work. Launch workers with provider \"opencode-worker/cogito/flashnext-deleuze\" so they get no Paseo tools and reach other tools through the agents gateway (find_tool/call_tool). A launched worker cannot be relied on to read its own profile notes, so copy the find_tool phrasing rules from the worker profile into the prompt you launch it with."
+          },
+          {
+            "id": "worker",
+            "name": "Worker",
+            "provider": "opencode-worker",
+            "model": "cogito/flashnext-deleuze",
+            "notes": "No Paseo tools by design: the daemon injects neither the native catalog nor the internal paseo MCP server. Discover tools with find_tool and run them with call_tool on http://vmcp-agents.llm.svc.cluster.local:4483/mcp. Measured there: recall@8 is 0.97 but top-1 only 0.57, so a shortlist usually holds two to six plausible tools and the right one is often second or third -- read every name before calling. Write tool_description as a capability sentence in the tool's own register ('creates an isolated workspace and starts a coding agent in it'), not as a user request, because the semantic arm matches descriptions. Pass tool_keywords as a JSON array of two to four discriminative nouns; a comma-joined string is rejected. Keywords barely move ranking, but they rescue tools the semantic arm misses completely, so name the noun a description would not use (hosts, vouchers, cron). If a shortlist looks wrong, re-query with different capability wording rather than repeating the same words. One search costs 730-990 tokens and stays in your transcript, so reuse a tool name you already found instead of searching again. Do not launch this profile as a lead."
+          }
+        ]
       },
       "agents": {
         "providers": {
@@ -185,7 +247,140 @@ data:
                 ]
               }
             ]
+          },          "opencode-worker": {
+            "enabled": true,
+            "extends": "opencode",
+            "label": "OpenCode (worker)",
+            "paseoTools": { "enabled": false },
+            "models": [
+              {
+                "id": "cogito/flashnext-deleuze",
+                "label": "flashnext-deleuze",
+                "isDefault": true,
+                "thinkingOptions": [
+                  { "id": "minimal", "label": "Minimal" },
+                  { "id": "low", "label": "Low" },
+                  { "id": "medium", "label": "Medium" },
+                  { "id": "xhigh", "label": "Extra High" }
+                ]
+              },
+              {
+                "id": "cogito/glimmer-deleuze",
+                "label": "glimmer-deleuze",
+                "isDefault": false,
+                "thinkingOptions": []
+              },
+              {
+                "id": "cogito/heretic-deleuze",
+                "label": "heretic-deleuze",
+                "isDefault": false,
+                "thinkingOptions": []
+              },
+              {
+                "id": "cogito/gemma-4-12b",
+                "label": "gemma-4-12b",
+                "isDefault": false,
+                "thinkingOptions": []
+              },
+              {
+                "id": "cogito-sub/gpt-6-astra",
+                "label": "gpt-6-astra",
+                "isDefault": false,
+                "thinkingOptions": [
+                  { "id": "low", "label": "Low" },
+                  { "id": "medium", "label": "Medium" },
+                  { "id": "high", "label": "High" },
+                  { "id": "xhigh", "label": "Extra High" },
+                  { "id": "max", "label": "Maximum" }
+                ]
+              },
+              {
+                "id": "cogito-sub/gpt-6.1-sol",
+                "label": "gpt-6.1-sol",
+                "isDefault": false,
+                "thinkingOptions": [
+                  { "id": "low", "label": "Low" },
+                  { "id": "medium", "label": "Medium" },
+                  { "id": "high", "label": "High" },
+                  { "id": "xhigh", "label": "Extra High" },
+                  { "id": "max", "label": "Maximum" }
+                ]
+              },
+              {
+                "id": "cogito-sub/gpt-6.1-terra",
+                "label": "gpt-6.1-terra",
+                "isDefault": false,
+                "thinkingOptions": [
+                  { "id": "low", "label": "Low" },
+                  { "id": "medium", "label": "Medium" },
+                  { "id": "high", "label": "High" },
+                  { "id": "xhigh", "label": "Extra High" },
+                  { "id": "max", "label": "Maximum" }
+                ]
+              },
+              {
+                "id": "cogito-sub/gpt-6-luna",
+                "label": "gpt-6-luna",
+                "isDefault": false,
+                "thinkingOptions": [
+                  { "id": "low", "label": "Low" },
+                  { "id": "medium", "label": "Medium" },
+                  { "id": "high", "label": "High" },
+                  { "id": "xhigh", "label": "Extra High" },
+                  { "id": "max", "label": "Maximum" }
+                ]
+              },
+              {
+                "id": "cogito-sub/gpt-6-sol",
+                "label": "gpt-6-sol",
+                "isDefault": false,
+                "thinkingOptions": [
+                  { "id": "low", "label": "Low" },
+                  { "id": "medium", "label": "Medium" },
+                  { "id": "high", "label": "High" },
+                  { "id": "xhigh", "label": "Extra High" },
+                  { "id": "max", "label": "Maximum" }
+                ]
+              },
+              {
+                "id": "cogito-sub/gpt-5.6-sol",
+                "label": "gpt-5.6-sol",
+                "isDefault": false,
+                "thinkingOptions": [
+                  { "id": "low", "label": "Low" },
+                  { "id": "medium", "label": "Medium" },
+                  { "id": "high", "label": "High" },
+                  { "id": "xhigh", "label": "Extra High" },
+                  { "id": "max", "label": "Maximum" }
+                ]
+              },
+              {
+                "id": "cogito-sub/gpt-5.6-terra",
+                "label": "gpt-5.6-terra",
+                "isDefault": false,
+                "thinkingOptions": [
+                  { "id": "low", "label": "Low" },
+                  { "id": "medium", "label": "Medium" },
+                  { "id": "high", "label": "High" },
+                  { "id": "xhigh", "label": "Extra High" },
+                  { "id": "max", "label": "Maximum" }
+                ]
+              },
+              {
+                "id": "cogito-sub/gpt-5.6-luna",
+                "label": "gpt-5.6-luna",
+                "isDefault": false,
+                "thinkingOptions": [
+                  { "id": "low", "label": "Low" },
+                  { "id": "medium", "label": "Medium" },
+                  { "id": "high", "label": "High" },
+                  { "id": "xhigh", "label": "Extra High" },
+                  { "id": "max", "label": "Maximum" }
+                ]
+              }
+            ]
           },
+
           "hermes": {
             "enabled": false
           },
