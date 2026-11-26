@@ -339,6 +339,51 @@ bite whoever writes the next one: the shortlist arrives as JSON inside
 `result.content[0].text`, not as `structuredContent`, and every hit's `score` is
 `null` on this build.
 
+## How an agent should talk to `find_tool`
+
+Same gateway, same 30 Paseo tools, same ranker — only the query text changed:
+
+| How the query was written                                     | recall@8 | recall@1 |
+| ------------------------------------------------------------- | -------- | -------- |
+| the gold tool's own `description` string                        | 1.000    | 1.000    |
+| task intent, hand-picked `tool_keywords`                        | 1.000    | 0.567    |
+| task intent, keywords scraped out of the sentence               | 0.967    | 0.567    |
+| task intent, no keywords at all                                 | 1.000    | 0.567    |
+
+Two things follow. `tool_keywords` do not decide ranking — three regimes scored
+identically — but they are not useless: they rescue a tool the semantic arm
+misses outright, which is how `list_hosts` went from absent to rank 5 for "which
+machines can I run agents on". And top-1 is largely an artefact of how a harness
+writes its queries: a query paraphrased from a tool's description matches the
+description it was paraphrased from, so any harness that writes one query per
+tool while looking at that tool measures 0.8–1.0 top-1 and predicts nothing.
+Use recall@8 (~0.97 here) as the design number and 0.567 as the honest
+expectation for real traffic.
+
+What to tell an agent that only has the two meta-tools:
+
+1. `tool_description` drives ranking and it matches *descriptions*, so write it
+   as a capability sentence in the tool's own register — "creates an isolated
+   workspace and starts a coding agent in it" — not as a user request.
+2. `tool_keywords` must be a JSON array (a comma-joined string fails the
+   gateway's own unmarshaller). Two to four discriminative nouns, picked for the
+   word a description would not contain.
+3. Expect two to six plausible candidates and read them all: the right tool is
+   frequently second or third. The confusable families are
+   `get_agent_status`/`get_agent_activity`/`list_agents`,
+   `create_workspace`/`list_workspaces`, and `create_heartbeat` against
+   `create_schedule` and `schedule_logs`.
+4. If a shortlist looks wrong, re-query with different capability wording rather
+   than repeating the same words.
+5. One search costs 730–990 tokens (cl100k, the two harnesses' means) and stays
+   in the transcript for the rest of the session — nothing reclaims a tool
+   result. Reuse a name already found; `call_tool` needs no fresh `find_tool`.
+
+The short form lives in the worker profile's `notes` in
+`kubernetes/apps/llm/opencode/app/paseo-config.yaml`, surfaced by `list_profiles`.
+Whether a launched worker sees its own profile notes is unverified, so the lead
+profile's notes tell the orchestrator to copy them into the worker's first prompt.
+
 ## Exposure, and why the narrowing steps are load-bearing
 
 **The `agents` gateway is unauthenticated inside the cluster and it now holds a
