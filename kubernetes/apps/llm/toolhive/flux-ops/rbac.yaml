@@ -32,6 +32,51 @@ subjects:
     name: opencode-flux-operator
     namespace: llm
 ---
+# Named get+patch on the four model records this deployment touches, for owner-aware
+# server dry runs: a server-side apply dry run needs the same write verb as a real
+# apply, so `get` alone is refused and `patch` here is a real mutation right on
+# exactly these four objects. Server-side apply sends a named PATCH, which
+# resourceNames does constrain, even for an object that does not exist yet.
+# Do NOT add `create`: resourceNames cannot authorize name-restricted CREATE
+# requests. If a tool demands a separate POST/create privilege, stop and review
+# rather than widen this Role.
+# Scope: four names in one namespace, no list/watch. Reads are already allowed for
+# this identity by opencode-investigator, so this Role does not limit enumeration;
+# and there are no direct pod/workload grants, though patching an InferenceService
+# steers the pods its controller creates.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: radiance-23-model-validator
+  namespace: llm
+rules:
+  - apiGroups: [inference.llmkube.dev]
+    resources: [inferenceservices]
+    resourceNames: [radiance]
+    verbs: [get, patch]
+  - apiGroups: [litellm.home-operations.com]
+    resources: [litellmmodels]
+    resourceNames: [inkling-deleuze]
+    verbs: [get, patch]
+  - apiGroups: [litellm.home-operations.com]
+    resources: [litellmvirtualkeys]
+    resourceNames: [hermes, opencode]
+    verbs: [get, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: radiance-23-model-validator
+  namespace: llm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: radiance-23-model-validator
+subjects:
+  - kind: ServiceAccount
+    name: opencode-flux-operator
+    namespace: llm
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
