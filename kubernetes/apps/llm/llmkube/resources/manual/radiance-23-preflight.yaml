@@ -15,8 +15,8 @@
 # drifts from the ConfigMap the lane mounts. Regenerate with
 # plans/llm/artifacts/2026-11-26-radiance-23-inkling-deleuze/gen_preflight.py (or
 # `kustomize build resources/`); what matters is byte equality, asserted by both:
-#   sha256 3cbc1313c0244363a5d1d57f084307671f35f6f5dafb079214fd054b713ba173
-#   25275 bytes, 5 entries:
+#   sha256 8ace78e82f22398142e65bbad7f99c8b3b283cb7d078fef924f1cabccbaa57de
+#   25717 bytes, 5 entries:
 #   qwen3.8-flash-next,
 #   muse-glimmer,
 #   flux-3-klein,
@@ -343,10 +343,12 @@ data:
         # (essays), 240 / 550 / 790 (code), mean KL 0.0066 against the release's
         # weights.
         #
-        # THE KEYS ARE THE CARD'S OWN, not improvised: tp 2, max-model-len 200000
-        # (the container was converted with --max-ctx 200000), max-num-seqs 8, int8
-        # KV, num-speculative-tokens 7 (DFlash2 drafts a block of seven),
-        # draft-window adaptive. Nothing tiered: at 14.43 GiB the whole container
+        # The card's serve preset uses 200000 context; this lane raises it to
+        # 262144. The base text config declares model_max_length: 1048576;
+        # --max-ctx 200000 stamped the conversion preset, not a positional table
+        # limit in Inkling's relative-attention trunk. Keep tp 2, eight sequences,
+        # int8 KV and adaptive DFlash2 at depth seven. Nothing tiered: at
+        # 14.43 GiB the whole container
         # is smaller than one card's claim for flashnext (31.19 GiB), so it needs
         # no host expert pool and no n-gram placement. It is the smallest text
         # entry on this lane by 2.3x (heretic is 33.37 GiB) and the only one whose
@@ -388,8 +390,15 @@ data:
         model: /models/radiance/inkling-2-mini-iq4r-v4.rad
         aliases: [inkling]
         tp: 2
-        max-model-len: 200000
+        max-model-len: 262144
         max-num-seqs: 8
+        # The 2.3.0 fleet grants only one context by default. Auto-placement
+        # MoEs lend KV blocks to experts and skip the separate fleet KV-growth
+        # path (core/engine_bringup.cpp), so free card memory does not grow this
+        # pool. Reserve all eight full contexts explicitly: 8 x 262144.
+        flex:
+          kv:
+            min-tokens: 2097152
         kv-cache-dtype: i8
         num-speculative-tokens: 7
         draft-window: adaptive

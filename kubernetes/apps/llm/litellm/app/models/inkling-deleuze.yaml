@@ -21,12 +21,10 @@
 # code, 358 / 811 / 1116 on step-by-step arithmetic, with `draft-window:
 # adaptive` and int8 KV. `ttl: 15m` on the entry hands the cards back when idle.
 #
-# maxInputTokens mirrors the FLEET PIN `max-model-len: 200000`, which is itself
-# the container's own converted context (--max-ctx 200000), not a number chosen
-# here. Like its siblings this mirror is hand-carried: llmkube's generic runtime
-# exposes no contextSize/vllmConfig, so scripts/validate-llm-catalogue.py cannot
-# see a backend value to compare. Correct that script or this file if the entry
-# is ever re-pinned.
+# maxInputTokens mirrors the fleet's 262144-token context, raised from the
+# container card's 200000-token serve preset. The fleet reserves KV for all
+# eight full contexts. scripts/test_inkling_kv_config.py guards this mirror and
+# the OpenCode limit because the generic runtime exposes no contextSize.
 #
 # WHAT IS AND IS NOT MEASURED HERE, because this lane has been taken down by an
 # assumed capability before (Muse's first image, 2026-11-19: exit 139 in the ViT
@@ -91,7 +89,7 @@ spec:
   info:
     supportsVision: false
     supportsFunctionCalling: true
-    maxInputTokens: 200000
+    maxInputTokens: 262144
     # Generous, not tight: Inkling has a thinking channel, and a small budget
     # buys `content: ""` with the answer left in reasoning_content (the same trap
     # both siblings document for their models).
