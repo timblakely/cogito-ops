@@ -45,14 +45,14 @@
 # Per model: `modelID` is what goes on the wire and must equal the LiteLLM alias
 # byte-for-byte; `limit` mirrors that alias's maxInputTokens / maxOutputTokens in
 # kubernetes/apps/llm/litellm/app/models/; `capabilities` mirrors the
-# supportsFunctionCalling / supportsVision claims proven in those files. The
+# supportsFunctionCalling / supportsVision claims recorded in those files. The
 # failure mode to avoid is advertising a wider window or a capability the backend
 # refuses — a context limit above the engine's pin gets the prompt refused
 # mid-session, and a reasoning `effort` the template rejects is a control that
 # silently does nothing (see litellm/app/models/README.md).
 #
 # Where the numbers came from:
-#   - The four local aliases mirror their LiteLLMModel files. Their reasoning
+#   - The local aliases mirror their LiteLLMModel files. FlashNext's reasoning
 #     ladder is MEASURED on the wire, not copied: none/minimal/low/medium/xhigh
 #     return 200 while `high` and `max` 400 out of the chat template ("It takes
 #     'low', 'medium' and 'xhigh'; 'none' and 'minimal' turn thinking off").
@@ -69,6 +69,12 @@
 #     corroborate rendering, not a runtime-code trace. Tool calls remain a
 #     container-card claim; vision stays unproven/text-only. The 262144-token
 #     context mirrors the fleet pin. No reasoning toggle is advertised.
+#   - GLM-5.3-Flash is offline-prepared, not locally verified: tools reflect the
+#     publisher claim; input stays text-only. Its 262144-token total context
+#     mirrors the fleet pin. Output ceiling and reasoning controls are unknown,
+#     so limit.output, reasoning metadata and variants are deliberately omitted.
+#     OpenCode's output fallback is not a measured backend limit. The lane is
+#     exclusive with one active sequence; adding it does not change defaults.
 #   - The eight subscription limits (922000 in / 128000 out) and their vision and
 #     tool support are read from the proxy's own router metadata, not invented.
 #     Their ladders come from the caps publisher, which reflects the live ChatGPT
@@ -192,6 +198,16 @@ data:
                 { "id": "max", "settings": { "reasoningEffort": "max" } }
               ],
               "limit": { "context": 262144, "output": 16384 }
+            },
+            "glm-deleuze": {
+              "modelID": "glm-deleuze",
+              "name": "GLM-5.3-Flash @deleuze",
+              "capabilities": {
+                "tools": true,
+                "input": ["text"],
+                "output": ["text"]
+              },
+              "limit": { "context": 262144 }
             },
             "gemma-4-12b": {
               "modelID": "google/gemma-4-12b-it",

@@ -225,6 +225,15 @@ aliases.update(
             "provider": "custom:litellm-chat",
             "base_url": LITELLM_API,
         },
+        # Offline-prepared GLM-5.3-Flash: text-only, 262144 total context,
+        # one active sequence in the same exclusive fleet. Tool support is a
+        # publisher claim pending local probes. No reasoning_override or output
+        # cap: neither is verified. Defaults and auxiliary pins stay unchanged.
+        "glm": {
+            "model": "glm-deleuze",
+            "provider": "custom:litellm-chat",
+            "base_url": LITELLM_API,
+        },
     }
 )
 

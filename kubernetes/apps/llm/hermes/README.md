@@ -74,8 +74,18 @@ Model access is enforced by the LiteLLM virtual key, not by a picker list.
 The startup default (`flashnext-deleuze`) and auxiliary task selections are
 preferences, not an inventory. Context windows come from endpoint metadata;
 reasoning capabilities come from the central model-caps service. `/model
---refresh` refreshes the client cache after catalogue changes. `/model qwen`
-and `/model muse` remain convenience shortcuts.
+--refresh` refreshes the client cache after catalogue changes. `/model glimmer`,
+`/model heretic`, `/model inkling`, and `/model glm` are convenience shortcuts;
+the old `qwen` and `muse` shortcuts refer to retired routes.
+
+`glm` selects `glm-deleuze` through `custom:litellm-chat` at the existing
+LiteLLM endpoint. GLM-5.3-Flash is offline-prepared, not deployed or locally
+verified: its total context is configured as 262144 tokens, vision is disabled,
+and tool support is a publisher claim pending local probes. No output ceiling
+or reasoning override is invented. It allows one active sequence in Deleuze's
+exclusive fleet, displacing other fleet lanes while selected. Startup defaults,
+auxiliary tasks and the `heretic-deleuze` vision pin stay unchanged. Staging,
+approved runtime checks and key-scope reconciliation are still required.
 
 The key comes from `litellm-key-hermes`. Inspect its server-side scope with
 `kubectl -n llm get litellmvirtualkey hermes -o jsonpath='{.spec.models}'`.

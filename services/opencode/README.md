@@ -307,7 +307,7 @@ scopes stay disjoint:
 
 | Block | Package (transport) | Key | Scope |
 | --- | --- | --- | --- |
-| `cogito` | `openai-compatible` (chat completions) | `role-opencode` | the four local chat aliases |
+| `cogito` | `openai-compatible` (chat completions) | `role-opencode` | the six local chat aliases (including offline-prepared GLM) |
 | `cogito-sub` | `openai-compatible/responses` | `role-opencode-subscription` | the eight ChatGPT subscription aliases |
 
 The split is forced by the catalogue, not taste: every subscription alias is
@@ -326,6 +326,17 @@ those variants from `capabilities.reasoning.effort`, not `reasoning.toggle`.
 Do not invent Off/none variants or the non-wire Ultra product tier. Models with
 no named variants retain an empty list. `test_paseo_catalog.py` checks membership
 and effort parity across both ConfigMaps.
+
+`cogito/glm-deleuze` adds GLM-5.3-Flash to OpenCode and both Paseo replacement
+catalogs without changing the default model or lead/worker profiles. This is
+offline preparation, not a deployed or locally verified lane. The configured
+total context is 262144 tokens; input/output are text-only and tool support
+reflects the publisher claim pending local round-trip probes. No reasoning
+variants or output ceiling are declared: OpenCode's fallback output budget
+(documented as 32000 tokens) is a client assumption, not a measured backend cap.
+The backend permits one active sequence and shares Deleuze's exclusive fleet,
+so selecting it displaces other fleet lanes. Artifact staging, serving-window
+load/stream/tool/context checks and key-scope reconciliation must precede use.
 
 For a non-disruptive catalogue probe, back up the runtime
 `/home/opencode/.paseo/config.json`, update only the OpenCode model metadata,

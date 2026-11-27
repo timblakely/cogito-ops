@@ -34,6 +34,9 @@ spec:
     # 33.37 GiB), and it needs the fleet's 2.3.0 image to load at all. Text
     # only until an image probe says otherwise - see models/inkling-deleuze.yaml.
     - inkling-deleuze
+    # GLM uses both cards exclusively, with one active sequence and cold experts
+    # read from NVMe; selection can unload parked entries to reclaim host RAM.
+    - glm-deleuze
     - google/gemma-4-12b-it
     # Retired 2026-11-20 with the Iggy lanes: Qwen/Qwen3.8-27B-INT8-W8A16,
     # Muse-Glimmer-30B and Maya-M are deregistered; their weights are on NAS

@@ -1,0 +1,163 @@
+# MANUAL ONLY: not in any Flux kustomization. Applying downloads ~159GiB.
+# Parent/user approval is required before running this Job. It never reclaims
+# or replaces another model, nor deletes a mismatched existing final artifact.
+# The local-hostpath PVC's 256Gi is metadata, not a filesystem quota: measure
+# statvfs on /models before writing. Audit on 2026-11-27 found ~1367GiB free.
+# Do not resize the PVC or remove models merely by subtracting claim sizes.
+#
+# Ungated MIT artifact, pinned HF revision and LFS SHA256. The completed file is
+# published atomically only after the full checksum passes. Partial segments
+# resume after restart; bytes are fsynced before their piece map is committed.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: radiance-deleuze-stage-glm
+  namespace: llm
+spec:
+  activeDeadlineSeconds: 43200
+  backoffLimit: 2
+  template:
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: deleuze
+      tolerations:
+      - key: workload.cogito/dedicated
+        operator: Equal
+        value: ml
+        effect: NoSchedule
+      containers:
+      - name: stage
+        image: docker.io/library/python:3.12-slim
+        command: [python3, -u, -c]
+        args:
+        - |
+          import concurrent.futures, hashlib, json, os, threading, urllib.request
+
+          DEST_DIR = "/models/radiance"
+          FILES = [{
+              "url": ("https://huggingface.co/animusnull/glm-5.3-flash-iqr-v4"
+                      "/resolve/a2d63477dd5ba826d71c0f597f8c343d5c6af1d8/glm53-flash-iqr-v4.rad"),
+              "name": "glm53-flash-iqr-v4.rad",
+              "sha256": "1e20c4bc2f7ea7022f7bae9dd1ffa9873c2031b242d41e85d1ac0a5016342687",
+              "size": 170662334464,
+          }]
+          SEG = 64 << 20
+
+          def digest(path):
+              h = hashlib.sha256()
+              with open(path, "rb") as f:
+                  for b in iter(lambda: f.read(16 << 20), b""):
+                      h.update(b)
+              return h.hexdigest()
+
+          def fetch(spec):
+              dst = os.path.join(DEST_DIR, spec["name"])
+              part, side = dst + ".partial", dst + ".pieces"
+              size = spec["size"]
+              if os.path.exists(dst):
+                  if os.path.getsize(dst) != size or digest(dst) != spec["sha256"]:
+                      raise RuntimeError("existing final artifact differs; preserving it: " + dst)
+                  print("present, full digest verified:", dst, flush=True)
+                  return
+              done = set()
+              count = (size + SEG - 1) // SEG
+              if os.path.exists(side):
+                  with open(side) as f:
+                      state = json.load(f)
+                  if (state.get("sha256"), state.get("size"), state.get("segment")) != (
+                          spec["sha256"], size, SEG):
+                      raise RuntimeError("piece map belongs to different content; preserving it")
+                  done = set(state["done"])
+                  if any(type(i) is not int or not 0 <= i < count for i in done):
+                      raise RuntimeError("invalid piece map; preserving it for inspection")
+                  if not os.path.exists(part) or os.path.getsize(part) != size:
+                      raise RuntimeError("piece map has no matching partial file")
+              allocated = os.stat(part).st_blocks * 512 if os.path.exists(part) else 0
+              free = os.statvfs(DEST_DIR)
+              free = free.f_bavail * free.f_frsize
+              need = max(0, size - allocated) + (8 << 30)
+              print("space: free %.2fGiB, need %.2fGiB including 8GiB reserve" % (
+                    free / 2**30, need / 2**30), flush=True)
+              if free < need:
+                  raise RuntimeError("insufficient actual filesystem space; no cleanup attempted")
+              fd = os.open(part, os.O_CREAT | os.O_RDWR, 0o600)
+              lock = threading.Lock()
+              try:
+                  os.ftruncate(fd, size)
+                  # Reserve blocks before network traffic; unlike truncate, this
+                  # detects a real ENOSPC while other users share the filesystem.
+                  os.posix_fallocate(fd, 0, size)
+                  def segment(i):
+                      lo, hi = i * SEG, min(size, (i + 1) * SEG) - 1
+                      request = urllib.request.Request(spec["url"], headers={
+                          "Range": "bytes=%d-%d" % (lo, hi),
+                          "User-Agent": "cogito-weight-stager"})
+                      expected = "bytes %d-%d/%d" % (lo, hi, size)
+                      with urllib.request.urlopen(request, timeout=180) as response:
+                          if response.status != 206 or response.headers.get("Content-Range") != expected:
+                              raise RuntimeError("server returned unexpected byte range")
+                          at = lo
+                          while at <= hi:
+                              b = response.read(min(4 << 20, hi + 1 - at))
+                              if not b:
+                                  raise RuntimeError("short range response")
+                              view = memoryview(b)
+                              while view:
+                                  n = os.pwrite(fd, view, at)
+                                  if n <= 0:
+                                      raise RuntimeError("short pwrite")
+                                  at += n
+                                  view = view[n:]
+                      with lock:
+                          os.fsync(fd)
+                          done.add(i)
+                          with open(side + ".tmp", "w") as f:
+                              json.dump(dict(sha256=spec["sha256"], size=size,
+                                             segment=SEG, done=sorted(done)), f)
+                              f.flush()
+                              os.fsync(f.fileno())
+                          os.replace(side + ".tmp", side)
+                          if len(done) % 32 == 0 or len(done) == count:
+                              print("pieces: %d/%d" % (len(done), count), flush=True)
+                  with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+                      for _ in pool.map(segment, (i for i in range(count) if i not in done)):
+                          pass
+                  os.fsync(fd)
+              finally:
+                  os.close(fd)
+              if os.path.getsize(part) != size or digest(part) != spec["sha256"]:
+                  raise RuntimeError("checksum mismatch; partial and piece map preserved for inspection")
+              # Refuse a concurrently published destination instead of replacing it.
+              os.link(part, dst)
+              os.unlink(part)
+              if os.path.exists(side):
+                  os.unlink(side)
+              directory = os.open(DEST_DIR, os.O_RDONLY | os.O_DIRECTORY)
+              try:
+                  os.fsync(directory)
+              finally:
+                  os.close(directory)
+              print("staged, full digest verified:", dst, flush=True)
+
+          os.makedirs(DEST_DIR, exist_ok=True)
+          for spec in FILES:
+              fetch(spec)
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: "3"
+            memory: 8Gi
+        securityContext:
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - name: weights
+          mountPath: /models
+      volumes:
+      - name: weights
+        persistentVolumeClaim:
+          claimName: radiance-deleuze

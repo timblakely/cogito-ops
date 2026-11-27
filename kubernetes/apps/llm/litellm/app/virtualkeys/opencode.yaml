@@ -26,7 +26,7 @@ spec:
   models:
     # Chat-capable local aliases, mirroring the workstation Hermes `hermes` key
     # so the cluster OpenCode picker offers the same models as the laptop. All
-    # four assert zero cost and all four support tool calls, so OpenCode can
+    # entries assert zero cost and support tool calls, so OpenCode can
     # drive them.
     #
     # `coder` was dropped at the operator's request: it is the same served model
@@ -55,6 +55,9 @@ spec:
     # back. It is the cheapest such switch on the lane, and it only exists once
     # the fleet is on radiance 2.3.0 - arch/inkling2 is new there.
     - inkling-deleuze
+    # GLM has one active sequence on both cards; the shared key's ceiling of
+    # eight does not turn that into eight GLM slots. Cold experts read from NVMe.
+    - glm-deleuze
     - google/gemma-4-12b-it
     # embedder / reranker / worker stay out: they are not chat models, so
     # OpenCode's picker could offer nothing useful with them.

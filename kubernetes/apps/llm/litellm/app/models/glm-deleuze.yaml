@@ -1,0 +1,32 @@
+---
+# GLM-5.3-Flash IQ8R/IQR-V4 on the existing Radiance 2.3.0 Deleuze fleet.
+# TP2 is supported by the architecture; cold experts use an explicit disk tier.
+# This is an exclusive lane switch, not another pair of GPUs. Stage the pinned
+# artifact and verify a real TP2 load before publishing this route.
+#
+# Context is the configured TOTAL window, not prompt plus an extra output
+# allowance. No measured output ceiling or reasoning-effort ladder is known:
+# deliberately omit both. The publisher documents tool calls; a local streamed
+# tool round trip remains a rollout gate. Images stay disabled in the backend
+# and catalogue until independently tested on this hardware.
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: glm-deleuze
+spec:
+  modelName: glm-deleuze
+  proxyRef: litellm
+  params:
+    model: openai/glm-5.3-flash
+    apiBase: http://radiance.llm.svc.cluster.local:8080/v1
+    apiKey: os.environ/RADIANCE_API_KEY
+    additional:
+      timeout: 1800
+  info:
+    supportsVision: false
+    supportsFunctionCalling: true
+    maxInputTokens: 262144
+    extra:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+      deleuze_profile: radiance

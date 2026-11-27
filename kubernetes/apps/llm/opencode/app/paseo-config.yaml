@@ -15,8 +15,8 @@ data:
   # `opencode/tidepool-alpha-free`, `opencode/iceman-free`,
   # `opencode/big-pickle` and so on. None of those names exist in this repo.
   # Declaring `models` REPLACES the advertised set -- `additionalModels` is
-  # the additive one -- so listing the twelve cogito aliases drops the free
-  # tier: measured 22 advertised -> 12, and a session bound to
+  # the additive one -- so listing only the cogito aliases drops the free
+  # tier: the original probe measured 22 advertised -> 12, and a session bound to
   # cogito/flashnext-deleuze still round-trips a Read tool call. Keep this
   # list equal to the union of the two OpenCode provider blocks in
   # opencode-config.yaml; ids are `<provider>/<alias>` exactly as OpenCode
@@ -72,7 +72,7 @@ data:
   # `extends` inherits command, env and disallowedTools (mergeRuntimeSettings)
   # but NOT the model list and NOT paseoTools -- provider-registry.js gives a
   # derived provider `profileModels: override.models ?? []`. MEASURED, and it is
-  # the reason the twelve aliases are repeated verbatim below rather than
+  # the reason the aliases are repeated verbatim below rather than
   # inherited: an empty models list means "no replacement catalogue", so OpenCode
   # would advertise its own free tier (tidepool-alpha-free, iceman-free,
   # big-pickle...) and those ids exist nowhere in this repo. Both entries are
@@ -180,6 +180,12 @@ data:
                   { "id": "xhigh", "label": "Extra High" },
                   { "id": "max", "label": "Maximum" }
                 ]
+              },
+              {
+                "id": "cogito/glm-deleuze",
+                "label": "glm-deleuze",
+                "isDefault": false,
+                "thinkingOptions": []
               },
               {
                 "id": "cogito/gemma-4-12b",
@@ -327,6 +333,12 @@ data:
                   { "id": "xhigh", "label": "Extra High" },
                   { "id": "max", "label": "Maximum" }
                 ]
+              },
+              {
+                "id": "cogito/glm-deleuze",
+                "label": "glm-deleuze",
+                "isDefault": false,
+                "thinkingOptions": []
               },
               {
                 "id": "cogito/gemma-4-12b",
