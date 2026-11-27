@@ -32,18 +32,20 @@ subjects:
     name: opencode-flux-operator
     namespace: llm
 ---
-# Named get+patch on the four model records this deployment touches, for owner-aware
-# server dry runs: a server-side apply dry run needs the same write verb as a real
-# apply, so `get` alone is refused and `patch` here is a real mutation right on
-# exactly these four objects. Server-side apply sends a named PATCH, which
-# resourceNames does constrain, even for an object that does not exist yet.
-# Do NOT add `create`: resourceNames cannot authorize name-restricted CREATE
-# requests. If a tool demands a separate POST/create privilege, stop and review
-# rather than widen this Role.
-# Scope: four names in one namespace, no list/watch. Reads are already allowed for
-# this identity by opencode-investigator, so this Role does not limit enumeration;
-# and there are no direct pod/workload grants, though patching an InferenceService
-# steers the pods its controller creates.
+# Grants what an owner-aware server dry run of the model records needs. A server-side
+# apply dry run authorizes through the same code path as a real apply, so `get` alone
+# is refused: `patch` for a record that exists, and - because v1.34.2 patch.go builds
+# the attributes for a missing object as Verb "create" with Name set - `create` for one
+# that does not exist yet. resourceNames constrains that named check, so `create` here
+# lets server-side apply create exactly llm/inkling-deleuze of that kind: a POST to the
+# collection has no name at authorization time, so a rule carrying resourceNames cannot
+# authorize it. Both verbs are real write rights; kubernetes has no dry-run-only
+# authorization.
+# Scope: four names in one namespace, no list/watch. `create` is on one rule only - the
+# record this deployment adds - while the three existing records stay get+patch. Reads
+# are already allowed for this identity by opencode-investigator, so this Role does not
+# limit enumeration; and no pod rights are granted directly, though patching an
+# InferenceService steers the pods its controller creates.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -57,7 +59,7 @@ rules:
   - apiGroups: [litellm.home-operations.com]
     resources: [litellmmodels]
     resourceNames: [inkling-deleuze]
-    verbs: [get, patch]
+    verbs: [get, patch, create]
   - apiGroups: [litellm.home-operations.com]
     resources: [litellmvirtualkeys]
     resourceNames: [hermes, opencode]
