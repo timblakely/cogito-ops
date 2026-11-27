@@ -19,9 +19,10 @@ spec:
   # a runaway agent loop, not an allowance.
   maxBudget: "1"
   budgetDuration: 30d
-  # One agent can fan out subagents; a small ceiling keeps that queuing at the
-  # proxy with clean per-key 429s instead of stacking timeouts on the backend.
-  maxParallelRequests: 4
+  # Match the local Radiance fleet's eight active-sequence slots so a coordinator
+  # and its subagents can use the backend capacity. This per-key ceiling does not
+  # reserve those slots: Hermes and other clients share the same runtime.
+  maxParallelRequests: 8
   models:
     # Chat-capable local aliases, mirroring the workstation Hermes `hermes` key
     # so the cluster OpenCode picker offers the same models as the laptop. All

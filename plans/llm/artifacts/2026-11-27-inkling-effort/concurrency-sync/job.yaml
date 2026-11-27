@@ -1,0 +1,61 @@
+# One-time reconciliation of an existing key, never included in GitOps resources.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: opencode-concurrency-sync
+spec:
+  activeDeadlineSeconds: 120
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 0
+  template:
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: sync
+          image: docker.io/library/python:3.13-slim
+          command: [python3, -u, /script/sync.py]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: script
+              mountPath: /script
+              readOnly: true
+            - name: credentials
+              mountPath: /credentials
+              readOnly: true
+      volumes:
+        - name: script
+          configMap:
+            name: opencode-concurrency-sync
+        - name: credentials
+          projected:
+            defaultMode: 0440
+            sources:
+              - secret:
+                  name: litellm-key-opencode
+                  items:
+                    - key: api-key
+                      path: opencode
+              - secret:
+                  name: litellm-secrets
+                  items:
+                    - key: PROXY_MASTER_KEY
+                      path: admin
