@@ -1,0 +1,62 @@
+# One-time verification only; not included in the cluster's GitOps tree.
+# Projects only the two existing consumer keys, never the runtime/admin key.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: inkling-effort-probe
+spec:
+  activeDeadlineSeconds: 1800
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 0
+  template:
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: probe
+          image: docker.io/library/python:3.13-slim
+          command: [python3, -u, /probe/probe_efforts.py]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: script
+              mountPath: /probe
+              readOnly: true
+            - name: keys
+              mountPath: /etc/litellm/keys
+              readOnly: true
+      volumes:
+        - name: script
+          configMap:
+            name: inkling-effort-probe
+        - name: keys
+          projected:
+            defaultMode: 0440
+            sources:
+              - secret:
+                  name: litellm-key-hermes
+                  items:
+                    - key: api-key
+                      path: hermes
+              - secret:
+                  name: litellm-key-opencode
+                  items:
+                    - key: api-key
+                      path: opencode

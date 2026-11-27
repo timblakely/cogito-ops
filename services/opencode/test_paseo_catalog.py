@@ -25,7 +25,19 @@ def embedded_config(filename, key):
     return json.loads(yaml.safe_load((APP / filename).read_text())["data"][key])
 
 
+def variant_ids(model):
+    generated = model.get("capabilities", {}).get("reasoning", {}).get("effort", [])
+    explicit = [variant["id"] for variant in model.get("variants", [])]
+    return list(dict.fromkeys([*generated, *explicit]))
+
+
 class PaseoCatalogTests(unittest.TestCase):
+    def test_explicit_variants_extend_and_override_generated_variants(self):
+        self.assertEqual(variant_ids({
+            "capabilities": {"reasoning": {"effort": ["low", "high"]}},
+            "variants": [{"id": "high"}, {"id": "max"}],
+        }), ["low", "high", "max"])
+
     def test_managed_genui_and_native_tools_are_enabled_at_fresh_boot(self):
         paseo = embedded_config("paseo-config.yaml", "config.json")
         self.assertTrue(paseo.get("pluginsEnabled", False))
@@ -54,13 +66,10 @@ class PaseoCatalogTests(unittest.TestCase):
                     sum(model.get("isDefault", False) for model in models), 1)
                 for model in models:
                     with self.subTest(model=model["id"]):
-                        # OpenCode v2 generates variants from effort, not toggle
-                        # support.
-                        efforts = expected[model["id"]]["capabilities"].get(
-                            "reasoning", {}).get("effort", [])
+                        ids = variant_ids(expected[model["id"]])
                         self.assertIn("thinkingOptions", model)
                         options = model["thinkingOptions"]
-                        self.assertEqual([option["id"] for option in options], efforts)
+                        self.assertEqual([option["id"] for option in options], ids)
                         self.assertTrue(all(option["label"].strip() for option in options))
 
     def test_worker_entry_is_the_one_that_drops_the_paseo_catalog(self):

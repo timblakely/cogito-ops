@@ -72,6 +72,10 @@ data:
         "supported_efforts": [],
         "mandatory": true
       },
+      "inkling-deleuze": {
+        "supported_efforts": ["none", "minimal", "low", "medium", "high", "xhigh", "max"],
+        "mandatory": true
+      },
       "google/gemma-4-12b-it": {
         "supported_efforts": ["none"],
         "mandatory": false
@@ -116,20 +120,13 @@ data:
   # google/gemma-4-12b-it: same shape - none -> 0 chars, xhigh ~ omitted. ->
   # ["none"].
   #
-  # inkling-deleuze (Thinking Machines' Inkling 2 Mini, IQR-V4 + DFlash2, the
-  # radiance 2.3.0 fleet entry `inkling-2-mini`) is DELIBERATELY ABSENT from the
-  # JSON above, and that absence is the honest answer rather than an oversight:
-  # every local entry here is derived from live probes of the backing runtime, and
-  # nobody has read this entry's /v1/models or /admin/fleet banner yet, or sent it
-  # a reasoning_effort. What is expected, from the container card and the arch's
-  # chat template (which carries a thinking channel), is `"supported_efforts": [],
-  # "mandatory": true` - the same wire as glimmer-deleuze and heretic-deleuze above
-  # - but an unprobed ladder is a control that silently does nothing, and adding a
-  # model to this document publishes it to every capability consumer through
-  # /caps/v1/models. Add it in a change that carries the probe: read /v1/models
-  # while the entry is resident (reasoning true? reasoning_efforts null or a
-  # list?), then send one request per level the engine names and compare
-  # reasoning_content length, as the glimmer-deleuze note above documents.
+  # Inkling 2 Mini (radiance 2.3.0): upstream chat_template.jinja maps none=0,
+  # minimal=0.1, low=0.2, medium=0.7, high=0.9 (default), xhigh/max=0.99.
+  # Both consumer keys returned the matching conditioning value for every level;
+  # see plans/llm/artifacts/2026-11-27-inkling-effort/probe-results.json.
+  # These self-reports corroborate rendering, not a runtime-code trace. `none`
+  # still produced reasoning_content: minimum conditioning is not a guaranteed
+  # off switch, so mandatory stays true. No effort is pinned in the proxy.
   #
   # A brand-new alias also needs the model-caps pod restarted AFTER the proxy is
   # serving it (see the caps publisher's held snapshot): it merges this file into a

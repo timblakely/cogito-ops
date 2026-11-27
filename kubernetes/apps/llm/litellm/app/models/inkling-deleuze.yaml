@@ -38,16 +38,24 @@
 #     gfx1201 from this fleet. Flip it to true only after a probe on this entry
 #     answers correctly from image soft tokens with restartCount 0, as
 #     heretic-deleuze's 2026-11-20 probe did.
-#   - supportsFunctionCalling and supports_reasoning are the container card's
-#     claims (its own words: "The server speaks the OpenAI API ..., with tool
-#     calls, reasoning and image_url parts"; the arch's chat format carries a
-#     thinking channel), NOT measurements through this proxy. Prove them with one
-#     tool-call round trip and one `reasoning_content` observation on
-#     `inkling-deleuze` before agents rely on them.
-#   - model-caps is deliberately left uncurated for this name: the caps document
-#     states which reasoning_effort levels a model accepts, and nobody has
-#     probed what Inkling does with them. Unlisted means "unknown", which is the
-#     honest answer until a probe says otherwise.
+#   - supportsFunctionCalling is the container card's claim (its own words: "The
+#     server speaks the OpenAI API ..., with tool calls, reasoning and image_url
+#     parts"), NOT a measured round trip through this proxy. Prove it with one
+#     tool-call round trip before agents rely on it. The effort channel is
+#     corroborated through both consumer keys: all seven named levels and the
+#     omitted default returned the expected numeric conditioning value. Evidence:
+#     plans/llm/artifacts/2026-11-27-inkling-effort/probe-results.json.
+#     Self-reports corroborate rendering, not runtime code. `none` still produced
+#     reasoning_content, so it is minimum effort rather than guaranteed off.
+#   - model-caps IS curated for this name now, from the upstream Mini chat
+#     template (huggingface.co/thinkingmachines/Inkling-2-Mini, chat_template.jinja):
+#     none=0, minimal=0.1, low=0.2, medium=0.7, high=0.9 (the omitted default),
+#     xhigh=0.99, max=0.99 (an alias of xhigh, not a separate tier). `none` is
+#     minimum conditioning, NOT an off switch - the template injects
+#     "Thinking effort level: 0" and the model still reasons. The template ships
+#     no enable_thinking switch, so no off-switch level exists to advertise;
+#     mandatory stays true and levels stay optional (unpinned here on purpose,
+#     so clients choose). See ../model-caps.yaml for the caps ledger.
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:
@@ -74,6 +82,12 @@ spec:
       # it: the entry is cold until someone asks, and it displaces the agent
       # lane on the way in.
       timeout: 1800
+      # Client-chosen reasoning_effort is forwarded (unpinned here on purpose:
+      # the alias publishes the full template ladder, so a server-side pin would
+      # silently override the client's choice - see the thinking_levels comment
+      # below). Same stanza form as the coder alias.
+      allowed_openai_params:
+      - reasoning_effort
   info:
     supportsVision: false
     supportsFunctionCalling: true
@@ -87,3 +101,20 @@ spec:
       output_cost_per_token: 0
       supports_reasoning: true
       deleuze_profile: radiance
+      # What a client may choose: the levels the upstream Mini chat template
+      # accepts (none=0, minimal=0.1, low=0.2, medium=0.7, high=0.9 [the omitted
+      # default], xhigh=0.99, max=0.99 [an alias of xhigh]). None is minimum
+      # conditioning, NOT an off switch - the template always injects a
+      # "Thinking effort level: N" system message, without a hard-off control (see
+      # ../model-caps.yaml, curated from the template, with live corroboration
+      # recorded at plans/llm/artifacts/2026-11-27-inkling-effort/). Reads by the
+      # pi llm-proxy-refresh extension; clients should clamp to this list and
+      # never send anything else.
+      thinking_levels:
+      - none
+      - minimal
+      - low
+      - medium
+      - high
+      - xhigh
+      - max

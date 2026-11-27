@@ -214,11 +214,9 @@ aliases.update(
         # the cheapest on the lane - 14.43 GiB to read, against heretic's
         # 33.37 GiB - and its own published numbers were measured on this
         # exact card pair (190/427/658 tok/s at 1/4/8 streams). No
-        # reasoning_override: the container's chat format carries a thinking
-        # channel and publishes no named effort level, so naming one on the
-        # wire is a control that does nothing (and its model-caps entry is
-        # deliberately absent until someone probes it - see
-        # ../../litellm/app/model-caps.yaml). No vision wiring either:
+        # reasoning_override: clients choose from the seven verified effort
+        # levels published by ../../litellm/app/model-caps.yaml. `none` means
+        # minimum effort, not a guaranteed hard-off switch. No vision wiring:
         # supportsVision is false on the alias until an image probe through
         # this entry survives, exactly as heretic-deleuze's 2026-11-20 probe
         # did.

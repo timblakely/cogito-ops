@@ -23,11 +23,14 @@ data:
   # reports them.
   #
   # Replacement models also replace thinking metadata; they do not inherit
-  # OpenCode's discovered variants. Mirror each model's reasoning.effort list
-  # as thinkingOptions so the picker exposes real, sendable variant ids.
-  # OpenCode v2 does not generate variants from reasoning.toggle, so do not
-  # invent Off/none options. Keep models without named variants empty.
-  # services/opencode/test_paseo_catalog.py guards this projection.
+  # OpenCode's discovered variants. Mirror each model's reasoning variants -
+  # the explicit `variants` array (inkling) or the capabilities.reasoning
+  # effort list (every other model) - as thinkingOptions so the picker
+  # exposes real, sendable variant ids. OpenCode v2 does not generate
+  # variants from reasoning.toggle, so do not invent Off/none options;
+  # `none` is a real effort level here (minimum, not a hard off), so it is
+  # listed like the others, not hidden as a toggle. Keep models without named
+  # variants empty. services/opencode/test_paseo_catalog.py guards this projection.
   #
   # `daemon.mcp` is spelled out instead of omitted: config.js resolves it as
   # `persisted.daemon?.mcp?.injectIntoAgents ?? false` at boot while the store
@@ -168,7 +171,15 @@ data:
                 "id": "cogito/inkling-deleuze",
                 "label": "inkling-deleuze",
                 "isDefault": false,
-                "thinkingOptions": []
+                "thinkingOptions": [
+                  { "id": "none", "label": "None (minimum effort)" },
+                  { "id": "minimal", "label": "Minimal" },
+                  { "id": "low", "label": "Low" },
+                  { "id": "medium", "label": "Medium" },
+                  { "id": "high", "label": "High" },
+                  { "id": "xhigh", "label": "Extra High" },
+                  { "id": "max", "label": "Maximum" }
+                ]
               },
               {
                 "id": "cogito/gemma-4-12b",
@@ -307,7 +318,15 @@ data:
                 "id": "cogito/inkling-deleuze",
                 "label": "inkling-deleuze",
                 "isDefault": false,
-                "thinkingOptions": []
+                "thinkingOptions": [
+                  { "id": "none", "label": "None (minimum effort)" },
+                  { "id": "minimal", "label": "Minimal" },
+                  { "id": "low", "label": "Low" },
+                  { "id": "medium", "label": "Medium" },
+                  { "id": "high", "label": "High" },
+                  { "id": "xhigh", "label": "Extra High" },
+                  { "id": "max", "label": "Maximum" }
+                ]
               },
               {
                 "id": "cogito/gemma-4-12b",

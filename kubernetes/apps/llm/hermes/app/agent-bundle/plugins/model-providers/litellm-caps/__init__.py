@@ -236,7 +236,12 @@ class LiteLLMCapsProfile(_Bundled if _Bundled is not None else ProviderProfile):
         allowed = [lvl for lvl in (str(e).strip().lower() for e in efforts) if lvl]
         enabled_set = [lvl for lvl in allowed if lvl != "none"]
         if self._looks_disabled(reasoning_config):
-            if "none" not in allowed:
+            if "none" in allowed:
+                # `none` is a real effort level on this ladder (the minimum,
+                # not a hard off): forward it explicitly instead of leaving
+                # the wire decision to the bundled parent.
+                top_level["reasoning_effort"] = "none"
+            else:
                 top_level.pop("reasoning_effort", None)
                 extra_body.pop("reasoning", None)
             return extra_body, top_level
