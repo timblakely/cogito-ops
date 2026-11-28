@@ -101,6 +101,12 @@ rules:
     resources: [pods, services, endpoints, configmaps, persistentvolumeclaims,
                 serviceaccounts]
     verbs: [get, list, watch, create, update, patch, delete]
+  # Capacity maintenance for Deleuze's retained model cache only. RBAC scopes
+  # the object and verb, not patch fields; the authorized operation is capacity-only.
+  - apiGroups: [""]
+    resources: [persistentvolumes]
+    resourceNames: [pvc-64dd51b2-5880-48fb-a1b6-1e4b64c08edd]
+    verbs: [patch]
   - apiGroups: [apps]
     resources: [deployments, deployments/scale, statefulsets, statefulsets/scale,
                 daemonsets, replicasets, replicasets/scale]
@@ -140,7 +146,7 @@ rules:
   - apiGroups: [kopiur.home-operations.com]
     resources: [repositories, snapshotpolicies, snapshotschedules, snapshots]
     verbs: [get, list, watch, create, update, patch, delete]
-  # No direct RBAC, Secret, node, namespace, PV, CRD, or database administration.
+  # No direct RBAC, Secret, node, namespace, general PV, CRD, or database administration.
   # Workload/Flux and controller writes imply indirect credential/data authority:
   # this is a trusted operations identity, not a sandbox.
 ---
