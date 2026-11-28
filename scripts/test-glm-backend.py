@@ -60,7 +60,7 @@ class BackendContracts(unittest.TestCase):
         self.assertEqual(set(fleet["groups"]["one-at-a-time"]["exclusive"]),
                          set(fleet["models"]))
         self.assertEqual(resource(path, "InferenceService")["spec"]["resources"]["memory"], "116Gi")
-        self.assertEqual(resource(path, "PersistentVolumeClaim")["spec"]["resources"]["requests"]["storage"], "256Gi")
+        self.assertEqual(resource(path, "PersistentVolumeClaim")["spec"]["resources"]["requests"]["storage"], "800Gi")
 
     def test_alias_does_not_invent_capabilities(self):
         spec = resource(LITELLM / "models/glm-deleuze.yaml", "LiteLLMModel")["spec"]
