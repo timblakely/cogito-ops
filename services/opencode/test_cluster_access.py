@@ -19,12 +19,20 @@ def role_at(path, name):
                 if d["kind"] == "ClusterRole" and d["metadata"]["name"] == name)
 
 
-def permits(role, verb, group, resource):
+def permits(role, verb, group, resource, name=None):
     def matches(items, value):
         return value in items or "*" in items
+
+    def names_match(rule):
+        names = rule.get("resourceNames") or []
+        if not names:
+            return True
+        return name is not None and name in names
+
     return any(matches(rule["verbs"], verb)
                and matches(rule["apiGroups"], group)
                and matches(rule["resources"], resource)
+               and names_match(rule)
                for rule in role["rules"])
 
 
@@ -87,6 +95,19 @@ class ClusterAccessTests(unittest.TestCase):
             for verb in ("create", "update", "patch", "delete"):
                 with self.subTest(group=group, resource=resource, denied=verb):
                     self.assertFalse(permits(self.writer, verb, group, resource))
+
+    def test_narrow_pv_patch_grant_is_named_patch_only(self):
+        # Approved narrow exception: the Flux MCP writer may `patch` exactly
+        # the Deleuze retained claim, and nothing else. General PV writes stay
+        # denied; see scripts/test-flux-pv-rbac.py for the rule-text contract.
+        PV = "pvc-64dd51b2-5880-48fb-a1b6-1e4b64c08edd"
+        self.assertTrue(permits(self.writer, "patch", "", "persistentvolumes", name=PV))
+        self.assertFalse(permits(self.writer, "patch", "", "persistentvolumes", name="some-unrelated-pv"))
+        for verb in ("create", "update", "delete"):
+            with self.subTest(verb=verb):
+                self.assertFalse(permits(self.writer, verb, "", "persistentvolumes", name=PV))
+        # An unnamed request is not allowed by the named rule.
+        self.assertFalse(permits(self.writer, "patch", "", "persistentvolumes"))
 
     def test_workload_identity_is_separate_and_kubeconfig_uses_token_file(self):
         hr = documents(APP / "helmrelease.yaml")[0]

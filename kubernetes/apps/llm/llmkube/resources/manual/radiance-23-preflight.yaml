@@ -15,14 +15,13 @@
 # drifts from the ConfigMap the lane mounts. Regenerate with
 # plans/llm/artifacts/2026-11-26-radiance-23-inkling-deleuze/gen_preflight.py (or
 # `kustomize build resources/`); what matters is byte equality, asserted by both:
-#   sha256 d8ed07ee0cffa3ee750b20a5c2580c6541da4d7438bb77cc5b7958e85c278d87
-#   24208 bytes, 6 entries:
+#   sha256 8ace78e82f22398142e65bbad7f99c8b3b283cb7d078fef924f1cabccbaa57de
+#   25717 bytes, 5 entries:
 #   qwen3.8-flash-next,
 #   muse-glimmer,
 #   flux-3-klein,
 #   gemma4-heretic,
-#   inkling-2-mini,
-#   glm-5.3-flash
+#   inkling-2-mini
 #
 # WHAT `radiance --check` PROVES at 2.3.0 (core/main.cpp, that branch unchanged
 # from 2.2.0): the file parses, every key is one this build accepts - unknown
@@ -59,21 +58,19 @@ metadata:
   namespace: llm
 data:
   radiance.yaml: |
-    # Radiance fleet config for the deleuze lane: six entries in one process,
+    # Radiance fleet config for the deleuze lane: five entries in one process,
     # mounted by InferenceService/radiance at engine 2.3.0. The key names come
     # from the 1.16.0 -> 2.1.0 translation per docs/MULTIMODEL.md §4.1 (tag
     # v2.1.0): every former flag is a same-named YAML key at its level; unknown
     # keys are fatal. The
     # entry name is the model id (served-model-name is gone, §4.3), so LiteLLM's
     # openai/qwen3.8-flash-next keeps resolving. kv-cache-dtype: fp8 no longer
-    # exists outside GLM-5.3-Flash -> i8 (GUIDE key table). The bearer key
+    # exists outside the retired GLM lane -> i8 (GUIDE key table). The bearer key
     # comes from 1Password via radiance-api-key; OIDC still guards the edge.
     server:
       host: "0.0.0.0"
       port: 8080
       api-key-env: RADIANCE_API_KEY
-      # GLM int8 latent attention must win before libr4d bf16 MLA rows.
-      kernels: glm,libr4d,libavx,libref
     memory:
       gpu-headroom-mib: 160
     scheduler:
@@ -180,10 +177,12 @@ data:
         # that pairing a placement key with 0 is fatal at startup (see the
         # pairing rule under gemma4-heretic).
         mm-max-patches: 0
-        # Small host prefix tier under the ~84Gi fleet cache budget. This is
-        # allocated with an engine, not permanently reserved by listing it here.
-        # GLM's 102Gi expert pool may force parked engines/copies to be unloaded;
-        # the next request then pays a cold load and re-prefill.
+        # Host tier for finished conversations, sized small on purpose: the
+        # container cgroup is 80 Gi and the fleet's pinned-host budget is
+        # min(3/4 of the host, 3/4 of the cgroup) = 60 Gi (6.5) - it was 36 Gi
+        # while the limit was 48 Gi - of which flashnext already reserves 16 Gi
+        # of expert pool + 8 Gi of its own prefix tier. Anything larger gets the
+        # copy refused under pressure.
         prefix-cache-mib: 4096
         # Hand the cards back to the agent lane once idle. A swap costs whoever
         # gets parked a full re-prefill, so the model that is NOT in use should
@@ -262,10 +261,11 @@ data:
         # context; we run max-model-len 65536, so that VRAM is not needed for KV.
         # Cost, from the same engine rule the ram check uses: encoders are NOT
         # sharded, so tp 2 loads a WHOLE tower per rank - 1.07 GiB on EACH card,
-        # not 0.53 each. Host RAM remains shared: `ram` would add 2 x 1.07 Gi
-        # of pinned towers while this engine is loaded, competing with snapshots,
-        # other parked engines and GLM's 102Gi expert cache. Keep the measured
-        # VRAM placement instead of spending the larger host cap twice:
+        # not 0.53 each. The reason to prefer vram here is host RAM: the fleet's
+        # pinned budget is 60 Gi (3/4 of the 80 Gi limit; 36 Gi until
+        # 2026-11-25) and it was tight enough that `ram` would have taken 2 x
+        # 1.07 Gi out of a pool flashnext already fills with 24 Gi and Muse with
+        # 4. The raise loosens that pressure without changing this decision:
         # KV does not need the VRAM at max-model-len 65536, vram is the engine
         # default anyway, and a fresh boot measurement would be required before
         # revisiting `ram`.
@@ -300,9 +300,10 @@ data:
         # after key acceptance and the entry list, so it builds no server plan and
         # opens no container (core/main.cpp). The lane's warm-up lines are the gate.
         vision-tower-placement: vram
-        # Bound this engine's host prefix tier to 4Gi. The ~84Gi fleet cache
-        # budget is dynamic; no promise that this and GLM's pools remain pinned
-        # together. Parked engines can unload when a requested load needs RAM.
+        # 60 Gi is the fleet's pinned-host budget (3/4 of the 80 Gi container
+        # limit; 36 Gi before 2026-11-25): flashnext reserves 24 Gi of it, Muse
+        # takes 4. 4 Gi keeps this entry under the cap instead of having its
+        # host copies refused under pressure.
         prefix-cache-mib: 4096
         # Hand the cards back when idle: this entry is not the one an agent
         # session lives on, and a swap re-prefills whoever gets displaced.
@@ -357,18 +358,15 @@ data:
         # in `one-at-a-time` below, so a request here displaces qwen3.8-flash-next
         # and the next flashnext request pays a reload plus a re-prefill of every
         # live conversation - the same deliberate lane switch muse- and
-        # heretic-deleuze are. The 2097152-token flex floor below reserves GPU
-        # KV for eight full 262k contexts; it is NOT a pinned-host reservation.
-        # Host demand is still more than this entry's 4Gi prefix tier: it keeps
-        # convolution-state snapshots, and auto sizing depends on context and
-        # available host RAM. Read `checkpoint slots` after the cap increase;
-        # neither its snapshot count nor parked GPU copies are a fixed 4Gi bill.
-        # Across all entries, configured host expert pools + prefix tiers sum
-        # to 138Gi (36Gi existing + 102Gi GLM), BEFORE snapshots, embeddings,
-        # staging and parked copies. The ~87Gi cache ledger cannot retain that
-        # whole set; the fleet releases parked snapshots/copies and unloads
-        # engines for requested loads (fleet.cpp make_host_room). Exclusive GPU
-        # placement alone does not free those pins. `checkpoint-draft-window: true`
+        # heretic-deleuze are. It takes no extra GPU and no extra host reservation
+        # beyond 4 Gi of prefix tier: the fleet's pinned-host reservations go 32
+        # -> 36 Gi, still under the 60 Gi ledger (docs MULTIMODEL 6.5: one budget
+        # covers parked weight copies, the KV host tier, expert pools and transit
+        # buffers). That 32 is flashnext's 24 - its `host-pool-mib: 16384` is the
+        # 2.x TOTAL, 8 GiB a rank, plus its own 8 GiB prefix tier - plus muse 4
+        # and heretic 4. Inkling keeps linear/convolution state per application,
+        # so the boot line `checkpoint slots` sizes its snapshot tier from what the
+        # cgroup leaves; read it on the first roll. `checkpoint-draft-window: true`
         # (new in 2.3.0) would restore the drafter's window on a prefix hit instead
         # of recomputing it, at one drafter window of PINNED host per slot -
         # deliberately left off until that cost is measured here, since prefix hits
@@ -407,41 +405,10 @@ data:
         vision-tower-placement: vram
         prefix-cache-mib: 4096
         ttl: 15m
-      glm-5.3-flash:
-        # TP2 is explicit in Radiance v2.3.0 GlmTp::world_ok and glm5next::declare;
-        # the publisher's four-card benchmark is not a hardware requirement.
-        # At two ranks each owns 144 whole experts. Memory-only placement makes
-        # all experts fit across VRAM + pinned RAM; no weights-disk-tier flag:
-        # v2.3.0's fleet claim still requires RAM+VRAM residency with disk enabled,
-        # and that flag also takes file staging out of the host pool.
-        # Stage the 170662334464B artifact BEFORE publishing this fleet, via
-        # manual/radiance-deleuze-stage-glm.yaml. SHA256:
-        # 1e20c4bc2f7ea7022f7bae9dd1ffa9873c2031b242d41e85d1ac0a5016342687.
-        # Config-only repair trial, NOT a measured fit: estimated ~30.6Gi GPU
-        # claim/rank at batch 1024. Keep native context and one conversation;
-        # trade host prefix/snapshot reuse for weights, with explicit RAM embedding.
-        # 102Gi pools + 1.181640625Gi embedding + 1Gi bringup + actual host arenas
-        # must retain 8Gi in physical AND cgroup availability. Explicit RAM forbids
-        # fallback: late host reservation failure aborts before large pool pins;
-        # the combined reservation is checked again after the GPU grant. Require
-        # real placement/claim and short generation before availability claims.
-        # No drafter/images. Existing five entries and client defaults stay intact.
-        model: /models/radiance/glm53-flash-iqr-v4.rad
-        aliases: [glm]
-        tp: 2
-        tp-wire: exact
-        placement: expert_tiered
-        host-pool-mib: 104448
-        embedding-placement: ram
-        max-num-seqs: 1
-        max-model-len: 262144
-        max-num-batched-tokens: 1024
-        kv-cache-dtype: i8
-        num-speculative-tokens: 0
-        mm-max-patches: 0
-        prefix-cache-mib: 0
-        checkpoint-slots: 0
-        ttl: 15m
+        # The GLM lane was added in 3cc06b9f and retired 2026-11-28 before
+        # live acceptance: route, staged artifact, serving profile and
+        # client/key entries are all out of tree. An unmeasured re-add needs
+        # its own explicit capacity decision, not a quiet re-register.
     groups:
       # Measured, not guessed: /admin/fleet reports qwen3.8-flash-next at
       # 33487111208 B = 31.19 GiB PER CARD against the 31.3 GiB each R9700
@@ -465,7 +432,7 @@ data:
       # the candidate that could then share the cards.
       one-at-a-time:
         exclusive: [qwen3.8-flash-next, muse-glimmer, flux-3-klein, gemma4-heretic,
-                    inkling-2-mini, glm-5.3-flash]
+                    inkling-2-mini]
 ---
 apiVersion: batch/v1
 kind: Job
@@ -574,7 +541,7 @@ spec:
           readOnly: true
         resources:
           # Requests are what scheduling pays for, and --check allocates nothing.
-          # The LIMIT mirrors the lane's 116Gi anyway: 2.x derives the fleet's
+          # The LIMIT mirrors the lane's 80Gi anyway: 2.x derives the fleet's
           # pinned-host budget as 3/4 of the tightest memory cgroup the process
           # sits in (docs/MULTIMODEL.md 6.5), so anyone who later runs a mode that
           # does allocate gets the lane's answer here, not some other box's.
@@ -583,7 +550,7 @@ spec:
             memory: 4Gi
           limits:
             cpu: "8"
-            memory: 116Gi
+            memory: 80Gi
       volumes:
       - name: weights
         persistentVolumeClaim:
